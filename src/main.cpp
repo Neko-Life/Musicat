@@ -74,6 +74,86 @@ int main()
         else if (cmd == "invite") event.reply("https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=412353875008&scope=bot%20applications.commands");
         else if (cmd == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
         else if (cmd == "repo") event.reply("https://github.com/Neko-Life/Musicat");
+        else if (cmd == "pause")
+        {
+            auto v = event.from->get_voice(event.msg.guild_id);
+            if (v && v->voiceclient->is_playing())
+            {
+                try
+                {
+                    auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+                    if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
+                }
+                catch (const char* e)
+                {
+                    return event.reply("You're not in a voice channel");
+                }
+                v->voiceclient->pause_audio(true);
+                event.reply("Paused");
+            }
+            else event.reply("I'm not playing anything");
+        }
+        else if (cmd == "resume")
+        {
+            auto v = event.from->get_voice(event.msg.guild_id);
+            if (v)
+            {
+                if (v->voiceclient->is_paused())
+                {
+                    try
+                    {
+                        auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+                        if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
+                    }
+                    catch (const char* e)
+                    {
+                        return event.reply("You're not in a voice channel");
+                    }
+                    v->voiceclient->pause_audio(false);
+                    event.reply("Resumed");
+                }
+                else event.reply("I'm playing right now");
+            }
+            else event.reply("I'm not in any voice channel");
+        }
+        else if (cmd == "stop")
+        {
+            auto v = event.from->get_voice(event.msg.guild_id);
+            if (v && (v->voiceclient->is_playing() || v->voiceclient->is_paused()))
+            {
+                try
+                {
+                    auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+                    if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
+                }
+                catch (const char* e)
+                {
+                    return event.reply("You're not in a voice channel");
+                }
+                v->voiceclient->stop_audio();
+                event.reply("Stopped");
+            }
+            else event.reply("I'm not playing anything right now");
+        }
+        else if (cmd == "skip")
+        {
+            auto v = event.from->get_voice(event.msg.guild_id);
+            if (v)
+            {
+                try
+                {
+                    auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+                    if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
+                }
+                catch (const char* e)
+                {
+                    return event.reply("You're not in a voice channel");
+                }
+                v->voiceclient->skip_to_next_marker();
+                event.reply("Skipped");
+            }
+            else event.reply("I'm not in vc right now");
+        }
         else if (cmd == "play")
         {
             dpp::guild* g = dpp::find_guild(event.msg.guild_id);
