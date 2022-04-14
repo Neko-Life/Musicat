@@ -1,0 +1,8 @@
+libs
+.vscode
+build
+exe/music
+exe/Shasha
+exe/sha_conf.json
+ignore
+src/include/nlohmann
