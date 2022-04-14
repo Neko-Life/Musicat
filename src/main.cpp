@@ -76,8 +76,8 @@ int main()
         else if (cmdName == "why") event.reply("Why not");
         else if (cmdName == "hi") event.reply("HIII");
         else if (cmdName == "invite") event.reply("https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=412353875008&scope=bot%20applications.commands");
-        else if (cmdName == "support") event.reply("https://www.discord.gg/vpk2KyKHtu")
-        else if (cmdName == "repo") event.reply("https://github.com/Neko-Life/Musicat")
+        else if (cmdName == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
+        else if (cmdName == "repo") event.reply("https://github.com/Neko-Life/Musicat");
         else if (cmdName == "play")
         {
             dpp::guild* g = dpp::find_guild(event.msg.guild_id);
