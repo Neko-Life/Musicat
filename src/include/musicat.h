@@ -138,9 +138,11 @@ namespace mc
         if (v && v->voiceclient && v->voiceclient->is_ready())
         {
             printf("Streaming \"%s\" to %ld\n", fname.c_str(), v->voiceclient->server_id);
-            std::ifstream fs((string("music/") + fname).c_str());
-            if (!fs.is_open()) throw 2;
-            else fs.close();
+            {
+                std::ifstream fs((string("music/") + fname).c_str());
+                if (!fs.is_open()) throw 2;
+                else fs.close();
+            }
             FILE* fd = fopen((string("music/") + fname).c_str(), "rb");
 
             printf("Initializing buffer\n");
@@ -235,9 +237,9 @@ namespace mc
                     //     }
                     //     continue;
                     // }
-                    // /* Skip the opus tags */
-                    // if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
-                    //     continue;
+                    /* Skip the opus tags */
+                    if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
+                        continue;
 
                     /* Send the audio */
                     int samples = opus_packet_get_samples_per_frame(op.packet, 48000);

@@ -28,14 +28,10 @@ int main()
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    std::mutex dl_m;
-    std::mutex wd_m;
-    std::mutex c_m;
-    std::mutex dc_m;
+    std::mutex dl_m, wd_m, c_m, dc_m;
     std::condition_variable dl_cv;
 
-    std::map<uint64_t, uint64_t> connecting;
-    std::map<uint64_t, uint64_t> disconnecting;
+    std::map<uint64_t, uint64_t> connecting, disconnecting;
     std::map<uint64_t, string> waiting_vc_ready;
     std::map<string, uint64_t> waiting_file_download;
 
@@ -50,35 +46,35 @@ int main()
     {
         if (event.msg.author.is_bot()) return;
 
-        string cstr = string("^((?:")
-            .append(sha_settings.get_prefix(event.msg.guild_id))
-            .append("|<@\\!?")
-            .append(std::to_string(sha_id))
-            .append(">)\\s*)([^\\s]*)(\\s+)?(.*)");
-
-        std::regex re(cstr.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
-
-        auto reFlag = std::regex_constants::match_not_null | std::regex_constants::match_any;
-        std::smatch cm;
-        std::regex_search(event.msg.content, cm, re, reFlag);
-
-        if (!cm.size()) return;
-
-        string prefix = cm[1].str();
-        string cmdName = cm[2].str();
-        for (size_t s = 0; s < cmdName.length(); s++)
+        std::smatch content_regex_results;
         {
-            cmdName[s] = std::tolower(cmdName[s]);
+            string cstr = string("^((?:")
+                .append(sha_settings.get_prefix(event.msg.guild_id))
+                .append("|<@\\!?")
+                .append(std::to_string(sha_id))
+                .append(">)\\s*)([^\\s]*)(\\s+)?(.*)");
+            std::regex re(cstr.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
+            auto reFlag = std::regex_constants::match_not_null | std::regex_constants::match_any;
+            std::regex_search(event.msg.content, content_regex_results, re, reFlag);
         }
-        string fullArg = cm[4].str();
 
-        if (cmdName == "hello") event.reply("Hello there!!");
-        else if (cmdName == "why") event.reply("Why not");
-        else if (cmdName == "hi") event.reply("HIII");
-        else if (cmdName == "invite") event.reply("https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=412353875008&scope=bot%20applications.commands");
-        else if (cmdName == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
-        else if (cmdName == "repo") event.reply("https://github.com/Neko-Life/Musicat");
-        else if (cmdName == "play")
+        if (!content_regex_results.size()) return;
+
+        string prefix = content_regex_results[1].str();
+        string cmd = content_regex_results[2].str();
+        for (size_t s = 0; s < cmd.length(); s++)
+        {
+            cmd[s] = std::tolower(cmd[s]);
+        }
+        string cmd_args = content_regex_results[4].str();
+
+        if (cmd == "hello") event.reply("Hello there!!");
+        else if (cmd == "why") event.reply("Why not");
+        else if (cmd == "hi") event.reply("HIII");
+        else if (cmd == "invite") event.reply("https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=412353875008&scope=bot%20applications.commands");
+        else if (cmd == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
+        else if (cmd == "repo") event.reply("https://github.com/Neko-Life/Musicat");
+        else if (cmd == "play")
         {
             dpp::guild* g = dpp::find_guild(event.msg.guild_id);
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcuser;
@@ -115,7 +111,7 @@ int main()
             {
                 if (vcclient.second.size() > 1)
                 {
-                    for (auto& r : vcclient.second)
+                    for (auto r : vcclient.second)
                     {
                         auto u = dpp::find_user(r.second.user_id);
                         if (!u)
@@ -144,16 +140,17 @@ int main()
                 vcclient_cont = false;
                 if (v)
                 {
+                    printf("Disconnecting as no member in vc: %ld\n", event.msg.guild_id);
                     event.from->disconnect_voice(event.msg.guild_id);
                     disconnecting[event.msg.guild_id] = vcclient.first->id;
                 }
             }
 
-            if (fullArg.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
+            if (cmd_args.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
             event.reply("Searching...");
 
-            auto result = yt_search(fullArg).trackResults().front();
+            auto result = yt_search(cmd_args).trackResults().front();
             string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
             event.reply(string("Added: ") + result.title());
 
@@ -162,25 +159,30 @@ int main()
                 connecting[event.msg.guild_id] = vcuser.first->id;
                 waiting_vc_ready[event.msg.guild_id] = fname;
             }
-            if (v)
-            {
-                if (!v->is_ready())
-                {
-                    printf("Set because not ready\n");
-                    waiting_vc_ready[event.msg.guild_id] = fname;
-                }
-            }
+            // if (v)
+            // {
+            //     if (!v->is_ready())
+            //     {
+            //         printf("Set because not ready\n");
+            //         waiting_vc_ready[event.msg.guild_id] = fname;
+            //     }
+            // }
 
             auto download = [&dl_cv, &waiting_file_download, &dl_m](string fname, string url, dpp::snowflake guild_id) {
-                std::lock_guard<std::mutex> lk(dl_m);
-                waiting_file_download[fname] = guild_id;
+                {
+                    std::lock_guard<std::mutex> lk(dl_m);
+                    waiting_file_download[fname] = guild_id;
+                }
                 string cmd = string("yt-dlp -f 251 -o - \"") + url + string("\" | ffmpeg -i - -ar 48000 -b:a 128000 -ac 2 -sn -dn -c libopus -f ogg \"music/") + std::regex_replace(fname, std::regex("(\")"), "\\\"", std::regex_constants::match_any) + string("\"");
                 printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
                 printf("CMD: %s\n", cmd.c_str());
                 FILE* a = popen(cmd.c_str(), "w");
                 pclose(a);
-                waiting_file_download.erase(fname);
-                dl_cv.notify_one();
+                {
+                    std::lock_guard<std::mutex> lk(dl_m);
+                    waiting_file_download.erase(fname);
+                }
+                dl_cv.notify_all();
             };
 
             auto start_stream = [&dl_cv, &waiting_file_download, &c_m, &connecting, &disconnecting, &dc_m, &waiting_vc_ready, &dl_m, &wd_m](const dpp::message_create_t event, string fname) {
@@ -205,25 +207,31 @@ int main()
                         });
                     }
                 }
-                if (waiting_vc_ready.find(event.msg.guild_id) != waiting_vc_ready.end())
                 {
                     std::unique_lock<std::mutex> lk(wd_m);
-                    printf("Waiting for ready state\n");
-                    dl_cv.wait(lk, [&waiting_vc_ready, event]() {
-                        auto c = waiting_vc_ready.find(event.msg.guild_id) == waiting_vc_ready.end();
-                        printf("Checking for ready state: %d\n", c);
-                        return c;
-                    });
+                    auto a = waiting_vc_ready.find(event.msg.guild_id);
+                    if (a != waiting_vc_ready.end())
+                    {
+                        printf("Waiting for ready state\n");
+                        dl_cv.wait(lk, [&waiting_vc_ready, event]() {
+                            auto c = waiting_vc_ready.find(event.msg.guild_id) == waiting_vc_ready.end();
+                            printf("Checking for ready state: %d\n", c);
+                            return c;
+                        });
+                    }
                 }
-                if (waiting_file_download.find(fname) != waiting_file_download.end())
                 {
                     std::unique_lock<std::mutex> lk(dl_m);
-                    printf("Waiting for download\n");
-                    dl_cv.wait(lk, [&waiting_file_download, event, fname]() {
-                        auto c = waiting_file_download.find(fname) == waiting_file_download.end();
-                        printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", fname.c_str());
-                        return c;
-                    });
+                    auto a = waiting_file_download.find(fname);
+                    if (a != waiting_file_download.end())
+                    {
+                        printf("Waiting for download\n");
+                        dl_cv.wait(lk, [&waiting_file_download, event, fname]() {
+                            auto c = waiting_file_download.find(fname) == waiting_file_download.end();
+                            printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", fname.c_str());
+                            return c;
+                        });
+                    }
                 }
                 printf("Attempt to stream\n");
                 dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
@@ -263,7 +271,7 @@ int main()
             if (w != waiting_vc_ready.end())
             {
                 waiting_vc_ready.erase(w);
-                dl_cv.notify_one();
+                dl_cv.notify_all();
             }
         }
     });
@@ -281,7 +289,7 @@ int main()
                 if (a != disconnecting.end())
                 {
                     disconnecting.erase(event.state.guild_id);
-                    dl_cv.notify_one();
+                    dl_cv.notify_all();
                 }
             }
             mc::reset_voice_channel(event.from, event.state.guild_id);
@@ -295,7 +303,7 @@ int main()
                 if (a != connecting.end())
                 {
                     connecting.erase(event.state.guild_id);
-                    dl_cv.notify_one();
+                    dl_cv.notify_all();
                 }
             }
         }
