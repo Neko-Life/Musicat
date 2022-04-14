@@ -37,7 +37,7 @@ int main()
     std::map<uint64_t, uint64_t> connecting;
     std::map<uint64_t, uint64_t> disconnecting;
     std::map<uint64_t, string> waiting_vc_ready;
-    std::map<uint64_t, string> waiting_file_download;
+    std::map<string, uint64_t> waiting_file_download;
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -173,13 +173,13 @@ int main()
 
             auto download = [&dl_cv, &waiting_file_download, &dl_m](string fname, string url, dpp::snowflake guild_id) {
                 std::lock_guard<std::mutex> lk(dl_m);
-                waiting_file_download[guild_id] = fname;
+                waiting_file_download[fname] = guild_id;
                 string cmd = string("yt-dlp -f 251 -o - \"") + url + string("\" | ffmpeg -i - -ar 48000 -b:a 128000 -ac 2 -sn -dn -c libopus -f ogg \"music/") + std::regex_replace(fname, std::regex("(\")"), "\\\"", std::regex_constants::match_any) + string("\"");
                 printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
                 printf("CMD: %s\n", cmd.c_str());
                 FILE* a = popen(cmd.c_str(), "w");
                 pclose(a);
-                waiting_file_download.erase(guild_id);
+                waiting_file_download.erase(fname);
                 dl_cv.notify_one();
             };
 
@@ -215,13 +215,13 @@ int main()
                         return c;
                     });
                 }
-                if (waiting_file_download.find(event.msg.guild_id) != waiting_file_download.end())
+                if (waiting_file_download.find(fname) != waiting_file_download.end())
                 {
                     std::unique_lock<std::mutex> lk(dl_m);
                     printf("Waiting for download\n");
-                    dl_cv.wait(lk, [&waiting_file_download, event]() {
-                        auto c = waiting_file_download.find(event.msg.guild_id) == waiting_file_download.end();
-                        printf("Checking for download: %d\n", c);
+                    dl_cv.wait(lk, [&waiting_file_download, event, fname]() {
+                        auto c = waiting_file_download.find(fname) == waiting_file_download.end();
+                        printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", fname.c_str());
                         return c;
                     });
                 }
