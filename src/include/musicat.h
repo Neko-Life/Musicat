@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <chrono>
 #include <dpp/dpp.h>
 #include <fstream>
 #include <string>
@@ -137,6 +138,7 @@ namespace mc
     void stream(dpp::voiceconn* v, string fname) {
         if (v && v->voiceclient && v->voiceclient->is_ready())
         {
+            auto start_time = std::chrono::high_resolution_clock::now();
             printf("Streaming \"%s\" to %ld\n", fname.c_str(), v->voiceclient->server_id);
             {
                 std::ifstream fs((string("music/") + fname).c_str());
@@ -237,9 +239,9 @@ namespace mc
                     //     }
                     //     continue;
                     // }
-                    /* Skip the opus tags */
-                    if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
-                        continue;
+                    // /* Skip the opus tags */
+                    // if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
+                    //     continue;
 
                     /* Send the audio */
                     int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
@@ -253,6 +255,9 @@ namespace mc
             ogg_stream_clear(&os);
             ogg_sync_clear(&oy);
             v->voiceclient->insert_marker();
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto done = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+            printf("Done streaming for %ld microseconds\n", done.count());
         }
         else throw 1;
     }

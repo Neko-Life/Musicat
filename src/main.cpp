@@ -185,6 +185,11 @@ int main()
             catch (const char* e)
             {
                 vcclient_cont = false;
+                if (event.from->connecting_voice_channels.find(event.msg.guild_id) != event.from->connecting_voice_channels.end())
+                {
+                    printf("Disconnecting as not in vc but connected state still in cache: %ld\n", event.msg.guild_id);
+                    event.from->disconnect_voice(event.msg.guild_id);
+                }
             }
             dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
