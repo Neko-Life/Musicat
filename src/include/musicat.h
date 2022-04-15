@@ -258,7 +258,7 @@ namespace mc
             fclose(fd);
             ogg_stream_clear(&os);
             ogg_sync_clear(&oy);
-            v->voiceclient->insert_marker();
+            v->voiceclient->insert_marker(fname);
             auto end_time = std::chrono::high_resolution_clock::now();
             auto done = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
             printf("Done streaming for %ld microseconds\n", done.count());

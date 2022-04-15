@@ -28,12 +28,13 @@ int main()
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    std::mutex dl_m, wd_m, c_m, dc_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, wm_m;
     std::condition_variable dl_cv;
 
     std::map<uint64_t, uint64_t> connecting, disconnecting;
     std::map<uint64_t, string> waiting_vc_ready;
     std::map<string, uint64_t> waiting_file_download;
+    std::map<uint64_t, std::vector<string>> waiting_marker;
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -42,7 +43,7 @@ int main()
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
-    client.on_message_create([&disconnecting, &connecting, &c_m, &dc_m, &dl_cv, &dl_m, &wd_m, &client, &sha_settings, &sha_id, &waiting_vc_ready, &waiting_file_download](const dpp::message_create_t& event)
+    client.on_message_create([&wm_m, &waiting_marker, &disconnecting, &connecting, &c_m, &dc_m, &dl_cv, &dl_m, &wd_m, &client, &sha_settings, &sha_id, &waiting_vc_ready, &waiting_file_download](const dpp::message_create_t& event)
     {
         if (event.msg.author.is_bot()) return;
 
@@ -149,7 +150,10 @@ int main()
                 {
                     return event.reply("You're not in a voice channel");
                 }
-                v->voiceclient->skip_to_next_marker();
+                std::thread dc([](dpp::voiceconn* v) {
+                    v->voiceclient->skip_to_next_marker();
+                }, v);
+                dc.detach();
                 event.reply("Skipped");
             }
             else event.reply("I'm not in vc right now");
@@ -258,7 +262,7 @@ int main()
                     std::lock_guard<std::mutex> lk(dl_m);
                     waiting_file_download[fname] = guild_id;
                 }
-                string cmd = string("yt-dlp -f 251 -o - \"") + url + string("\" | ffmpeg -i - -ar 48000 -b:a 128000 -ac 2 -sn -dn -c libopus -f ogg \"music/") + std::regex_replace(fname, std::regex("(\")"), "\\\"", std::regex_constants::match_any) + string("\"");
+                string cmd = string("yt-dlp -f 251 -o - '") + url + string("' | ffmpeg -i - -ar 48000 -b:a 128000 -ac 2 -sn -dn -c libopus -f ogg 'music/") + std::regex_replace(fname, std::regex("(')"), "\\'", std::regex_constants::match_any) + string("'");
                 printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
                 printf("CMD: %s\n", cmd.c_str());
                 FILE* a = popen(cmd.c_str(), "w");
@@ -270,7 +274,7 @@ int main()
                 dl_cv.notify_all();
             };
 
-            auto start_stream = [&dl_cv, &waiting_file_download, &c_m, &connecting, &disconnecting, &dc_m, &waiting_vc_ready, &dl_m, &wd_m](const dpp::message_create_t event, string fname) {
+            auto start_stream = [&wm_m, &waiting_marker, &dl_cv, &waiting_file_download, &c_m, &connecting, &disconnecting, &dc_m, &waiting_vc_ready, &dl_m, &wd_m](const dpp::message_create_t event, string fname) {
                 {
                     std::unique_lock lk(dc_m);
                     auto a = disconnecting.find(event.msg.guild_id);
@@ -320,6 +324,24 @@ int main()
                 }
                 printf("Attempt to stream\n");
                 dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
+                {
+                    std::unique_lock<std::mutex> lk(wm_m);
+                    if (waiting_marker.find(event.msg.guild_id) == waiting_marker.end())
+                    {
+                        std::vector<string> a;
+                        waiting_marker.insert({ event.msg.guild_id, a });
+                    }
+                    waiting_marker[event.msg.guild_id].push_back(fname);
+                    dl_cv.wait(lk, [&waiting_marker, fname, event]() {
+                        return true;
+                        // auto l = waiting_marker.find(event.msg.guild_id);
+                        // for (int i = 0; i < (int)(l->second.size()); i++)
+                        //     if (!l->second.at(i).empty())
+                        //         if (l->second.at(i) == fname) return true;
+                        //         else return false;
+                        // return false;
+                    });
+                }
 
                 // if (!v)
                 try
@@ -391,6 +413,21 @@ int main()
                     dl_cv.notify_all();
                 }
             }
+        }
+    });
+
+    client.on_voice_track_marker([&wm_m, &dl_cv, &waiting_marker](const dpp::voice_track_marker_t& event) {
+        {
+            std::lock_guard<std::mutex> lk(wm_m);
+            printf("on_voice_track_marker\n");
+            std::vector<std::string> l = waiting_marker.find(event.voice_client->server_id)->second;
+            for (int i = 0; i < (int)(l.size()); i++)
+            {
+                printf("%s | %s\n", l.at(i).c_str(), event.track_meta.c_str());
+                if (l.at(i) == event.track_meta)
+                    l.erase(l.begin() + i);
+            }
+            dl_cv.notify_all();
         }
     });
 
