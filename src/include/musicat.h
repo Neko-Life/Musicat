@@ -152,11 +152,12 @@ namespace mc
             ogg_stream_state os;
             ogg_page og;
             ogg_packet op;
-            OpusHead header;
+            // OpusHead header;
             char* buffer;
 
             fseek(fd, 0L, SEEK_END);
-            size_t sz = ftell(fd);
+            size_t sz = ftell(fd) + BUFSIZ;
+            printf("SIZE_T: %ld\n", sz);
             rewind(fd);
 
             ogg_sync_init(&oy);
@@ -190,30 +191,33 @@ namespace mc
             }
 
             /* We must ensure that the ogg stream actually contains opus data */
-            if (!(op.bytes > 8 && !memcmp("OpusHead", op.packet, 8)))
-            {
-                fprintf(stderr, "Not an ogg opus stream.\n");
-                exit(1);
-            }
+            // if (!(op.bytes > 8 && !memcmp("OpusHead", op.packet, 8)))
+            // {
+            //     fprintf(stderr, "Not an ogg opus stream.\n");
+            //     exit(1);
+            // }
 
-            /* Parse the header to get stream info */
-            int err = opus_head_parse(&header, op.packet, op.bytes);
-            if (err)
-            {
-                fprintf(stderr, "Not a ogg opus stream\n");
-                exit(1);
-            }
-            /* Now we ensure the encoding is correct for Discord */
-            if (header.channel_count != 2 && header.input_sample_rate != 48000)
-            {
-                fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
-                exit(1);
-            }
+            // /* Parse the header to get stream info */
+            // int err = opus_head_parse(&header, op.packet, op.bytes);
+            // if (err)
+            // {
+            //     fprintf(stderr, "Not a ogg opus stream\n");
+            //     exit(1);
+            // }
+            // /* Now we ensure the encoding is correct for Discord */
+            // if (header.channel_count != 2 && header.input_sample_rate != 48000)
+            // {
+            //     fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
+            //     exit(1);
+            // }
 
             /* Now loop though all the pages and send the packets to the vc */
             while (ogg_sync_pageout(&oy, &og) == 1)
             {
-                ogg_stream_init(&os, ogg_page_serialno(&og));
+                while (ogg_stream_check(&os) != 0)
+                {
+                    ogg_stream_init(&os, ogg_page_serialno(&og));
+                }
 
                 if (ogg_stream_pagein(&os, &og) < 0)
                 {
