@@ -28,13 +28,22 @@ int main()
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    std::mutex dl_m, wd_m, c_m, dc_m, wm_m;
+    // Mutexes
+    // dl: waiting_file_download
+    // wd: waiting_vc_ready
+    // c: connecting
+    // dc: disconnecting
+    // wm: waiting_marker
+    // mp: manually_paused
+    std::mutex dl_m, wd_m, c_m, dc_m, wm_m, mp_m;
+    // Conditional variable, use notify_all
     std::condition_variable dl_cv;
 
     std::map<uint64_t, uint64_t> connecting, disconnecting;
     std::map<uint64_t, string> waiting_vc_ready;
     std::map<string, uint64_t> waiting_file_download;
     std::map<uint64_t, std::vector<string>> waiting_marker;
+    std::vector<uint64_t> manually_paused;
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -43,7 +52,7 @@ int main()
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
-    client.on_message_create([&wm_m, &waiting_marker, &disconnecting, &connecting, &c_m, &dc_m, &dl_cv, &dl_m, &wd_m, &client, &sha_settings, &sha_id, &waiting_vc_ready, &waiting_file_download](const dpp::message_create_t& event)
+    client.on_message_create([&mp_m, &manually_paused, &wm_m, &waiting_marker, &disconnecting, &connecting, &c_m, &dc_m, &dl_cv, &dl_m, &wd_m, &client, &sha_settings, &sha_id, &waiting_vc_ready, &waiting_file_download](const dpp::message_create_t& event)
     {
         if (event.msg.author.is_bot()) return;
 
@@ -78,7 +87,7 @@ int main()
         else if (cmd == "pause")
         {
             auto v = event.from->get_voice(event.msg.guild_id);
-            if (v && v->voiceclient->is_playing())
+            if (v && !v->voiceclient->is_paused())
             {
                 try
                 {
@@ -90,6 +99,17 @@ int main()
                     return event.reply("You're not in a voice channel");
                 }
                 v->voiceclient->pause_audio(true);
+                bool p = true;
+                {
+                    std::lock_guard<std::mutex> lk(mp_m);
+                    for (auto l = manually_paused.begin(); l != manually_paused.end(); l++)
+                        if (*(l.base()) == event.msg.guild_id)
+                        {
+                            p = false;
+                            break;
+                        }
+                    if (p) manually_paused.push_back(event.msg.guild_id);
+                }
                 event.reply("Paused");
             }
             else event.reply("I'm not playing anything");
@@ -111,6 +131,15 @@ int main()
                         return event.reply("You're not in a voice channel");
                     }
                     v->voiceclient->pause_audio(false);
+                    {
+                        std::lock_guard<std::mutex> lk(mp_m);
+                        for (auto l = manually_paused.begin(); l != manually_paused.end(); l++)
+                            if (*(l.base()) == event.msg.guild_id)
+                            {
+                                manually_paused.erase(l);
+                                break;
+                            }
+                    }
                     event.reply("Resumed");
                 }
                 else event.reply("I'm playing right now");
@@ -184,6 +213,7 @@ int main()
             }
 
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcclient;
+            // Whether client in vc and vcclient exist
             bool vcclient_cont = true;
             try { vcclient = mc::get_voice(g, sha_id); }
             catch (const char* e)
@@ -195,6 +225,8 @@ int main()
                     event.from->disconnect_voice(event.msg.guild_id);
                 }
             }
+
+            // Client voice conn
             dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
             {
@@ -213,7 +245,7 @@ int main()
                             catch (const dpp::rest_exception* e)
                             {
                                 printf("[ERROR(main.112)] Can't fetch user in VC: %ld\n", r.second.user_id);
-                                return;
+                                continue;
                             }
                         }
                         else if (u->is_bot()) continue;
@@ -233,6 +265,17 @@ int main()
                     event.from->disconnect_voice(event.msg.guild_id);
                     disconnecting[event.msg.guild_id] = vcclient.first->id;
                 }
+            }
+
+            if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0 && v->voiceclient->is_paused() && v->channel_id == vcuser.first->id)
+            {
+                {
+                    std::lock_guard<std::mutex> lk(mp_m);
+                    auto l = mc::vector_find(&manually_paused, event.msg.guild_id);
+                    if (l != manually_paused.end())
+                        manually_paused.erase(l);
+                }
+                v->voiceclient->pause_audio(false);
             }
 
             if (cmd_args.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
@@ -331,24 +374,24 @@ int main()
                 }
                 printf("Attempt to stream\n");
                 dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
-                {
-                    std::unique_lock<std::mutex> lk(wm_m);
-                    if (waiting_marker.find(event.msg.guild_id) == waiting_marker.end())
-                    {
-                        std::vector<string> a;
-                        waiting_marker.insert({ event.msg.guild_id, a });
-                    }
-                    waiting_marker[event.msg.guild_id].push_back(fname);
-                    dl_cv.wait(lk, [&waiting_marker, fname, event]() {
-                        return true;
-                        // auto l = waiting_marker.find(event.msg.guild_id);
-                        // for (int i = 0; i < (int)(l->second.size()); i++)
-                        //     if (!l->second.at(i).empty())
-                        //         if (l->second.at(i) == fname) return true;
-                        //         else return false;
-                        // return false;
-                    });
-                }
+                // {
+                //     std::unique_lock<std::mutex> lk(wm_m);
+                //     if (waiting_marker.find(event.msg.guild_id) == waiting_marker.end())
+                //     {
+                //         std::vector<string> a;
+                //         waiting_marker.insert({ event.msg.guild_id, a });
+                //     }
+                //     waiting_marker[event.msg.guild_id].push_back(fname);
+                //     dl_cv.wait(lk, [&waiting_marker, fname, event]() {
+                //         return true;
+                //         auto l = waiting_marker.find(event.msg.guild_id);
+                //         for (int i = 0; i < (int)(l->second.size()); i++)
+                //             if (!l->second.at(i).empty())
+                //                 if (l->second.at(i) == fname) return true;
+                //                 else return false;
+                //         return false;
+                //     });
+                // }
 
                 // if (!v)
                 try
@@ -393,9 +436,66 @@ int main()
     });
 
     /* yt-dlp -f 251 'https://www.youtube.com/watch?v=FcRJGHkpm8s' -o - | ffmpeg -i - -ar 48000 -ac 2 -sn -dn -c [opus|libopus|copy] -f opus - */
-    client.on_voice_state_update([&connecting, &c_m, &disconnecting, &dc_m, &sha_id, &waiting_vc_ready, &dl_cv, &wd_m](const dpp::voice_state_update_t& event) {
+    client.on_voice_state_update([&mp_m, &manually_paused, &connecting, &c_m, &disconnecting, &dc_m, &sha_id, &waiting_vc_ready, &dl_cv, &wd_m](const dpp::voice_state_update_t& event) {
         // printf("%ld JOIN/LEAVE %ld\n", event.state.user_id, event.state.channel_id);
-        if (event.state.user_id != sha_id) return;
+        // Non client's user code
+        if (event.state.user_id != sha_id)
+        {
+            dpp::voiceconn* v = event.from->get_voice(event.state.guild_id);
+            // Pause audio when no user listening in vc
+            if (v && v->channel_id && v->channel_id != event.state.channel_id && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0 && !v->voiceclient->is_paused())
+            {
+                std::lock_guard<std::mutex> lk(mp_m);
+                if (event.from && mc::vector_find(&manually_paused, event.state.guild_id) == manually_paused.end())
+                {
+                    try
+                    {
+                        auto voice = mc::get_voice_from_gid(event.state.guild_id, sha_id);
+                        // Whether there's human listening in the vc
+                        bool p = false;
+                        for (auto l : voice.second)
+                        {
+                            // This only check user in cache, if user not in cache then skip
+                            auto a = dpp::find_user(l.first);
+                            if (a)
+                            {
+                                if (!a->is_bot())
+                                {
+                                    p = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!p)
+                        {
+                            v->voiceclient->pause_audio(true);
+                            printf("Paused %ld as no user in vc\n", event.state.guild_id);
+                        }
+                    }
+                    catch (const char* e)
+                    {
+                        printf("ERROR(main.405) %s\n", e);
+                    }
+                }
+            }
+            else
+            {
+                if (v && v->channel_id && v->channel_id == event.state.channel_id && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0 && v->voiceclient->is_paused())
+                {
+                    std::lock_guard<std::mutex> lk(mp_m);
+                    // Whether the track paused by user
+                    auto l = mc::vector_find(&manually_paused, event.state.guild_id);
+                    if (l == manually_paused.end()) v->voiceclient->pause_audio(false);
+                }
+
+            }
+
+            // End non client's user code
+            return;
+        }
+
+        // Client user code -----------------------------------
+
         if (!event.state.channel_id)
         {
             {
@@ -425,20 +525,20 @@ int main()
         }
     });
 
-    client.on_voice_track_marker([&wm_m, &dl_cv, &waiting_marker](const dpp::voice_track_marker_t& event) {
-        {
-            std::lock_guard<std::mutex> lk(wm_m);
-            printf("on_voice_track_marker\n");
-            std::vector<std::string> l = waiting_marker.find(event.voice_client->server_id)->second;
-            for (int i = 0; i < (int)(l.size()); i++)
-            {
-                printf("%s | %s\n", l.at(i).c_str(), event.track_meta.c_str());
-                if (l.at(i) == event.track_meta)
-                    l.erase(l.begin() + i);
-            }
-            dl_cv.notify_all();
-        }
-    });
+    // client.on_voice_track_marker([&wm_m, &dl_cv, &waiting_marker](const dpp::voice_track_marker_t& event) {
+    //     {
+    //         std::lock_guard<std::mutex> lk(wm_m);
+    //         printf("on_voice_track_marker\n");
+    //         std::vector<std::string> l = waiting_marker.find(event.voice_client->server_id)->second;
+    //         for (int i = 0; i < (int)(l.size()); i++)
+    //         {
+    //             printf("%s | %s\n", l.at(i).c_str(), event.track_meta.c_str());
+    //             if (l.at(i) == event.track_meta)
+    //                 l.erase(l.begin() + i);
+    //         }
+    //         dl_cv.notify_all();
+    //     }
+    // });
 
     client.start(false);
     return 0;
