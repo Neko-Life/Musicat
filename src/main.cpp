@@ -262,7 +262,12 @@ int main()
                     std::lock_guard<std::mutex> lk(dl_m);
                     waiting_file_download[fname] = guild_id;
                 }
-                string cmd = string("yt-dlp -f 251 -o - '") + url + string("' | ffmpeg -i - -ar 48000 -b:a 128000 -ac 2 -sn -dn -c libopus -f ogg 'music/") + std::regex_replace(fname, std::regex("(')"), "\\'", std::regex_constants::match_any) + string("'");
+                string cmd = string("yt-dlp -f 251 -o - '") + url
+                    + string("' | ffmpeg -i - -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
+                    + std::regex_replace(fname,
+                        std::regex("(\\\\*')"), "'\\''",
+                        std::regex_constants::match_any)
+                    + string("'");
                 printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
                 printf("CMD: %s\n", cmd.c_str());
                 FILE* a = popen(cmd.c_str(), "w");
