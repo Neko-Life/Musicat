@@ -24,7 +24,7 @@ namespace mc
     using string = std::string;
 
     template <typename T>
-    auto vector_has(std::vector<T>* _vec, T _find) {
+    auto vector_find(std::vector<T>* _vec, T _find) {
         auto i = _vec->begin();
         for (; i != _vec->end();i++)
         {
@@ -54,12 +54,12 @@ namespace mc
         }
 
         void set_joining_vc(dpp::snowflake vc_id) {
-            if (mc::vector_has(&joining_list, vc_id) != joining_list.end()) return;
+            if (mc::vector_find(&joining_list, vc_id) != joining_list.end()) return;
             joining_list.emplace_back(vc_id);
         }
 
         void remove_joining_vc(dpp::snowflake vc_id) {
-            auto i = mc::vector_has(&joining_list, vc_id);
+            auto i = mc::vector_find(&joining_list, vc_id);
             if (i != joining_list.end())
             {
                 joining_list.erase(i);
