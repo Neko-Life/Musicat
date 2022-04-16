@@ -239,7 +239,9 @@ int main()
 
             event.reply("Searching...");
 
-            auto result = yt_search(cmd_args).trackResults().front();
+            auto searches = yt_search(cmd_args).trackResults();
+            if (!searches.size()) return event.reply("Can't find anything");
+            auto result = searches.front();
             string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
             event.reply(string("Added: ") + result.title());
 
@@ -264,8 +266,8 @@ int main()
                 }
                 string cmd = string("yt-dlp -f 251 -o - '") + url
                     + string("' | ffmpeg -i - -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
-                    + std::regex_replace(fname,
-                        std::regex("(\\\\*')"), "'\\''",
+                    + std::regex_replace(
+                        fname, std::regex("(')"), "'\\''",
                         std::regex_constants::match_any)
                     + string("'");
                 printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
@@ -356,6 +358,8 @@ int main()
                 catch (int e)
                 {
                     printf("ERROR_CODE: %d\n", e);
+                    if (e == 2) event.reply("Can't access file");
+                    else if (e == 1) event.reply("No connection");
                 }
             };
 
