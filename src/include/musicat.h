@@ -265,6 +265,20 @@ namespace mc
         }
         else throw 1;
     }
+
+    class exception {
+    private:
+        string message;
+
+    public:
+        exception(const char* _message) {
+            message = string(_message);
+        };
+
+        string what() {
+            return message;
+        };
+    };
 }
 
 #endif

@@ -1,11 +1,19 @@
 #include <filesystem>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "musicat.h"
 #include "yt-search.h"
+#include "sha_player.h"
 
 using json = nlohmann::json;
 using string = std::string;
-// const dpp::snowflake SHA_GID = 823176176641376296;
+
+bool running = true;
+
+void on_sigint(int code) {
+    printf("RECEIVED SIGINT\nCODE: %d\n", code);
+    running = false;
+}
 
 int main()
 {
@@ -44,6 +52,8 @@ int main()
     std::map<string, uint64_t> waiting_file_download;
     std::map<uint64_t, std::vector<string>> waiting_marker;
     std::vector<uint64_t> manually_paused;
+
+    Sha_Player_Manager* player_manager = new Sha_Player_Manager(&client);
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -99,15 +109,12 @@ int main()
                     return event.reply("You're not in a voice channel");
                 }
                 v->voiceclient->pause_audio(true);
-                bool p = true;
                 {
                     std::lock_guard<std::mutex> lk(mp_m);
-                    for (auto l = manually_paused.begin(); l != manually_paused.end(); l++)
-                        if (*(l.base()) == event.msg.guild_id)
-                        {
-                            p = false;
-                            break;
-                        }
+                    bool p = true;
+                    auto l = mc::vector_find(&manually_paused, event.msg.guild_id);
+                    if (l != manually_paused.end())
+                        p = false;
                     if (p) manually_paused.push_back(event.msg.guild_id);
                 }
                 event.reply("Paused");
@@ -133,12 +140,9 @@ int main()
                     v->voiceclient->pause_audio(false);
                     {
                         std::lock_guard<std::mutex> lk(mp_m);
-                        for (auto l = manually_paused.begin(); l != manually_paused.end(); l++)
-                            if (*(l.base()) == event.msg.guild_id)
-                            {
-                                manually_paused.erase(l);
-                                break;
-                            }
+                        auto l = mc::vector_find(&manually_paused, event.msg.guild_id);
+                        if (l != manually_paused.end())
+                            manually_paused.erase(l);
                     }
                     event.reply("Resumed");
                 }
@@ -228,6 +232,13 @@ int main()
 
             // Client voice conn
             dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
+            if (vcclient_cont && v && v->channel_id != vcclient.first->id)
+            {
+                vcclient_cont = false;
+                printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", event.msg.guild_id);
+                event.from->disconnect_voice(event.msg.guild_id);
+                disconnecting[event.msg.guild_id] = vcclient.first->id;
+            }
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
             {
                 if (vcclient.second.size() > 1)
@@ -508,7 +519,6 @@ int main()
                     dl_cv.notify_all();
                 }
             }
-            mc::reset_voice_channel(event.from, event.state.guild_id);
         }
         else
         {
@@ -540,6 +550,15 @@ int main()
     //     }
     // });
 
-    client.start(false);
+    // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
+
+    client.start(true);
+
+    signal(SIGINT, on_sigint);
+
+    while (running) sleep(1);
+
+    delete player_manager;
+
     return 0;
 }
