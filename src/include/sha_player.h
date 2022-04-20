@@ -43,15 +43,15 @@ public:
         return client;
     }
 
-    int play(std::string _url) {
+    int play(std::string id) {
         return 0;
     }
 
-    int add_track(bool _top) {
+    int add_track(YTrack track, bool top) {
         return 0;
     }
 
-    int skip(int _amount) {
+    int skip(int amount = 1) {
         return 0;
     }
 
@@ -59,7 +59,11 @@ public:
         return 0;
     }
 
-    int remove_track(int _pos, int _amount) {
+    int remove_track(int pos, int amount = 1) {
+        return 0;
+    }
+
+    int remove_track_by_user(dpp::snowflake user_id, int amount = -1) {
         return 0;
     }
 
@@ -67,7 +71,7 @@ public:
         return 0;
     }
 
-    int seek(int _pos, bool _abs) {
+    int seek(int pos, bool abs) {
         return 0;
     }
 
@@ -79,7 +83,7 @@ public:
         return 0;
     }
 
-    int search(std::string _query) {
+    int search(std::string query) {
         return 0;
     }
 
@@ -124,25 +128,25 @@ public:
     /**
      * @brief Create a player object if not exist and return player
      *
-     * @param _guild_id
+     * @param guild_id
      * @return Sha_Player*
      */
-    Sha_Player* create_player(dpp::snowflake _guild_id) {
-        auto l = players->find(_guild_id);
+    Sha_Player* create_player(dpp::snowflake guild_id) {
+        auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
-        Sha_Player* v = new Sha_Player(cluster, _guild_id);
-        players->insert({ _guild_id, v });
+        Sha_Player* v = new Sha_Player(cluster, guild_id);
+        players->insert({ guild_id, v });
         return v;
     }
 
     /**
      * @brief Get the player object, return NULL if not exist
      *
-     * @param _guild_id
+     * @param guild_id
      * @return Sha_Player*
      */
-    Sha_Player* get_player(dpp::snowflake _guild_id) {
-        auto l = players->find(_guild_id);
+    Sha_Player* get_player(dpp::snowflake guild_id) {
+        auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
         return NULL;
     }
@@ -150,17 +154,19 @@ public:
     /**
      * @brief Return false if guild doesn't have player in the first place
      *
-     * @param _guild_id
+     * @param guild_id
      * @return true
      * @return false
      */
-    bool delete_player(dpp::snowflake _guild_id) {
-        auto l = players->find(_guild_id);
+    bool delete_player(dpp::snowflake guild_id) {
+        auto l = players->find(guild_id);
         if (l == players->end()) return false;
         delete l->second;
         players->erase(l);
         return true;
     }
+
+    void handle_on_track_marker();
 };
 
 #endif
