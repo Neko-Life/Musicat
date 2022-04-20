@@ -167,6 +167,8 @@ public:
     }
 
     void handle_on_track_marker();
+
+    void handle_on_voice_ready();
 };
 
 #endif
