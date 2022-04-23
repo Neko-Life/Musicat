@@ -509,21 +509,21 @@ public:
         {
             std::thread tj([this](dpp::discord_voice_client* v, dpp::snowflake guild_id, string fname) {
                 bool timed_out = false;
-                std::thread tmt([this](bool* _v) {
-                    int _w = 30;
-                    while (_v && *_v == false && _w > 0)
-                    {
-                        sleep(1);
-                        --_w;
-                    }
-                    if (_w) return;
-                    if (_v)
-                    {
-                        *_v = true;
-                        this->dl_cv.notify_all();
-                    }
-                }, &timed_out);
-                tmt.detach();
+                // std::thread tmt([this](bool* _v) {
+                //     int _w = 30;
+                //     while (_v && *_v == false && _w > 0)
+                //     {
+                //         sleep(1);
+                //         --_w;
+                //     }
+                //     if (_w) return;
+                //     if (_v)
+                //     {
+                //         *_v = true;
+                //         this->dl_cv.notify_all();
+                //     }
+                // }, &timed_out);
+                // tmt.detach();
                 {
                     std::unique_lock lk(this->dc_m);
                     auto a = this->disconnecting.find(guild_id);
@@ -531,11 +531,11 @@ public:
                     {
                         this->dl_cv.wait(lk, [this, &guild_id, &timed_out]() {
                             auto t = this->disconnecting.find(guild_id);
-                            if (timed_out)
-                            {
-                                this->disconnecting.erase(t);
-                                return true;
-                            }
+                            // if (timed_out)
+                            // {
+                            //     this->disconnecting.erase(t);
+                            //     return true;
+                            // }
                             return t == this->disconnecting.end();
                         });
                     }
@@ -565,11 +565,11 @@ public:
                         printf("Waiting for ready state\n");
                         this->dl_cv.wait(lk, [this, &guild_id, &timed_out]() {
                             auto t = this->waiting_vc_ready.find(guild_id);
-                            if (timed_out)
-                            {
-                                this->waiting_vc_ready.erase(t);
-                                return true;
-                            }
+                            // if (timed_out)
+                            // {
+                            //     this->waiting_vc_ready.erase(t);
+                            //     return true;
+                            // }
                             auto c = t == this->waiting_vc_ready.end();
                             printf("Checking for ready state: %d\n", c);
                             return c;
@@ -584,11 +584,11 @@ public:
                         printf("Waiting for download\n");
                         this->dl_cv.wait(lk, [this, fname, &timed_out]() {
                             auto t = this->waiting_file_download.find(fname);
-                            if (timed_out)
-                            {
-                                this->waiting_file_download.erase(t);
-                                return true;
-                            }
+                            // if (timed_out)
+                            // {
+                            //     this->waiting_file_download.erase(t);
+                            //     return true;
+                            // }
                             auto c = t == this->waiting_file_download.end();
                             printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", fname.c_str());
                             return c;

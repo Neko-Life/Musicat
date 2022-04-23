@@ -255,6 +255,10 @@ int main()
                 v->voiceclient->pause_audio(false);
             }
 
+            auto op = player_manager->get_player(event.msg.guild_id);
+
+            if (op && v && v->voiceclient && op->queue->size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker();
+
             if (cmd_args.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
             event.reply("Searching...");
@@ -287,19 +291,22 @@ int main()
             }
             else test.close();
 
-            if (dling)
-            {
-                std::unique_lock<std::mutex> lk(player_manager->dl_m);
-                player_manager->dl_cv.wait(lk, [&player_manager, fname]() {
-                    return player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end();
-                });
-            }
-            auto p = player_manager->create_player(event.msg.guild_id);
-            Sha_Track t(result);
-            t.filename = fname;
-            t.user_id = event.msg.author.id;
-            p->add_track(t);
-            if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0) v->voiceclient->insert_marker();
+            std::thread dlt([&player_manager](dpp::voiceconn* v, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
+                if (dling)
+                {
+                    std::unique_lock<std::mutex> lk(player_manager->dl_m);
+                    player_manager->dl_cv.wait(lk, [&player_manager, fname]() {
+                        return player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end();
+                    });
+                }
+                auto p = player_manager->create_player(guild_id);
+                Sha_Track t(result);
+                t.filename = fname;
+                t.user_id = user_id;
+                p->add_track(t);
+                if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0) v->voiceclient->insert_marker();
+            }, v, dling, result, fname, event.msg.author.id, event.msg.guild_id);
+            dlt.detach();
         }
     });
 
