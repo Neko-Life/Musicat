@@ -251,7 +251,7 @@ int main()
                     if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
                         player_manager->stop_stream(guild_id);
 
-                    // FIXME: It WILL segvault if you wait a song until it ends and move to other vc and play another song that trigger this
+                    // FIXME: It WILL segvault (with gdb?) if you wait a song until it ends and move to other vc and play another song that trigger this
                     from->disconnect_voice(guild_id);
                     player_manager->disconnecting[guild_id] = vcclient.first->id;
                 }
