@@ -54,15 +54,6 @@ public:
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1) {
         if (v)
         {
-            try
-            {
-                auto u = mc::get_voice_from_gid(guild_id, user_id);
-                if (u.first->id != v->channel_id) throw mc::exception("You're not in my voice channel", 0);
-            }
-            catch (const char* e)
-            {
-                throw mc::exception("You're not in a voice channel", 1);
-            }
             v->voiceclient->skip_to_next_marker();
             return true;
         }
@@ -216,6 +207,16 @@ public:
         return true;
     }
 
+    /**
+     * @brief Manually pause guild player
+     *
+     * @param from
+     * @param guild_id
+     * @param user_id
+     * @return true
+     * @return false
+     * @throw mc::exception
+     */
     bool pause(dpp::discord_client* from, dpp::snowflake guild_id, dpp::snowflake user_id) {
         auto p = get_player(guild_id);
         if (!p) return false;
@@ -223,20 +224,38 @@ public:
         if (a)
         {
             std::lock_guard<std::mutex> lk(mp_m);
-            bool p = true;
-            auto l = mc::vector_find(&this->manually_paused, guild_id);
-            if (l != this->manually_paused.end()) p = false;
-            if (p) this->manually_paused.push_back(guild_id);
+            if (mc::vector_find(&this->manually_paused, guild_id) == this->manually_paused.end())
+                this->manually_paused.push_back(guild_id);
         }
         return a;
     }
 
+    /**
+     * @brief Skip currently playing song
+     *
+     * @param v
+     * @param guild_id
+     * @param user_id
+     * @return true
+     * @return false
+     * @throw mc::exception
+     */
     bool skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id) {
         auto p = get_player(guild_id);
         if (!p) return false;
+        try
+        {
+            auto u = mc::get_voice_from_gid(guild_id, user_id);
+            if (u.first->id != v->channel_id) throw mc::exception("You're not in my voice channel", 0);
+        }
+        catch (const char* e)
+        {
+            throw mc::exception("You're not in a voice channel", 1);
+        }
         {
             std::lock_guard<std::mutex> lk(this->sq_m);
-            this->stop_queue.push_back(guild_id);
+            if (mc::vector_find(&this->stop_queue, guild_id) == this->stop_queue.end())
+                this->stop_queue.push_back(guild_id);
         }
         bool a = p->skip(v, user_id);
         return a;
@@ -455,8 +474,8 @@ public:
         else throw 1;
     }
 
-    void play(dpp::discord_voice_client* v, dpp::snowflake guild_id, string fname) {
-        std::thread tj([this](dpp::discord_voice_client* v, dpp::snowflake guild_id, string fname) {
+    void play(dpp::discord_voice_client* v, string fname) {
+        std::thread tj([this](dpp::discord_voice_client* v, string fname) {
             printf("Attempt to stream\n");
             // dpp::voiceconn* v = from->get_voice(guild_id);
             // {
@@ -490,7 +509,7 @@ public:
                 else if (e == 1) throw mc::exception("No connection", 1);
             }
 
-        }, v, guild_id, fname);
+        }, v, fname);
         tj.detach();
     }
 
@@ -502,13 +521,15 @@ public:
             std::lock_guard<std::mutex> lk(p->q_m);
             if (p->queue->size() == 0) { printf("NO SIZE\n");return; }
             s = p->queue->front();
+            // TODO: Do stuff according to loop mode
             p->queue->pop_front();
         }
         // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
         if (event.voice_client && event.voice_client->get_tracks_remaining() == 0)
         {
-            std::thread tj([this](dpp::discord_voice_client* v, dpp::snowflake guild_id, string fname) {
+            std::thread tj([this](dpp::discord_voice_client* v, string fname) {
                 bool timed_out = false;
+                auto guild_id = v->server_id;
                 // std::thread tmt([this](bool* _v) {
                 //     int _w = 30;
                 //     while (_v && *_v == false && _w > 0)
@@ -596,8 +617,8 @@ public:
                     }
                 }
                 if (timed_out) throw mc::exception("Operation took too long, aborted...", 0);
-                this->play(v, guild_id, fname);
-            }, event.voice_client, event.voice_client->server_id, s.filename);
+                this->play(v, fname);
+            }, event.voice_client, s.filename);
             tj.detach();
         }
         else printf("TRACK SIZE\n");
@@ -607,10 +628,9 @@ public:
         {
             std::lock_guard<std::mutex> lk(this->wd_m);
             printf("on_voice_ready\n");
-            auto w = this->waiting_vc_ready.find(event.voice_client->server_id);
-            if (w != this->waiting_vc_ready.end())
+            if (this->waiting_vc_ready.find(event.voice_client->server_id) != this->waiting_vc_ready.end())
             {
-                this->waiting_vc_ready.erase(w);
+                this->waiting_vc_ready.erase(event.voice_client->server_id);
                 this->dl_cv.notify_all();
             }
         }
@@ -621,7 +641,7 @@ public:
             event.voice_client->insert_marker();
             printf("INSERTED\n");
         }
-    };
+    }
 
     void handle_on_voice_state_update(const dpp::voice_state_update_t& event) {
         // Non client's user code
@@ -629,10 +649,15 @@ public:
         {
             dpp::voiceconn* v = event.from->get_voice(event.state.guild_id);
             // Pause audio when no user listening in vc
-            if (v && v->channel_id && v->channel_id != event.state.channel_id && v->voiceclient && v->voiceclient->get_tracks_remaining() > 1 && !v->voiceclient->is_paused())
+            if (v && v->channel_id
+                && v->channel_id != event.state.channel_id
+                && v->voiceclient
+                && v->voiceclient->get_tracks_remaining() > 0
+                && !v->voiceclient->is_paused())
             {
                 std::lock_guard<std::mutex> lk(this->mp_m);
-                if (event.from && mc::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
+                if (event.from
+                    && mc::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
                 {
                     try
                     {
@@ -666,12 +691,16 @@ public:
             }
             else
             {
-                if (v && v->channel_id && v->channel_id == event.state.channel_id && v->voiceclient && v->voiceclient->get_tracks_remaining() > 1 && v->voiceclient->is_paused())
+                if (v && v->channel_id
+                    && v->channel_id == event.state.channel_id
+                    && v->voiceclient
+                    && v->voiceclient->get_tracks_remaining() > 0
+                    && v->voiceclient->is_paused())
                 {
                     std::lock_guard<std::mutex> lk(this->mp_m);
-                    // Whether the track paused by user
-                    auto l = mc::vector_find(&this->manually_paused, event.state.guild_id);
-                    if (l == this->manually_paused.end()) v->voiceclient->pause_audio(false);
+                    // Whether the track paused automatically
+                    if (mc::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
+                        v->voiceclient->pause_audio(false);
                 }
 
             }
@@ -687,8 +716,7 @@ public:
             {
                 std::lock_guard lk(this->dc_m);
                 printf("on_voice_state_leave\n");
-                auto a = this->disconnecting.find(event.state.guild_id);
-                if (a != this->disconnecting.end())
+                if (this->disconnecting.find(event.state.guild_id) != this->disconnecting.end())
                 {
                     this->disconnecting.erase(event.state.guild_id);
                     this->dl_cv.notify_all();
@@ -700,8 +728,7 @@ public:
             {
                 std::lock_guard lk(this->c_m);
                 printf("on_voice_state_join\n");
-                auto a = this->connecting.find(event.state.guild_id);
-                if (a != this->connecting.end())
+                if (this->connecting.find(event.state.guild_id) != this->connecting.end())
                 {
                     this->connecting.erase(event.state.guild_id);
                     this->dl_cv.notify_all();
