@@ -52,8 +52,9 @@ public:
     }
 
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1) {
-        if (v)
+        if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
         {
+            v->voiceclient->pause_audio(false);
             v->voiceclient->skip_to_next_marker();
             return true;
         }
@@ -192,6 +193,32 @@ public:
         return NULL;
     }
 
+    void reconnect(dpp::discord_client* from, dpp::snowflake guild_id) {
+        {
+            std::unique_lock lk(this->dc_m);
+            auto a = this->disconnecting.find(guild_id);
+            if (a != this->disconnecting.end())
+            {
+                this->dl_cv.wait(lk, [this, &guild_id]() {
+                    auto t = this->disconnecting.find(guild_id);
+                    return t == this->disconnecting.end();
+                });
+            }
+        }
+        {
+            std::unique_lock lk(this->c_m);
+            auto a = this->connecting.find(guild_id);
+            if (a != this->connecting.end())
+            {
+                from->connect_voice(guild_id, a->second);
+                this->dl_cv.wait(lk, [this, &guild_id]() {
+                    auto t = this->connecting.find(guild_id);
+                    return t == this->connecting.end();
+                });
+            }
+        }
+    }
+
     /**
      * @brief Return false if guild doesn't have player in the first place
      *
@@ -230,6 +257,14 @@ public:
         return a;
     }
 
+    void stop_stream(dpp::snowflake guild_id) {
+        {
+            std::lock_guard<std::mutex> lk(this->sq_m);
+            if (mc::vector_find(&this->stop_queue, guild_id) == this->stop_queue.end())
+                this->stop_queue.push_back(guild_id);
+        }
+    }
+
     /**
      * @brief Skip currently playing song
      *
@@ -252,11 +287,8 @@ public:
         {
             throw mc::exception("You're not in a voice channel", 1);
         }
-        {
-            std::lock_guard<std::mutex> lk(this->sq_m);
-            if (mc::vector_find(&this->stop_queue, guild_id) == this->stop_queue.end())
-                this->stop_queue.push_back(guild_id);
-        }
+        if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
+            this->stop_stream(guild_id);
         bool a = p->skip(v, user_id);
         return a;
     }
@@ -545,39 +577,6 @@ public:
                 //     }
                 // }, &timed_out);
                 // tmt.detach();
-                {
-                    std::unique_lock lk(this->dc_m);
-                    auto a = this->disconnecting.find(guild_id);
-                    if (a != this->disconnecting.end())
-                    {
-                        this->dl_cv.wait(lk, [this, &guild_id, &timed_out]() {
-                            auto t = this->disconnecting.find(guild_id);
-                            // if (timed_out)
-                            // {
-                            //     this->disconnecting.erase(t);
-                            //     return true;
-                            // }
-                            return t == this->disconnecting.end();
-                        });
-                    }
-                }
-                // {
-                //     std::unique_lock lk(this->c_m);
-                //     auto a = this->connecting.find(guild_id);
-                //     if (a != this->connecting.end())
-                //     {
-                //         from->connect_voice(guild_id, a->second);
-                //         this->dl_cv.wait(lk, [this, &guild_id, &timed_out]() {
-                //             auto t = this->connecting.find(guild_id);
-                //             if (timed_out)
-                //             {
-                //                 this->connecting.erase(t);
-                //                 return true;
-                //             }
-                //             return t == this->connecting.end();
-                //         });
-                //     }
-                // }
                 {
                     std::unique_lock<std::mutex> lk(this->wd_m);
                     auto a = this->waiting_vc_ready.find(guild_id);

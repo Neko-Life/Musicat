@@ -248,6 +248,10 @@ int main()
                 if (v && cmd_args.length() > 0)
                 {
                     printf("Disconnecting as no member in vc: %ld\n", guild_id);
+                    if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
+                        player_manager->stop_stream(guild_id);
+
+                    // FIXME: It WILL segvault if you wait a song until it ends and move to other vc and play another song that trigger this
                     from->disconnect_voice(guild_id);
                     player_manager->disconnecting[guild_id] = vcclient.first->id;
                 }
@@ -280,8 +284,8 @@ int main()
 
             if (vcclient_cont == false || !v)
             {
-                event.from->connect_voice(event.msg.guild_id, vcuser.first->id);
                 player_manager->connecting[guild_id] = vcuser.first->id;
+                printf("INSERTING WAIT FOR VC READY\n");
                 player_manager->waiting_vc_ready[guild_id] = fname;
             }
 
@@ -300,6 +304,11 @@ int main()
             }
             else test.close();
 
+            std::thread pjt([&player_manager, from, guild_id]() {
+                player_manager->reconnect(from, guild_id);
+            });
+            pjt.detach();
+
             std::thread dlt([&player_manager](dpp::voiceconn* v, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
                 if (dling)
                 {
@@ -313,7 +322,9 @@ int main()
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t);
-                if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0) v->voiceclient->insert_marker();
+                if (player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
+                    && v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0)
+                    v->voiceclient->insert_marker();
             }, v, dling, result, fname, event.msg.author.id, event.msg.guild_id);
             dlt.detach();
         }
