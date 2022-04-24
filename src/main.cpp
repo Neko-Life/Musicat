@@ -158,7 +158,15 @@ int main()
             auto guild_id = event.msg.guild_id;
             auto from = event.from;
             auto user_id = event.msg.author.id;
-
+            {
+                std::lock_guard<std::mutex> lk1(player_manager->dc_m);
+                std::lock_guard<std::mutex> lk2(player_manager->c_m);
+                std::lock_guard<std::mutex> lk3(player_manager->wd_m);
+                if (player_manager->disconnecting.find(guild_id) != player_manager->disconnecting.end()
+                    || player_manager->connecting.find(guild_id) != player_manager->connecting.end()
+                    || player_manager->waiting_vc_ready.find(guild_id) != player_manager->waiting_vc_ready.end())
+                    return event.reply("Please wait while I'm getting ready to play your previous song");
+            }
             dpp::guild* g = dpp::find_guild(guild_id);
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcuser;
             try
@@ -216,6 +224,7 @@ int main()
                         {
                             try
                             {
+                                printf("Fetching user %ld in vc %ld\n", r.second.user_id, vcclient.first->id);
                                 dpp::user_identified uf = client.user_get_sync(r.second.user_id);
                                 if (uf.is_bot()) continue;
                             }
