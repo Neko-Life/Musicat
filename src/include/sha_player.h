@@ -459,6 +459,17 @@ public:
                     if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
                         continue;
 
+                    if (!v)
+                    {
+                        fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
+                        break;
+                    }
+
+                    /* Send the audio */
+                    int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
+
+                    v->send_audio_opus(op.packet, op.bytes, samples / 48);
+
                     bool br = false;
 
                     while (v && v->get_secs_remaining() > 3.0)
@@ -480,17 +491,6 @@ public:
                         printf("Breaking\n");
                         break;
                     }
-
-                    if (!v)
-                    {
-                        fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
-                        break;
-                    }
-
-                    /* Send the audio */
-                    int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
-
-                    v->send_audio_opus(op.packet, op.bytes, samples / 48);
                 }
             }
 

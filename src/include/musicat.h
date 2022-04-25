@@ -142,11 +142,10 @@ namespace mc
             {
                 auto u = dpp::find_user(r.second.user_id);
                 if (!u || u->is_bot()) continue;
-                return false;
+                return true;
             }
-            return true;
         }
-        else return false;
+        return false;
     }
 
     bool has_listener_fetch(dpp::cluster* client, std::map<dpp::snowflake, dpp::voicestate>* vstate_map) {
@@ -170,11 +169,10 @@ namespace mc
                     }
                 }
                 else if (u->is_bot()) continue;
-                return false;
+                return true;
             }
-            return true;
         }
-        else return false;
+        return false;
     }
 
     class exception {

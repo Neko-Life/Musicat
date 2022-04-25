@@ -215,7 +215,7 @@ int main()
             }
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
             {
-                if (!mc::has_listener(&vcclient.second))
+                if (mc::has_listener(&vcclient.second))
                     return event.reply("Sorry but I'm already in another voice channel");
                 // if (v)
                 // {
@@ -235,7 +235,7 @@ int main()
                 }
             }
 
-            if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0 && v->voiceclient->is_paused() && v->channel_id == vcuser.first->id)
+            if (v && v->voiceclient && v->voiceclient->is_paused() && v->channel_id == vcuser.first->id)
             {
                 {
                     std::lock_guard<std::mutex> lk(player_manager->mp_m);
@@ -301,7 +301,6 @@ int main()
                 t.user_id = user_id;
                 p->add_track(t);
                 auto vu = mc::get_voice_from_gid(guild_id, sha_id);
-                // 
                 if (vu.first && mc::has_listener(&vu.second)
                     && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
                     && v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0)
