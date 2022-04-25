@@ -215,30 +215,8 @@ int main()
             }
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
             {
-                if (vcclient.second.size() > 1)
-                {
-                    for (auto r : vcclient.second)
-                    {
-                        auto u = dpp::find_user(r.second.user_id);
-                        if (!u)
-                        {
-                            try
-                            {
-                                printf("Fetching user %ld in vc %ld\n", r.second.user_id, vcclient.first->id);
-                                dpp::user_identified uf = client.user_get_sync(r.second.user_id);
-                                if (uf.is_bot()) continue;
-                            }
-                            catch (const dpp::rest_exception* e)
-                            {
-                                printf("[ERROR(main.112)] Can't fetch user in VC: %ld\n", r.second.user_id);
-                                continue;
-                            }
-                        }
-                        else if (u->is_bot()) continue;
-                        event.reply("Sorry but I'm already in another voice channel");
-                        return;
-                    }
-                }
+                if (!mc::has_listener(&vcclient.second))
+                    return event.reply("Sorry but I'm already in another voice channel");
                 // if (v)
                 // {
                 //     printf("Stopping audio\n");
@@ -309,7 +287,7 @@ int main()
             });
             pjt.detach();
 
-            std::thread dlt([&player_manager](dpp::voiceconn* v, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
+            std::thread dlt([&player_manager, sha_id](dpp::voiceconn* v, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
                 if (dling)
                 {
                     std::unique_lock<std::mutex> lk(player_manager->dl_m);
@@ -322,7 +300,10 @@ int main()
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t);
-                if (player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
+                auto vu = mc::get_voice_from_gid(guild_id, sha_id);
+                // 
+                if (vu.first && mc::has_listener(&vu.second)
+                    && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
                     && v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0)
                     v->voiceclient->insert_marker();
             }, v, dling, result, fname, event.msg.author.id, event.msg.guild_id);

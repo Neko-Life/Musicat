@@ -135,6 +135,48 @@ namespace mc
         return res;
     }
 
+    bool has_listener(std::map<dpp::snowflake, dpp::voicestate>* vstate_map) {
+        if (vstate_map->size() > 1)
+        {
+            for (auto r : *vstate_map)
+            {
+                auto u = dpp::find_user(r.second.user_id);
+                if (!u || u->is_bot()) continue;
+                return false;
+            }
+            return true;
+        }
+        else return false;
+    }
+
+    bool has_listener_fetch(dpp::cluster* client, std::map<dpp::snowflake, dpp::voicestate>* vstate_map) {
+        if (vstate_map->size() > 1)
+        {
+            for (auto r : *vstate_map)
+            {
+                auto u = dpp::find_user(r.second.user_id);
+                if (!u)
+                {
+                    try
+                    {
+                        printf("Fetching user %ld in vc %ld\n", r.second.user_id, r.second.channel_id);
+                        dpp::user_identified uf = client->user_get_sync(r.second.user_id);
+                        if (uf.is_bot()) continue;
+                    }
+                    catch (const dpp::rest_exception* e)
+                    {
+                        fprintf(stderr, "[ERROR(musicat.182)] Can't fetch user in VC: %ld\n", r.second.user_id);
+                        continue;
+                    }
+                }
+                else if (u->is_bot()) continue;
+                return false;
+            }
+            return true;
+        }
+        else return false;
+    }
+
     class exception {
     private:
         string message;
