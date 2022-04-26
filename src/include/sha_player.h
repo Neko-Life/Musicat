@@ -24,7 +24,7 @@ struct Sha_Track : YTrack {
 class Sha_Player {
 public:
     dpp::snowflake guild_id;
-    int loop_mode;
+    short int loop_mode;
 
     dpp::cluster* cluster;
     std::deque<Sha_Track>* queue;
@@ -61,8 +61,9 @@ public:
         else return false;
     }
 
-    int set_loop_mode(int _mode) {
-        return 0;
+    short int set_loop_mode(short int mode) {
+        this->loop_mode = mode;
+        return this->loop_mode;
     }
 
     int remove_track(int pos, int amount = 1) {
@@ -286,6 +287,13 @@ public:
         catch (const char* e)
         {
             throw mc::exception("You're not in a voice channel", 1);
+        }
+        if (p->loop_mode == 1 || p->loop_mode == 3)
+        {
+            std::lock_guard<std::mutex> lk(p->q_m);
+            auto l = p->queue->front();
+            p->queue->pop_front();
+            if (p->loop_mode == 3) p->queue->push_back(l);
         }
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
             this->stop_stream(guild_id);
@@ -571,7 +579,12 @@ public:
             if (p->queue->size() == 0) { printf("NO SIZE\n");return false; }
             s = p->queue->front();
             // TODO: Do stuff according to loop mode
-            p->queue->pop_front();
+            if (p->loop_mode == 0) p->queue->pop_front();
+            else if (p->loop_mode == 2)
+            {
+                p->queue->pop_front();
+                p->queue->push_back(s);
+            }
         }
         // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)

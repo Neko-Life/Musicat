@@ -175,6 +175,13 @@ namespace mc
         return false;
     }
 
+    template<typename T>
+    void get_inter_param(const dpp::interaction_create_t& event, string param_name, T* param)
+    {
+        auto p = event.get_parameter(param_name);
+        if (p.index()) *param = std::get<T>(p);
+    }
+
     class exception {
     private:
         string message;

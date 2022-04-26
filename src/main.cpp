@@ -72,10 +72,10 @@ int main(int argc, const char* argv[])
                     printf("Provide valid guild_id\n");
                     return 0;
                 }
-                uint64_t gid;
+                int64_t gid;
                 std::istringstream iss(argv[2]);
                 iss >> gid;
-                if ((int)gid < 0)
+                if (gid < 0)
                 {
                     printf("Invalid integer, too large\n");
                     return 0;
@@ -102,31 +102,33 @@ int main(int argc, const char* argv[])
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
-    client.on_message_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::message_create_t& event)
+    client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {
-        if (event.msg.author.is_bot()) return;
+        if (event.command.usr.is_bot()) return;
 
-        std::smatch content_regex_results;
-        {
-            string cstr = string("^((?:")
-                .append(sha_settings.get_prefix(event.msg.guild_id))
-                .append("|<@\\!?")
-                .append(std::to_string(sha_id))
-                .append(">)\\s*)([^\\s]*)(\\s+)?(.*)");
-            std::regex re(cstr.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
-            auto reFlag = std::regex_constants::match_not_null | std::regex_constants::match_any;
-            std::regex_search(event.msg.content, content_regex_results, re, reFlag);
-        }
+        auto cmd = event.command.get_command_name();
 
-        if (!content_regex_results.size()) return;
+        // std::smatch content_regex_results;
+        // {
+        //     string cstr = string("^((?:")
+        //         .append(sha_settings.get_prefix(event.command.guild_id))
+        //         .append("|<@\\!?")
+        //         .append(std::to_string(sha_id))
+        //         .append(">)\\s*)([^\\s]*)(\\s+)?(.*)");
+        //     std::regex re(cstr.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
+        //     auto reFlag = std::regex_constants::match_not_null | std::regex_constants::match_any;
+        //     std::regex_search(event.command.content, content_regex_results, re, reFlag);
+        // }
 
-        string prefix = content_regex_results[1].str();
-        string cmd = content_regex_results[2].str();
-        for (size_t s = 0; s < cmd.length(); s++)
-        {
-            cmd[s] = std::tolower(cmd[s]);
-        }
-        string cmd_args = content_regex_results[4].str();
+        // if (!content_regex_results.size()) return;
+
+        // string prefix = content_regex_results[1].str();
+        // string cmd = content_regex_results[2].str();
+        // for (size_t s = 0; s < cmd.length(); s++)
+        // {
+        //     cmd[s] = std::tolower(cmd[s]);
+        // }
+        // string cmd_args = content_regex_results[4].str();
 
         if (cmd == "hello") event.reply("Hello there!!");
         else if (cmd == "why") event.reply("Why not");
@@ -138,7 +140,7 @@ int main(int argc, const char* argv[])
         {
             try
             {
-                if (player_manager->pause(event.from, event.msg.guild_id, event.msg.author.id)) event.reply("Paused");
+                if (player_manager->pause(event.from, event.command.guild_id, event.command.usr.id)) event.reply("Paused");
                 else event.reply("I'm not playing anything");
             }
             catch (mc::exception e)
@@ -148,14 +150,14 @@ int main(int argc, const char* argv[])
         }
         // else if (cmd == "resume")
         // {
-        //     auto v = event.from->get_voice(event.msg.guild_id);
+        //     auto v = event.from->get_voice(event.command.guild_id);
         //     if (v)
         //     {
         //         if (v->voiceclient->is_paused())
         //         {
         //             try
         //             {
-        //                 auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+        //                 auto u = mc::get_voice_from_gid(event.command.guild_id, event.command.usr.id);
         //                 if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
         //             }
         //             catch (const char* e)
@@ -165,7 +167,7 @@ int main(int argc, const char* argv[])
         //             v->voiceclient->pause_audio(false);
         //             {
         //                 std::lock_guard<std::mutex> lk(player_manager->mp_m);
-        //                 auto l = mc::vector_find(&manually_paused, event.msg.guild_id);
+        //                 auto l = mc::vector_find(&manually_paused, event.command.guild_id);
         //                 if (l != manually_paused.end())
         //                     manually_paused.erase(l);
         //             }
@@ -177,12 +179,12 @@ int main(int argc, const char* argv[])
         // }
         // else if (cmd == "stop")
         // {
-        //     auto v = event.from->get_voice(event.msg.guild_id);
+        //     auto v = event.from->get_voice(event.command.guild_id);
         //     if (v && (v->voiceclient->is_playing() || v->voiceclient->is_paused()))
         //     {
         //         try
         //         {
-        //             auto u = mc::get_voice_from_gid(event.msg.guild_id, event.msg.author.id);
+        //             auto u = mc::get_voice_from_gid(event.command.guild_id, event.command.usr.id);
         //             if (u.first->id != v->channel_id) return event.reply("You're not in my voice channel");
         //         }
         //         catch (const char* e)
@@ -198,8 +200,8 @@ int main(int argc, const char* argv[])
         {
             try
             {
-                auto v = event.from->get_voice(event.msg.guild_id);
-                if (player_manager->skip(v, event.msg.guild_id, event.msg.author.id))
+                auto v = event.from->get_voice(event.command.guild_id);
+                if (player_manager->skip(v, event.command.guild_id, event.command.usr.id))
                 {
                     event.reply("Skipped");
                 }
@@ -212,9 +214,14 @@ int main(int argc, const char* argv[])
         }
         else if (cmd == "play")
         {
-            auto guild_id = event.msg.guild_id;
+            auto guild_id = event.command.guild_id;
             auto from = event.from;
-            auto user_id = event.msg.author.id;
+            auto user_id = event.command.usr.id;
+            string arg_query = "";
+            int64_t arg_top = 0;
+            mc::get_inter_param(event, "query", &arg_query);
+            mc::get_inter_param(event, "top", &arg_top);
+
             {
                 std::lock_guard<std::mutex> lk1(player_manager->dc_m);
                 std::lock_guard<std::mutex> lk2(player_manager->c_m);
@@ -280,7 +287,7 @@ int main(int argc, const char* argv[])
                 //     v->voiceclient->stop_audio();
                 // }
                 vcclient_cont = false;
-                if (v && cmd_args.length() > 0)
+                if (v && arg_query.length() > 0)
                 {
                     printf("Disconnecting as no member in vc: %ld\n", guild_id);
                     if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
@@ -301,19 +308,20 @@ int main(int argc, const char* argv[])
                         player_manager->manually_paused.erase(l);
                 }
                 v->voiceclient->pause_audio(false);
+                if (arg_query.length() == 0) return event.reply("Resumed");
             }
 
-            auto op = player_manager->get_player(event.msg.guild_id);
+            auto op = player_manager->get_player(event.command.guild_id);
 
             if (op && v && v->voiceclient && op->queue->size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker();
 
-            if (cmd_args.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
+            if (arg_query.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
-            auto searches = yt_search(cmd_args).trackResults();
-            if (!searches.size()) return event.reply("Can't find anything");
+            event.thinking();
+            auto searches = yt_search(arg_query).trackResults();
+            if (!searches.size()) return event.edit_response("Can't find anything");
             auto result = searches.front();
             string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
-            event.reply(string("Added: ") + result.title());
 
             if (vcclient_cont == false || !v)
             {
@@ -328,14 +336,18 @@ int main(int argc, const char* argv[])
             if (!test.is_open())
             {
                 dling = true;
-                event.reply("Downloading... Gimme 10 sec ight");
+                event.edit_response(string("Downloading ") + result.title() + string("... Gimme 10 sec ight"));
                 if (player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end())
                 {
                     auto url = result.url();
                     player_manager->download(fname, url, guild_id);
                 }
             }
-            else test.close();
+            else
+            {
+                test.close();
+                event.edit_response(string("Added: ") + result.title());
+            }
 
             std::thread pjt([&player_manager, from, guild_id]() {
                 player_manager->reconnect(from, guild_id);
@@ -362,8 +374,36 @@ int main(int argc, const char* argv[])
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker();
 
-            }, from, dling, result, fname, event.msg.author.id, event.msg.guild_id);
+            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id);
             dlt.detach();
+        }
+        else if (cmd == "loop")
+        {
+            static const char* loop_message[] = { "Turned off repeat mode", "Set to repeat a song", "Set to repeat queue", "Set to repeat a song and not to remove skipped song" };
+            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uvc;
+            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> cvc;
+            try
+            {
+                uvc = mc::get_voice_from_gid(event.command.guild_id, event.command.usr.id);
+            }
+            catch (const char* e)
+            {
+                return event.reply("You're not in a voice channel");
+            }
+            try
+            {
+                cvc = mc::get_voice_from_gid(event.command.guild_id, sha_id);
+            }
+            catch (const char* e)
+            {
+                return event.reply("I'm not playing anything right now");
+            }
+            if (uvc.first->id != cvc.first->id) return event.reply("You're not in my voice channel");
+            int64_t a_l = 0;
+            mc::get_inter_param(event, "mode", &a_l);
+            auto player = player_manager->create_player(event.command.guild_id);
+            player->set_loop_mode(a_l);
+            event.reply(loop_message[a_l]);
         }
     });
 
