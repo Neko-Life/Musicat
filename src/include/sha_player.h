@@ -426,11 +426,7 @@ public:
             /* Now loop though all the pages and send the packets to the vc */
             while (ogg_sync_pageout(&oy, &og) == 1)
             {
-                if (!v || v->terminating)
-                {
-                    fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
-                    break;
-                }
+                if (v)
                 {
                     std::lock_guard<std::mutex> lk(this->sq_m);
                     auto sq = mc::vector_find(&this->stop_queue, v->server_id);
@@ -441,6 +437,11 @@ public:
                         this->stop_queue_cv.notify_all();
                         break;
                     }
+                }
+                if (!v || v->terminating)
+                {
+                    fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
+                    break;
                 }
                 while (ogg_stream_check(&os) != 0)
                 {
@@ -512,7 +513,7 @@ public:
                                 break;
                             }
                         }
-                        if (!v->terminating) br = true;
+                        if (v->terminating) br = true;
                     }
 
                     if (br)
