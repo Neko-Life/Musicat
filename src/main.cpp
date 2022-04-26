@@ -4,6 +4,9 @@
 #include "musicat.h"
 #include "yt-search.h"
 #include "sha_player.h"
+#include "reg_slash.h"
+
+#define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n  reg <guild_id|\"g\">\n")
 
 using json = nlohmann::json;
 using string = std::string;
@@ -15,13 +18,8 @@ void on_sigint(int code) {
     running = false;
 }
 
-int main()
+int main(int argc, const char* argv[])
 {
-    {
-        struct stat buf;
-        if (stat("music", &buf) != 0)
-            std::filesystem::create_directory("music");
-    }
     json sha_cfg;
     {
         std::ifstream scs("sha_conf.json");
@@ -34,6 +32,65 @@ int main()
     mc::settings sha_settings;
     dpp::snowflake sha_id(sha_cfg["SHA_ID"]);
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
+
+    if (argc > 1)
+    {
+        string a1 = string(argv[1]);
+        // for (int i = 1; i <= argc; i++){
+        //     auto a=argv[i];
+        //     if (a)
+        // }
+        int cmd = -1;
+        if (a1 == "reg") cmd = 0;
+
+        if (cmd < 0)
+        {
+            PRINT_USAGE_REGISTER_SLASH;
+            return 0;
+        }
+
+        switch (cmd)
+        {
+        case 0:
+            if (argc == 2)
+            {
+                printf("Provide guild_id or \"g\" to register globally\n");
+                return 0;
+            }
+            string a2 = string(argv[2]);
+            if (a2 == "g")
+            {
+                printf("Registering commands globally...\n");
+                auto c = sha_slash_cmd::get_all(sha_id);
+                client.global_bulk_command_create(c);
+                return 0;
+            }
+            else
+            {
+                if (!std::regex_match(argv[2], std::regex("^\\d{17,20}$"), std::regex_constants::match_any))
+                {
+                    printf("Provide valid guild_id\n");
+                    return 0;
+                }
+                uint64_t gid;
+                std::istringstream iss(argv[2]);
+                iss >> gid;
+                if ((int)gid < 0)
+                {
+                    printf("Invalid integer, too large\n");
+                    return 0;
+                }
+                printf("Registering commands in %ld\n", gid);
+                auto c = sha_slash_cmd::get_all(sha_id);
+                client.guild_bulk_command_create(c, gid);
+                return 0;
+            }
+            break;
+        }
+
+        return 0;
+    }
+
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
     Sha_Player_Manager* player_manager = new Sha_Player_Manager(&client, sha_id);
@@ -287,7 +344,7 @@ int main()
             });
             pjt.detach();
 
-            std::thread dlt([&player_manager, sha_id](dpp::voiceconn* v, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
+            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
                 if (dling)
                 {
                     std::unique_lock<std::mutex> lk(player_manager->dl_m);
@@ -300,12 +357,16 @@ int main()
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t);
-                auto vu = mc::get_voice_from_gid(guild_id, sha_id);
-                if (vu.first && mc::has_listener(&vu.second)
+                std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
+                bool b = true;
+                try { vu = mc::get_voice_from_gid(guild_id, sha_id); }
+                catch (const char* e) { b = false; }
+                dpp::voiceconn* v = from->get_voice(guild_id);
+                if (b && mc::has_listener(&vu.second)
                     && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
                     && v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0)
                     v->voiceclient->insert_marker();
-            }, v, dling, result, fname, event.msg.author.id, event.msg.guild_id);
+            }, from, dling, result, fname, event.msg.author.id, event.msg.guild_id);
             dlt.detach();
         }
     });

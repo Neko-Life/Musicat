@@ -299,8 +299,13 @@ public:
                 std::lock_guard<std::mutex> lk(this->dl_m);
                 this->waiting_file_download[fname] = guild_id;
             }
+            {
+                struct stat buf;
+                if (stat("music", &buf) != 0)
+                    std::filesystem::create_directory("music");
+            }
             string cmd = string("yt-dlp -f 251 -o - '") + url
-                + string("' | ffmpeg -i - -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
+                + string("' | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
                 + std::regex_replace(
                     fname, std::regex("(')"), "'\\''",
                     std::regex_constants::match_any)
@@ -318,10 +323,14 @@ public:
         tj.detach();
     }
 
-
     void stream(dpp::discord_voice_client* v, string fname) {
         if (v && v->is_ready())
         {
+            {
+                struct stat buf;
+                if (stat("music", &buf) != 0)
+                    std::filesystem::create_directory("music");
+            }
             auto start_time = std::chrono::high_resolution_clock::now();
             printf("Streaming \"%s\" to %ld\n", fname.c_str(), v->server_id);
             {
@@ -545,13 +554,14 @@ public:
         tj.detach();
     }
 
-    void handle_on_track_marker(const dpp::voice_track_marker_t& event) {
-        if (!event.voice_client) { printf("NO CLIENT\n");return; }
+    bool handle_on_track_marker(const dpp::voice_track_marker_t& event) {
+        if (!event.voice_client) { printf("NO CLIENT\n");return false; }
         auto p = this->get_player(event.voice_client->server_id);
+        if (!p) { printf("NO PLAYER\n"); return false; }
         Sha_Track s;
         {
             std::lock_guard<std::mutex> lk(p->q_m);
-            if (p->queue->size() == 0) { printf("NO SIZE\n");return; }
+            if (p->queue->size() == 0) { printf("NO SIZE\n");return false; }
             s = p->queue->front();
             // TODO: Do stuff according to loop mode
             p->queue->pop_front();
@@ -619,8 +629,10 @@ public:
                 this->play(v, fname);
             }, event.voice_client, s.filename);
             tj.detach();
+            return true;
         }
         else printf("TRACK SIZE\n");
+        return false;
     }
 
     void handle_on_voice_ready(const dpp::voice_ready_t& event) {
