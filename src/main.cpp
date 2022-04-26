@@ -283,7 +283,7 @@ int main(int argc, const char* argv[])
                 if (v && cmd_args.length() > 0)
                 {
                     printf("Disconnecting as no member in vc: %ld\n", guild_id);
-                    if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
+                    if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
                         player_manager->stop_stream(guild_id);
 
                     // FIXME: It WILL segvault (with gdb?) if you wait a song until it ends and move to other vc and play another song that trigger this
@@ -364,7 +364,7 @@ int main(int argc, const char* argv[])
                 dpp::voiceconn* v = from->get_voice(guild_id);
                 if (b && mc::has_listener(&vu.second)
                     && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
-                    && v && v->voiceclient && v->voiceclient->get_tracks_remaining() == 0)
+                    && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker();
             }, from, dling, result, fname, event.msg.author.id, event.msg.guild_id);
             dlt.detach();

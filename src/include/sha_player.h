@@ -52,7 +52,7 @@ public:
     }
 
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1) {
-        if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
+        if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
         {
             v->voiceclient->pause_audio(false);
             v->voiceclient->skip_to_next_marker();
@@ -287,7 +287,7 @@ public:
         {
             throw mc::exception("You're not in a voice channel", 1);
         }
-        if (v && v->voiceclient && v->voiceclient->get_tracks_remaining() > 0)
+        if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
             this->stop_stream(guild_id);
         bool a = p->skip(v, user_id);
         return a;
@@ -567,7 +567,7 @@ public:
             p->queue->pop_front();
         }
         // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
-        if (event.voice_client && event.voice_client->get_tracks_remaining() == 0)
+        if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             std::thread tj([this](dpp::discord_voice_client* v, string fname) {
                 bool timed_out = false;
@@ -646,8 +646,9 @@ public:
             }
         }
         auto i = event.voice_client->get_tracks_remaining();
-        printf("TO INSERT %d\n", i);
-        if (i == 1)
+        auto l = event.voice_client->get_secs_remaining();
+        printf("TO INSERT %d::%f\n", i, l);
+        if (l < 0.1)
         {
             event.voice_client->insert_marker();
             printf("INSERTED\n");
@@ -663,7 +664,7 @@ public:
             if (v && v->channel_id
                 && v->channel_id != event.state.channel_id
                 && v->voiceclient
-                && v->voiceclient->get_tracks_remaining() > 0
+                && v->voiceclient->get_secs_remaining() > 0.1
                 && !v->voiceclient->is_paused())
             {
                 std::lock_guard<std::mutex> lk(this->mp_m);
@@ -705,7 +706,7 @@ public:
                 if (v && v->channel_id
                     && v->channel_id == event.state.channel_id
                     && v->voiceclient
-                    && v->voiceclient->get_tracks_remaining() > 0
+                    && v->voiceclient->get_secs_remaining() > 0.1
                     && v->voiceclient->is_paused())
                 {
                     std::lock_guard<std::mutex> lk(this->mp_m);
