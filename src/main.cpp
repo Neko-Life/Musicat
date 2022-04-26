@@ -309,8 +309,6 @@ int main(int argc, const char* argv[])
 
             if (cmd_args.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
-            event.reply("Searching...");
-
             auto searches = yt_search(cmd_args).trackResults();
             if (!searches.size()) return event.reply("Can't find anything");
             auto result = searches.front();
@@ -345,27 +343,25 @@ int main(int argc, const char* argv[])
             pjt.detach();
 
             std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
-                if (dling)
-                {
-                    std::unique_lock<std::mutex> lk(player_manager->dl_m);
-                    player_manager->dl_cv.wait(lk, [&player_manager, fname]() {
-                        return player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end();
-                    });
-                }
+                if (dling) player_manager->wait_for_download(fname);
                 auto p = player_manager->create_player(guild_id);
+
                 Sha_Track t(result);
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t);
+
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
                 bool b = true;
                 try { vu = mc::get_voice_from_gid(guild_id, sha_id); }
                 catch (const char* e) { b = false; }
+
                 dpp::voiceconn* v = from->get_voice(guild_id);
                 if (b && mc::has_listener(&vu.second)
                     && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker();
+
             }, from, dling, result, fname, event.msg.author.id, event.msg.guild_id);
             dlt.detach();
         }

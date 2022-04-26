@@ -323,6 +323,13 @@ public:
         tj.detach();
     }
 
+    void wait_for_download(string file_name) {
+        std::unique_lock<std::mutex> lk(this->dl_m);
+        this->dl_cv.wait(lk, [this, file_name]() {
+            return this->waiting_file_download.find(file_name) == this->waiting_file_download.end();
+        });
+    }
+
     void stream(dpp::discord_voice_client* v, string fname) {
         if (v && v->is_ready())
         {
