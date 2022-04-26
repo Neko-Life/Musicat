@@ -274,6 +274,7 @@ int main(int argc, const char* argv[])
             {
                 vcclient_cont = false;
                 printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
+                std::lock_guard lk(player_manager->dc_m);
                 from->disconnect_voice(guild_id);
                 player_manager->disconnecting[guild_id] = vcclient.first->id;
             }
@@ -293,6 +294,7 @@ int main(int argc, const char* argv[])
                     if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
                         player_manager->stop_stream(guild_id);
 
+                    std::lock_guard lk(player_manager->dc_m);
                     // FIXME: It WILL segvault (with gdb?) if you wait a song until it ends and move to other vc and play another song that trigger this
                     from->disconnect_voice(guild_id);
                     player_manager->disconnecting[guild_id] = vcclient.first->id;
@@ -325,6 +327,8 @@ int main(int argc, const char* argv[])
 
             if (vcclient_cont == false || !v)
             {
+                std::lock_guard<std::mutex> lk2(player_manager->c_m);
+                std::lock_guard<std::mutex> lk3(player_manager->wd_m);
                 player_manager->connecting[guild_id] = vcuser.first->id;
                 printf("INSERTING WAIT FOR VC READY\n");
                 player_manager->waiting_vc_ready[guild_id] = fname;
@@ -370,7 +374,6 @@ int main(int argc, const char* argv[])
 
                 dpp::voiceconn* v = from->get_voice(guild_id);
                 if (b && mc::has_listener(&vu.second)
-                    && player_manager->disconnecting.find(guild_id) == player_manager->disconnecting.end()
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker();
 

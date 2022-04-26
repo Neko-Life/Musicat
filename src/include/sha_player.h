@@ -134,10 +134,10 @@ public:
     // wd: waiting_vc_ready
     // c: connecting
     // dc: disconnecting
-    // wm: waiting_marker
+    // ps: players
     // mp: manually_paused
     // sq: stop_queue
-    std::mutex dl_m, wd_m, c_m, dc_m, wm_m, mp_m, sq_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m;
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;
     std::map<uint64_t, uint64_t> connecting, disconnecting;
@@ -154,6 +154,7 @@ public:
     }
 
     ~Sha_Player_Manager() {
+        std::lock_guard<std::mutex> lk(ps_m);
         for (auto l = players->begin(); l != players->end(); l++)
         {
             if (l->second)
@@ -175,6 +176,7 @@ public:
      * @return Sha_Player*
      */
     Sha_Player* create_player(dpp::snowflake guild_id) {
+        std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
         Sha_Player* v = new Sha_Player(cluster, guild_id);
@@ -189,6 +191,7 @@ public:
      * @return Sha_Player*
      */
     Sha_Player* get_player(dpp::snowflake guild_id) {
+        std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
         return NULL;
@@ -228,6 +231,7 @@ public:
      * @return false
      */
     bool delete_player(dpp::snowflake guild_id) {
+        std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l == players->end()) return false;
         delete l->second;
@@ -339,7 +343,7 @@ public:
     }
 
     void stream(dpp::discord_voice_client* v, string fname) {
-        if (v && v->is_ready())
+        if (v && !v->terminating && v->is_ready())
         {
             {
                 struct stat buf;
@@ -422,9 +426,9 @@ public:
             /* Now loop though all the pages and send the packets to the vc */
             while (ogg_sync_pageout(&oy, &og) == 1)
             {
-                if (!v)
+                if (!v || v->terminating)
                 {
-                    fprintf(stderr, "[ERROR(sha_player.319)] Can't continue streaming, connection broken\n");
+                    fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
                     break;
                 }
                 {
@@ -483,7 +487,7 @@ public:
                     if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
                         continue;
 
-                    if (!v)
+                    if (!v || v->terminating)
                     {
                         fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
                         break;
@@ -492,11 +496,11 @@ public:
                     /* Send the audio */
                     int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
 
-                    v->send_audio_opus(op.packet, op.bytes, samples / 48);
+                    if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, samples / 48);
 
-                    bool br = false;
+                    bool br = v->terminating;
 
-                    while (v && v->get_secs_remaining() > 3.0)
+                    while (v && !v->terminating && v->get_secs_remaining() > 3.0)
                     {
                         sleep(1);
                         {
@@ -508,6 +512,7 @@ public:
                                 break;
                             }
                         }
+                        if (!v->terminating) br = true;
                     }
 
                     if (br)
@@ -525,7 +530,7 @@ public:
             auto end_time = std::chrono::high_resolution_clock::now();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
             printf("Done streaming for %ld milliseconds\n", done.count());
-            v->insert_marker();
+            if (v && !v->terminating) v->insert_marker();
         }
         else throw 1;
     }
@@ -571,6 +576,14 @@ public:
 
     bool handle_on_track_marker(const dpp::voice_track_marker_t& event) {
         if (!event.voice_client) { printf("NO CLIENT\n");return false; }
+        {
+            std::lock_guard lk(this->dc_m);
+            if (this->disconnecting.find(event.voice_client->server_id) != this->disconnecting.end())
+            {
+                printf("DISCONNECTING\n");
+                return false;
+            }
+        }
         auto p = this->get_player(event.voice_client->server_id);
         if (!p) { printf("NO PLAYER\n"); return false; }
         Sha_Track s;
