@@ -30,7 +30,7 @@ int main(int argc, const char* argv[])
     dpp::cluster client(sha_cfg["SHA_TKN"], dpp::i_message_content | dpp::i_guild_members | dpp::i_default_intents);
 
     mc::settings sha_settings;
-    dpp::snowflake sha_id(sha_cfg["SHA_ID"]);
+    dpp::snowflake sha_id = 0;
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
 
     if (argc > 1)
@@ -100,6 +100,7 @@ int main(int argc, const char* argv[])
     client.on_ready([](const dpp::ready_t& event)
     {
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
+        sha_id = client.me.id;
     });
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)

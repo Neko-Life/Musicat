@@ -20,3 +20,15 @@ Also just for fun :smiley:
 
 
 I know this is a mess so meet me on [discord](https://www.discord.gg/vpk2KyKHtu) if you're so pissed looking at this abomination of catastrophic terribleness...
+
+## Config
+
+Fill the config in "[exe](https://github.com/Neko-Life/Musicat/tree/player/exe)" folder, rename it to `sha_conf.example.json` then move it with your exe output. 
+```json
+{
+    "SHA_TKN": "",
+    "SHA_PREFIX": "\\!",
+}
+```
+- SHA_TKN = Your mom number (bot discord token)
+- SHA_PREFIX = Bot prefix
