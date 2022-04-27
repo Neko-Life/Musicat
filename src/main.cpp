@@ -104,6 +104,7 @@ int main(int argc, const char* argv[])
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {
+        if (!event.command.guild_id) return;
         if (event.command.usr.is_bot()) return;
 
         auto cmd = event.command.get_command_name();
@@ -303,19 +304,13 @@ int main(int argc, const char* argv[])
 
             if (v && v->voiceclient && v->voiceclient->is_paused() && v->channel_id == vcuser.first->id)
             {
-                {
-                    std::lock_guard<std::mutex> lk(player_manager->mp_m);
-                    auto l = mc::vector_find(&player_manager->manually_paused, guild_id);
-                    if (l != player_manager->manually_paused.end())
-                        player_manager->manually_paused.erase(l);
-                }
-                v->voiceclient->pause_audio(false);
+                player_manager->unpause(v->voiceclient, event.command.guild_id);
                 if (arg_query.length() == 0) return event.reply("Resumed");
             }
 
             auto op = player_manager->get_player(event.command.guild_id);
 
-            if (op && v && v->voiceclient && op->queue->size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker();
+            if (op && v && v->voiceclient && op->queue->size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker("c");
 
             if (arg_query.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
@@ -358,7 +353,7 @@ int main(int argc, const char* argv[])
             });
             pjt.detach();
 
-            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id) {
+            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id) {
                 if (dling) player_manager->wait_for_download(fname);
                 auto p = player_manager->create_player(guild_id);
 
@@ -366,6 +361,7 @@ int main(int argc, const char* argv[])
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t);
+                p->set_channel(channel_id);
 
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
                 bool b = true;
@@ -375,9 +371,9 @@ int main(int argc, const char* argv[])
                 dpp::voiceconn* v = from->get_voice(guild_id);
                 if (b && mc::has_listener(&vu.second)
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
-                    v->voiceclient->insert_marker();
+                    v->voiceclient->insert_marker("s");
 
-            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id);
+            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id, event.command.channel_id);
             dlt.detach();
         }
         else if (cmd == "loop")

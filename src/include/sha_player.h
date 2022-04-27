@@ -24,14 +24,16 @@ struct Sha_Track : YTrack {
 class Sha_Player {
 public:
     dpp::snowflake guild_id;
+    dpp::snowflake channel_id;
     short int loop_mode;
 
     dpp::cluster* cluster;
     std::deque<Sha_Track>* queue;
 
     // Must use this whenever doing the appropriate action
-    // q_m: queue
-    std::mutex skip_mutex, seek_mutex, q_m, play_mutex;
+    // q: queue
+    // ch: channel_id
+    std::mutex skip_mutex, seek_mutex, q_m, ch_m;
 
     Sha_Player(dpp::cluster* _cluster, dpp::snowflake _guild_id) {
         guild_id = _guild_id;
@@ -45,10 +47,11 @@ public:
         printf("Player destructor called\n");
     }
 
-    Sha_Player* add_track(Sha_Track track, bool top = false) {
+    Sha_Player& add_track(Sha_Track track, bool top = false) {
         std::lock_guard<std::mutex> lk(this->q_m);
-        queue->push_back(track);
-        return this;
+        if (top) this->queue->push_front(track);
+        else this->queue->push_back(track);
+        return *this;
     }
 
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1) {
@@ -61,9 +64,15 @@ public:
         else return false;
     }
 
-    short int set_loop_mode(short int mode) {
+    Sha_Player& set_loop_mode(short int mode) {
         this->loop_mode = mode;
-        return this->loop_mode;
+        return *this;
+    }
+
+    Sha_Player& set_channel(dpp::snowflake channel_id) {
+        std::lock_guard<std::mutex> lk(this->ch_m);
+        this->channel_id = channel_id;
+        return *this;
     }
 
     int remove_track(int pos, int amount = 1) {
@@ -260,6 +269,20 @@ public:
                 this->manually_paused.push_back(guild_id);
         }
         return a;
+    }
+
+    bool unpause(dpp::discord_voice_client* voiceclient, dpp::snowflake guild_id) {
+        std::lock_guard<std::mutex> lk(this->mp_m);
+        auto l = mc::vector_find(&this->manually_paused, guild_id);
+        bool ret;
+        if (l != this->manually_paused.end())
+        {
+            this->manually_paused.erase(l);
+            ret = true;
+        }
+        else ret = false;
+        voiceclient->pause_audio(false);
+        return ret;
     }
 
     void stop_stream(dpp::snowflake guild_id) {
@@ -531,7 +554,7 @@ public:
             auto end_time = std::chrono::high_resolution_clock::now();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
             printf("Done streaming for %ld milliseconds\n", done.count());
-            if (v && !v->terminating) v->insert_marker();
+            if (v && !v->terminating) v->insert_marker("e");
         }
         else throw 1;
     }
@@ -590,15 +613,20 @@ public:
         Sha_Track s;
         {
             std::lock_guard<std::mutex> lk(p->q_m);
-            if (p->queue->size() == 0) { printf("NO SIZE\n");return false; }
-            s = p->queue->front();
-            // TODO: Do stuff according to loop mode
-            if (p->loop_mode == 0) p->queue->pop_front();
-            else if (p->loop_mode == 2)
+            if (p->queue->size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
+            // Do stuff according to loop mode when playback ends
+            if (event.track_meta == "e")
             {
-                p->queue->pop_front();
-                p->queue->push_back(s);
+                if (p->loop_mode == 0) p->queue->pop_front();
+                else if (p->loop_mode == 2)
+                {
+                    auto l = p->queue->front();
+                    p->queue->pop_front();
+                    p->queue->push_back(l);
+                }
             }
+            if (p->queue->size() == 0) { printf("NO SIZE AFTER: %d\n", p->loop_mode);return false; }
+            s = p->queue->front();
         }
         // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
@@ -684,7 +712,7 @@ public:
         printf("TO INSERT %d::%f\n", i, l);
         if (l < 0.1)
         {
-            event.voice_client->insert_marker();
+            event.voice_client->insert_marker("r");
             printf("INSERTED\n");
         }
     }
