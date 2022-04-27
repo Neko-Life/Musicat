@@ -23,7 +23,7 @@ I know this is a mess so meet me on [discord](https://www.discord.gg/vpk2KyKHtu)
 
 ## Config
 
-Feel the config in "[exe](https://github.com/Neko-Life/Musicat/tree/player/exe)" folder, rename it to `sha_conf.example.json` then move it with your exe output. 
+Fill the config in "[exe](https://github.com/Neko-Life/Musicat/tree/player/exe)" folder, rename it to `sha_conf.example.json` then move it with your exe output. 
 ```json
 {
     "SHA_TKN": "",
