@@ -3,7 +3,7 @@
 
 using string = std::string;
 
-namespace sha_slash_cmd {
+namespace sha_slash {
     std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id) {
         std::vector<dpp::slashcommand> slash_commands = {
             {

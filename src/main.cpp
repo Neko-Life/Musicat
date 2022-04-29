@@ -4,7 +4,7 @@
 #include "musicat.h"
 #include "yt-search.h"
 #include "sha_player.h"
-#include "reg_slash.h"
+#include "sha_slash.h"
 
 #define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n  reg <guild_id|\"g\">\n")
 
@@ -61,7 +61,7 @@ int main(int argc, const char* argv[])
             if (a2 == "g")
             {
                 printf("Registering commands globally...\n");
-                auto c = sha_slash_cmd::get_all(sha_id);
+                auto c = sha_slash::get_all(sha_id);
                 client.global_bulk_command_create(c);
                 return 0;
             }
@@ -81,7 +81,7 @@ int main(int argc, const char* argv[])
                     return 0;
                 }
                 printf("Registering commands in %ld\n", gid);
-                auto c = sha_slash_cmd::get_all(sha_id);
+                auto c = sha_slash::get_all(sha_id);
                 client.guild_bulk_command_create(c, gid);
                 return 0;
             }
