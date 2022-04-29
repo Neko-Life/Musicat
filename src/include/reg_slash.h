@@ -15,8 +15,7 @@ namespace sha_slash_cmd {
                     dpp::command_option(
                         dpp::co_string,
                         "query",
-                        "Song [to search] or Youtube URL [to play]",
-                        true
+                        "Song [to search] or Youtube URL [to play]"
                     ).set_auto_complete(true)
                 ).add_option(
                     dpp::command_option(
@@ -39,8 +38,7 @@ namespace sha_slash_cmd {
                     dpp::command_option(
                         dpp::co_integer,
                         "amount",
-                        "How many [song] to skip",
-                        false
+                        "How many [song] to skip"
                     )
                 )
             },
