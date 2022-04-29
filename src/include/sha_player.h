@@ -631,7 +631,7 @@ public:
         // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
-            std::thread tj([this](dpp::discord_voice_client* v, string fname) {
+            std::thread tj([this](dpp::discord_voice_client* v, string fname, string meta) {
                 bool timed_out = false;
                 auto guild_id = v->server_id;
                 // std::thread tmt([this](bool* _v) {
@@ -688,8 +688,9 @@ public:
                     }
                 }
                 if (timed_out) throw mc::exception("Operation took too long, aborted...", 0);
+                if (meta == "r") v->send_silence(20);
                 this->play(v, fname);
-            }, event.voice_client, s.filename);
+            }, event.voice_client, s.filename, event.track_meta);
             tj.detach();
             return true;
         }
@@ -774,7 +775,10 @@ public:
                     std::lock_guard<std::mutex> lk(this->mp_m);
                     // Whether the track paused automatically
                     if (mc::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
+                    {
+                        v->voiceclient->send_silence(20);
                         v->voiceclient->pause_audio(false);
+                    }
                 }
 
             }
