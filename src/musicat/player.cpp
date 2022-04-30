@@ -597,6 +597,7 @@ void Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id) {
 }
 
 bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t & event) {
+    printf("Handling voice marker\n");
     if (!event.voice_client) { printf("NO CLIENT\n");return false; }
     {
         std::lock_guard lk(this->dc_m);
@@ -610,11 +611,12 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
     if (!p) { printf("NO PLAYER\n"); return false; }
     Sha_Track s;
     {
-        std::lock_guard<std::mutex> lk(p->q_m);
         if (p->queue->size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
 
         // Handle shifted tracks (tracks shifted to the front of the queue)
-        p->reset_shifted();
+        printf("Resetting shifted: %d\n", p->reset_shifted());
+
+        std::lock_guard<std::mutex> lk(p->q_m);
 
         // Do stuff according to loop mode when playback ends
         if (event.track_meta == "e")
@@ -630,9 +632,11 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
         if (p->queue->size() == 0) { printf("NO SIZE AFTER: %d\n", p->loop_mode);return false; }
         s = p->queue->front();
     }
-    // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
+
+    printf("To play\n");
     if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
     {
+        printf("Starting thread\n");
         std::thread tj([this](dpp::discord_voice_client* v, Sha_Track track, string meta, Sha_Player* player) {
             bool timed_out = false;
             auto guild_id = v->server_id;

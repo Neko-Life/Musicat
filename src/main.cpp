@@ -105,6 +105,8 @@ int main(int argc, const char* argv[])
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
+    // client.on_auto
+
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {
         if (!event.command.guild_id) return;
@@ -431,6 +433,7 @@ int main(int argc, const char* argv[])
         //     }
         //     dl_cv.notify_all();
         // }
+        printf("To handle voice track marker\n");
         player_manager->handle_on_track_marker(event);
     });
 
