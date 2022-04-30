@@ -752,14 +752,15 @@ dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id) {
     if (ua.length()) ea.icon_url = ua;
     else if (uca.length()) ea.icon_url = uca;
 
-    static const char* l_mode[] = { "No repeat", "Repeat one", "Repeat queue", "Repeat one/queue" };
+    static const char* l_mode[] = { "Repeat one", "Repeat queue", "Repeat one/queue" };
     string et = track.bestThumbnail().url;
     dpp::embed e;
     e.set_description(track.snippetText())
         .set_title(track.title())
         .set_url(track.url())
-        .set_author(ea)
-        .set_footer(l_mode[player->loop_mode], "");
+        .set_author(ea);
+    if (player->loop_mode)
+        e.set_footer(l_mode[player->loop_mode - 1], "");
     if (color)
         e.set_color(color);
     if (et.length())
