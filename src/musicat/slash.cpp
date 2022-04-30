@@ -1,8 +1,7 @@
 #include "musicat/slash.h"
 
-using string = std::string;
-
 namespace sha_slash {
+    using string = std::string;
     std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id) {
         std::vector<dpp::slashcommand> slash_commands = {
             {
