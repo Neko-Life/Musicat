@@ -1,6 +1,6 @@
-
-#ifndef ENCODE_H_
-#define ENCODE_H_
+#include <string>
+#include <regex>
+#include "musicat/encode.h"
 
 std::string decodeURIComponent(std::string encoded) {
 
@@ -50,5 +50,3 @@ std::string encodeURIComponent(std::string decoded)
     }
     return oss.str();
 }
-
-#endif

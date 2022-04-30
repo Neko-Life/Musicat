@@ -1,30 +1,11 @@
-#include <stdio.h>
-#include <chrono>
-#include <dpp/dpp.h>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <stdexcept>
-#include <regex>
-#include <cstdio>
-#include <ogg/ogg.h>
-#include <opus/opusfile.h>
-#include <curlpp/cURLpp.hpp>
-#include <curlpp/Easy.hpp>
-#include <curlpp/Options.hpp>
-#include "nlohmann/json.hpp"
-#include "encode.h"
+#include "musicat/musicat.h"
 
-#ifndef MUSICAT_H
-#define MUSICAT_H
-
-namespace mc
+namespace musicat
 {
-
     using string = std::string;
 
     template <typename T>
-    auto vector_find(std::vector<T>* _vec, T _find) {
+    typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find) {
         auto i = _vec->begin();
         for (; i != _vec->end();i++)
         {
@@ -33,40 +14,32 @@ namespace mc
         return i;
     }
 
-    struct settings
+    string settings::get_prefix(const dpp::snowflake guildId)
     {
-        string defaultPrefix;
+        auto gid = prefix.find(guildId);
+        if (gid == prefix.end())
+            return defaultPrefix;
+        return gid->second;
+    }
 
-        std::map<dpp::snowflake, string> prefix;
-        std::vector<dpp::snowflake> joining_list;
+    auto settings::set_prefix(const dpp::snowflake guildId, const string newPrefix)
+    {
+        return prefix.insert_or_assign(guildId, newPrefix);
+    }
 
-        string get_prefix(const dpp::snowflake guildId)
+    void settings::set_joining_vc(dpp::snowflake vc_id) {
+        if (vector_find(&joining_list, vc_id) != joining_list.end()) return;
+        joining_list.emplace_back(vc_id);
+    }
+
+    void settings::remove_joining_vc(dpp::snowflake vc_id) {
+        auto i = vector_find(&joining_list, vc_id);
+        if (i != joining_list.end())
         {
-            auto gid = prefix.find(guildId);
-            if (gid == prefix.end())
-                return defaultPrefix;
-            return gid->second;
+            joining_list.erase(i);
+            printf("ERASE IS CALLED\n");
         }
-
-        auto set_prefix(const dpp::snowflake guildId, const string newPrefix)
-        {
-            return prefix.insert_or_assign(guildId, newPrefix);
-        }
-
-        void set_joining_vc(dpp::snowflake vc_id) {
-            if (mc::vector_find(&joining_list, vc_id) != joining_list.end()) return;
-            joining_list.emplace_back(vc_id);
-        }
-
-        void remove_joining_vc(dpp::snowflake vc_id) {
-            auto i = mc::vector_find(&joining_list, vc_id);
-            if (i != joining_list.end())
-            {
-                joining_list.erase(i);
-                printf("ERASE IS CALLED\n");
-            }
-        }
-    };
+    }
 
     /**
      * @brief Destroy and reset connecting state of the guild, must be invoked when failed to join or left a vc
@@ -175,32 +148,16 @@ namespace mc
         return false;
     }
 
-    template<typename T>
-    void get_inter_param(const dpp::interaction_create_t& event, string param_name, T* param)
-    {
-        auto p = event.get_parameter(param_name);
-        if (p.index()) *param = std::get<T>(p);
+    exception::exception(const char* _message, int _code) {
+        message = string(_message);
+        c = _code;
     }
 
-    class exception {
-    private:
-        string message;
-        int c;
+    string exception::what() {
+        return message;
+    }
 
-    public:
-        exception(const char* _message, int _code = 0) {
-            message = string(_message);
-            c = _code;
-        }
-
-        string what() {
-            return message;
-        }
-
-        int code() {
-            return c;
-        }
-    };
+    int exception::code() {
+        return c;
+    }
 }
-
-#endif

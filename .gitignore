@@ -5,4 +5,5 @@ exe/music
 exe/Shasha
 exe/sha_conf.json
 ignore
-src/include/nlohmann
+include/nlohmann
+include/fmt

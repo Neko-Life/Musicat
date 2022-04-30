@@ -1,13 +1,16 @@
-#include <filesystem>
-#include <sys/stat.h>
-#include <unistd.h>
-#include "musicat.h"
-#include "yt-search.h"
-#include "sha_player.h"
-#include "sha_slash.h"
+#include <stdio.h>
+#include <string>
+#include <vector>
+#include <regex>
+#include <dpp/dpp.h>
+#include "nlohmann/json.hpp"
+#include "musicat/musicat.h"
+#include "musicat/player.h"
+#include "musicat/slash.h"
 
 #define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n  reg <guild_id|\"g\">\n")
 
+namespace mc = musicat;
 using json = nlohmann::json;
 using string = std::string;
 
@@ -353,14 +356,14 @@ int main(int argc, const char* argv[])
             });
             pjt.detach();
 
-            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id) {
+            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id, bool arg_top) {
                 if (dling) player_manager->wait_for_download(fname);
                 auto p = player_manager->create_player(guild_id);
 
                 Sha_Track t(result);
                 t.filename = fname;
                 t.user_id = user_id;
-                p->add_track(t);
+                p->add_track(t, arg_top);
                 p->set_channel(channel_id);
 
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
@@ -373,7 +376,7 @@ int main(int argc, const char* argv[])
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker("s");
 
-            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id, event.command.channel_id);
+            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id, event.command.channel_id, arg_top);
             dlt.detach();
         }
         else if (cmd == "loop")
