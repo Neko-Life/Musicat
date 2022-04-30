@@ -315,15 +315,17 @@ void Sha_Player_Manager::wait_for_download(string file_name) {
 }
 
 void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
+    dpp::snowflake server_id;
     if (v && !v->terminating && v->is_ready())
     {
+        server_id = v->server_id;
         {
             struct stat buf;
             if (stat("music", &buf) != 0)
                 std::filesystem::create_directory("music");
         }
         auto start_time = std::chrono::high_resolution_clock::now();
-        printf("Streaming \"%s\" to %ld\n", fname.c_str(), v->server_id);
+        printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
         {
             std::ifstream fs((string("music/") + fname).c_str());
             if (!fs.is_open()) throw 2;
@@ -398,17 +400,10 @@ void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
         /* Now loop though all the pages and send the packets to the vc */
         while (ogg_sync_pageout(&oy, &og) == 1)
         {
-            if (v)
             {
                 std::lock_guard<std::mutex> lk(this->sq_m);
-                auto sq = mc::vector_find(&this->stop_queue, v->server_id);
-                if (sq != this->stop_queue.end())
-                {
-                    printf("ERASING QUEUE\n");
-                    this->stop_queue.erase(sq);
-                    this->stop_queue_cv.notify_all();
-                    break;
-                }
+                auto sq = mc::vector_find(&this->stop_queue, server_id);
+                if (sq != this->stop_queue.end()) break;
             }
             if (!v || v->terminating)
             {
@@ -432,7 +427,7 @@ void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
             {
                 {
                     std::lock_guard<std::mutex> lk(this->sq_m);
-                    auto sq = mc::vector_find(&this->stop_queue, v->server_id);
+                    auto sq = mc::vector_find(&this->stop_queue, server_id);
                     if (sq != this->stop_queue.end()) break;
                 }
                 if (res < 1)
@@ -476,16 +471,17 @@ void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
                 while (v && !v->terminating && v->get_secs_remaining() > 3.0)
                 {
                     sleep(1);
-                    {
-                        std::lock_guard<std::mutex> lk(this->sq_m);
-                        auto sq = mc::vector_find(&this->stop_queue, v->server_id);
-                        if (sq != this->stop_queue.end())
-                        {
-                            br = true;
-                            break;
-                        }
-                    }
                     if (v->terminating) br = true;
+                }
+
+                {
+                    std::lock_guard<std::mutex> lk(this->sq_m);
+                    auto sq = mc::vector_find(&this->stop_queue, server_id);
+                    if (sq != this->stop_queue.end())
+                    {
+                        br = true;
+                        break;
+                    }
                 }
 
                 if (br)
@@ -503,6 +499,17 @@ void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
         auto end_time = std::chrono::high_resolution_clock::now();
         auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         printf("Done streaming for %ld milliseconds\n", done.count());
+        if (server_id)
+        {
+            std::lock_guard<std::mutex> lk(this->sq_m);
+            auto sq = mc::vector_find(&this->stop_queue, server_id);
+            if (sq != this->stop_queue.end())
+            {
+                printf("ERASING QUEUE\n");
+                this->stop_queue.erase(sq);
+                this->stop_queue_cv.notify_all();
+            }
+        }
         if (v && !v->terminating) v->insert_marker("e");
     }
     else throw 1;
