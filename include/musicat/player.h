@@ -26,6 +26,7 @@ public:
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;
     short int loop_mode;
+    size_t shifted_track;
 
     dpp::cluster* cluster;
     std::deque<Sha_Track>* queue;
@@ -33,13 +34,21 @@ public:
     // Must use this whenever doing the appropriate action
     // q: queue
     // ch: channel_id
-    std::mutex skip_mutex, seek_mutex, q_m, ch_m;
+    // st: shifted_track
+    std::mutex skip_mutex, st_m, q_m, ch_m;
 
     Sha_Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
     ~Sha_Player();
     Sha_Player& add_track(Sha_Track track, bool top = false);
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1);
     Sha_Player& set_loop_mode(short int mode);
+
+    /**
+     * @brief Set player channel, used in playback infos
+     *
+     * @param channel_id
+     * @return Sha_Player&
+     */
     Sha_Player& set_channel(dpp::snowflake channel_id);
     int remove_track(int pos, int amount = 1);
     int remove_track_by_user(dpp::snowflake user_id, int amount = -1);
@@ -108,6 +117,14 @@ public:
     bool delete_player(dpp::snowflake guild_id);
 
     /**
+     * @brief Get guild player's queue, return NULL if player not exist
+     *
+     * @param guild_id
+     * @return std::deque<Sha_Track>*
+     */
+    std::deque<Sha_Track>* get_queue(dpp::snowflake guild_id);
+
+    /**
      * @brief Manually pause guild player
      *
      * @param from
@@ -137,6 +154,7 @@ public:
     void stream(dpp::discord_voice_client* v, string fname);
     void play(dpp::discord_voice_client* v, string fname);
     bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
+    dpp::embed get_embed(dpp::snowflake guild_id, Sha_Track track);
     void handle_on_voice_ready(const dpp::voice_ready_t& event);
     void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
 };

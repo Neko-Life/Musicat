@@ -21,6 +21,7 @@ Sha_Player::Sha_Player(dpp::cluster * _cluster, dpp::snowflake _guild_id) {
     guild_id = _guild_id;
     cluster = _cluster;
     loop_mode = 0;
+    shifted_track = 0;
     queue = new std::deque<Sha_Track>();
 }
 
@@ -31,7 +32,12 @@ Sha_Player::~Sha_Player() {
 
 Sha_Player& Sha_Player::add_track(Sha_Track track, bool top) {
     std::lock_guard<std::mutex> lk(this->q_m);
-    if (top) this->queue->push_front(track);
+    if (top)
+    {
+        this->queue->push_front(track);
+        std::lock_guard<std::mutex> lk(this->st_m);
+        this->shifted_track++;
+    }
     else this->queue->push_back(track);
     return *this;
 }
@@ -185,6 +191,12 @@ bool Sha_Player_Manager::delete_player(dpp::snowflake guild_id) {
     delete l->second;
     players->erase(l);
     return true;
+}
+
+std::deque<Sha_Track>* Sha_Player_Manager::get_queue(dpp::snowflake guild_id) {
+    auto p = get_player(guild_id);
+    if (!p) return nullptr;
+    return p->queue;
 }
 
 bool Sha_Player_Manager::pause(dpp::discord_client * from, dpp::snowflake guild_id, dpp::snowflake user_id) {
@@ -533,6 +545,19 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
     {
         std::lock_guard<std::mutex> lk(p->q_m);
         if (p->queue->size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
+
+        // Handle shifted tracks (tracks shifted to the front of the queue)
+        {
+            std::lock_guard<std::mutex> lk(p->st_m);
+            if (p->shifted_track > 0)
+            {
+                auto i = p->queue->begin() + p->shifted_track;
+                auto s = *i;
+                p->queue->erase(i);
+                p->queue->push_front(s);
+            }
+        }
+
         // Do stuff according to loop mode when playback ends
         if (event.track_meta == "e")
         {
@@ -550,9 +575,10 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
     // dpp::voiceconn* v = event.from->get_voice(event.voice_client->server_id);
     if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
     {
-        std::thread tj([this](dpp::discord_voice_client* v, string fname, string meta) {
+        std::thread tj([this](dpp::discord_voice_client* v, Sha_Track track, string meta, Sha_Player* player) {
             bool timed_out = false;
             auto guild_id = v->server_id;
+            dpp::snowflake channel_id = player->channel_id;
             // std::thread tmt([this](bool* _v) {
             //     int _w = 30;
             //     while (_v && *_v == false && _w > 0)
@@ -589,32 +615,98 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
             }
             {
                 std::unique_lock<std::mutex> lk(this->dl_m);
-                auto a = this->waiting_file_download.find(fname);
+                auto a = this->waiting_file_download.find(track.filename);
                 if (a != this->waiting_file_download.end())
                 {
                     printf("Waiting for download\n");
-                    this->dl_cv.wait(lk, [this, fname, &timed_out]() {
-                        auto t = this->waiting_file_download.find(fname);
+                    this->dl_cv.wait(lk, [this, track, &timed_out]() {
+                        auto t = this->waiting_file_download.find(track.filename);
                         // if (timed_out)
                         // {
                         //     this->waiting_file_download.erase(t);
                         //     return true;
                         // }
                         auto c = t == this->waiting_file_download.end();
-                        printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", fname.c_str());
+                        printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", track.filename.c_str());
                         return c;
                     });
                 }
             }
             if (timed_out) throw mc::exception("Operation took too long, aborted...", 0);
             if (meta == "r") v->send_silence(60);
-            this->play(v, fname);
-        }, event.voice_client, s.filename, event.track_meta);
+            this->play(v, track.filename);
+
+            // Send play info embed
+            if (channel_id)
+            {
+                dpp::embed e;
+                try
+                {
+                    e = get_embed(guild_id, track);
+                }
+                catch (mc::exception e)
+                {
+                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed: %s\n", e.what().c_str());
+                    return;
+                }
+                catch (const dpp::exception& e)
+                {
+                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
+                    return;
+                }
+                catch (const std::logic_error& e)
+                {
+                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
+                    return;
+                }
+                dpp::message m;
+                m.set_channel_id(channel_id)
+                    .add_embed(e);
+                this->cluster->message_create(m);
+            }
+        }, event.voice_client, s, event.track_meta, p);
         tj.detach();
         return true;
     }
     else printf("TRACK SIZE\n");
     return false;
+}
+
+dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id, Sha_Track track) {
+    auto player = this->get_player(guild_id);
+    if (!player) throw mc::exception("No player");
+    dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
+    dpp::guild_member u = dpp::find_guild_member(guild_id, track.user_id);
+    dpp::user* uc = dpp::find_user(u.user_id);
+    uint32_t color = 0;
+    for (auto i : o.roles)
+    {
+        auto r = dpp::find_role(i);
+        if (!r || !r->colour) continue;
+        color = r->colour;
+        break;
+    }
+    string eaname = u.nickname.length() ? u.nickname : uc->username;
+    dpp::embed_author ea;
+    ea.name = eaname;
+    auto ua = u.get_avatar_url(4096);
+    auto uca = uc->get_avatar_url(4096);
+    if (ua.length()) ea.icon_url = ua;
+    else if (uca.length()) ea.icon_url = uca;
+
+    static const char* l_mode[] = { "No repeat", "Repeat one", "Repeat queue", "Repeat one/queue" };
+    string et = track.bestThumbnail().url;
+    dpp::embed e;
+    e.set_description(track.snippetText())
+        .set_title(track.title())
+        .set_url(track.url())
+        .set_author(ea)
+        .set_footer(l_mode[player->loop_mode], "");
+    if (color)
+        e.set_color(color);
+    if (et.length())
+        e.set_image(et);
+    return e;
 }
 
 void Sha_Player_Manager::handle_on_voice_ready(const dpp::voice_ready_t & event) {
