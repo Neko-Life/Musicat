@@ -13,7 +13,16 @@ using string = std::string;
 // TODO: Player class
 
 struct Sha_Track : YTrack {
+    /**
+     * @brief Downloaded track name.
+     *
+     */
     string filename;
+
+    /**
+     * @brief User Id which added this track.
+     *
+     */
     dpp::snowflake user_id;
 
     Sha_Track();
@@ -23,28 +32,79 @@ struct Sha_Track : YTrack {
 
 class Sha_Player {
 public:
+
+    /**
+     * @brief Guild Id this player belongs to.
+     *
+     */
     dpp::snowflake guild_id;
+
+    /**
+     * @brief Latest channel Id where the command invoked to play/add song.
+     *
+     */
     dpp::snowflake channel_id;
+
+    /**
+     * @brief Message info of currently playing song.
+     *
+     */
+    dpp::message* info_message;
+
+    /**
+     * @brief Loop mode of the currently playing song.
+     *
+     * 0: Not looping,
+     * 1: Looping one song and remove skipped song,
+     * 2: Looping queue,
+     * 3: Looping one song and won't remove skipped song.
+     *
+     */
     short int loop_mode;
+
+    /**
+     * @brief Number of added track to the front of queue.
+     *
+     */
     size_t shifted_track;
 
     dpp::cluster* cluster;
+
+    /**
+     * @brief Track queue.
+     *
+     */
     std::deque<Sha_Track>* queue;
 
-    // Must use this whenever doing the appropriate action
-    // q: queue
-    // ch: channel_id
-    // st: shifted_track
+    /**
+     * @brief Must use this whenever doing the appropriate action.
+     *
+     * q: queue,
+     * ch: channel_id,
+     * st: shifted_track.
+     *
+     */
     std::mutex skip_mutex, st_m, q_m, ch_m;
 
     Sha_Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
     ~Sha_Player();
     Sha_Player& add_track(Sha_Track track, bool top = false);
     bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1);
+
+    /**
+     * @brief Reorganize track,
+     * move currently playing track to front of the queue and reset shifted_track to 0,
+     * always do this before making changes to tracks position in the queue.
+     *
+     * @return true
+     * @return false
+     */
+    bool reset_shifted();
+
     Sha_Player& set_loop_mode(short int mode);
 
     /**
-     * @brief Set player channel, used in playback infos
+     * @brief Set player channel, used in playback infos.
      *
      * @param channel_id
      * @return Sha_Player&
@@ -153,8 +213,16 @@ public:
     void wait_for_download(string file_name);
     void stream(dpp::discord_voice_client* v, string fname);
     void play(dpp::discord_voice_client* v, string fname);
+
+    /**
+     * @brief Try to send currently playing song info to player channel
+     *
+     * @param guild_id
+     * @throw mc::exception
+     */
+    void send_info_embed(dpp::snowflake guild_id);
     bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
-    dpp::embed get_embed(dpp::snowflake guild_id, Sha_Track track);
+    dpp::embed get_embed(dpp::snowflake guild_id);
     void handle_on_voice_ready(const dpp::voice_ready_t& event);
     void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
 };

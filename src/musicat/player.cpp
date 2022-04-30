@@ -22,6 +22,7 @@ Sha_Player::Sha_Player(dpp::cluster * _cluster, dpp::snowflake _guild_id) {
     cluster = _cluster;
     loop_mode = 0;
     shifted_track = 0;
+    info_message = nullptr;
     queue = new std::deque<Sha_Track>();
 }
 
@@ -50,6 +51,23 @@ bool Sha_Player::skip(dpp::voiceconn * v, dpp::snowflake user_id, int amount) {
         return true;
     }
     else return false;
+}
+
+bool Sha_Player::reset_shifted() {
+    {
+        std::lock_guard<std::mutex> lk(this->q_m);
+        std::lock_guard<std::mutex> lk2(this->st_m);
+        if (this->queue->size() && this->shifted_track > 0)
+        {
+            auto i = this->queue->begin() + this->shifted_track;
+            auto s = *i;
+            this->queue->erase(i);
+            this->queue->push_front(s);
+            this->shifted_track = 0;
+            return true;
+        }
+        else return false;
+    }
 }
 
 Sha_Player& Sha_Player::set_loop_mode(short int mode) {
@@ -529,6 +547,55 @@ void Sha_Player_Manager::play(dpp::discord_voice_client * v, string fname) {
     tj.detach();
 }
 
+void Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id) {
+    {
+        auto player = this->get_player(guild_id);
+        if (!player) throw mc::exception("No player");
+        auto channel_id = player->channel_id;
+        dpp::embed e;
+        try
+        {
+            e = get_embed(guild_id);
+        }
+        catch (mc::exception e)
+        {
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed: %s\n", e.what().c_str());
+            return;
+        }
+        catch (const dpp::exception& e)
+        {
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
+            return;
+        }
+        catch (const std::logic_error& e)
+        {
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [std::logic_error]: %s\n", e.what());
+            return;
+        }
+        dpp::message m;
+        m.set_channel_id(channel_id)
+            .add_embed(e);
+        this->cluster->message_create(m, [player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
+            if (cb.is_error())
+            {
+                fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr: err_vector\n", cb.get_error().message.c_str(), cb.get_error().code);
+                return;
+            }
+            if (cb.value.index())
+            {
+                if (!player)
+                {
+                    printf("PLAYER GONE WTFF\n");
+                    return;
+                }
+                player->info_message = &std::get<dpp::message>(cb.value);
+                printf("New message info: %ld\n", player->info_message->id);
+            }
+            else printf("No message_create cb size\n");
+        });
+    }
+}
+
 bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t & event) {
     if (!event.voice_client) { printf("NO CLIENT\n");return false; }
     {
@@ -547,16 +614,7 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
         if (p->queue->size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
 
         // Handle shifted tracks (tracks shifted to the front of the queue)
-        {
-            std::lock_guard<std::mutex> lk(p->st_m);
-            if (p->shifted_track > 0)
-            {
-                auto i = p->queue->begin() + p->shifted_track;
-                auto s = *i;
-                p->queue->erase(i);
-                p->queue->push_front(s);
-            }
-        }
+        p->reset_shifted();
 
         // Do stuff according to loop mode when playback ends
         if (event.track_meta == "e")
@@ -637,32 +695,14 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
             this->play(v, track.filename);
 
             // Send play info embed
-            if (channel_id)
+            try
             {
-                dpp::embed e;
-                try
-                {
-                    e = get_embed(guild_id, track);
-                }
-                catch (mc::exception e)
-                {
-                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed: %s\n", e.what().c_str());
-                    return;
-                }
-                catch (const dpp::exception& e)
-                {
-                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
-                    return;
-                }
-                catch (const std::logic_error& e)
-                {
-                    fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
-                    return;
-                }
-                dpp::message m;
-                m.set_channel_id(channel_id)
-                    .add_embed(e);
-                this->cluster->message_create(m);
+                if (channel_id) this->send_info_embed(guild_id);
+                else printf("No channel Id to send info embed\n");
+            }
+            catch (mc::exception e)
+            {
+                fprintf(stderr, "[ERROR(player.646)] %s\n", e.what().c_str());
             }
         }, event.voice_client, s, event.track_meta, p);
         tj.detach();
@@ -672,9 +712,16 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
     return false;
 }
 
-dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id, Sha_Track track) {
+dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id) {
     auto player = this->get_player(guild_id);
     if (!player) throw mc::exception("No player");
+
+    // Reset shifted tracks
+    player->reset_shifted();
+
+    std::lock_guard<std::mutex> lk(player->q_m);
+    if (!player->queue->size()) throw mc::exception("No player");
+    auto track = player->queue->front();
     dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
     dpp::guild_member u = dpp::find_guild_member(guild_id, track.user_id);
     dpp::user* uc = dpp::find_user(u.user_id);
