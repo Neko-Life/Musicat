@@ -785,6 +785,17 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
                 if (channel_id)
                 {
                     auto c = dpp::find_channel(channel_id);
+
+                    // Channel debug
+                    printf("BEGIN EMBED INFO UPDATE DEBUG\n");
+                    if (c) printf("Channel found: %ld, last message: %ld\n", c->id, c->last_message_id);
+                    if (player->info_message)
+                    {
+                        printf("Last Info Embed exist: %ld, with channel: %ld\n", player->info_message->id, player->info_message->channel_id);
+                    }
+                    if (c && player->info_message && c->last_message_id == player->info_message->id)
+                        printf("Channel last message Id is the same as Last Info Embed Id: %ld, %ld\nUPDATE SHOULD EXECUTE\n", c->last_message_id, player->info_message->id);
+
                     // Update if last message is the info embed message
                     if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
                     {

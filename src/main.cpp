@@ -105,6 +105,12 @@ int main(int argc, const char* argv[])
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
+    client.on_message_create([](const dpp::message_create_t& event) {
+        // Update channel last message Id
+        auto c = dpp::find_channel(event.msg.channel_id);
+        if (c) c->last_message_id = event.msg.id;
+    });
+
     // client.on_autocomplete
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
