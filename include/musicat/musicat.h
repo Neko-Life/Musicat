@@ -76,7 +76,7 @@ namespace musicat
         if (p.index()) *param = std::get<T>(p);
     }
 
-    class exception {
+    class exception : std::exception {
     private:
         string message;
         int c;

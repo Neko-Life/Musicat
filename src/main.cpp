@@ -105,7 +105,7 @@ int main(int argc, const char* argv[])
         printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
     });
 
-    // client.on_auto
+    // client.on_autocomplete
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {
@@ -144,12 +144,17 @@ int main(int argc, const char* argv[])
         else if (cmd == "repo") event.reply("https://github.com/Neko-Life/Musicat");
         else if (cmd == "pause")
         {
+            if (!player_manager->voice_ready(event.command.guild_id))
+            {
+                event.reply("Please wait while I'm getting ready to stream");
+                return;
+            }
             try
             {
                 if (player_manager->pause(event.from, event.command.guild_id, event.command.usr.id)) event.reply("Paused");
                 else event.reply("I'm not playing anything");
             }
-            catch (mc::exception e)
+            catch (mc::exception& e)
             {
                 return event.reply(e.what());
             }
@@ -204,6 +209,11 @@ int main(int argc, const char* argv[])
         // }
         else if (cmd == "skip")
         {
+            if (!player_manager->voice_ready(event.command.guild_id))
+            {
+                event.reply("Please wait while I'm getting ready to stream");
+                return;
+            }
             try
             {
                 auto v = event.from->get_voice(event.command.guild_id);
@@ -213,13 +223,19 @@ int main(int argc, const char* argv[])
                 }
                 else event.reply("I'm not playing anything");
             }
-            catch (mc::exception e)
+            catch (mc::exception& e)
             {
                 return event.reply(e.what());
             }
         }
         else if (cmd == "play")
         {
+            if (!player_manager->voice_ready(event.command.guild_id))
+            {
+                event.reply("Please wait while I'm getting ready to stream");
+                return;
+            }
+
             auto guild_id = event.command.guild_id;
             auto from = event.from;
             auto user_id = event.command.usr.id;
@@ -228,15 +244,6 @@ int main(int argc, const char* argv[])
             mc::get_inter_param(event, "query", &arg_query);
             mc::get_inter_param(event, "top", &arg_top);
 
-            {
-                std::lock_guard<std::mutex> lk1(player_manager->dc_m);
-                std::lock_guard<std::mutex> lk2(player_manager->c_m);
-                std::lock_guard<std::mutex> lk3(player_manager->wd_m);
-                if (player_manager->disconnecting.find(guild_id) != player_manager->disconnecting.end()
-                    || player_manager->connecting.find(guild_id) != player_manager->connecting.end()
-                    || player_manager->waiting_vc_ready.find(guild_id) != player_manager->waiting_vc_ready.end())
-                    return event.reply("Please wait while I'm getting ready to play your previous song");
-            }
             dpp::guild* g = dpp::find_guild(guild_id);
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcuser;
             try
@@ -383,6 +390,11 @@ int main(int argc, const char* argv[])
         }
         else if (cmd == "loop")
         {
+            if (!player_manager->voice_ready(event.command.guild_id))
+            {
+                event.reply("Please wait while I'm getting ready to stream");
+                return;
+            }
             static const char* loop_message[] = { "Turned off repeat mode", "Set to repeat a song", "Set to repeat queue", "Set to repeat a song and not to remove skipped song" };
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uvc;
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> cvc;
@@ -405,9 +417,24 @@ int main(int argc, const char* argv[])
             if (uvc.first->id != cvc.first->id) return event.reply("You're not in my voice channel");
             int64_t a_l = 0;
             mc::get_inter_param(event, "mode", &a_l);
+
             auto player = player_manager->create_player(event.command.guild_id);
+            if (player->loop_mode == a_l)
+            {
+                event.reply("Already set to that mode");
+                return;
+            }
+
             player->set_loop_mode(a_l);
             event.reply(loop_message[a_l]);
+            try
+            {
+                player_manager->update_info_embed(event.command.guild_id);
+            }
+            catch (...)
+            {
+                // Meh
+            }
         }
     });
 

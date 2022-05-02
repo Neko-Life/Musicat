@@ -28,6 +28,12 @@ Sha_Player::Sha_Player(dpp::cluster * _cluster, dpp::snowflake _guild_id) {
 
 Sha_Player::~Sha_Player() {
     delete queue;
+    if (info_message)
+    {
+        delete info_message;
+        info_message = nullptr;
+    }
+    cluster = nullptr;
     printf("Player destructor called\n");
 }
 
@@ -244,6 +250,18 @@ bool Sha_Player_Manager::unpause(dpp::discord_voice_client * voiceclient, dpp::s
     return ret;
 }
 
+bool Sha_Player_Manager::voice_ready(dpp::snowflake guild_id)
+{
+    std::lock_guard<std::mutex> lk1(this->dc_m);
+    std::lock_guard<std::mutex> lk2(this->c_m);
+    std::lock_guard<std::mutex> lk3(this->wd_m);
+    if (this->disconnecting.find(guild_id) != this->disconnecting.end()
+        || this->connecting.find(guild_id) != this->connecting.end()
+        || this->waiting_vc_ready.find(guild_id) != this->waiting_vc_ready.end())
+        return false;
+    return true;
+}
+
 void Sha_Player_Manager::stop_stream(dpp::snowflake guild_id) {
     {
         std::lock_guard<std::mutex> lk(this->sq_m);
@@ -314,7 +332,7 @@ void Sha_Player_Manager::wait_for_download(string file_name) {
     });
 }
 
-void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
+void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname, dpp::snowflake channel_id) {
     dpp::snowflake server_id;
     if (v && !v->terminating && v->is_ready())
     {
@@ -511,12 +529,18 @@ void Sha_Player_Manager::stream(dpp::discord_voice_client * v, string fname) {
             }
         }
         if (v && !v->terminating) v->insert_marker("e");
+        else if (server_id && channel_id)
+        {
+            std::lock_guard<std::mutex> lk(this->c_m);
+            if (this->connecting.find(server_id) == this->connecting.end())
+                this->connecting[server_id] = channel_id;
+        }
     }
     else throw 1;
 }
 
-void Sha_Player_Manager::play(dpp::discord_voice_client * v, string fname) {
-    std::thread tj([this](dpp::discord_voice_client* v, string fname) {
+void Sha_Player_Manager::play(dpp::discord_voice_client * v, string fname, dpp::snowflake channel_id) {
+    std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
         printf("Attempt to stream\n");
         // dpp::voiceconn* v = from->get_voice(guild_id);
         // {
@@ -541,7 +565,7 @@ void Sha_Player_Manager::play(dpp::discord_voice_client * v, string fname) {
         // if (!v)
         try
         {
-            this->stream(v, fname);
+            this->stream(v, fname, channel_id);
         }
         catch (int e)
         {
@@ -550,39 +574,44 @@ void Sha_Player_Manager::play(dpp::discord_voice_client * v, string fname) {
             else if (e == 1) throw mc::exception("No connection", 1);
         }
 
-    }, v, fname);
+    }, v, fname, channel_id);
     tj.detach();
 }
 
-void Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id) {
+bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
     {
         auto player = this->get_player(guild_id);
         if (!player) throw mc::exception("No player");
+
+        if (update && !player->info_message)
+        {
+            printf("No message\n");
+            return false;
+        }
+
         auto channel_id = player->channel_id;
         dpp::embed e;
         try
         {
-            e = get_embed(guild_id);
+            e = get_playing_info_embed(guild_id);
         }
-        catch (mc::exception e)
+        catch (mc::exception& e)
         {
-            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed: %s\n", e.what().c_str());
-            return;
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed: %s\n", e.what().c_str());
+            return false;
         }
         catch (const dpp::exception& e)
         {
-            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [dpp::exception]: %s\n", e.what());
-            return;
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed [dpp::exception]: %s\n", e.what());
+            return false;
         }
         catch (const std::logic_error& e)
         {
-            fprintf(stderr, "[ERROR(player.646)] Failed to get_embed [std::logic_error]: %s\n", e.what());
-            return;
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed [std::logic_error]: %s\n", e.what());
+            return false;
         }
-        dpp::message m;
-        m.set_channel_id(channel_id)
-            .add_embed(e);
-        this->cluster->message_create(m, [player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
+
+        auto m_cb = [player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
             if (cb.is_error())
             {
                 fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr: err_vector\n", cb.get_error().message.c_str(), cb.get_error().code);
@@ -595,12 +624,57 @@ void Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id) {
                     printf("PLAYER GONE WTFF\n");
                     return;
                 }
-                player->info_message = &std::get<dpp::message>(cb.value);
+                if (player->info_message)
+                {
+                    delete player->info_message;
+                    player->info_message = nullptr;
+                }
+
+                player->info_message = new dpp::message(std::get<dpp::message>(cb.value));
                 printf("New message info: %ld\n", player->info_message->id);
             }
             else printf("No message_create cb size\n");
-        });
+        };
+
+        if (!update)
+        {
+            dpp::message m;
+            m.add_embed(e)
+                .set_channel_id(channel_id);
+
+            this->cluster->message_create(m, m_cb);
+        }
+        else
+        {
+            auto mn = *player->info_message;
+            mn.embeds.pop_back();
+            mn.embeds.push_back(e);
+            printf("Channel Info Embed Id Edit: %ld\n", mn.channel_id);
+            this->cluster->message_edit(mn, m_cb);
+        }
+        return true;
     }
+}
+
+bool Sha_Player_Manager::update_info_embed(dpp::snowflake guild_id) {
+    printf("Update info called\n");
+    return this->send_info_embed(guild_id, true);
+}
+
+bool Sha_Player_Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback) {
+    auto player = this->get_player(guild_id);
+    if (!player) return false;
+
+    if (!player->info_message) return false;
+
+    auto mid = player->info_message->id;
+    auto cid = player->info_message->channel_id;
+
+    printf("Channel Info Embed Id Delete: %ld\n", cid);
+    this->cluster->message_delete(mid, cid, callback);
+    delete player->info_message;
+    player->info_message = nullptr;
+    return true;
 }
 
 bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t & event) {
@@ -703,15 +777,29 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
             }
             if (timed_out) throw mc::exception("Operation took too long, aborted...", 0);
             if (meta == "r") v->send_silence(60);
-            this->play(v, track.filename);
+            this->play(v, track.filename, channel_id);
 
             // Send play info embed
             try
             {
-                if (channel_id) this->send_info_embed(guild_id);
+                if (channel_id)
+                {
+                    auto c = dpp::find_channel(channel_id);
+                    // Update if last message is the info embed message
+                    if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
+                    {
+                        if (player->loop_mode != 1 && player->loop_mode != 3)
+                            this->update_info_embed(guild_id);
+                    }
+                    else
+                    {
+                        this->delete_info_embed(guild_id);
+                        this->send_info_embed(guild_id);
+                    }
+                }
                 else printf("No channel Id to send info embed\n");
             }
-            catch (mc::exception e)
+            catch (mc::exception& e)
             {
                 fprintf(stderr, "[ERROR(player.646)] %s\n", e.what().c_str());
             }
@@ -723,7 +811,7 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
     return false;
 }
 
-dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id) {
+dpp::embed Sha_Player_Manager::get_playing_info_embed(dpp::snowflake guild_id) {
     auto player = this->get_player(guild_id);
     if (!player) throw mc::exception("No player");
 
@@ -731,7 +819,7 @@ dpp::embed Sha_Player_Manager::get_embed(dpp::snowflake guild_id) {
     player->reset_shifted();
 
     std::lock_guard<std::mutex> lk(player->q_m);
-    if (!player->queue->size()) throw mc::exception("No player");
+    if (!player->queue->size()) throw mc::exception("No track");
     auto track = player->queue->front();
     dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
     dpp::guild_member u = dpp::find_guild_member(guild_id, track.user_id);

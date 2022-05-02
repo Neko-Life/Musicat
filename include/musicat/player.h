@@ -196,6 +196,15 @@ public:
      */
     bool pause(dpp::discord_client* from, dpp::snowflake guild_id, dpp::snowflake user_id);
     bool unpause(dpp::discord_voice_client* voiceclient, dpp::snowflake guild_id);
+
+    /**
+     * @brief Check whether client is ready to stream in vc and make changes to playback and player queue
+     *
+     * @param guild_id
+     * @return true
+     * @return false
+     */
+    bool voice_ready(dpp::snowflake guild_id);
     void stop_stream(dpp::snowflake guild_id);
 
     /**
@@ -211,18 +220,42 @@ public:
     bool skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id);
     void download(string fname, string url, dpp::snowflake guild_id);
     void wait_for_download(string file_name);
-    void stream(dpp::discord_voice_client* v, string fname);
-    void play(dpp::discord_voice_client* v, string fname);
+    void stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);
+    void play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);
 
     /**
      * @brief Try to send currently playing song info to player channel
      *
      * @param guild_id
+     * @param update Whether to update last info embed instead of sending new one, return false if no info embed exist
+     * @return true
+     * @return false
      * @throw mc::exception
      */
-    void send_info_embed(dpp::snowflake guild_id);
+    bool send_info_embed(dpp::snowflake guild_id, bool update = false);
+
+    /**
+     * @brief Update currently playing song info embed, return false if no info embed exist
+     *
+     * @param guild_id
+     * @return true
+     * @return false
+     * @throw mc::exception
+     */
+    bool update_info_embed(dpp::snowflake guild_id);
+
+    /**
+     * @brief Delete currently playing song info embed, return false if no info embed exist
+     *
+     * @param guild_id
+     * @param callback Function to call after message deleted
+     * @return true
+     * @return false
+     */
+    bool delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error());
+
     bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
-    dpp::embed get_embed(dpp::snowflake guild_id);
+    dpp::embed get_playing_info_embed(dpp::snowflake guild_id);
     void handle_on_voice_ready(const dpp::voice_ready_t& event);
     void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
 };
