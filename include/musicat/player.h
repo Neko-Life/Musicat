@@ -249,8 +249,8 @@ public:
      *
      * @param guild_id
      * @param callback Function to call after message deleted
-     * @return true
-     * @return false
+     * @return true - Message is deleted
+     * @return false - No player or no info embed exist
      */
     bool delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error());
 

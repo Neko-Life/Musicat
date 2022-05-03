@@ -590,6 +590,16 @@ bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
         }
 
         auto channel_id = player->channel_id;
+
+        if (!update)
+        {
+            auto g = dpp::find_guild(guild_id);
+            auto c = dpp::find_channel(channel_id);
+            auto bp = g->permission_overwrites(g->base_permissions(&this->cluster->me), &this->cluster->me, c);
+            if (!(bp & dpp::p_view_channel && bp & dpp::p_send_messages && bp & dpp::p_embed_links))
+                throw mc::exception("No permission");
+        }
+
         dpp::embed e;
         try
         {
@@ -666,6 +676,7 @@ bool Sha_Player_Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command
     if (!player) return false;
 
     if (!player->info_message) return false;
+    else if (player->info_message->is_source_message_deleted()) return true;
 
     auto mid = player->info_message->id;
     auto cid = player->info_message->channel_id;
