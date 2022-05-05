@@ -1,5 +1,5 @@
 # Specify compile
-CC = g++
+CXX = g++
 
 # Specify compiler flag
 CCF = -std=c++17 -Wall -Wextra -g
@@ -17,7 +17,7 @@ SRC = src/musicat/*.cpp src/main.cpp libs/opusfile/src/*.c # src/include/*.cpp
 OUT = exe/Shasha
 
 all: $(SRC)
-	$(CC) $(CCF) $(INC) $(LIB) $(SRC) -o $(OUT)
+	$(CXX) $(CCF) $(INC) $(LIB) $(SRC) -o $(OUT)
 
 ex:
 	g++ -Wall -Wextra -g -Iinclude exec.cpp -o ex
