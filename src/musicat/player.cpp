@@ -167,7 +167,7 @@ Sha_Player_Manager::~Sha_Player_Manager() {
     }
     delete players;
     players = NULL;
-    std::lock_guard<std::mutex> lk(imc_m);
+    std::lock_guard<std::mutex> lk2(imc_m);
     for (auto l = info_messages_cache->begin(); l != info_messages_cache->end(); l++)
     {
         if (l->second)
@@ -661,7 +661,7 @@ bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
                 }
 
                 player->info_message = new dpp::message(std::get<dpp::message>(cb.value));
-                this->info_messages_cache->[player->info_message->id] = player->info_message;
+                (*this->info_messages_cache)[player->info_message->id] = player->info_message;
                 printf("New message info: %ld\n", player->info_message->id);
             }
             else printf("No message_create cb size\n");
@@ -696,7 +696,7 @@ bool Sha_Player_Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command
     auto player = this->get_player(guild_id);
     if (!player) return false;
 
-    bool retdel = [player, this]() {
+    auto retdel = [player, this]() {
         std::lock_guard<std::mutex> lk(this->imc_m);
         delete player->info_message;
         player->info_message = nullptr;
