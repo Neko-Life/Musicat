@@ -698,9 +698,10 @@ bool Sha_Player_Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command
 
     auto retdel = [player, this]() {
         std::lock_guard<std::mutex> lk(this->imc_m);
+        auto id = player->info_message->id;
         delete player->info_message;
         player->info_message = nullptr;
-        this->info_messages_cache->erase(player->info_message->id);
+        this->info_messages_cache->erase(id);
         return true;
     };
 
