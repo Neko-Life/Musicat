@@ -42,8 +42,11 @@ Sha_Player& Sha_Player::add_track(Sha_Track track, bool top) {
     if (top)
     {
         this->queue->push_front(track);
-        std::lock_guard<std::mutex> lk(this->st_m);
-        this->shifted_track++;
+        if (this->shifted_track < this->queue->size() - 1)
+        {
+            std::lock_guard<std::mutex> lk(this->st_m);
+            this->shifted_track++;
+        }
     }
     else this->queue->push_back(track);
     return *this;
