@@ -1,4 +1,3 @@
-
 #include <ogg/ogg.h>
 #include <opus/opusfile.h>
 #include <filesystem>
@@ -20,7 +19,7 @@ Sha_Track::~Sha_Track() = default;
 Sha_Player::Sha_Player(dpp::cluster * _cluster, dpp::snowflake _guild_id) {
     guild_id = _guild_id;
     cluster = _cluster;
-    loop_mode = 0;
+    loop_mode = loop_mode_t::l_none;
     shifted_track = 0;
     info_message = nullptr;
     queue = new std::deque<Sha_Track>();
@@ -52,7 +51,7 @@ Sha_Player& Sha_Player::add_track(Sha_Track track, bool top) {
     return *this;
 }
 
-bool Sha_Player::skip(dpp::voiceconn * v, dpp::snowflake user_id, int amount) {
+bool Sha_Player::skip(dpp::voiceconn * v, size_t amount) const {
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
     {
         v->voiceclient->pause_audio(false);
@@ -79,7 +78,7 @@ bool Sha_Player::reset_shifted() {
     }
 }
 
-Sha_Player& Sha_Player::set_loop_mode(short int mode) {
+Sha_Player& Sha_Player::set_loop_mode(int8_t mode) {
     this->loop_mode = mode;
     return *this;
 }
@@ -98,7 +97,7 @@ int Sha_Player::remove_track_by_user(dpp::snowflake user_id, int amount) {
     return 0;
 }
 
-bool Sha_Player::pause(dpp::discord_client * from, dpp::snowflake user_id) {
+bool Sha_Player::pause(dpp::discord_client * from, dpp::snowflake user_id) const {
     auto v = from->get_voice(guild_id);
     if (v && !v->voiceclient->is_paused())
     {
@@ -298,16 +297,16 @@ bool Sha_Player_Manager::skip(dpp::voiceconn * v, dpp::snowflake guild_id, dpp::
     {
         throw mc::exception("You're not in a voice channel", 1);
     }
-    if (p->loop_mode == 1 || p->loop_mode == 3)
+    if (p->loop_mode == loop_mode_t::l_song || p->loop_mode == loop_mode_t::l_song_queue)
     {
         std::lock_guard<std::mutex> lk(p->q_m);
         auto l = p->queue->front();
         p->queue->pop_front();
-        if (p->loop_mode == 3) p->queue->push_back(l);
+        if (p->loop_mode == loop_mode_t::l_song_queue) p->queue->push_back(l);
     }
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
         this->stop_stream(guild_id);
-    bool a = p->skip(v, user_id);
+    bool a = p->skip(v);
     return a;
 }
 
@@ -741,8 +740,8 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
         // Do stuff according to loop mode when playback ends
         if (event.track_meta == "e")
         {
-            if (p->loop_mode == 0) p->queue->pop_front();
-            else if (p->loop_mode == 2)
+            if (p->loop_mode == loop_mode_t::l_none) p->queue->pop_front();
+            else if (p->loop_mode == loop_mode_t::l_queue)
             {
                 auto l = p->queue->front();
                 p->queue->pop_front();
@@ -838,7 +837,7 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
                     // Update if last message is the info embed message
                     if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
                     {
-                        if (player->loop_mode != 1 && player->loop_mode != 3)
+                        if (player->loop_mode != loop_mode_t::l_song && player->loop_mode != loop_mode_t::l_song_queue)
                             this->update_info_embed(guild_id);
                     }
                     else

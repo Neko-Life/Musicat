@@ -1,6 +1,10 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
+#include <string>
+#include <map>
+#include <mutex>
+#include <vector>
 #include <deque>
 #include <dpp/dpp.h>
 #include "yt-search.h"
@@ -11,6 +15,17 @@ namespace mc = musicat;
 using string = std::string;
 
 // TODO: Player class
+
+enum loop_mode_t : int8_t {
+    // No looping
+    l_none = 0,
+    // Loop song
+    l_song = 1,
+    // Loop queue
+    l_queue = 2,
+    // Loop song and queue
+    l_song_queue = 3
+};
 
 struct Sha_Track : YTrack {
     /**
@@ -60,7 +75,7 @@ public:
      * 3: Looping one song and won't remove skipped song.
      *
      */
-    short int loop_mode;
+    int8_t loop_mode;
 
     /**
      * @brief Number of added track to the front of queue.
@@ -89,7 +104,7 @@ public:
     Sha_Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
     ~Sha_Player();
     Sha_Player& add_track(Sha_Track track, bool top = false);
-    bool skip(dpp::voiceconn* v, dpp::snowflake user_id, int amount = 1);
+    bool skip(dpp::voiceconn* v, size_t amount = 1) const;
 
     /**
      * @brief Reorganize track,
@@ -101,7 +116,7 @@ public:
      */
     bool reset_shifted();
 
-    Sha_Player& set_loop_mode(short int mode);
+    Sha_Player& set_loop_mode(int8_t mode);
 
     /**
      * @brief Set player channel, used in playback infos.
@@ -112,7 +127,7 @@ public:
     Sha_Player& set_channel(dpp::snowflake channel_id);
     int remove_track(int pos, int amount = 1);
     int remove_track_by_user(dpp::snowflake user_id, int amount = -1);
-    bool pause(dpp::discord_client* from, dpp::snowflake user_id);
+    bool pause(dpp::discord_client* from, dpp::snowflake user_id) const;
     int seek(int pos, bool abs);
     int stop();
     int resume();

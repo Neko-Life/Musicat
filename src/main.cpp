@@ -421,8 +421,16 @@ int main(int argc, const char* argv[])
                 return event.reply("I'm not playing anything right now");
             }
             if (uvc.first->id != cvc.first->id) return event.reply("You're not in my voice channel");
-            int64_t a_l = 0;
-            mc::get_inter_param(event, "mode", &a_l);
+            int64_t g_l = 0;
+            mc::get_inter_param(event, "mode", &g_l);
+
+            int8_t a_l = (int8_t)g_l;
+
+            if (a_l < 0 || a_l > 3)
+            {
+                event.reply("Invalid mode");
+                return;
+            }
 
             auto player = player_manager->create_player(event.command.guild_id);
             if (player->loop_mode == a_l)
