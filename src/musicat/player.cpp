@@ -151,6 +151,7 @@ Sha_Player_Manager::Sha_Player_Manager(dpp::cluster * _cluster, dpp::snowflake _
     cluster = _cluster;
     sha_id = _sha_id;
     players = new std::map<dpp::snowflake, Sha_Player*>();
+    info_messages_cache = new std::map<dpp::snowflake, dpp::message*>();
 }
 
 Sha_Player_Manager::~Sha_Player_Manager() {
@@ -166,6 +167,18 @@ Sha_Player_Manager::~Sha_Player_Manager() {
     }
     delete players;
     players = NULL;
+    std::lock_guard<std::mutex> lk(imc_m);
+    for (auto l = info_messages_cache->begin(); l != info_messages_cache->end(); l++)
+    {
+        if (l->second)
+        {
+            delete l->second;
+            l->second = NULL;
+        }
+        info_messages_cache->erase(l);
+    }
+    delete info_messages_cache;
+    info_messages_cache = NULL;
     printf("Player Manager destructor called\n");
 }
 
@@ -624,7 +637,7 @@ bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
             return false;
         }
 
-        auto m_cb = [player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
+        auto m_cb = [this, player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
             if (cb.is_error())
             {
                 fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr: err_vector\n", cb.get_error().message.c_str(), cb.get_error().code);
@@ -637,13 +650,18 @@ bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
                     printf("PLAYER GONE WTFF\n");
                     return;
                 }
+
+                std::lock_guard<std::mutex> lk(this->imc_m);
                 if (player->info_message)
                 {
+                    auto id = player->info_message->id;
                     delete player->info_message;
                     player->info_message = nullptr;
+                    this->info_messages_cache->erase(id);
                 }
 
                 player->info_message = new dpp::message(std::get<dpp::message>(cb.value));
+                this->info_messages_cache->[player->info_message->id] = player->info_message;
                 printf("New message info: %ld\n", player->info_message->id);
             }
             else printf("No message_create cb size\n");
@@ -678,17 +696,23 @@ bool Sha_Player_Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command
     auto player = this->get_player(guild_id);
     if (!player) return false;
 
+    bool retdel = [player, this]() {
+        std::lock_guard<std::mutex> lk(this->imc_m);
+        delete player->info_message;
+        player->info_message = nullptr;
+        this->info_messages_cache->erase(player->info_message->id);
+        return true;
+    };
+
     if (!player->info_message) return false;
-    else if (player->info_message->is_source_message_deleted()) return true;
+    else if (player->info_message->is_source_message_deleted()) return retdel();
 
     auto mid = player->info_message->id;
     auto cid = player->info_message->channel_id;
 
     printf("Channel Info Embed Id Delete: %ld\n", cid);
     this->cluster->message_delete(mid, cid, callback);
-    delete player->info_message;
-    player->info_message = nullptr;
-    return true;
+    return retdel();
 }
 
 bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t & event) {
@@ -995,5 +1019,30 @@ void Sha_Player_Manager::handle_on_voice_state_update(const dpp::voice_state_upd
                 this->dl_cv.notify_all();
             }
         }
+    }
+}
+
+bool Sha_Player_Manager::set_info_message_as_deleted(dpp::snowflake id) {
+    std::lock_guard<std::mutex> lk(this->imc_m);
+    auto m = this->info_messages_cache->find(id);
+    if (m != this->info_messages_cache->end())
+    {
+        if (!m->second->is_source_message_deleted())
+        {
+            m->second->set_flags(m->second->flags | dpp::m_source_message_deleted);
+            return true;
+        }
+    }
+    return false;
+}
+
+void Sha_Player_Manager::handle_on_message_delete(const dpp::message_delete_t & event) {
+    this->set_info_message_as_deleted(event.deleted->id);
+}
+
+void Sha_Player_Manager::handle_on_message_delete_bulk(const dpp::message_delete_bulk_t & event) {
+    for (auto i : event.deleted)
+    {
+        this->set_info_message_as_deleted(i);
     }
 }

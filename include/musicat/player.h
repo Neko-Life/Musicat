@@ -126,6 +126,7 @@ class Sha_Player_Manager {
 public:
     dpp::cluster* cluster;
     std::map<dpp::snowflake, Sha_Player*>* players;
+    std::map<dpp::snowflake, dpp::message*>* info_messages_cache;
     dpp::snowflake sha_id;
 
     // Mutexes
@@ -136,7 +137,8 @@ public:
     // ps: players
     // mp: manually_paused
     // sq: stop_queue
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m;
+    // imc: info_messages_cache
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;
@@ -258,6 +260,9 @@ public:
     dpp::embed get_playing_info_embed(dpp::snowflake guild_id);
     void handle_on_voice_ready(const dpp::voice_ready_t& event);
     void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
+    bool set_info_message_as_deleted(dpp::snowflake id);
+    void handle_on_message_delete(const dpp::message_delete_t& event);
+    void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
 };
 
 #endif

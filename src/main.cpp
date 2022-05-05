@@ -470,6 +470,14 @@ int main(int argc, const char* argv[])
         player_manager->handle_on_track_marker(event);
     });
 
+    client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
+        player_manager->handle_on_message_delete(event);
+    });
+
+    client.on_message_delete_bulk([&player_manager](const dpp::message_delete_bulk_t& event) {
+        player_manager->handle_on_message_delete_bulk(event);
+    });
+
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
     client.start(true);
