@@ -160,7 +160,7 @@ int main(int argc, const char* argv[])
                 if (player_manager->pause(event.from, event.command.guild_id, event.command.usr.id)) event.reply("Paused");
                 else event.reply("I'm not playing anything");
             }
-            catch (mc::exception& e)
+            catch (const mc::exception& e)
             {
                 return event.reply(e.what());
             }
@@ -229,7 +229,7 @@ int main(int argc, const char* argv[])
                 }
                 else event.reply("I'm not playing anything");
             }
-            catch (mc::exception& e)
+            catch (const mc::exception& e)
             {
                 return event.reply(e.what());
             }

@@ -621,9 +621,9 @@ bool Sha_Player_Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
         {
             e = get_playing_info_embed(guild_id);
         }
-        catch (mc::exception& e)
+        catch (const mc::exception& e)
         {
-            fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed: %s\n", e.what().c_str());
+            fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed: %s\n", e.what());
             return false;
         }
         catch (const dpp::exception& e)
@@ -849,9 +849,9 @@ bool Sha_Player_Manager::handle_on_track_marker(const dpp::voice_track_marker_t 
                 }
                 else printf("No channel Id to send info embed\n");
             }
-            catch (mc::exception& e)
+            catch (const mc::exception& e)
             {
-                fprintf(stderr, "[ERROR(player.646)] %s\n", e.what().c_str());
+                fprintf(stderr, "[ERROR(player.646)] %s\n", e.what());
             }
         }, event.voice_client, s, event.track_meta, p);
         tj.detach();

@@ -20,7 +20,7 @@ namespace musicat
         std::map<dpp::snowflake, string> prefix;
         std::vector<dpp::snowflake> joining_list;
 
-        string get_prefix(const dpp::snowflake guildId);
+        string get_prefix(const dpp::snowflake guildId) const;
 
         auto set_prefix(const dpp::snowflake guildId, const string newPrefix);
 
@@ -78,15 +78,15 @@ namespace musicat
 
     class exception : std::exception {
     private:
-        string message;
+        const char* message;
         int c;
 
     public:
         exception(const char* _message, int _code = 0);
 
-        string what();
+        virtual const char* what() const noexcept;
 
-        int code();
+        virtual int code() const noexcept;
     };
 }
 

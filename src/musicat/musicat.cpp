@@ -14,7 +14,7 @@ namespace musicat
         return i;
     }
 
-    string settings::get_prefix(const dpp::snowflake guildId)
+    string settings::get_prefix(const dpp::snowflake guildId) const
     {
         auto gid = prefix.find(guildId);
         if (gid == prefix.end())
@@ -149,15 +149,15 @@ namespace musicat
     }
 
     exception::exception(const char* _message, int _code) {
-        message = string(_message);
+        message = _message;
         c = _code;
     }
 
-    string exception::what() {
+    const char* exception::what() const noexcept {
         return message;
     }
 
-    int exception::code() {
+    int exception::code() const noexcept {
         return c;
     }
 }
