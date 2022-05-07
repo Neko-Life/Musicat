@@ -6,11 +6,9 @@
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
-#include "musicat/slash.h"
-
-#define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n  reg <guild_id|\"g\">\n")
 
 namespace mc = musicat;
+namespace mpl = musicat_player;
 using json = nlohmann::json;
 using string = std::string;
 
@@ -36,67 +34,11 @@ int main(int argc, const char* argv[])
     dpp::snowflake sha_id(sha_cfg["SHA_ID"]);
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
 
-    if (argc > 1)
-    {
-        string a1 = string(argv[1]);
-        // for (int i = 1; i <= argc; i++){
-        //     auto a=argv[i];
-        //     if (a)
-        // }
-        int cmd = -1;
-        if (a1 == "reg") cmd = 0;
-
-        if (cmd < 0)
-        {
-            PRINT_USAGE_REGISTER_SLASH;
-            return 0;
-        }
-
-        switch (cmd)
-        {
-        case 0:
-            if (argc == 2)
-            {
-                printf("Provide guild_id or \"g\" to register globally\n");
-                return 0;
-            }
-            string a2 = string(argv[2]);
-            if (a2 == "g")
-            {
-                printf("Registering commands globally...\n");
-                auto c = sha_slash::get_all(sha_id);
-                client.global_bulk_command_create(c);
-                return 0;
-            }
-            else
-            {
-                if (!std::regex_match(argv[2], std::regex("^\\d{17,20}$"), std::regex_constants::match_any))
-                {
-                    printf("Provide valid guild_id\n");
-                    return 0;
-                }
-                int64_t gid;
-                std::istringstream iss(argv[2]);
-                iss >> gid;
-                if (gid < 0)
-                {
-                    printf("Invalid integer, too large\n");
-                    return 0;
-                }
-                printf("Registering commands in %ld\n", gid);
-                auto c = sha_slash::get_all(sha_id);
-                client.guild_bulk_command_create(c, gid);
-                return 0;
-            }
-            break;
-        }
-
-        return 0;
-    }
+    if (argc > 1) return mc::cli(client, sha_id, argc, argv);
 
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    Sha_Player_Manager* player_manager = new Sha_Player_Manager(&client, sha_id);
+    mpl::Manager* player_manager = new mpl::Manager(&client, sha_id);
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -375,7 +317,7 @@ int main(int argc, const char* argv[])
                 if (dling) player_manager->wait_for_download(fname);
                 auto p = player_manager->create_player(guild_id);
 
-                Sha_Track t(result);
+                mpl::MCTrack t(result);
                 t.filename = fname;
                 t.user_id = user_id;
                 p->add_track(t, arg_top);

@@ -88,6 +88,8 @@ namespace musicat
 
         virtual int code() const noexcept;
     };
+
+    int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[]);
 }
 
 #endif
