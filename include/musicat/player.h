@@ -92,7 +92,7 @@ namespace musicat_player {
          * @brief Track queue.
          *
          */
-        std::shared_ptr<std::deque<MCTrack>> queue;
+        std::deque<MCTrack> queue;
 
         /**
          * @brief Must use this whenever doing the appropriate action.
@@ -143,8 +143,8 @@ namespace musicat_player {
     class Manager {
     public:
         dpp::cluster* cluster;
-        std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<Player>>> players;
-        std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<dpp::message>>> info_messages_cache;
+        std::map<dpp::snowflake, std::shared_ptr<Player>> players;
+        std::map<dpp::snowflake, std::shared_ptr<dpp::message>> info_messages_cache;
         dpp::snowflake sha_id;
 
         // Mutexes
@@ -202,7 +202,7 @@ namespace musicat_player {
          * @param guild_id
          * @return std::shared_ptr<std::deque<MCTrack>>
          */
-        std::shared_ptr<std::deque<MCTrack>> get_queue(dpp::snowflake guild_id);
+        std::deque<MCTrack> get_queue(dpp::snowflake guild_id);
 
         /**
          * @brief Manually pause guild player

@@ -270,7 +270,7 @@ int main(int argc, const char* argv[])
 
             auto op = player_manager->get_player(event.command.guild_id);
 
-            if (op && v && v->voiceclient && op->queue->size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker("c");
+            if (op && v && v->voiceclient && op->queue.size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker("c");
 
             if (arg_query.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 

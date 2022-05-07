@@ -25,7 +25,6 @@ namespace musicat_player {
         loop_mode = loop_mode_t::l_none;
         shifted_track = 0;
         info_message = nullptr;
-        queue = std::shared_ptr<std::deque<MCTrack>>(new std::deque<MCTrack>());
     }
 
     Player::~Player() = default; /* {
@@ -43,14 +42,14 @@ namespace musicat_player {
         std::lock_guard<std::mutex> lk(this->q_m);
         if (top)
         {
-            this->queue->push_front(track);
-            if (this->shifted_track < this->queue->size() - 1)
+            this->queue.push_front(track);
+            if (this->shifted_track < this->queue.size() - 1)
             {
                 std::lock_guard<std::mutex> lk(this->st_m);
                 this->shifted_track++;
             }
         }
-        else this->queue->push_back(track);
+        else this->queue.push_back(track);
         return *this;
     }
 
@@ -68,12 +67,12 @@ namespace musicat_player {
         {
             std::lock_guard<std::mutex> lk(this->q_m);
             std::lock_guard<std::mutex> lk2(this->st_m);
-            if (this->queue->size() && this->shifted_track > 0)
+            if (this->queue.size() && this->shifted_track > 0)
             {
-                auto i = this->queue->begin() + this->shifted_track;
+                auto i = this->queue.begin() + this->shifted_track;
                 auto s = *i;
-                this->queue->erase(i);
-                this->queue->push_front(s);
+                this->queue.erase(i);
+                this->queue.push_front(s);
                 this->shifted_track = 0;
                 return true;
             }
@@ -149,35 +148,33 @@ namespace musicat_player {
         return 0;
     }
 
-    Manager::Manager(dpp::cluster* _cluster, dpp::snowflake _sha_id) {
-        cluster = _cluster;
-        sha_id = _sha_id;
-        players = std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<Player>>>(new std::map<dpp::snowflake, std::shared_ptr<Player>>());
-        info_messages_cache = std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<dpp::message>>>(new std::map<dpp::snowflake, std::shared_ptr<dpp::message>>());
+    Manager::Manager(dpp::cluster* cluster, dpp::snowflake sha_id) {
+        this->cluster = cluster;
+        this->sha_id = sha_id;
     }
 
     Manager::~Manager() = default; /* {
         std::lock_guard<std::mutex> lk(ps_m);
-        for (auto l = players->begin(); l != players->end(); l++)
+        for (auto l = players.begin(); l != players.end(); l++)
         {
             if (l->second)
             {
                 delete l->second;
                 l->second = NULL;
             }
-            players->erase(l);
+            players.erase(l);
         }
         delete players;
         players = NULL;
         std::lock_guard<std::mutex> lk2(imc_m);
-        for (auto l = info_messages_cache->begin(); l != info_messages_cache->end(); l++)
+        for (auto l = info_messages_cache.begin(); l != info_messages_cache.end(); l++)
         {
             if (l->second)
             {
                 delete l->second;
                 l->second = NULL;
             }
-            info_messages_cache->erase(l);
+            info_messages_cache.erase(l);
         }
         delete info_messages_cache;
         info_messages_cache = NULL;
@@ -186,17 +183,17 @@ namespace musicat_player {
 
     std::shared_ptr<Player> Manager::create_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
-        auto l = players->find(guild_id);
-        if (l != players->end()) return l->second;
-        std::shared_ptr<Player> v(new Player(cluster, guild_id));
-        players->insert(std::pair(guild_id, v));
+        auto l = players.find(guild_id);
+        if (l != players.end()) return l->second;
+        std::shared_ptr<Player> v = std::make_shared<Player>(cluster, guild_id);
+        players.insert(std::pair(guild_id, v));
         return v;
     }
 
     std::shared_ptr<Player> Manager::get_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
-        auto l = players->find(guild_id);
-        if (l != players->end()) return l->second;
+        auto l = players.find(guild_id);
+        if (l != players.end()) return l->second;
         return NULL;
     }
 
@@ -228,16 +225,16 @@ namespace musicat_player {
 
     bool Manager::delete_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
-        auto l = players->find(guild_id);
-        if (l == players->end()) return false;
+        auto l = players.find(guild_id);
+        if (l == players.end()) return false;
         // delete l->second;
-        players->erase(l);
+        players.erase(l);
         return true;
     }
 
-    std::shared_ptr<std::deque<MCTrack>> Manager::get_queue(dpp::snowflake guild_id) {
+    std::deque<MCTrack> Manager::get_queue(dpp::snowflake guild_id) {
         auto p = get_player(guild_id);
-        if (!p) return nullptr;
+        if (!p) std::deque<MCTrack>();
         return p->queue;
     }
 
@@ -303,9 +300,9 @@ namespace musicat_player {
         if (p->loop_mode == loop_mode_t::l_song || p->loop_mode == loop_mode_t::l_song_queue)
         {
             std::lock_guard<std::mutex> lk(p->q_m);
-            auto l = p->queue->front();
-            p->queue->pop_front();
-            if (p->loop_mode == loop_mode_t::l_song_queue) p->queue->push_back(l);
+            auto l = p->queue.front();
+            p->queue.pop_front();
+            if (p->loop_mode == loop_mode_t::l_song_queue) p->queue.push_back(l);
         }
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
             this->stop_stream(guild_id);
@@ -659,11 +656,11 @@ namespace musicat_player {
                         auto id = player->info_message->id;
                         // delete player->info_message;
                         // player->info_message = nullptr;
-                        this->info_messages_cache->erase(id);
+                        this->info_messages_cache.erase(id);
                     }
 
-                    player->info_message = std::shared_ptr<dpp::message>(new dpp::message(std::get<dpp::message>(cb.value)));
-                    (*this->info_messages_cache)[player->info_message->id] = player->info_message;
+                    player->info_message = std::make_shared<dpp::message>(std::get<dpp::message>(cb.value));
+                    this->info_messages_cache[player->info_message->id] = player->info_message;
                     printf("New message info: %ld\n", player->info_message->id);
                 }
                 else printf("No message_create cb size\n");
@@ -703,7 +700,7 @@ namespace musicat_player {
             auto id = player->info_message->id;
             // delete player->info_message;
             // player->info_message = nullptr;
-            this->info_messages_cache->erase(id);
+            this->info_messages_cache.erase(id);
             return true;
         };
 
@@ -733,7 +730,7 @@ namespace musicat_player {
         if (!p) { printf("NO PLAYER\n"); return false; }
         MCTrack s;
         {
-            if (p->queue->size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
+            if (p->queue.size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
 
             // Handle shifted tracks (tracks shifted to the front of the queue)
             printf("Resetting shifted: %d\n", p->reset_shifted());
@@ -743,16 +740,16 @@ namespace musicat_player {
             // Do stuff according to loop mode when playback ends
             if (event.track_meta == "e")
             {
-                if (p->loop_mode == loop_mode_t::l_none) p->queue->pop_front();
+                if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
                 else if (p->loop_mode == loop_mode_t::l_queue)
                 {
-                    auto l = p->queue->front();
-                    p->queue->pop_front();
-                    p->queue->push_back(l);
+                    auto l = p->queue.front();
+                    p->queue.pop_front();
+                    p->queue.push_back(l);
                 }
             }
-            if (p->queue->size() == 0) { printf("NO SIZE AFTER: %d\n", p->loop_mode);return false; }
-            s = p->queue->front();
+            if (p->queue.size() == 0) { printf("NO SIZE AFTER: %d\n", p->loop_mode);return false; }
+            s = p->queue.front();
         }
 
         printf("To play\n");
@@ -871,8 +868,8 @@ namespace musicat_player {
         player->reset_shifted();
 
         std::lock_guard<std::mutex> lk(player->q_m);
-        if (!player->queue->size()) throw mc::exception("No track");
-        auto track = player->queue->front();
+        if (!player->queue.size()) throw mc::exception("No track");
+        auto track = player->queue.front();
         dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
         dpp::guild_member u = dpp::find_guild_member(guild_id, track.user_id);
         dpp::user* uc = dpp::find_user(u.user_id);
@@ -1027,8 +1024,8 @@ namespace musicat_player {
 
     bool Manager::set_info_message_as_deleted(dpp::snowflake id) {
         std::lock_guard<std::mutex> lk(this->imc_m);
-        auto m = this->info_messages_cache->find(id);
-        if (m != this->info_messages_cache->end())
+        auto m = this->info_messages_cache.find(id);
+        if (m != this->info_messages_cache.end())
         {
             if (!m->second->is_source_message_deleted())
             {
