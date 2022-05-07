@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
 
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    std::unique_ptr<mpl::Manager> player_manager(new mpl::Manager(&client, sha_id));
+    std::unique_ptr<mpl::Manager> player_manager = std::make_unique<mpl::Manager>(&client, sha_id);
 
     client.on_log(dpp::utility::cout_logger());
 
