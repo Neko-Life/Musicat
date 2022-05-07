@@ -67,7 +67,7 @@ namespace musicat_player {
          * @brief Message info of currently playing song.
          *
          */
-        dpp::message* info_message;
+        std::shared_ptr<dpp::message> info_message;
 
         /**
          * @brief Loop mode of the currently playing song.
@@ -92,7 +92,7 @@ namespace musicat_player {
          * @brief Track queue.
          *
          */
-        std::deque<MCTrack>* queue;
+        std::shared_ptr<std::deque<MCTrack>> queue;
 
         /**
          * @brief Must use this whenever doing the appropriate action.
@@ -143,8 +143,8 @@ namespace musicat_player {
     class Manager {
     public:
         dpp::cluster* cluster;
-        std::map<dpp::snowflake, Player*>* players;
-        std::map<dpp::snowflake, dpp::message*>* info_messages_cache;
+        std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<Player>>> players;
+        std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<dpp::message>>> info_messages_cache;
         dpp::snowflake sha_id;
 
         // Mutexes
@@ -174,17 +174,17 @@ namespace musicat_player {
          * @brief Create a player object if not exist and return player
          *
          * @param guild_id
-         * @return Player*
+         * @return std::shared_ptr<Player>
          */
-        Player* create_player(dpp::snowflake guild_id);
+        std::shared_ptr<Player> create_player(dpp::snowflake guild_id);
 
         /**
          * @brief Get the player object, return NULL if not exist
          *
          * @param guild_id
-         * @return Player*
+         * @return std::shared_ptr<Player>
          */
-        Player* get_player(dpp::snowflake guild_id);
+        std::shared_ptr<Player> get_player(dpp::snowflake guild_id);
         void reconnect(dpp::discord_client* from, dpp::snowflake guild_id);
 
         /**
@@ -200,9 +200,9 @@ namespace musicat_player {
          * @brief Get guild player's queue, return NULL if player not exist
          *
          * @param guild_id
-         * @return std::deque<MCTrack>*
+         * @return std::shared_ptr<std::deque<MCTrack>>
          */
-        std::deque<MCTrack>* get_queue(dpp::snowflake guild_id);
+        std::shared_ptr<std::deque<MCTrack>> get_queue(dpp::snowflake guild_id);
 
         /**
          * @brief Manually pause guild player

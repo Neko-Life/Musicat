@@ -25,10 +25,10 @@ namespace musicat_player {
         loop_mode = loop_mode_t::l_none;
         shifted_track = 0;
         info_message = nullptr;
-        queue = new std::deque<MCTrack>();
+        queue = std::shared_ptr<std::deque<MCTrack>>(new std::deque<MCTrack>());
     }
 
-    Player::~Player() {
+    Player::~Player() = default; /* {
         delete queue;
         if (info_message)
         {
@@ -37,7 +37,7 @@ namespace musicat_player {
         }
         cluster = nullptr;
         printf("Player destructor called\n");
-    }
+    } */
 
     Player& Player::add_track(MCTrack track, bool top) {
         std::lock_guard<std::mutex> lk(this->q_m);
@@ -152,11 +152,11 @@ namespace musicat_player {
     Manager::Manager(dpp::cluster* _cluster, dpp::snowflake _sha_id) {
         cluster = _cluster;
         sha_id = _sha_id;
-        players = new std::map<dpp::snowflake, Player*>();
-        info_messages_cache = new std::map<dpp::snowflake, dpp::message*>();
+        players = std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<Player>>>(new std::map<dpp::snowflake, std::shared_ptr<Player>>());
+        info_messages_cache = std::unique_ptr<std::map<dpp::snowflake, std::shared_ptr<dpp::message>>>(new std::map<dpp::snowflake, std::shared_ptr<dpp::message>>());
     }
 
-    Manager::~Manager() {
+    Manager::~Manager() = default; /* {
         std::lock_guard<std::mutex> lk(ps_m);
         for (auto l = players->begin(); l != players->end(); l++)
         {
@@ -182,18 +182,18 @@ namespace musicat_player {
         delete info_messages_cache;
         info_messages_cache = NULL;
         printf("Player Manager destructor called\n");
-    }
+    } */
 
-    Player* Manager::create_player(dpp::snowflake guild_id) {
+    std::shared_ptr<Player> Manager::create_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
-        Player* v = new Player(cluster, guild_id);
+        std::shared_ptr<Player> v(new Player(cluster, guild_id));
         players->insert(std::pair(guild_id, v));
         return v;
     }
 
-    Player* Manager::get_player(dpp::snowflake guild_id) {
+    std::shared_ptr<Player> Manager::get_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l != players->end()) return l->second;
@@ -230,12 +230,12 @@ namespace musicat_player {
         std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players->find(guild_id);
         if (l == players->end()) return false;
-        delete l->second;
+        // delete l->second;
         players->erase(l);
         return true;
     }
 
-    std::deque<MCTrack>* Manager::get_queue(dpp::snowflake guild_id) {
+    std::shared_ptr<std::deque<MCTrack>> Manager::get_queue(dpp::snowflake guild_id) {
         auto p = get_player(guild_id);
         if (!p) return nullptr;
         return p->queue;
@@ -657,12 +657,12 @@ namespace musicat_player {
                     if (player->info_message)
                     {
                         auto id = player->info_message->id;
-                        delete player->info_message;
-                        player->info_message = nullptr;
+                        // delete player->info_message;
+                        // player->info_message = nullptr;
                         this->info_messages_cache->erase(id);
                     }
 
-                    player->info_message = new dpp::message(std::get<dpp::message>(cb.value));
+                    player->info_message = std::shared_ptr<dpp::message>(new dpp::message(std::get<dpp::message>(cb.value)));
                     (*this->info_messages_cache)[player->info_message->id] = player->info_message;
                     printf("New message info: %ld\n", player->info_message->id);
                 }
@@ -701,8 +701,8 @@ namespace musicat_player {
         auto retdel = [player, this]() {
             std::lock_guard<std::mutex> lk(this->imc_m);
             auto id = player->info_message->id;
-            delete player->info_message;
-            player->info_message = nullptr;
+            // delete player->info_message;
+            // player->info_message = nullptr;
             this->info_messages_cache->erase(id);
             return true;
         };
@@ -759,7 +759,7 @@ namespace musicat_player {
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             printf("Starting thread\n");
-            std::thread tj([this](dpp::discord_voice_client* v, MCTrack track, string meta, Player* player) {
+            std::thread tj([this](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
                 bool timed_out = false;
                 auto guild_id = v->server_id;
                 dpp::snowflake channel_id = player->channel_id;
