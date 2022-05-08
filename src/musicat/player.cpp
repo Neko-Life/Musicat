@@ -27,16 +27,7 @@ namespace musicat_player {
         info_message = nullptr;
     }
 
-    Player::~Player() = default; /* {
-        delete queue;
-        if (info_message)
-        {
-            delete info_message;
-            info_message = nullptr;
-        }
-        cluster = nullptr;
-        printf("Player destructor called\n");
-    } */
+    Player::~Player() = default;
 
     Player& Player::add_track(MCTrack track, bool top) {
         std::lock_guard<std::mutex> lk(this->q_m);
@@ -153,33 +144,7 @@ namespace musicat_player {
         this->sha_id = sha_id;
     }
 
-    Manager::~Manager() = default; /* {
-        std::lock_guard<std::mutex> lk(ps_m);
-        for (auto l = players.begin(); l != players.end(); l++)
-        {
-            if (l->second)
-            {
-                delete l->second;
-                l->second = NULL;
-            }
-            players.erase(l);
-        }
-        delete players;
-        players = NULL;
-        std::lock_guard<std::mutex> lk2(imc_m);
-        for (auto l = info_messages_cache.begin(); l != info_messages_cache.end(); l++)
-        {
-            if (l->second)
-            {
-                delete l->second;
-                l->second = NULL;
-            }
-            info_messages_cache.erase(l);
-        }
-        delete info_messages_cache;
-        info_messages_cache = NULL;
-        printf("Player Manager destructor called\n");
-    } */
+    Manager::~Manager() = default;
 
     std::shared_ptr<Player> Manager::create_player(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk(this->ps_m);
@@ -227,7 +192,6 @@ namespace musicat_player {
         std::lock_guard<std::mutex> lk(this->ps_m);
         auto l = players.find(guild_id);
         if (l == players.end()) return false;
-        // delete l->second;
         players.erase(l);
         return true;
     }
@@ -557,27 +521,6 @@ namespace musicat_player {
     void Manager::play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
         std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
             printf("Attempt to stream\n");
-            // dpp::voiceconn* v = from->get_voice(guild_id);
-            // {
-            //     std::unique_lock<std::mutex> lk(wm_m);
-            //     if (waiting_marker.find(event.msg.guild_id) == waiting_marker.end())
-            //     {
-            //         std::vector<string> a;
-            //         waiting_marker.insert({ event.msg.guild_id, a });
-            //     }
-            //     waiting_marker[event.msg.guild_id].push_back(fname);
-            //     this->dl_cv.wait(lk, [&waiting_marker, fname, event]() {
-            //         return true;
-            //         auto l = waiting_marker.find(event.msg.guild_id);
-            //         for (int i = 0; i < (int)(l->second.size()); i++)
-            //             if (!l->second.at(i).empty())
-            //                 if (l->second.at(i) == fname) return true;
-            //                 else return false;
-            //         return false;
-            //     });
-            // }
-
-            // if (!v)
             try
             {
                 this->stream(v, fname, channel_id);
@@ -654,8 +597,6 @@ namespace musicat_player {
                     if (player->info_message)
                     {
                         auto id = player->info_message->id;
-                        // delete player->info_message;
-                        // player->info_message = nullptr;
                         this->info_messages_cache.erase(id);
                     }
 
@@ -698,8 +639,6 @@ namespace musicat_player {
         auto retdel = [player, this]() {
             std::lock_guard<std::mutex> lk(this->imc_m);
             auto id = player->info_message->id;
-            // delete player->info_message;
-            // player->info_message = nullptr;
             this->info_messages_cache.erase(id);
             return true;
         };
@@ -866,10 +805,14 @@ namespace musicat_player {
 
         // Reset shifted tracks
         player->reset_shifted();
+        MCTrack track;
 
-        std::lock_guard<std::mutex> lk(player->q_m);
-        if (!player->queue.size()) throw mc::exception("No track");
-        auto track = player->queue.front();
+        {
+            std::lock_guard<std::mutex> lk(player->q_m);
+            if (!player->queue.size()) throw mc::exception("No track");
+            track = player->queue.front();
+        }
+
         dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
         dpp::guild_member u = dpp::find_guild_member(guild_id, track.user_id);
         dpp::user* uc = dpp::find_user(u.user_id);
