@@ -229,15 +229,37 @@ namespace musicat_player {
         return ret;
     }
 
-    bool Manager::voice_ready(dpp::snowflake guild_id)
-    {
+    bool Manager::is_disconnecting(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk1(this->dc_m);
+        return this->disconnecting.find(guild_id) != this->disconnecting.end();
+    }
+
+    bool Manager::is_connecting(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk2(this->c_m);
+        return this->connecting.find(guild_id) != this->connecting.end();
+    }
+
+    bool Manager::is_waiting_vc_ready(dpp::snowflake guild_id) {
         std::lock_guard<std::mutex> lk3(this->wd_m);
-        if (this->disconnecting.find(guild_id) != this->disconnecting.end()
-            || this->connecting.find(guild_id) != this->connecting.end()
-            || this->waiting_vc_ready.find(guild_id) != this->waiting_vc_ready.end())
+        return this->waiting_vc_ready.find(guild_id) != this->waiting_vc_ready.end();
+    }
+
+    bool Manager::voice_ready(dpp::snowflake guild_id, dpp::discord_client* from)
+    {
+        bool re = is_connecting(guild_id);
+        if (is_disconnecting(guild_id)
+            || re
+            || is_waiting_vc_ready(guild_id))
+        {
+            if (re && from)
+            {
+                std::thread t([this](dpp::snowflake guild_id, dpp::discord_client* from) {
+                    this->reconnect(from, guild_id);
+                    }, guild_id, from);
+                t.detach();
+            }
             return false;
+        }
         return true;
     }
 
@@ -657,13 +679,10 @@ namespace musicat_player {
     bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event) {
         printf("Handling voice marker\n");
         if (!event.voice_client) { printf("NO CLIENT\n");return false; }
+        if (this->is_disconnecting(event.voice_client->server_id))
         {
-            std::lock_guard lk(this->dc_m);
-            if (this->disconnecting.find(event.voice_client->server_id) != this->disconnecting.end())
-            {
-                printf("DISCONNECTING\n");
-                return false;
-            }
+            printf("DISCONNECTING\n");
+            return false;
         }
         auto p = this->get_player(event.voice_client->server_id);
         if (!p) { printf("NO PLAYER\n"); return false; }
@@ -856,6 +875,16 @@ namespace musicat_player {
             {
                 this->waiting_vc_ready.erase(event.voice_client->server_id);
                 this->dl_cv.notify_all();
+            }
+        }
+        {
+            {
+                std::lock_guard lk(this->c_m);
+                if (this->connecting.find(event.voice_client->server_id) != this->connecting.end())
+                {
+                    this->connecting.erase(event.voice_client->server_id);
+                    this->dl_cv.notify_all();
+                }
             }
         }
         auto i = event.voice_client->get_tracks_remaining();

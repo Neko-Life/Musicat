@@ -217,14 +217,18 @@ namespace musicat_player {
         bool pause(dpp::discord_client* from, dpp::snowflake guild_id, dpp::snowflake user_id);
         bool unpause(dpp::discord_voice_client* voiceclient, dpp::snowflake guild_id);
 
+        bool is_disconnecting(dpp::snowflake guild_id);
+        bool is_connecting(dpp::snowflake guild_id);
+        bool is_waiting_vc_ready(dpp::snowflake guild_id);
         /**
-         * @brief Check whether client is ready to stream in vc and make changes to playback and player queue
+         * @brief Check whether client is ready to stream in vc and make changes to playback and player queue, will auto reconnect if `from` provide
          *
          * @param guild_id
+         * @param from
          * @return true
          * @return false
          */
-        bool voice_ready(dpp::snowflake guild_id);
+        bool voice_ready(dpp::snowflake guild_id, dpp::discord_client* from = nullptr);
         void stop_stream(dpp::snowflake guild_id);
 
         /**

@@ -178,7 +178,7 @@ int main(int argc, const char* argv[])
         }
         else if (cmd == "play")
         {
-            if (!player_manager->voice_ready(event.command.guild_id))
+            if (!player_manager->voice_ready(event.command.guild_id, event.from))
             {
                 event.reply("Please wait while I'm getting ready to stream");
                 return;

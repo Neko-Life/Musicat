@@ -20,7 +20,7 @@ all: $(SRC)
 	$(CXX) $(CCF) $(INC) $(LIB) $(SRC) -o $(OUT)
 
 ex:
-	g++ -Wall -Wextra -g -Iinclude exec.cpp -o ex
+	g++ -Wall -Wextra -g -Iinclude -lcurlpp -lcurl exec.cpp src/musicat/yt_search.cpp src/musicat/encode.cpp -o ex
 
 ex2:
 	g++ -Wall -Wextra -g -Iinclude exec2.cpp -o ex2
