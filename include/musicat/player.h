@@ -48,6 +48,8 @@ namespace musicat_player {
         ~MCTrack();
     };
 
+    class Manager;
+
     class Player {
     public:
 
@@ -87,6 +89,8 @@ namespace musicat_player {
         size_t shifted_track;
 
         dpp::cluster* cluster;
+        dpp::discord_client* from;
+        Manager* manager;
 
         /**
          * @brief Track queue.
@@ -106,7 +110,7 @@ namespace musicat_player {
 
         Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
         ~Player();
-        Player& add_track(MCTrack track, bool top = false);
+        Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0);
         bool skip(dpp::voiceconn* v, size_t amount = 1) const;
 
         /**
@@ -200,7 +204,7 @@ namespace musicat_player {
          * @brief Get guild player's queue, return NULL if player not exist
          *
          * @param guild_id
-         * @return std::shared_ptr<std::deque<MCTrack>>
+         * @return std::deque<MCTrack>
          */
         std::deque<MCTrack> get_queue(dpp::snowflake guild_id);
 
@@ -252,11 +256,12 @@ namespace musicat_player {
          *
          * @param guild_id
          * @param update Whether to update last info embed instead of sending new one, return false if no info embed exist
+         * @param force_playing_status
          * @return true
          * @return false
          * @throw mc::exception
          */
-        bool send_info_embed(dpp::snowflake guild_id, bool update = false);
+        bool send_info_embed(dpp::snowflake guild_id, bool update = false, bool force_playing_status = false);
 
         /**
          * @brief Update currently playing song info embed, return false if no info embed exist
@@ -279,7 +284,7 @@ namespace musicat_player {
         bool delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error());
 
         bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
-        dpp::embed get_playing_info_embed(dpp::snowflake guild_id);
+        dpp::embed get_playing_info_embed(dpp::snowflake guild_id, bool force_playing_status);
         void handle_on_voice_ready(const dpp::voice_ready_t& event);
         void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
         bool set_info_message_as_deleted(dpp::snowflake id);

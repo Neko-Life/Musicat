@@ -25,22 +25,28 @@ namespace musicat_player {
         loop_mode = loop_mode_t::l_none;
         shifted_track = 0;
         info_message = nullptr;
+        from = nullptr;
     }
 
     Player::~Player() = default;
 
-    Player& Player::add_track(MCTrack track, bool top) {
-        std::lock_guard<std::mutex> lk(this->q_m);
-        if (top)
+    Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id) {
+        size_t siz = 0;
         {
-            this->queue.push_front(track);
-            if (this->shifted_track < this->queue.size() - 1)
+            std::lock_guard<std::mutex> lk(this->q_m);
+            siz = this->queue.size();
+            if (top)
             {
-                std::lock_guard<std::mutex> lk(this->st_m);
-                this->shifted_track++;
+                this->queue.push_front(track);
+                if (this->shifted_track < this->queue.size() - 1)
+                {
+                    std::lock_guard<std::mutex> lk(this->st_m);
+                    this->shifted_track++;
+                }
             }
+            else this->queue.push_back(track);
         }
-        else this->queue.push_back(track);
+        if (siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
         return *this;
     }
 
@@ -151,6 +157,7 @@ namespace musicat_player {
         auto l = players.find(guild_id);
         if (l != players.end()) return l->second;
         std::shared_ptr<Player> v = std::make_shared<Player>(cluster, guild_id);
+        v->manager = this;
         players.insert(std::pair(guild_id, v));
         return v;
     }
@@ -198,7 +205,8 @@ namespace musicat_player {
 
     std::deque<MCTrack> Manager::get_queue(dpp::snowflake guild_id) {
         auto p = get_player(guild_id);
-        if (!p) std::deque<MCTrack>();
+        if (!p) return {};
+        p->reset_shifted();
         return p->queue;
     }
 
@@ -211,6 +219,7 @@ namespace musicat_player {
             std::lock_guard<std::mutex> lk(mp_m);
             if (mc::vector_find(&this->manually_paused, guild_id) == this->manually_paused.end())
                 this->manually_paused.push_back(guild_id);
+            this->update_info_embed(guild_id);
         }
         return a;
     }
@@ -226,6 +235,7 @@ namespace musicat_player {
         }
         else ret = false;
         voiceclient->pause_audio(false);
+        this->update_info_embed(guild_id);
         return ret;
     }
 
@@ -307,8 +317,8 @@ namespace musicat_player {
                 if (stat("music", &buf) != 0)
                     std::filesystem::create_directory("music");
             }
-            string cmd = string("yt-dlp -f 251 -o - '") + url
-                + string("' | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
+            string cmd = string("yt-dlp -f 251 --http-chunk-size 2M -o - '") + url
+                + string("' 2>/dev/null | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
                 + std::regex_replace(
                     fname, std::regex("(')"), "'\\''",
                     std::regex_constants::match_any)
@@ -558,7 +568,7 @@ namespace musicat_player {
         tj.detach();
     }
 
-    bool Manager::send_info_embed(dpp::snowflake guild_id, bool update) {
+    bool Manager::send_info_embed(dpp::snowflake guild_id, bool update, bool force_playing_status) {
         {
             auto player = this->get_player(guild_id);
             if (!player) throw mc::exception("No player");
@@ -583,7 +593,7 @@ namespace musicat_player {
             dpp::embed e;
             try
             {
-                e = get_playing_info_embed(guild_id);
+                e = get_playing_info_embed(guild_id, force_playing_status);
             }
             catch (const mc::exception& e)
             {
@@ -801,7 +811,7 @@ namespace musicat_player {
                         else
                         {
                             this->delete_info_embed(guild_id);
-                            this->send_info_embed(guild_id);
+                            this->send_info_embed(guild_id, false, true);
                         }
                     }
                     else printf("No channel Id to send info embed\n");
@@ -818,18 +828,37 @@ namespace musicat_player {
         return false;
     }
 
-    dpp::embed Manager::get_playing_info_embed(dpp::snowflake guild_id) {
+    dpp::embed Manager::get_playing_info_embed(dpp::snowflake guild_id, bool force_playing_status) {
         auto player = this->get_player(guild_id);
         if (!player) throw mc::exception("No player");
 
         // Reset shifted tracks
         player->reset_shifted();
         MCTrack track;
+        MCTrack prev_track;
+        MCTrack next_track;
+        MCTrack skip_track;
 
         {
             std::lock_guard<std::mutex> lk(player->q_m);
-            if (!player->queue.size()) throw mc::exception("No track");
+            auto siz = player->queue.size();
+            if (!siz) throw mc::exception("No track");
             track = player->queue.front();
+
+            prev_track = player->queue.at(siz - 1UL);
+
+            auto lm = player->loop_mode;
+            if (lm == loop_mode_t::l_queue) next_track = (siz == 1UL) ? track : player->queue.at(1);
+            else if (lm == loop_mode_t::l_none)
+            {
+                if (siz > 1UL) next_track = player->queue.at(1);
+            }
+            else
+            {
+                // if (loop mode == one | one/queue)
+                next_track = track;
+                if (siz > 1UL) skip_track = player->queue.at(1);
+            }
         }
 
         dpp::guild_member o = dpp::find_guild_member(guild_id, this->cluster->me.id);
@@ -852,14 +881,37 @@ namespace musicat_player {
         else if (uca.length()) ea.icon_url = uca;
 
         static const char* l_mode[] = { "Repeat one", "Repeat queue", "Repeat one/queue" };
+        static const char* p_mode[] = { "Paused", "Playing" };
         string et = track.bestThumbnail().url;
         dpp::embed e;
         e.set_description(track.snippetText())
             .set_title(track.title())
             .set_url(track.url())
             .set_author(ea);
+
+        if (!prev_track.raw.is_null()) e.add_field("PREVIOUS", "[" + prev_track.title() + "](" + prev_track.url() + ")", true);
+        if (!next_track.raw.is_null()) e.add_field("NEXT", "[" + next_track.title() + "](" + next_track.url() + ")", true);
+        if (!skip_track.raw.is_null()) e.add_field("SKIP", "[" + skip_track.title() + "](" + skip_track.url() + ")");
+
+        string ft = "";
+
+        if (player->from)
+        {
+            auto con = player->from->get_voice(guild_id);
+            if (con && con->voiceclient)
+                if (con->voiceclient->get_secs_remaining() > 0.1)
+                    if (con->voiceclient->is_paused()) ft += p_mode[0];
+                    else ft += p_mode[1];
+        }
+
+        if (!ft.length() && force_playing_status) ft += p_mode[1];
+
         if (player->loop_mode)
-            e.set_footer(l_mode[player->loop_mode - 1], "");
+        {
+            if (ft.length()) ft += " | ";
+            ft += l_mode[player->loop_mode - 1];
+        }
+        if (ft.length()) e.set_footer(ft, "");
         if (color)
             e.set_color(color);
         if (et.length())
@@ -934,6 +986,7 @@ namespace musicat_player {
                         if (!p)
                         {
                             v->voiceclient->pause_audio(true);
+                            this->update_info_embed(event.state.guild_id);
                             printf("Paused %ld as no user in vc\n", event.state.guild_id);
                         }
                     }
@@ -957,6 +1010,7 @@ namespace musicat_player {
                     {
                         v->voiceclient->send_silence(60);
                         v->voiceclient->pause_audio(false);
+                        this->update_info_embed(event.state.guild_id);
                     }
                 }
 

@@ -316,11 +316,12 @@ int main(int argc, const char* argv[])
             std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id, bool arg_top) {
                 if (dling) player_manager->wait_for_download(fname);
                 auto p = player_manager->create_player(guild_id);
+                p->from = from;
 
                 mpl::MCTrack t(result);
                 t.filename = fname;
                 t.user_id = user_id;
-                p->add_track(t, arg_top);
+                p->add_track(t, arg_top, guild_id);
                 p->set_channel(channel_id);
 
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
@@ -375,6 +376,8 @@ int main(int argc, const char* argv[])
             }
 
             auto player = player_manager->create_player(event.command.guild_id);
+            player->from = event.from;
+
             if (player->loop_mode == a_l)
             {
                 event.reply("Already set to that mode");
@@ -391,6 +394,39 @@ int main(int argc, const char* argv[])
             {
                 // Meh
             }
+        }
+        else if (cmd == "queue")
+        {
+            auto queue = player_manager->get_queue(event.command.guild_id);
+            if (queue.empty())
+            {
+                event.reply("No track");
+                return;
+            }
+
+            dpp::message msg;
+            dpp::embed embed;
+            // std::vector<string> queue_str;
+            string desc = "";
+            int64_t id = 1;
+
+            for (auto i = queue.begin(); i != queue.end(); i++)
+            {
+                if (i == queue.begin())
+                {
+                    desc += "Current track: [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n\n";
+                }
+                else
+                {
+                    desc += std::to_string(id) + ": [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n";
+                    id++;
+                }
+            }
+
+            embed.set_title("Queue")
+                .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
+            msg.add_embed(embed);
+            event.reply(msg);
         }
     });
 

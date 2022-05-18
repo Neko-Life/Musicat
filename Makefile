@@ -24,3 +24,6 @@ ex:
 
 ex2:
 	g++ -Wall -Wextra -g -Iinclude exec2.cpp -o ex2
+
+d:
+	g++ -Wall -Wextra -Iinclude -lcurlpp -lcurl d.cpp -o d
