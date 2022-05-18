@@ -716,7 +716,12 @@ namespace musicat_player {
                     p->queue.push_back(l);
                 }
             }
-            if (p->queue.size() == 0) { printf("NO SIZE AFTER: %d\n", p->loop_mode);return false; }
+            if (p->queue.size() == 0)
+            {
+                printf("NO SIZE AFTER: %d\n", p->loop_mode);
+                this->delete_info_embed(event.voice_client->server_id);
+                return false;
+            }
             s = p->queue.front();
         }
 
