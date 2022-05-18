@@ -659,9 +659,9 @@ namespace musicat_player {
         }
     }
 
-    bool Manager::update_info_embed(dpp::snowflake guild_id) {
+    bool Manager::update_info_embed(dpp::snowflake guild_id, bool force_playing_status) {
         printf("Update info called\n");
-        return this->send_info_embed(guild_id, true);
+        return this->send_info_embed(guild_id, true, force_playing_status);
     }
 
     bool Manager::delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback) {
@@ -811,7 +811,7 @@ namespace musicat_player {
                         if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
                         {
                             if (player->loop_mode != loop_mode_t::l_song && player->loop_mode != loop_mode_t::l_song_queue)
-                                this->update_info_embed(guild_id);
+                                this->update_info_embed(guild_id, true);
                         }
                         else
                         {

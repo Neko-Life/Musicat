@@ -267,11 +267,12 @@ namespace musicat_player {
          * @brief Update currently playing song info embed, return false if no info embed exist
          *
          * @param guild_id
+         * @param force_playing_status
          * @return true
          * @return false
          * @throw mc::exception
          */
-        bool update_info_embed(dpp::snowflake guild_id);
+        bool update_info_embed(dpp::snowflake guild_id, bool force_playing_status = false);
 
         /**
          * @brief Delete currently playing song info embed, return false if no info embed exist
