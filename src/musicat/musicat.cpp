@@ -1,3 +1,4 @@
+#include <vector>
 #include "musicat/musicat.h"
 
 namespace musicat
@@ -159,5 +160,12 @@ namespace musicat
 
     int exception::code() const noexcept {
         return c;
+    }
+
+    bool has_permissions(dpp::guild* guild, dpp::user* user, dpp::channel* channel, std::vector<uint64_t> permissions) {
+        if (!guild || !user || !channel) return false;
+        uint64_t p = guild->permission_overwrites(guild->base_permissions(user), user, channel);
+        for (uint64_t i : permissions) if (!(p & i)) return false;
+        return true;
     }
 }

@@ -351,7 +351,10 @@ namespace musicat_player {
             {
                 struct stat buf;
                 if (stat("music", &buf) != 0)
+                {
                     std::filesystem::create_directory("music");
+                    throw 2;
+                }
             }
             auto start_time = std::chrono::high_resolution_clock::now();
             printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
@@ -528,6 +531,32 @@ namespace musicat_player {
             auto end_time = std::chrono::high_resolution_clock::now();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
             printf("Done streaming for %ld milliseconds\n", done.count());
+        }
+        else throw 1;
+    }
+
+    void Manager::play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id, bool notify_error) {
+        std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id, bool notify_error) {
+            printf("Attempt to stream\n");
+            auto server_id = v->server_id;
+            try
+            {
+                this->stream(v, fname, channel_id);
+            }
+            catch (int e)
+            {
+                printf("ERROR_CODE: %d\n", e);
+                if (notify_error)
+                {
+                    string msg = "";
+                    if (e == 2) msg = "Can't start playback";
+                    else if (e == 1) msg = "No connection";
+                    dpp::message m;
+                    m.set_channel_id(channel_id)
+                        .set_content(msg);
+                    this->cluster->message_create(m);
+                }
+            }
             if (server_id)
             {
                 std::lock_guard<std::mutex> lk(this->sq_m);
@@ -546,25 +575,7 @@ namespace musicat_player {
                 if (this->connecting.find(server_id) == this->connecting.end())
                     this->connecting[server_id] = channel_id;
             }
-        }
-        else throw 1;
-    }
-
-    void Manager::play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
-        std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
-            printf("Attempt to stream\n");
-            try
-            {
-                this->stream(v, fname, channel_id);
-            }
-            catch (int e)
-            {
-                printf("ERROR_CODE: %d\n", e);
-                if (e == 2) throw mc::exception("Can't access file", 2);
-                else if (e == 1) throw mc::exception("No connection", 1);
-            }
-
-        }, v, fname, channel_id);
+        }, v, fname, channel_id, notify_error);
         tj.detach();
     }
 
@@ -581,14 +592,11 @@ namespace musicat_player {
 
             auto channel_id = player->channel_id;
 
-            if (!update)
-            {
-                auto g = dpp::find_guild(guild_id);
-                auto c = dpp::find_channel(channel_id);
-                auto bp = g->permission_overwrites(g->base_permissions(&this->cluster->me), &this->cluster->me, c);
-                if (!(bp & dpp::p_view_channel && bp & dpp::p_send_messages && bp & dpp::p_embed_links))
-                    throw mc::exception("No permission");
-            }
+            auto g = dpp::find_guild(guild_id);
+            auto c = dpp::find_channel(channel_id);
+            bool embed_perms = mc::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+
+            if (!update && !embed_perms) throw mc::exception("No permission");
 
             dpp::embed e;
             try
@@ -786,17 +794,34 @@ namespace musicat_player {
                         });
                     }
                 }
+                auto c = dpp::find_channel(channel_id);
+                auto g = dpp::find_guild(guild_id);
+                bool embed_perms = mc::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+                {
+                    std::ifstream test(track.filename, std::ios_base::in | std::ios_base::binary);
+                    if (!test.is_open())
+                    {
+                        if (v && !v->terminating) v->insert_marker("e");
+                        if (embed_perms)
+                        {
+                            dpp::message m;
+                            m.set_channel_id(channel_id)
+                                .set_content("Can't play track: " + track.title() + " (added by <@" + std::to_string(track.user_id) + ">");
+                            this->cluster->message_create(m);
+                        }
+                        return;
+                    }
+                    else test.close();
+                }
                 if (timed_out) throw mc::exception("Operation took too long, aborted...", 0);
                 if (meta == "r") v->send_silence(60);
-                this->play(v, track.filename, channel_id);
 
                 // Send play info embed
                 try
                 {
-                    if (channel_id)
+                    this->play(v, track.filename, channel_id, embed_perms);
+                    if (embed_perms)
                     {
-                        auto c = dpp::find_channel(channel_id);
-
                         // Channel debug
                         printf("BEGIN EMBED INFO UPDATE DEBUG\n");
                         if (c) printf("Channel found: %ld, last message: %ld\n", c->id, c->last_message_id);
@@ -819,11 +844,20 @@ namespace musicat_player {
                             this->send_info_embed(guild_id, false, true);
                         }
                     }
-                    else printf("No channel Id to send info embed\n");
+                    else printf("No channel or permission to send info embed\n");
                 }
                 catch (const mc::exception& e)
                 {
                     fprintf(stderr, "[ERROR(player.646)] %s\n", e.what());
+                    auto cd = e.code();
+                    if (cd == 1 || cd == 2)
+                        if (embed_perms)
+                        {
+                            dpp::message m;
+                            m.set_channel_id(channel_id)
+                                .set_content(e.what());
+                            this->cluster->message_create(m);
+                        }
                 }
             }, event.voice_client, s, event.track_meta, p);
             tj.detach();

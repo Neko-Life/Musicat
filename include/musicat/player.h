@@ -249,7 +249,7 @@ namespace musicat_player {
         void download(string fname, string url, dpp::snowflake guild_id);
         void wait_for_download(string file_name);
         void stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);
-        void play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);
+        void play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0,bool notify_error=false);
 
         /**
          * @brief Try to send currently playing song info to player channel

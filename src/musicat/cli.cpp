@@ -2,11 +2,93 @@
 #include "musicat/musicat.h"
 #include "musicat/slash.h"
 
-#define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n  reg <guild_id|\"g\">\n")
+#define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n\treg <guild_id|\"g\">\n\trm-reg <guild_id|\"g\">\n")
 
 namespace msl = musicat_slash;
 
 namespace musicat {
+    int _reg(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool rm = false) {
+        if (argc == 2)
+        {
+            printf("Provide guild_id or \"g\" to register globally\n");
+            return 0;
+        }
+        string a2 = string(argv[2]);
+        if (a2 == "g")
+        {
+            printf((string(rm ? "Deleting" : "Registering") + " commands globally...\n").c_str());
+            if (rm)
+            {
+                client.on_ready([&client](const dpp::ready_t& event) {
+                    client.global_commands_get([&client](const dpp::confirmation_callback_t& res) {
+                        if (res.is_error())
+                        {
+                            auto e = res.get_error();
+                            fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
+                            return;
+                        }
+                        auto val = std::get<dpp::slashcommand_map>(res.value);
+                        for (const auto& i : val)
+                        {
+                            auto id = i.second.id;
+                            printf("%ld ", id);
+                            client.global_command_delete(id);
+                        }
+                        printf("\nDONE!\n");
+                    });
+                });
+                client.start(true);
+                return 0;
+            }
+            auto c = msl::get_all(sha_id);
+            client.global_bulk_command_create(c);
+            return 0;
+        }
+        else
+        {
+            if (!std::regex_match(argv[2], std::regex("^\\d{17,20}$"), std::regex_constants::match_any))
+            {
+                printf("Provide valid guild_id\n");
+                return 0;
+            }
+            int64_t gid;
+            std::istringstream iss(argv[2]);
+            iss >> gid;
+            if (gid < 0)
+            {
+                printf("Invalid integer, too large\n");
+                return 0;
+            }
+            printf((string(rm ? "Deleting" : "Registering") + " commands in %ld\n").c_str(), gid);
+            if (rm)
+            {
+                client.on_ready([&client, gid](const dpp::ready_t& event) {
+                    client.guild_commands_get(gid, [&client, gid](const dpp::confirmation_callback_t& res) {
+                        if (res.is_error())
+                        {
+                            auto e = res.get_error();
+                            fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
+                            return;
+                        }
+                        auto val = std::get<dpp::slashcommand_map>(res.value);
+                        for (const auto& i : val)
+                        {
+                            auto id = i.second.id;
+                            printf("%ld ", id);
+                            client.guild_command_delete(id, gid);
+                        }
+                        printf("\nDONE!\n");
+                    });
+                });
+                client.start(true);
+                return 0;
+            }
+            auto c = msl::get_all(sha_id);
+            client.guild_bulk_command_create(c, gid);
+            return 0;
+        }
+    }
+
     int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[])
     {
         string a1 = string(argv[1]);
@@ -16,6 +98,7 @@ namespace musicat {
         // }
         int cmd = -1;
         if (a1 == "reg") cmd = 0;
+        if (a1 == "rm-reg") cmd = 1;
 
         if (cmd < 0)
         {
@@ -26,42 +109,9 @@ namespace musicat {
         switch (cmd)
         {
         case 0:
-            if (argc == 2)
-            {
-                printf("Provide guild_id or \"g\" to register globally\n");
-                return 0;
-            }
-            string a2 = string(argv[2]);
-            if (a2 == "g")
-            {
-                printf("Registering commands globally...\n");
-                auto c = msl::get_all(sha_id);
-                client.global_bulk_command_create(c);
-                return 0;
-            }
-            else
-            {
-                if (!std::regex_match(argv[2], std::regex("^\\d{17,20}$"), std::regex_constants::match_any))
-                {
-                    printf("Provide valid guild_id\n");
-                    return 0;
-                }
-                int64_t gid;
-                std::istringstream iss(argv[2]);
-                iss >> gid;
-                if (gid < 0)
-                {
-                    printf("Invalid integer, too large\n");
-                    return 0;
-                }
-                printf("Registering commands in %ld\n", gid);
-                auto c = msl::get_all(sha_id);
-                client.guild_bulk_command_create(c, gid);
-                return 0;
-            }
-            break;
+        case 1:
+            return _reg(client, sha_id, argc, argv, cmd == 1);
         }
-
-        return 0;
+        return 1;
     }
 }

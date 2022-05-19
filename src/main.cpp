@@ -21,6 +21,8 @@ void on_sigint(int code) {
 
 int main(int argc, const char* argv[])
 {
+    signal(SIGINT, on_sigint);
+
     json sha_cfg;
     {
         std::ifstream scs("sha_conf.json");
@@ -34,7 +36,12 @@ int main(int argc, const char* argv[])
     dpp::snowflake sha_id(sha_cfg["SHA_ID"]);
     sha_settings.defaultPrefix = sha_cfg["SHA_PREFIX"];
 
-    if (argc > 1) return mc::cli(client, sha_id, argc, argv);
+    if (argc > 1)
+    {
+        int ret = mc::cli(client, sha_id, argc, argv);
+        while (running) sleep(1);
+        return ret;
+    }
 
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
@@ -467,8 +474,6 @@ int main(int argc, const char* argv[])
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
     client.start(true);
-
-    signal(SIGINT, on_sigint);
 
     while (running) sleep(1);
 
