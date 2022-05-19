@@ -806,7 +806,7 @@ namespace musicat_player {
                         {
                             dpp::message m;
                             m.set_channel_id(channel_id)
-                                .set_content("Can't play track: " + track.title() + " (added by <@" + std::to_string(track.user_id) + ">");
+                                .set_content("Can't play track: " + track.title() + " (added by <@" + std::to_string(track.user_id) + ">)");
                             this->cluster->message_create(m);
                         }
                         return;
