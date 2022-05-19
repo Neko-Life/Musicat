@@ -19,25 +19,23 @@ namespace musicat {
             printf((string(rm ? "Deleting" : "Registering") + " commands globally...\n").c_str());
             if (rm)
             {
-                client.on_ready([&client, &running_state](const dpp::ready_t& event) {
-                    client.global_commands_get([&client, &running_state](const dpp::confirmation_callback_t& res) {
-                        if (res.is_error())
-                        {
-                            auto e = res.get_error();
-                            fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
-                            return;
-                        }
-                        auto val = std::get<dpp::slashcommand_map>(res.value);
-                        for (const auto& i : val)
-                        {
-                            auto id = i.second.id;
-                            printf("%ld ", id);
-                            client.global_command_delete(id);
-                        }
-                        *running_state = false;
-                    });
+                client.me.id = sha_id;
+                client.global_commands_get([&client, &running_state](const dpp::confirmation_callback_t& res) {
+                    if (res.is_error())
+                    {
+                        auto e = res.get_error();
+                        fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
+                        return;
+                    }
+                    auto val = std::get<dpp::slashcommand_map>(res.value);
+                    for (const auto& i : val)
+                    {
+                        auto id = i.second.id;
+                        printf("%ld ", id);
+                        client.global_command_delete(id);
+                    }
+                    *running_state = false;
                 });
-                client.start(true);
                 return 0;
             }
             auto c = msl::get_all(sha_id);
@@ -63,25 +61,23 @@ namespace musicat {
             printf((string(rm ? "Deleting" : "Registering") + " commands in %ld\n").c_str(), gid);
             if (rm)
             {
-                client.on_ready([&client, gid, &running_state](const dpp::ready_t& event) {
-                    client.guild_commands_get(gid, [&client, gid, &running_state](const dpp::confirmation_callback_t& res) {
-                        if (res.is_error())
-                        {
-                            auto e = res.get_error();
-                            fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
-                            return;
-                        }
-                        auto val = std::get<dpp::slashcommand_map>(res.value);
-                        for (const auto& i : val)
-                        {
-                            auto id = i.second.id;
-                            printf("%ld ", id);
-                            client.guild_command_delete(id, gid);
-                        }
-                        *running_state = false;
-                    });
+                client.me.id = sha_id;
+                client.guild_commands_get(gid, [&client, gid, &running_state](const dpp::confirmation_callback_t& res) {
+                    if (res.is_error())
+                    {
+                        auto e = res.get_error();
+                        fprintf(stderr, "ERROR %d: %s\n", e.code, e.message.c_str());
+                        return;
+                    }
+                    auto val = std::get<dpp::slashcommand_map>(res.value);
+                    for (const auto& i : val)
+                    {
+                        auto id = i.second.id;
+                        printf("%ld ", id);
+                        client.guild_command_delete(id, gid);
+                    }
+                    *running_state = false;
                 });
-                client.start(true);
                 return 0;
             }
             auto c = msl::get_all(sha_id);
