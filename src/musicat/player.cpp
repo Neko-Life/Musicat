@@ -798,7 +798,7 @@ namespace musicat_player {
                 auto g = dpp::find_guild(guild_id);
                 bool embed_perms = mc::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
                 {
-                    std::ifstream test(track.filename, std::ios_base::in | std::ios_base::binary);
+                    std::ifstream test(string("music/") + track.filename, std::ios_base::in | std::ios_base::binary);
                     if (!test.is_open())
                     {
                         if (v && !v->terminating) v->insert_marker("e");
