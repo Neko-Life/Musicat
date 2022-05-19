@@ -7,7 +7,7 @@
 namespace msl = musicat_slash;
 
 namespace musicat {
-    int _reg(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool rm = false) {
+    int _reg(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool rm = false, bool* running_state = nullptr) {
         if (argc == 2)
         {
             printf("Provide guild_id or \"g\" to register globally\n");
@@ -19,8 +19,8 @@ namespace musicat {
             printf((string(rm ? "Deleting" : "Registering") + " commands globally...\n").c_str());
             if (rm)
             {
-                client.on_ready([&client](const dpp::ready_t& event) {
-                    client.global_commands_get([&client](const dpp::confirmation_callback_t& res) {
+                client.on_ready([&client, &running_state](const dpp::ready_t& event) {
+                    client.global_commands_get([&client, &running_state](const dpp::confirmation_callback_t& res) {
                         if (res.is_error())
                         {
                             auto e = res.get_error();
@@ -34,7 +34,7 @@ namespace musicat {
                             printf("%ld ", id);
                             client.global_command_delete(id);
                         }
-                        printf("\nDONE!\n");
+                        *running_state = false;
                     });
                 });
                 client.start(true);
@@ -42,6 +42,7 @@ namespace musicat {
             }
             auto c = msl::get_all(sha_id);
             client.global_bulk_command_create(c);
+            *running_state = false;
             return 0;
         }
         else
@@ -62,8 +63,8 @@ namespace musicat {
             printf((string(rm ? "Deleting" : "Registering") + " commands in %ld\n").c_str(), gid);
             if (rm)
             {
-                client.on_ready([&client, gid](const dpp::ready_t& event) {
-                    client.guild_commands_get(gid, [&client, gid](const dpp::confirmation_callback_t& res) {
+                client.on_ready([&client, gid, &running_state](const dpp::ready_t& event) {
+                    client.guild_commands_get(gid, [&client, gid, &running_state](const dpp::confirmation_callback_t& res) {
                         if (res.is_error())
                         {
                             auto e = res.get_error();
@@ -77,7 +78,7 @@ namespace musicat {
                             printf("%ld ", id);
                             client.guild_command_delete(id, gid);
                         }
-                        printf("\nDONE!\n");
+                        *running_state = false;
                     });
                 });
                 client.start(true);
@@ -85,11 +86,12 @@ namespace musicat {
             }
             auto c = msl::get_all(sha_id);
             client.guild_bulk_command_create(c, gid);
+            *running_state = false;
             return 0;
         }
     }
 
-    int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[])
+    int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool* running_state)
     {
         string a1 = string(argv[1]);
         // for (int i = 1; i <= argc; i++){
@@ -110,7 +112,7 @@ namespace musicat {
         {
         case 0:
         case 1:
-            return _reg(client, sha_id, argc, argv, cmd == 1);
+            return _reg(client, sha_id, argc, argv, cmd == 1, running_state);
         }
         return 1;
     }

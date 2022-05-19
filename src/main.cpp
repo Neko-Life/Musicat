@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
 
     if (argc > 1)
     {
-        int ret = mc::cli(client, sha_id, argc, argv);
+        int ret = mc::cli(client, sha_id, argc, argv, &running);
         while (running) sleep(1);
         return ret;
     }
