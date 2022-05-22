@@ -1047,9 +1047,16 @@ namespace musicat_player {
                     // Whether the track paused automatically
                     if (mc::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
                     {
-                        v->voiceclient->send_silence(60);
-                        v->voiceclient->pause_audio(false);
-                        this->update_info_embed(event.state.guild_id);
+                        std::thread tj([this, event](dpp::discord_voice_client* vc) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+                            auto a = mc::get_voice_from_gid(event.state.guild_id, event.state.user_id);
+                            if (vc && !vc->terminating && a.first && a.first->id == event.state.channel_id)
+                            {
+                                vc->pause_audio(false);
+                                this->update_info_embed(event.state.guild_id);
+                            }
+                        }, v->voiceclient);
+                        tj.detach();
                     }
                 }
 
