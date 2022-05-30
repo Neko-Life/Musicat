@@ -11,7 +11,7 @@ INC = -Iinclude -I/usr/include/opus # -lxml2 -lz -llzma -licui18n -licuuc -licud
 LIB = -ldpp -pthread -lcurl -lcurlpp -logg -lopus -lopusfile # -lllhttp
 
 # Specify source file
-SRC = src/musicat/*.cpp src/main.cpp libs/opusfile/src/*.c # src/include/*.cpp
+SRC = src/musicat/*.cpp src/musicat/cmds/*.cpp src/main.cpp libs/opusfile/src/*.c # src/include/*.cpp
 
 # Specify out file
 OUT = exe/Shasha

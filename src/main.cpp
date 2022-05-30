@@ -6,9 +6,12 @@
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/cmds.h"
 
 namespace mc = musicat;
 namespace mpl = musicat_player;
+namespace mcmd = musicat_command;
+
 using json = nlohmann::json;
 using string = std::string;
 
@@ -45,7 +48,7 @@ int main(int argc, const char* argv[])
 
     printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
 
-    std::unique_ptr<mpl::Manager> player_manager = std::make_unique<mpl::Manager>(&client, sha_id);
+    std::shared_ptr<mpl::Manager> player_manager = std::make_shared<mpl::Manager>(&client, sha_id);
 
     client.on_log(dpp::utility::cout_logger());
 
@@ -60,7 +63,9 @@ int main(int argc, const char* argv[])
         if (c) c->last_message_id = event.msg.id;
     });
 
-    // client.on_autocomplete
+    // client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event){
+    //     event.
+    // });
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {
@@ -91,29 +96,13 @@ int main(int argc, const char* argv[])
         // }
         // string cmd_args = content_regex_results[4].str();
 
-        if (cmd == "hello") event.reply("Hello there!!");
+        if (cmd == "hello") mcmd::hello::slash_run(event);
         else if (cmd == "why") event.reply("Why not");
         else if (cmd == "hi") event.reply("HIII");
-        else if (cmd == "invite") event.reply("https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=412353875008&scope=bot%20applications.commands");
+        else if (cmd == "invite") mcmd::invite::slash_run(event);
         else if (cmd == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
         else if (cmd == "repo") event.reply("https://github.com/Neko-Life/Musicat");
-        else if (cmd == "pause")
-        {
-            if (!player_manager->voice_ready(event.command.guild_id))
-            {
-                event.reply("Please wait while I'm getting ready to stream");
-                return;
-            }
-            try
-            {
-                if (player_manager->pause(event.from, event.command.guild_id, event.command.usr.id)) event.reply("Paused");
-                else event.reply("I'm not playing anything");
-            }
-            catch (const mc::exception& e)
-            {
-                return event.reply(e.what());
-            }
-        }
+        else if (cmd == "pause") mcmd::pause::slash_run(event, player_manager);
         // else if (cmd == "resume")
         // {
         //     auto v = event.from->get_voice(event.command.guild_id);
@@ -162,279 +151,10 @@ int main(int argc, const char* argv[])
         //     }
         //     else event.reply("I'm not playing anything right now");
         // }
-        else if (cmd == "skip")
-        {
-            if (!player_manager->voice_ready(event.command.guild_id))
-            {
-                event.reply("Please wait while I'm getting ready to stream");
-                return;
-            }
-            try
-            {
-                auto v = event.from->get_voice(event.command.guild_id);
-                if (player_manager->skip(v, event.command.guild_id, event.command.usr.id))
-                {
-                    event.reply("Skipped");
-                }
-                else event.reply("I'm not playing anything");
-            }
-            catch (const mc::exception& e)
-            {
-                return event.reply(e.what());
-            }
-        }
-        else if (cmd == "play")
-        {
-            if (!player_manager->voice_ready(event.command.guild_id, event.from))
-            {
-                event.reply("Please wait while I'm getting ready to stream");
-                return;
-            }
-
-            auto guild_id = event.command.guild_id;
-            auto from = event.from;
-            auto user_id = event.command.usr.id;
-            string arg_query = "";
-            int64_t arg_top = 0;
-            mc::get_inter_param(event, "query", &arg_query);
-            mc::get_inter_param(event, "top", &arg_top);
-
-            dpp::guild* g = dpp::find_guild(guild_id);
-            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcuser;
-            try
-            {
-                vcuser = mc::get_voice(g, user_id);
-            }
-            catch (const char* e)
-            {
-                event.reply("Join a voice channel first you dummy");
-                return;
-            }
-
-            dpp::user* sha_user = dpp::find_user(sha_id);
-
-            uint64_t cperm = g->permission_overwrites(g->base_permissions(sha_user), sha_user, vcuser.first);
-            printf("c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel, cperm & dpp::p_connect);
-
-            if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
-            {
-                event.reply("I have no permission to join your voice channel");
-                return;
-            }
-
-            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vcclient;
-            // Whether client in vc and vcclient exist
-            bool vcclient_cont = true;
-            try { vcclient = mc::get_voice(g, sha_id); }
-            catch (const char* e)
-            {
-                vcclient_cont = false;
-                if (from->connecting_voice_channels.find(guild_id) != from->connecting_voice_channels.end())
-                {
-                    printf("Disconnecting as not in vc but connected state still in cache: %ld\n", guild_id);
-                    from->disconnect_voice(guild_id);
-                }
-            }
-
-            // Client voice conn
-            dpp::voiceconn* v = from->get_voice(guild_id);
-            if (vcclient_cont && v && v->channel_id != vcclient.first->id)
-            {
-                vcclient_cont = false;
-                printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
-                std::lock_guard lk(player_manager->dc_m);
-                from->disconnect_voice(guild_id);
-                player_manager->disconnecting[guild_id] = vcclient.first->id;
-            }
-            if (vcclient_cont && vcclient.first->id != vcuser.first->id)
-            {
-                if (mc::has_listener(&vcclient.second))
-                    return event.reply("Sorry but I'm already in another voice channel");
-                // if (v)
-                // {
-                //     printf("Stopping audio\n");
-                //     v->voiceclient->stop_audio();
-                // }
-                vcclient_cont = false;
-                if (v && arg_query.length() > 0)
-                {
-                    printf("Disconnecting as no member in vc: %ld\n", guild_id);
-                    if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
-                        player_manager->stop_stream(guild_id);
-
-                    std::lock_guard lk(player_manager->dc_m);
-                    // FIXME: It WILL segvault (with gdb?) if you wait a song until it ends and move to other vc and play another song that trigger this
-                    from->disconnect_voice(guild_id);
-                    player_manager->disconnecting[guild_id] = vcclient.first->id;
-                }
-            }
-
-            if (v && v->voiceclient && v->voiceclient->is_paused() && v->channel_id == vcuser.first->id)
-            {
-                player_manager->unpause(v->voiceclient, event.command.guild_id);
-                if (arg_query.length() == 0) return event.reply("Resumed");
-            }
-
-            auto op = player_manager->get_player(event.command.guild_id);
-
-            if (op && v && v->voiceclient && op->queue.size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker("c");
-
-            if (arg_query.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
-
-            event.thinking();
-            auto searches = yt_search(arg_query).trackResults();
-            if (!searches.size()) return event.edit_response("Can't find anything");
-            auto result = searches.front();
-            string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
-
-            if (vcclient_cont == false || !v)
-            {
-                std::lock_guard<std::mutex> lk2(player_manager->c_m);
-                std::lock_guard<std::mutex> lk3(player_manager->wd_m);
-                player_manager->connecting[guild_id] = vcuser.first->id;
-                printf("INSERTING WAIT FOR VC READY\n");
-                player_manager->waiting_vc_ready[guild_id] = fname;
-            }
-
-            bool dling = false;
-
-            std::ifstream test((string("music/") + fname).c_str());
-            if (!test.is_open())
-            {
-                dling = true;
-                event.edit_response(string("Downloading ") + result.title() + string("... Gimme 10 sec ight"));
-                if (player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end())
-                {
-                    auto url = result.url();
-                    player_manager->download(fname, url, guild_id);
-                }
-            }
-            else
-            {
-                test.close();
-                event.edit_response(string("Added: ") + result.title());
-            }
-
-            std::thread pjt([&player_manager, from, guild_id]() {
-                player_manager->reconnect(from, guild_id);
-            });
-            pjt.detach();
-
-            std::thread dlt([&player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id, bool arg_top) {
-                if (dling) player_manager->wait_for_download(fname);
-                auto p = player_manager->create_player(guild_id);
-                p->from = from;
-
-                mpl::MCTrack t(result);
-                t.filename = fname;
-                t.user_id = user_id;
-                p->add_track(t, arg_top, guild_id);
-                p->set_channel(channel_id);
-
-                std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
-                bool b = true;
-                try { vu = mc::get_voice_from_gid(guild_id, sha_id); }
-                catch (const char* e) { b = false; }
-
-                dpp::voiceconn* v = from->get_voice(guild_id);
-                if (b && mc::has_listener(&vu.second)
-                    && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
-                    v->voiceclient->insert_marker("s");
-
-            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id, event.command.channel_id, arg_top);
-            dlt.detach();
-        }
-        else if (cmd == "loop")
-        {
-            if (!player_manager->voice_ready(event.command.guild_id))
-            {
-                event.reply("Please wait while I'm getting ready to stream");
-                return;
-            }
-            static const char* loop_message[] = { "Turned off repeat mode", "Set to repeat a song", "Set to repeat queue", "Set to repeat a song and not to remove skipped song" };
-            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uvc;
-            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> cvc;
-            try
-            {
-                uvc = mc::get_voice_from_gid(event.command.guild_id, event.command.usr.id);
-            }
-            catch (const char* e)
-            {
-                return event.reply("You're not in a voice channel");
-            }
-            try
-            {
-                cvc = mc::get_voice_from_gid(event.command.guild_id, sha_id);
-            }
-            catch (const char* e)
-            {
-                return event.reply("I'm not playing anything right now");
-            }
-            if (uvc.first->id != cvc.first->id) return event.reply("You're not in my voice channel");
-            int64_t g_l = 0;
-            mc::get_inter_param(event, "mode", &g_l);
-
-            int8_t a_l = (int8_t)g_l;
-
-            if (a_l < 0 || a_l > 3)
-            {
-                event.reply("Invalid mode");
-                return;
-            }
-
-            auto player = player_manager->create_player(event.command.guild_id);
-            player->from = event.from;
-
-            if (player->loop_mode == a_l)
-            {
-                event.reply("Already set to that mode");
-                return;
-            }
-
-            player->set_loop_mode(a_l);
-            event.reply(loop_message[a_l]);
-            try
-            {
-                player_manager->update_info_embed(event.command.guild_id);
-            }
-            catch (...)
-            {
-                // Meh
-            }
-        }
-        else if (cmd == "queue")
-        {
-            auto queue = player_manager->get_queue(event.command.guild_id);
-            if (queue.empty())
-            {
-                event.reply("No track");
-                return;
-            }
-
-            dpp::message msg;
-            dpp::embed embed;
-            // std::vector<string> queue_str;
-            string desc = "";
-            int64_t id = 1;
-
-            for (auto i = queue.begin(); i != queue.end(); i++)
-            {
-                if (i == queue.begin())
-                {
-                    desc += "Current track: [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n\n";
-                }
-                else
-                {
-                    desc += std::to_string(id) + ": [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n";
-                    id++;
-                }
-            }
-
-            embed.set_title("Queue")
-                .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
-            msg.add_embed(embed);
-            event.reply(msg);
-        }
+        else if (cmd == "skip") mcmd::skip::slash_run(event, player_manager);
+        else if (cmd == "play") mcmd::play::slash_run(event, player_manager, sha_id);
+        else if (cmd == "loop") mcmd::loop::slash_run(event, player_manager, sha_id);
+        else if (cmd == "queue") mcmd::queue::slash_run(event, player_manager);
     });
 
     client.on_voice_ready([&player_manager](const dpp::voice_ready_t& event) {

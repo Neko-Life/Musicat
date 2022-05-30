@@ -11,23 +11,21 @@
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 
-namespace mc = musicat;
-
 namespace musicat_player {
-
+    namespace mc = musicat;
     using string = std::string;
 
     // TODO: Player class
 
     enum loop_mode_t : int8_t {
         // No looping
-        l_none = 0,
+        l_none,
         // Loop song
-        l_song = 1,
+        l_song,
         // Loop queue
-        l_queue = 2,
+        l_queue,
         // Loop song and queue
-        l_song_queue = 3
+        l_song_queue
     };
 
     struct MCTrack : YTrack {
@@ -80,7 +78,7 @@ namespace musicat_player {
          * 3: Looping one song and won't remove skipped song.
          *
          */
-        int8_t loop_mode;
+        loop_mode_t loop_mode;
 
         /**
          * @brief Number of added track to the front of queue.
@@ -249,7 +247,7 @@ namespace musicat_player {
         void download(string fname, string url, dpp::snowflake guild_id);
         void wait_for_download(string file_name);
         void stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);
-        void play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0,bool notify_error=false);
+        void play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0, bool notify_error = false);
 
         /**
          * @brief Try to send currently playing song info to player channel

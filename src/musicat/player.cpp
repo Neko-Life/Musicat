@@ -78,7 +78,15 @@ namespace musicat_player {
     }
 
     Player& Player::set_loop_mode(int8_t mode) {
-        this->loop_mode = mode;
+        loop_mode_t nm = this->loop_mode;
+        switch (mode)
+        {
+        case 0: nm = loop_mode_t::l_none; break;
+        case 1: nm = loop_mode_t::l_song; break;
+        case 2: nm = loop_mode_t::l_queue; break;
+        case 3: nm = loop_mode_t::l_song_queue; break;
+        }
+        this->loop_mode = nm;
         return *this;
     }
 
@@ -622,7 +630,14 @@ namespace musicat_player {
             auto m_cb = [this, player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
                 if (cb.is_error())
                 {
-                    fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr: err_vector\n", cb.get_error().message.c_str(), cb.get_error().code);
+                    fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
+                    for (const auto& i : cb.get_error().errors)
+                        fprintf(stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
+                        i.code.c_str(),
+                        i.field.c_str(),
+                        i.object.c_str(),
+                        i.reason.c_str()
+                        );
                     return;
                 }
                 if (cb.value.index())
@@ -660,7 +675,7 @@ namespace musicat_player {
                 auto mn = *player->info_message;
                 mn.embeds.pop_back();
                 mn.embeds.push_back(e);
-                printf("Channel Info Embed Id Edit: %ld\n", mn.channel_id);
+                printf("Channel Info Embed Id Edit: %ld %ld\n", mn.channel_id, mn.id);
                 this->cluster->message_edit(mn, m_cb);
             }
             return true;
