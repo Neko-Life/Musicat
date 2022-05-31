@@ -63,9 +63,20 @@ int main(int argc, const char* argv[])
         if (c) c->last_message_id = event.msg.id;
     });
 
-    // client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event){
-    //     event.
-    // });
+    client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event) {
+        const string cmd = event.name;
+        string opt = "";
+
+        for (const auto& i : event.options)
+        {
+            if (i.focused) opt = i.name;
+        }
+
+        if (opt.length())
+        {
+            if (cmd == "play" && opt == "query") mcmd::play::autocomplete::query(event, player_manager, client);
+        }
+    });
 
     client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
     {

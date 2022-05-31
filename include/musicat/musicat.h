@@ -70,7 +70,7 @@ namespace musicat
 
     bool has_listener_fetch(dpp::cluster* client, std::map<dpp::snowflake, dpp::voicestate>* vstate_map);
 
-    template<typename T> void get_inter_param(const dpp::interaction_create_t& event, string param_name, T* param)
+    template<typename T, typename E> void get_inter_param(const E& event, string param_name, T* param)
     {
         auto p = event.get_parameter(param_name);
         if (p.index()) *param = std::get<T>(p);

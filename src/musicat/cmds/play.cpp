@@ -1,10 +1,39 @@
 #include <regex>
+#include <vector>
 #include "musicat/musicat.h"
 #include "musicat/cmds.h"
 #include "musicat/yt-search.h"
 
 namespace musicat_command {
     namespace play {
+        namespace autocomplete {
+            void query(const dpp::autocomplete_t& event, player_manager_ptr player_manager, dpp::cluster& client) {
+                string param = "";
+                std::vector<string> avail = {};
+                mc::get_inter_param(event, "query", &param);
+                if (!param.length())
+                {
+                    avail = player_manager->get_available_tracks(25);
+                }
+                else
+                {
+                    const auto r = player_manager->get_available_tracks();
+                    for (const auto& i : r)
+                    {
+                        if (i.find(param)) avail.push_back(i);
+                        if (avail.size() == 25) break;
+                    }
+                }
+                dpp::interaction_response r(dpp::ir_autocomplete_reply);
+                for (const auto& i : avail)
+                {
+                    auto v = i.length() > 100 ? i.substr(0, 100) : i;
+                    r.add_autocomplete_choice(dpp::command_option_choice(v, v));
+                }
+                client.interaction_response_create(event.command.id, event.command.token, r);
+            }
+        }
+
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
             return dpp::slashcommand(
                 "play",

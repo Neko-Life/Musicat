@@ -282,6 +282,14 @@ namespace musicat_player {
          */
         bool delete_info_embed(dpp::snowflake guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error());
 
+        /**
+         * @brief Get all available track to use
+         * @param amount Amount of track to return
+         *
+         * @return std::vector<string>
+         */
+        std::vector<string> get_available_tracks(const size_t amount = 0) const;
+
         bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
         dpp::embed get_playing_info_embed(dpp::snowflake guild_id, bool force_playing_status);
         void handle_on_voice_ready(const dpp::voice_ready_t& event);

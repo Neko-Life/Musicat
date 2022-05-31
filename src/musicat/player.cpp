@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <regex>
+#include <dirent.h>
 #include "musicat/player.h"
 
 namespace mc = musicat;
@@ -971,6 +972,29 @@ namespace musicat_player {
         if (et.length())
             e.set_image(et);
         return e;
+    }
+
+    std::vector<string> Manager::get_available_tracks(const size_t amount) const {
+        std::vector<string> ret = {};
+        auto dir = opendir("./music");
+
+        if (dir != NULL)
+        {
+            auto file = readdir(dir);
+            while (file != NULL)
+            {
+                if (file->d_type == DT_REG)
+                {
+                    string s = string(file->d_name);
+                    ret.push_back(s.substr(0, s.length() - 4));
+                }
+
+                if (amount && ret.size() == amount) break;
+                file = readdir(dir);
+            }
+            closedir(dir);
+        }
+        return ret;
     }
 
     void Manager::handle_on_voice_ready(const dpp::voice_ready_t& event) {
