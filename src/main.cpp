@@ -66,15 +66,21 @@ int main(int argc, const char* argv[])
     client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event) {
         const string cmd = event.name;
         string opt = "";
+        string param = "";
 
         for (const auto& i : event.options)
         {
-            if (i.focused) opt = i.name;
+            if (i.focused)
+            {
+                opt = i.name;
+                if (i.value.index()) param = std::get<string>(i.value);
+                break;
+            }
         }
 
         if (opt.length())
         {
-            if (cmd == "play" && opt == "query") mcmd::play::autocomplete::query(event, player_manager, client);
+            if (cmd == "play" && opt == "query") mcmd::play::autocomplete::query(event, param, player_manager, client);
         }
     });
 

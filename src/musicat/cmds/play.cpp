@@ -7,20 +7,19 @@
 namespace musicat_command {
     namespace play {
         namespace autocomplete {
-            void query(const dpp::autocomplete_t& event, player_manager_ptr player_manager, dpp::cluster& client) {
-                string param = "";
+            void query(const dpp::autocomplete_t& event, string param, player_manager_ptr player_manager, dpp::cluster& client) {
                 std::vector<string> avail = {};
-                mc::get_inter_param(event, "query", &param);
-                if (!param.length())
-                {
-                    avail = player_manager->get_available_tracks(25);
-                }
+                if (!param.length()) avail = player_manager->get_available_tracks(25);
                 else
                 {
-                    const auto r = player_manager->get_available_tracks();
-                    for (const auto& i : r)
+                    auto r = player_manager->get_available_tracks();
+                    for (auto i : r)
                     {
-                        if (i.find(param)) avail.push_back(i);
+                        const auto ori = i;
+                        for (auto& j : i) j = std::tolower(j);
+                        for (auto& j : param) j = std::tolower(j);
+                        if (i.find(param) != string::npos)
+                            avail.push_back(ori);
                         if (avail.size() == 25) break;
                     }
                 }

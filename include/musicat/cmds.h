@@ -33,7 +33,7 @@ namespace musicat_command {
 
     namespace play {
         namespace autocomplete {
-            void query(const dpp::autocomplete_t& event, player_manager_ptr player_manager, dpp::cluster& client);
+            void query(const dpp::autocomplete_t& event, string param, player_manager_ptr player_manager, dpp::cluster& client);
         }
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
