@@ -273,6 +273,18 @@ namespace musicat_player {
             if (re && from)
             {
                 std::thread t([this](dpp::snowflake guild_id, dpp::discord_client* from) {
+                    try
+                    {
+                        auto c = mc::get_voice_from_gid(guild_id, from->creator->me.id);
+                        auto f = from->connecting_voice_channels.find(guild_id);
+                        if (f == from->connecting_voice_channels.end() || !f->second)
+                        {
+                            std::lock_guard<std::mutex> lk(this->dc_m);
+                            this->disconnecting[guild_id] = 1;
+                            from->disconnect_voice(guild_id);
+                        }
+                    }
+                    catch (...) {}
                     this->reconnect(from, guild_id);
                     }, guild_id, from);
                 t.detach();
