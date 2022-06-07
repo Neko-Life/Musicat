@@ -180,7 +180,7 @@ namespace musicat_player {
 
     void Manager::reconnect(dpp::discord_client* from, dpp::snowflake guild_id) {
         {
-            std::unique_lock lk(this->dc_m);
+            std::unique_lock<std::mutex> lk(this->dc_m);
             auto a = this->disconnecting.find(guild_id);
             if (a != this->disconnecting.end())
             {
@@ -191,7 +191,7 @@ namespace musicat_player {
             }
         }
         {
-            std::unique_lock lk(this->c_m);
+            std::unique_lock<std::mutex> lk(this->c_m);
             auto a = this->connecting.find(guild_id);
             if (a != this->connecting.end())
             {
@@ -273,10 +273,9 @@ namespace musicat_player {
             if (re && from)
             {
                 std::thread t([this](dpp::snowflake guild_id, dpp::discord_client* from) {
-                    std::unordered_map<dpp::snowflake, dpp::voiceconn*>::iterator f;
                     try
                     {
-                        f = from->connecting_voice_channels.find(guild_id);
+                        auto f = from->connecting_voice_channels.find(guild_id);
                         auto c = mc::get_voice_from_gid(guild_id, from->creator->me.id);
                         if (f == from->connecting_voice_channels.end() || !f->second)
                         {
@@ -370,185 +369,193 @@ namespace musicat_player {
 
     void Manager::stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
         dpp::snowflake server_id;
+        std::chrono::_V2::system_clock::time_point start_time;
         if (v && !v->terminating && v->is_ready())
         {
-            server_id = v->server_id;
-            {
-                struct stat buf;
-                if (stat("music", &buf) != 0)
-                {
-                    std::filesystem::create_directory("music");
-                    throw 2;
-                }
-            }
-            auto start_time = std::chrono::high_resolution_clock::now();
-            printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
-            {
-                std::ifstream fs((string("music/") + fname).c_str());
-                if (!fs.is_open()) throw 2;
-                else fs.close();
-            }
-            FILE* fd = fopen((string("music/") + fname).c_str(), "rb");
-
-            printf("Initializing buffer\n");
+            FILE* fd;
             ogg_sync_state oy;
             ogg_stream_state os;
-            ogg_page og;
-            ogg_packet op;
-            // OpusHead header;
-            char* buffer;
-
-            fseek(fd, 0L, SEEK_END);
-            size_t sz = ftell(fd);
-            printf("SIZE_T: %ld\n", sz);
-            rewind(fd);
-
-            ogg_sync_init(&oy);
-
-            // int eos = 0;
-            // int i;
-
-            buffer = ogg_sync_buffer(&oy, sz);
-            fread(buffer, 1, sz, fd);
-
-            ogg_sync_wrote(&oy, sz);
-
-            if (ogg_sync_pageout(&oy, &og) != 1)
+            try
             {
-                fprintf(stderr, "Does not appear to be ogg stream.\n");
-                exit(1);
-            }
-
-            ogg_stream_init(&os, ogg_page_serialno(&og));
-
-            if (ogg_stream_pagein(&os, &og) < 0)
-            {
-                fprintf(stderr, "Error reading initial page of ogg stream.\n");
-                exit(1);
-            }
-
-            if (ogg_stream_packetout(&os, &op) != 1)
-            {
-                fprintf(stderr, "Error reading header packet of ogg stream.\n");
-                exit(1);
-            }
-
-            /* We must ensure that the ogg stream actually contains opus data */
-            // if (!(op.bytes > 8 && !memcmp("OpusHead", op.packet, 8)))
-            // {
-            //     fprintf(stderr, "Not an ogg opus stream.\n");
-            //     exit(1);
-            // }
-
-            // /* Parse the header to get stream info */
-            // int err = opus_head_parse(&header, op.packet, op.bytes);
-            // if (err)
-            // {
-            //     fprintf(stderr, "Not a ogg opus stream\n");
-            //     exit(1);
-            // }
-            // /* Now we ensure the encoding is correct for Discord */
-            // if (header.channel_count != 2 && header.input_sample_rate != 48000)
-            // {
-            //     fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
-            //     exit(1);
-            // }
-
-            /* Now loop though all the pages and send the packets to the vc */
-            while (ogg_sync_pageout(&oy, &og) == 1)
-            {
+                server_id = v->server_id;
                 {
-                    std::lock_guard<std::mutex> lk(this->sq_m);
-                    auto sq = mc::vector_find(&this->stop_queue, server_id);
-                    if (sq != this->stop_queue.end()) break;
+                    struct stat buf;
+                    if (stat("music", &buf) != 0)
+                    {
+                        std::filesystem::create_directory("music");
+                        throw 2;
+                    }
                 }
-                if (!v || v->terminating)
+                start_time = std::chrono::high_resolution_clock::now();
+                printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
                 {
-                    fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
-                    break;
+                    std::ifstream fs((string("music/") + fname).c_str());
+                    if (!fs.is_open()) throw 2;
+                    else fs.close();
                 }
-                while (ogg_stream_check(&os) != 0)
-                {
-                    ogg_stream_init(&os, ogg_page_serialno(&og));
-                }
+                fd = fopen((string("music/") + fname).c_str(), "rb");
 
-                if (ogg_stream_pagein(&os, &og) < 0)
+                printf("Initializing buffer\n");
+                ogg_page og;
+                ogg_packet op;
+                // OpusHead header;
+                char* buffer;
+
+                fseek(fd, 0L, SEEK_END);
+                size_t sz = ftell(fd);
+                printf("SIZE_T: %ld\n", sz);
+                rewind(fd);
+
+                ogg_sync_init(&oy);
+
+                // int eos = 0;
+                // int i;
+
+                buffer = ogg_sync_buffer(&oy, sz);
+                fread(buffer, 1, sz, fd);
+
+                ogg_sync_wrote(&oy, sz);
+
+                if (ogg_sync_pageout(&oy, &og) != 1)
                 {
-                    fprintf(stderr, "Error reading page of Ogg bitstream data.\n");
+                    fprintf(stderr, "Does not appear to be ogg stream.\n");
                     exit(1);
                 }
 
-                int res;
+                ogg_stream_init(&os, ogg_page_serialno(&og));
 
-                while ((res = ogg_stream_packetout(&os, &op)) != 0)
+                if (ogg_stream_pagein(&os, &og) < 0)
+                {
+                    fprintf(stderr, "Error reading initial page of ogg stream.\n");
+                    exit(1);
+                }
+
+                if (ogg_stream_packetout(&os, &op) != 1)
+                {
+                    fprintf(stderr, "Error reading header packet of ogg stream.\n");
+                    exit(1);
+                }
+
+                /* We must ensure that the ogg stream actually contains opus data */
+                // if (!(op.bytes > 8 && !memcmp("OpusHead", op.packet, 8)))
+                // {
+                //     fprintf(stderr, "Not an ogg opus stream.\n");
+                //     exit(1);
+                // }
+
+                // /* Parse the header to get stream info */
+                // int err = opus_head_parse(&header, op.packet, op.bytes);
+                // if (err)
+                // {
+                //     fprintf(stderr, "Not a ogg opus stream\n");
+                //     exit(1);
+                // }
+                // /* Now we ensure the encoding is correct for Discord */
+                // if (header.channel_count != 2 && header.input_sample_rate != 48000)
+                // {
+                //     fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
+                //     exit(1);
+                // }
+
+                /* Now loop though all the pages and send the packets to the vc */
+                while (ogg_sync_pageout(&oy, &og) == 1)
                 {
                     {
                         std::lock_guard<std::mutex> lk(this->sq_m);
                         auto sq = mc::vector_find(&this->stop_queue, server_id);
                         if (sq != this->stop_queue.end()) break;
                     }
-                    if (res < 1)
-                    {
-                        ogg_stream_pagein(&os, &og);
-                        continue;
-                    }
-                    // /* Read remaining headers */
-                    // if (op.bytes > 8 && !memcmp("OpusHead", op.packet, 8))
-                    // {
-                    //     int err = opus_head_parse(&header, op.packet, op.bytes);
-                    //     if (err)
-                    //     {
-                    //         fprintf(stderr, "Not a ogg opus stream\n");
-                    //         exit(1);
-                    //     }
-                    //     if (header.channel_count != 2 && header.input_sample_rate != 48000)
-                    //     {
-                    //         fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
-                    //         exit(1);
-                    //     }
-                    //     continue;
-                    // }
-                    /* Skip the opus tags */
-                    if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
-                        continue;
-
                     if (!v || v->terminating)
                     {
-                        fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
+                        fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
                         break;
                     }
-
-                    /* Send the audio */
-                    int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
-
-                    if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, samples / 48);
-
-                    bool br = v->terminating;
-
-                    while (v && !v->terminating && v->get_secs_remaining() > 3.0)
+                    while (ogg_stream_check(&os) != 0)
                     {
-                        sleep(1);
-                        if (v->terminating) br = true;
+                        ogg_stream_init(&os, ogg_page_serialno(&og));
                     }
 
+                    if (ogg_stream_pagein(&os, &og) < 0)
                     {
-                        std::lock_guard<std::mutex> lk(this->sq_m);
-                        auto sq = mc::vector_find(&this->stop_queue, server_id);
-                        if (sq != this->stop_queue.end())
+                        fprintf(stderr, "Error reading page of Ogg bitstream data.\n");
+                        exit(1);
+                    }
+
+                    int res;
+
+                    while ((res = ogg_stream_packetout(&os, &op)) != 0)
+                    {
                         {
-                            br = true;
+                            std::lock_guard<std::mutex> lk(this->sq_m);
+                            auto sq = mc::vector_find(&this->stop_queue, server_id);
+                            if (sq != this->stop_queue.end()) break;
+                        }
+                        if (res < 1)
+                        {
+                            ogg_stream_pagein(&os, &og);
+                            continue;
+                        }
+                        // /* Read remaining headers */
+                        // if (op.bytes > 8 && !memcmp("OpusHead", op.packet, 8))
+                        // {
+                        //     int err = opus_head_parse(&header, op.packet, op.bytes);
+                        //     if (err)
+                        //     {
+                        //         fprintf(stderr, "Not a ogg opus stream\n");
+                        //         exit(1);
+                        //     }
+                        //     if (header.channel_count != 2 && header.input_sample_rate != 48000)
+                        //     {
+                        //         fprintf(stderr, "Wrong encoding for Discord, must be 48000Hz sample rate with 2 channels.\n");
+                        //         exit(1);
+                        //     }
+                        //     continue;
+                        // }
+                        /* Skip the opus tags */
+                        if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
+                            continue;
+
+                        if (!v || v->terminating)
+                        {
+                            fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
+                            break;
+                        }
+
+                        /* Send the audio */
+                        int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
+
+                        if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, samples / 48);
+
+                        bool br = v->terminating;
+
+                        while (v && !v->terminating && v->get_secs_remaining() > 3.0)
+                        {
+                            sleep(1);
+                            if (v->terminating) br = true;
+                        }
+
+                        {
+                            std::lock_guard<std::mutex> lk(this->sq_m);
+                            auto sq = mc::vector_find(&this->stop_queue, server_id);
+                            if (sq != this->stop_queue.end())
+                            {
+                                br = true;
+                                break;
+                            }
+                        }
+
+                        if (br)
+                        {
+                            printf("Breaking\n");
                             break;
                         }
                     }
-
-                    if (br)
-                    {
-                        printf("Breaking\n");
-                        break;
-                    }
                 }
             }
-
+            catch (const std::system_error& e)
+            {
+                fprintf(stderr, "[ERROR(player.553)] %d: %s\n", e.code().value(), e.what());
+            }
             /* Cleanup */
             fclose(fd);
             ogg_stream_clear(&os);
@@ -1025,7 +1032,7 @@ namespace musicat_player {
         }
         {
             {
-                std::lock_guard lk(this->c_m);
+                std::lock_guard<std::mutex> lk(this->c_m);
                 if (this->connecting.find(event.voice_client->server_id) != this->connecting.end())
                 {
                     this->connecting.erase(event.voice_client->server_id);
@@ -1126,7 +1133,7 @@ namespace musicat_player {
         if (!event.state.channel_id)
         {
             {
-                std::lock_guard lk(this->dc_m);
+                std::lock_guard<std::mutex> lk(this->dc_m);
                 printf("on_voice_state_leave\n");
                 if (this->disconnecting.find(event.state.guild_id) != this->disconnecting.end())
                 {
@@ -1138,7 +1145,7 @@ namespace musicat_player {
         else
         {
             {
-                std::lock_guard lk(this->c_m);
+                std::lock_guard<std::mutex> lk(this->c_m);
                 printf("on_voice_state_join\n");
                 if (this->connecting.find(event.state.guild_id) != this->connecting.end())
                 {

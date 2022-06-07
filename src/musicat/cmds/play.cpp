@@ -188,13 +188,20 @@ namespace musicat_command {
                 event.edit_response(string("Added: ") + result.title());
             }
 
-            std::thread pjt([&player_manager, from, guild_id]() {
+            std::thread pjt([player_manager, from, guild_id]() {
                 player_manager->reconnect(from, guild_id);
             });
             pjt.detach();
 
-            std::thread dlt([player_manager, sha_id](dpp::discord_client* from, bool dling, YTrack result, string fname, dpp::snowflake user_id, dpp::snowflake guild_id, dpp::snowflake channel_id, bool arg_top) {
-                if (dling) player_manager->wait_for_download(fname);
+            std::thread dlt([player_manager, sha_id, event, dling, fname, arg_top, from](YTrack result) {
+                dpp::snowflake user_id = event.command.usr.id;
+                dpp::snowflake guild_id = event.command.guild_id;
+                dpp::snowflake channel_id = event.command.channel_id;
+                if (dling)
+                {
+                    player_manager->wait_for_download(fname);
+                    event.edit_response(string("Added: ") + result.title());
+                }
                 auto p = player_manager->create_player(guild_id);
                 p->from = from;
 
@@ -213,8 +220,7 @@ namespace musicat_command {
                 if (b && mc::has_listener(&vu.second)
                     && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
                     v->voiceclient->insert_marker("s");
-
-            }, from, dling, result, fname, event.command.usr.id, event.command.guild_id, event.command.channel_id, arg_top);
+            }, result);
             dlt.detach();
         }
     }
