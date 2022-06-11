@@ -1,5 +1,6 @@
 #include <regex>
 #include <vector>
+#include <chrono>
 #include "musicat/musicat.h"
 #include "musicat/cmds.h"
 #include "musicat/yt-search.h"
@@ -250,6 +251,10 @@ namespace musicat_command {
 
                 if (from)
                 {
+                    {
+                        using namespace std::chrono_literals;
+                        std::this_thread::sleep_for(1000ms);
+                    }
                     dpp::voiceconn* v = from->get_voice(guild_id);
                     if (b && mc::has_listener(&vu.second)
                         && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
