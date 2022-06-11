@@ -30,11 +30,12 @@ namespace musicat_player {
         this->info_message = nullptr;
         this->from = nullptr;
         this->auto_play = false;
+        this->max_history_size = 0;
     }
 
     Player::~Player() = default;
 
-    Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id) {
+    Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
         size_t siz = 0;
         {
             std::lock_guard<std::mutex> lk(this->q_m);
@@ -50,7 +51,12 @@ namespace musicat_player {
             }
             else this->queue.push_back(track);
         }
-        if (siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
+        if (update_embed && siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
+        return *this;
+    }
+
+    Player& Player::set_max_history_size(size_t siz) {
+        this->max_history_size = siz;
         return *this;
     }
 
@@ -846,13 +852,24 @@ namespace musicat_player {
                         });
                     }
                 }
+                string id = track.id();
                 if (player->auto_play)
                 {
-                    string id = track.id();
                     printf("Getting new autoplay track: %s\n", id.c_str());
                     musicat_command::play::add_track(true, v->server_id, string(
                         "https://www.youtube.com/watch?v="
                     ) + id + "&list=RD" + id, 0, true, NULL, 0, this->sha_id, shared_manager, false, player->from);
+                }
+                {
+                    std::lock_guard<std::mutex> lk(player->h_m);
+                    if (player->max_history_size)
+                    {
+                        player->history.push_back(id);
+                        while (player->history.size() > player->max_history_size)
+                        {
+                            player->history.pop_front();
+                        }
+                    }
                 }
                 auto c = dpp::find_channel(channel_id);
                 auto g = dpp::find_guild(guild_id);

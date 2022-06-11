@@ -88,15 +88,15 @@ namespace musicat_player {
 
         /**
          * @brief History size limiter
-         * !!! TODO
+         *
          */
         size_t max_history_size;
 
         /**
          * @brief Played song history containing song Ids
-         * !!! TODO
+         *
          */
-        std::vector<string> history;
+        std::deque<string> history;
 
         /**
          * @brief Number of added track to the front of queue.
@@ -119,14 +119,16 @@ namespace musicat_player {
          *
          * q: queue,
          * ch: channel_id,
-         * st: shifted_track.
+         * st: shifted_track,
+         * h: history,
          *
          */
-        std::mutex skip_mutex, st_m, q_m, ch_m;
+        std::mutex skip_mutex, st_m, q_m, ch_m, h_m;
 
         Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
         ~Player();
-        Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0);
+        Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0, bool update_embed = true);
+        Player& set_max_history_size(size_t siz = 0);
         bool skip(dpp::voiceconn* v, size_t amount = 1) const;
 
         /**

@@ -1,6 +1,5 @@
 #include <regex>
 #include <vector>
-#include <chrono>
 #include "musicat/musicat.h"
 #include "musicat/cmds.h"
 #include "musicat/yt-search.h"
@@ -177,13 +176,26 @@ namespace musicat_command {
                 if (!p->queue.size()) return;
                 for (auto i : searches)
                 {
+                    auto iid = i.id();
                     bool br = false;
                     for (auto& a : p->queue)
                     {
-                        if (a.id() == i.id())
+                        if (a.id() == iid)
                         {
                             br = true;
                             break;
+                        }
+                    }
+                    if (!br)
+                    {
+                        std::lock_guard<std::mutex> lk(p->h_m);
+                        if (p->history.size()) for (const auto& a : p->history)
+                        {
+                            if (a == iid)
+                            {
+                                br = true;
+                                break;
+                            }
                         }
                     }
                     if (br) continue;
@@ -241,7 +253,7 @@ namespace musicat_command {
                 mpl::MCTrack t(result);
                 t.filename = fname;
                 t.user_id = user_id;
-                p->add_track(t, arg_top ? true : false, guild_id);
+                p->add_track(t, arg_top ? true : false, guild_id, from_interaction || dling);
                 if (from_interaction) p->set_channel(channel_id);
 
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
@@ -249,12 +261,8 @@ namespace musicat_command {
                 try { vu = mc::get_voice_from_gid(guild_id, sha_id); }
                 catch (const char* e) { b = false; }
 
-                if (from)
+                if (from_interaction && from)
                 {
-                    {
-                        using namespace std::chrono_literals;
-                        std::this_thread::sleep_for(1000ms);
-                    }
                     dpp::voiceconn* v = from->get_voice(guild_id);
                     if (b && mc::has_listener(&vu.second)
                         && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
