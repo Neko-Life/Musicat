@@ -38,6 +38,9 @@ namespace musicat_command {
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id);
+
+
+        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event = dpp::interaction_create_t(NULL, "{}"));
     }
 
     namespace loop {
@@ -57,6 +60,11 @@ namespace musicat_command {
             m_clear
         };
 
+        dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+    }
+
+    namespace autoplay {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
     }

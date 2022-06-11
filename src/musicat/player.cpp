@@ -5,6 +5,7 @@
 #include <regex>
 #include <dirent.h>
 #include "musicat/player.h"
+#include "musicat/cmds.h"
 
 namespace mc = musicat;
 
@@ -21,12 +22,13 @@ namespace musicat_player {
     MCTrack::~MCTrack() = default;
 
     Player::Player(dpp::cluster* _cluster, dpp::snowflake _guild_id) {
-        guild_id = _guild_id;
-        cluster = _cluster;
-        loop_mode = loop_mode_t::l_none;
-        shifted_track = 0;
-        info_message = nullptr;
-        from = nullptr;
+        this->guild_id = _guild_id;
+        this->cluster = _cluster;
+        this->loop_mode = loop_mode_t::l_none;
+        this->shifted_track = 0;
+        this->info_message = nullptr;
+        this->from = nullptr;
+        this->auto_play = false;
     }
 
     Player::~Player() = default;
@@ -59,6 +61,11 @@ namespace musicat_player {
             return true;
         }
         else return false;
+    }
+
+    Player& Player::set_auto_play(bool state) {
+        this->auto_play = state;
+        return *this;
     }
 
     bool Player::reset_shifted() {
@@ -289,7 +296,7 @@ namespace musicat_player {
                         mc::reset_voice_channel(from, guild_id);
                     }
                     this->reconnect(from, guild_id);
-                    }, guild_id, from);
+                }, guild_id, from);
                 t.detach();
             }
             return false;
@@ -657,10 +664,10 @@ namespace musicat_player {
                     fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
                     for (const auto& i : cb.get_error().errors)
                         fprintf(stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
-                        i.code.c_str(),
-                        i.field.c_str(),
-                        i.object.c_str(),
-                        i.reason.c_str()
+                            i.code.c_str(),
+                            i.field.c_str(),
+                            i.object.c_str(),
+                            i.reason.c_str()
                         );
                     return;
                 }
@@ -733,7 +740,7 @@ namespace musicat_player {
         return retdel();
     }
 
-    bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event) {
+    bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager) {
         printf("Handling voice marker\n");
         if (!event.voice_client) { printf("NO CLIENT\n");return false; }
         if (this->is_disconnecting(event.voice_client->server_id))
@@ -749,27 +756,34 @@ namespace musicat_player {
 
             // Handle shifted tracks (tracks shifted to the front of the queue)
             printf("Resetting shifted: %d\n", p->reset_shifted());
-
-            std::lock_guard<std::mutex> lk(p->q_m);
-
-            // Do stuff according to loop mode when playback ends
-            if (event.track_meta == "e")
             {
-                if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
-                else if (p->loop_mode == loop_mode_t::l_queue)
+                std::lock_guard<std::mutex> lk(p->q_m);
+
+                // Do stuff according to loop mode when playback ends
+                if (event.track_meta == "e")
                 {
-                    auto l = p->queue.front();
-                    p->queue.pop_front();
-                    p->queue.push_back(l);
+                    if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
+                    else if (p->loop_mode == loop_mode_t::l_queue)
+                    {
+                        auto l = p->queue.front();
+                        p->queue.pop_front();
+                        p->queue.push_back(l);
+                    }
                 }
+                if (p->queue.size() == 0)
+                {
+                    printf("NO SIZE AFTER: %d\n", p->loop_mode);
+                    this->delete_info_embed(event.voice_client->server_id);
+                    return false;
+                }
+                s = p->queue.front();
             }
-            if (p->queue.size() == 0)
+            if (p->auto_play)
             {
-                printf("NO SIZE AFTER: %d\n", p->loop_mode);
-                this->delete_info_embed(event.voice_client->server_id);
-                return false;
+                musicat_command::play::add_track(true, event.voice_client->server_id, string(
+                    "https://www.youtube.com/watch?v="
+                ) + s.id() + "&list=RD" + s.id(), 0, true, NULL, 0, this->sha_id, shared_manager, false, p->from);
             }
-            s = p->queue.front();
         }
 
         printf("To play\n");
@@ -988,6 +1002,11 @@ namespace musicat_player {
         {
             if (ft.length()) ft += " | ";
             ft += l_mode[player->loop_mode - 1];
+        }
+        if (player->auto_play)
+        {
+            if (ft.length()) ft += " | ";
+            ft += "Autoplay";
         }
         if (ft.length()) e.set_footer(ft, "");
         if (color)

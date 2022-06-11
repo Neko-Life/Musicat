@@ -172,6 +172,7 @@ int main(int argc, const char* argv[])
         else if (cmd == "play") mcmd::play::slash_run(event, player_manager, sha_id);
         else if (cmd == "loop") mcmd::loop::slash_run(event, player_manager, sha_id);
         else if (cmd == "queue") mcmd::queue::slash_run(event, player_manager);
+        else if (cmd == "autoplay") mcmd::autoplay::slash_run(event, player_manager);
     });
 
     client.on_voice_ready([&player_manager](const dpp::voice_ready_t& event) {
@@ -197,7 +198,7 @@ int main(int argc, const char* argv[])
         //     dl_cv.notify_all();
         // }
         printf("To handle voice track marker\n");
-        player_manager->handle_on_track_marker(event);
+        player_manager->handle_on_track_marker(event, player_manager);
     });
 
     client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
@@ -212,7 +213,11 @@ int main(int argc, const char* argv[])
 
     client.start(true);
 
-    while (running) sleep(1);
+    while (running)
+    {
+        sleep(10);
+        player_manager->dl_cv.notify_all();
+    }
 
     return 0;
 }

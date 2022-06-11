@@ -15,8 +15,9 @@ namespace musicat_slash {
             mcmd::skip::get_register_obj(sha_id),
             mcmd::pause::get_register_obj(sha_id),
             mcmd::loop::get_register_obj(sha_id),
-            mcmd::queue::get_register_obj(sha_id)
-        });
+            mcmd::queue::get_register_obj(sha_id),
+            mcmd::autoplay::get_register_obj(sha_id),
+            });
         return slash_commands;
     }
 }

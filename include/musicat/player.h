@@ -7,7 +7,7 @@
 #include <vector>
 #include <deque>
 #include <dpp/dpp.h>
-#include "yt-search.h"
+#include "musicat/yt-search.h"
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 
@@ -28,7 +28,7 @@ namespace musicat_player {
         l_song_queue
     };
 
-    struct MCTrack : YTrack {
+    struct MCTrack : yt_search::YTrack {
         /**
          * @brief Downloaded track name.
          *
@@ -42,7 +42,7 @@ namespace musicat_player {
         dpp::snowflake user_id;
 
         MCTrack();
-        MCTrack(YTrack t);
+        MCTrack(yt_search::YTrack t);
         ~MCTrack();
     };
 
@@ -81,6 +81,12 @@ namespace musicat_player {
         loop_mode_t loop_mode;
 
         /**
+         * @brief Whether auto play is enabled for this player
+         *
+         */
+        bool auto_play;
+
+        /**
          * @brief Number of added track to the front of queue.
          *
          */
@@ -110,6 +116,14 @@ namespace musicat_player {
         ~Player();
         Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0);
         bool skip(dpp::voiceconn* v, size_t amount = 1) const;
+
+        /**
+         * @brief Set player auto play mode
+         *
+         * @param state
+         * @return Player&
+         */
+        Player& set_auto_play(bool state = true);
 
         /**
          * @brief Reorganize track,
@@ -290,7 +304,7 @@ namespace musicat_player {
          */
         std::vector<string> get_available_tracks(const size_t amount = 0) const;
 
-        bool handle_on_track_marker(const dpp::voice_track_marker_t& event);
+        bool handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager);
         dpp::embed get_playing_info_embed(dpp::snowflake guild_id, bool force_playing_status);
         void handle_on_voice_ready(const dpp::voice_ready_t& event);
         void handle_on_voice_state_update(const dpp::voice_state_update_t& event);
