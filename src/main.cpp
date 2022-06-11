@@ -215,8 +215,8 @@ int main(int argc, const char* argv[])
 
     while (running)
     {
-        sleep(10);
-        player_manager->dl_cv.notify_all();
+        sleep(1);
+        // player_manager->dl_cv.notify_all();
     }
 
     return 0;

@@ -87,6 +87,18 @@ namespace musicat_player {
         bool auto_play;
 
         /**
+         * @brief History size limiter
+         * !!! TODO
+         */
+        size_t max_history_size;
+
+        /**
+         * @brief Played song history containing song Ids
+         * !!! TODO
+         */
+        std::vector<string> history;
+
+        /**
          * @brief Number of added track to the front of queue.
          *
          */
