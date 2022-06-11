@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <regex>
+#include <chrono>
 #include <dirent.h>
 #include "musicat/player.h"
 #include "musicat/cmds.h"
@@ -186,11 +187,13 @@ namespace musicat_player {
     }
 
     void Manager::reconnect(dpp::discord_client* from, dpp::snowflake guild_id) {
+        bool from_dc = false;
         {
             std::unique_lock<std::mutex> lk(this->dc_m);
             auto a = this->disconnecting.find(guild_id);
             if (a != this->disconnecting.end())
             {
+                from_dc = true;
                 this->dl_cv.wait(lk, [this, &guild_id]() {
                     auto t = this->disconnecting.find(guild_id);
                     return t == this->disconnecting.end();
@@ -202,6 +205,10 @@ namespace musicat_player {
             auto a = this->connecting.find(guild_id);
             if (a != this->connecting.end())
             {
+                {
+                    using namespace std::chrono_literals;
+                    if (from_dc) std::this_thread::sleep_for(500ms);
+                }
                 from->connect_voice(guild_id, a->second);
                 this->dl_cv.wait(lk, [this, &guild_id]() {
                     auto t = this->connecting.find(guild_id);
@@ -741,7 +748,7 @@ namespace musicat_player {
     }
 
     bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager) {
-        printf("Handling voice marker\n");
+        printf("Handling voice marker: \"%s\"\n", event.track_meta.c_str());
         if (!event.voice_client) { printf("NO CLIENT\n");return false; }
         if (this->is_disconnecting(event.voice_client->server_id))
         {
@@ -756,41 +763,33 @@ namespace musicat_player {
 
             // Handle shifted tracks (tracks shifted to the front of the queue)
             printf("Resetting shifted: %d\n", p->reset_shifted());
-            {
-                std::lock_guard<std::mutex> lk(p->q_m);
+            std::lock_guard<std::mutex> lk(p->q_m);
 
-                // Do stuff according to loop mode when playback ends
-                if (event.track_meta == "e")
-                {
-                    if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
-                    else if (p->loop_mode == loop_mode_t::l_queue)
-                    {
-                        auto l = p->queue.front();
-                        p->queue.pop_front();
-                        p->queue.push_back(l);
-                    }
-                }
-                if (p->queue.size() == 0)
-                {
-                    printf("NO SIZE AFTER: %d\n", p->loop_mode);
-                    this->delete_info_embed(event.voice_client->server_id);
-                    return false;
-                }
-                s = p->queue.front();
-            }
-            if (p->auto_play)
+            // Do stuff according to loop mode when playback ends
+            if (event.track_meta == "e")
             {
-                musicat_command::play::add_track(true, event.voice_client->server_id, string(
-                    "https://www.youtube.com/watch?v="
-                ) + s.id() + "&list=RD" + s.id(), 0, true, NULL, 0, this->sha_id, shared_manager, false, p->from);
+                if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
+                else if (p->loop_mode == loop_mode_t::l_queue)
+                {
+                    auto l = p->queue.front();
+                    p->queue.pop_front();
+                    p->queue.push_back(l);
+                }
             }
+            if (p->queue.size() == 0)
+            {
+                printf("NO SIZE AFTER: %d\n", p->loop_mode);
+                this->delete_info_embed(event.voice_client->server_id);
+                return false;
+            }
+            s = p->queue.front();
         }
 
         printf("To play\n");
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             printf("Starting thread\n");
-            std::thread tj([this](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
+            std::thread tj([this, shared_manager](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
                 bool timed_out = false;
                 auto guild_id = v->server_id;
                 dpp::snowflake channel_id = player->channel_id;
@@ -846,6 +845,14 @@ namespace musicat_player {
                             return c;
                         });
                     }
+                }
+                if (player->auto_play)
+                {
+                    string id = track.id();
+                    printf("Getting new autoplay track: %s\n", id.c_str());
+                    musicat_command::play::add_track(true, v->server_id, string(
+                        "https://www.youtube.com/watch?v="
+                    ) + id + "&list=RD" + id, 0, true, NULL, 0, this->sha_id, shared_manager, false, player->from);
                 }
                 auto c = dpp::find_channel(channel_id);
                 auto g = dpp::find_guild(guild_id);
