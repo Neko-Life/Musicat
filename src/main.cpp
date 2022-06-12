@@ -46,8 +46,6 @@ int main(int argc, const char* argv[])
         return ret;
     }
 
-    printf("GLOBAL_PREFIX: %s\n", sha_settings.defaultPrefix.c_str());
-
     std::shared_ptr<mpl::Manager> player_manager = std::make_shared<mpl::Manager>(&client, sha_id);
 
     client.on_log(dpp::utility::cout_logger());
@@ -61,6 +59,21 @@ int main(int argc, const char* argv[])
         // Update channel last message Id
         auto c = dpp::find_channel(event.msg.channel_id);
         if (c) c->last_message_id = event.msg.id;
+    });
+
+    client.on_button_click([](const dpp::button_click_t& event) {
+        const size_t fsub = event.custom_id.find("/");
+        const string cmd = event.custom_id.substr(0, fsub);
+
+        if (!cmd.length()) return;
+
+        if (cmd == "page_queue")
+        {
+            const string param = event.custom_id.substr(fsub + 1, 1);
+            if (!param.length()) return;
+            event.reply(dpp::ir_deferred_update_message, "");
+            mcmd::queue::update_page(event.command.msg.id, param);
+        }
     });
 
     client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event) {
@@ -197,7 +210,6 @@ int main(int argc, const char* argv[])
         //     }
         //     dl_cv.notify_all();
         // }
-        printf("To handle voice track marker\n");
         player_manager->handle_on_track_marker(event, player_manager);
     });
 

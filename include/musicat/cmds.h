@@ -2,6 +2,8 @@
 #define MUSICAT_COMMAND_H
 
 #include <dpp/dpp.h>
+#include <vector>
+#include <mutex>
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 
@@ -64,6 +66,38 @@ namespace musicat_command {
     }
 
     namespace queue {
+        struct pages_t {
+            dpp::cluster* client;
+            std::shared_ptr<dpp::message> message;
+            std::vector<dpp::embed> pages;
+            size_t current;
+
+            pages_t();
+            pages_t(dpp::cluster* client, std::shared_ptr<dpp::message> message, std::vector<dpp::embed> pages = {}, size_t current = 0);
+            ~pages_t();
+
+            /**
+             * @brief Edit callback, call inside callback lambda
+             *
+             * @param cb
+             * @param new_current
+             */
+            void edit_cb(const dpp::confirmation_callback_t& cb, size_t new_current);
+
+            /**
+             * @brief Edit message to page c
+             *
+             * @param c
+             */
+            void edit(size_t c);
+
+            void next();
+            void previous();
+            void home();
+        };
+
+        extern std::map<dpp::snowflake, pages_t> paginated_messages;
+
         enum queue_modify_t : int8_t {
             // Shuffle the queue
             m_shuffle,
@@ -74,6 +108,8 @@ namespace musicat_command {
             // Clear queue
             m_clear
         };
+
+        void update_page(dpp::snowflake msg_id, string param);
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
