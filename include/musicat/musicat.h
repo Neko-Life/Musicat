@@ -92,6 +92,7 @@ namespace musicat
     int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool* running_state = nullptr);
 
     bool has_permissions(dpp::guild* guild, dpp::user* user, dpp::channel* channel, std::vector<uint64_t> permissions = {});
+    bool has_permissions_from_ids(dpp::snowflake guild_id, dpp::snowflake user_id, dpp::snowflake channel_id, std::vector<uint64_t> permissions = {});
 }
 
 #endif

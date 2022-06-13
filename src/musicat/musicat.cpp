@@ -168,4 +168,8 @@ namespace musicat
         for (uint64_t i : permissions) if (!(p & i)) return false;
         return true;
     }
+
+    bool has_permissions_from_ids(dpp::snowflake guild_id, dpp::snowflake user_id, dpp::snowflake channel_id, std::vector<uint64_t> permissions) {
+        return has_permissions(dpp::find_guild(guild_id), dpp::find_user(user_id), dpp::find_channel(channel_id), permissions);
+    }
 }

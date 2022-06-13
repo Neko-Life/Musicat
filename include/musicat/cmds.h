@@ -109,10 +109,14 @@ namespace musicat_command {
             m_clear
         };
 
-        void update_page(dpp::snowflake msg_id, string param);
+        void update_page(dpp::snowflake msg_id, string param, dpp::message* msg = NULL);
+        void delete_page(dpp::snowflake msg_id);
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+
+        void handle_on_message_delete(const dpp::message_delete_t& event);
+        void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
     }
 
     namespace autoplay {

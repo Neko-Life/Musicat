@@ -1,7 +1,14 @@
 #include "musicat/cmds.h"
+#define ONE_HOUR_MILISECOND 3600000
 
 namespace musicat_command {
     namespace queue {
+        std::map<dpp::snowflake, pages_t> paginated_messages = {}; // EXTERN VARIABLE
+
+        void delete_page(dpp::snowflake msg_id) {
+            paginated_messages.erase(msg_id);
+        }
+
         pages_t::pages_t() {
             this->client = NULL;
             this->message = {};
@@ -21,7 +28,7 @@ namespace musicat_command {
         void pages_t::edit_cb(const dpp::confirmation_callback_t& cb, size_t new_current) {
             if (cb.is_error())
             {
-                fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
+                fprintf(stderr, "[ERROR(queue.24)]:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
                 for (const auto& i : cb.get_error().errors)
                     fprintf(stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
                         i.code.c_str(),
@@ -29,6 +36,11 @@ namespace musicat_command {
                         i.object.c_str(),
                         i.reason.c_str()
                     );
+                return;
+            }
+            if (new_current == string::npos)
+            {
+                delete_page(this->message->id);
                 return;
             }
             if (cb.value.index())
@@ -42,12 +54,40 @@ namespace musicat_command {
         void pages_t::edit(size_t c) {
             if (this->current == c)
             {
-                printf("Return pages_t::edit (current == c)\n");
+                printf("[RETURN(queue.45)] (current == c)\n");
                 return;
             }
+            bool disable_components = false;
+            {
+                time_t t;
+                time(&t);
+                double L = this->message->get_creation_time();
+                disable_components = (t - (time_t)L) > ONE_HOUR_MILISECOND;
+            }
+            if (!mc::has_permissions(
+                dpp::find_guild(this->message->guild_id),
+                &this->client->me,
+                dpp::find_channel(this->message->channel_id),
+                { dpp::p_read_message_history }
+            ))
+            {
+                if (disable_components) delete_page(this->message->id);
+                return;
+            }
+
             dpp::embed to = this->pages.at(c);
             this->message->embeds.clear();
             this->message->add_embed(to);
+
+            if (disable_components)
+            {
+                printf("(t > 3600)\n");
+                c = string::npos;
+                for (auto& i : this->message->components)
+                    for (auto& a : i.components)
+                        a.set_disabled(true);
+            }
+
             this->client->message_edit(*this->message, [this, c](const dpp::confirmation_callback_t& cb) {
                 this->edit_cb(cb, c);
             });
@@ -78,11 +118,24 @@ namespace musicat_command {
             this->edit(0);
         }
 
-        std::map<dpp::snowflake, pages_t> paginated_messages = {};
-
-        void update_page(dpp::snowflake msg_id, string param) {
+        void update_page(dpp::snowflake msg_id, string param, dpp::message* msg) {
             auto a = paginated_messages.find(msg_id);
-            if (a == paginated_messages.end()) return;
+            if (a == paginated_messages.end())
+            {
+                if (msg && mc::has_permissions(
+                    dpp::find_guild(msg->guild_id),
+                    &msg->owner->me,
+                    dpp::find_channel(msg->channel_id),
+                    { dpp::p_read_message_history }
+                ))
+                {
+                    for (auto& i : msg->components)
+                        for (auto& a : i.components)
+                            a.set_disabled(true);
+                    msg->owner->message_edit(*msg);
+                }
+                return;
+            }
             auto& b = a->second;
             if (param == "n")
             {
@@ -192,7 +245,7 @@ namespace musicat_command {
             event.reply(msg, [event, paginate, player_manager, embeds](const dpp::confirmation_callback_t& cb) {
                 if (cb.is_error())
                 {
-                    fprintf(stderr, "ERROR event_reply page_queue: %s\n", cb.get_error().message.c_str());
+                    fprintf(stderr, "[ERROR(queue.195)]: %s\n", cb.get_error().message.c_str());
                     return;
                 }
                 if (paginate)
@@ -200,7 +253,7 @@ namespace musicat_command {
                     event.get_original_response([player_manager, embeds](const dpp::confirmation_callback_t& cb2) {
                         if (cb2.is_error())
                         {
-                            fprintf(stderr, "ERROR get_original_response page_queue: %s\n", cb2.get_error().message.c_str());
+                            fprintf(stderr, "[ERROR(queue.203)]: %s\n", cb2.get_error().message.c_str());
                             return;
                         }
                         std::shared_ptr<dpp::message> m = std::make_shared<dpp::message>(std::get<dpp::message>(cb2.value));
@@ -209,6 +262,14 @@ namespace musicat_command {
                     });
                 }
             });
+        }
+
+        void handle_on_message_delete(const dpp::message_delete_t& event) {
+            delete_page(event.deleted->id);
+        }
+
+        void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event) {
+            for (auto i : event.deleted) delete_page(i);
         }
     }
 }

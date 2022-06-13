@@ -1218,9 +1218,6 @@ namespace musicat_player {
     }
 
     void Manager::handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event) {
-        for (auto i : event.deleted)
-        {
-            this->set_info_message_as_deleted(i);
-        }
+        for (auto i : event.deleted) this->set_info_message_as_deleted(i);
     }
 }

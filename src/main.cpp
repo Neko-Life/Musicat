@@ -8,6 +8,8 @@
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 
+static const time_t ONE_DAY_MILISECOND = 24 * 60 * 60 * 1000;
+
 namespace mc = musicat;
 namespace mpl = musicat_player;
 namespace mcmd = musicat_command;
@@ -72,7 +74,7 @@ int main(int argc, const char* argv[])
             const string param = event.custom_id.substr(fsub + 1, 1);
             if (!param.length()) return;
             event.reply(dpp::ir_deferred_update_message, "");
-            mcmd::queue::update_page(event.command.msg.id, param);
+            mcmd::queue::update_page(event.command.msg.id, param, &event.command.msg);
         }
     });
 
@@ -215,20 +217,32 @@ int main(int argc, const char* argv[])
 
     client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
         player_manager->handle_on_message_delete(event);
+        mcmd::queue::handle_on_message_delete(event);
     });
 
     client.on_message_delete_bulk([&player_manager](const dpp::message_delete_bulk_t& event) {
         player_manager->handle_on_message_delete_bulk(event);
+        mcmd::queue::handle_on_message_delete_bulk(event);
     });
 
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
     client.start(true);
 
+    time_t last_gc;
+    time(&last_gc);
+
     while (running)
     {
-        sleep(1);
-        // player_manager->dl_cv.notify_all();
+        sleep(5);
+
+        // GC
+        if ((time(NULL) - last_gc) > ONE_DAY_MILISECOND) (
+            // gc codes
+
+            // reset last_gc
+            time(&last_gc);
+        )
     }
 
     return 0;
