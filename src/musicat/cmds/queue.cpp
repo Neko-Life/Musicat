@@ -118,22 +118,24 @@ namespace musicat_command {
             this->edit(0);
         }
 
-        void update_page(dpp::snowflake msg_id, string param, dpp::message* msg) {
+        void update_page(dpp::snowflake msg_id, string param) {//, dpp::message* msg) {
             auto a = paginated_messages.find(msg_id);
             if (a == paginated_messages.end())
             {
-                if (msg && mc::has_permissions(
-                    dpp::find_guild(msg->guild_id),
-                    &msg->owner->me,
-                    dpp::find_channel(msg->channel_id),
-                    { dpp::p_read_message_history }
-                ))
-                {
-                    for (auto& i : msg->components)
-                        for (auto& a : i.components)
-                            a.set_disabled(true);
-                    msg->owner->message_edit(*msg);
-                }
+                // if (msg)
+                // {
+                //     for (auto& i : msg->components)
+                //         for (auto& c : i.components)
+                //             c.set_disabled(true);
+                //     msg->owner->message_edit(*msg, [msg](const dpp::confirmation_callback_t& cb) {
+                //         delete msg;
+                //         if (cb.is_error())
+                //         {
+                //             fprintf(stderr, "[ERROR(queue.134)] %s\n", cb.get_error().message.c_str());
+                //             return;
+                //         }
+                //     });
+                // }
                 return;
             }
             auto& b = a->second;
@@ -270,6 +272,24 @@ namespace musicat_command {
 
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event) {
             for (auto i : event.deleted) delete_page(i);
+        }
+
+        void gc() {
+            time_t t;
+            time(&t);
+
+            printf("[QUEUE_PAGES_GC] SIZ0: %ld\n", paginated_messages.size());
+            size_t d = 0;
+            for (auto& i : paginated_messages)
+            {
+                double L = i.second.message->get_creation_time();
+                if ((t - (time_t)L) > ONE_HOUR_MILISECOND)
+                {
+                    paginated_messages.erase(i.first);
+                    printf("Deleted %ld\n", ++d);
+                }
+            }
+            printf("[QUEUE_PAGES_GC] SIZ1: %ld\n", paginated_messages.size());
         }
     }
 }

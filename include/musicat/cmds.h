@@ -109,7 +109,7 @@ namespace musicat_command {
             m_clear
         };
 
-        void update_page(dpp::snowflake msg_id, string param, dpp::message* msg = NULL);
+        void update_page(dpp::snowflake msg_id, string param);//, dpp::message* msg = NULL);
         void delete_page(dpp::snowflake msg_id);
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
@@ -117,6 +117,7 @@ namespace musicat_command {
 
         void handle_on_message_delete(const dpp::message_delete_t& event);
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
+        void gc();
     }
 
     namespace autoplay {

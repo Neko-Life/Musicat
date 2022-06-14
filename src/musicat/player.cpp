@@ -647,8 +647,21 @@ namespace musicat_player {
             auto g = dpp::find_guild(guild_id);
             auto c = dpp::find_channel(channel_id);
             bool embed_perms = mc::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+            bool view_history_perm = mc::has_permissions(g, &this->cluster->me, c, { dpp::p_read_message_history });
 
-            if (!update && !embed_perms) throw mc::exception("No permission");
+            bool delete_original = false;
+            if (update)
+            {
+                if (!view_history_perm || (player->info_message && player->info_message->is_source_message_deleted()))
+                {
+                    update = false;
+                    delete_original = true;
+                }
+            }
+            else
+            {
+                if (!embed_perms) throw mc::exception("No permission");
+            }
 
             dpp::embed e;
             try
@@ -688,7 +701,7 @@ namespace musicat_player {
                 {
                     if (!player)
                     {
-                        printf("PLAYER GONE WTFF\n");
+                        fprintf(stderr, "PLAYER GONE WTFF\n");
                         return;
                     }
 
@@ -705,6 +718,11 @@ namespace musicat_player {
                 }
                 else printf("No message_create cb size\n");
             };
+
+            if (delete_original)
+            {
+                this->delete_info_embed(guild_id);
+            }
 
             if (!update)
             {

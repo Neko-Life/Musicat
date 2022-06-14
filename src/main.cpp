@@ -7,6 +7,7 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
+#define ONE_HOUR_MILISECOND 3600000
 
 static const time_t ONE_DAY_MILISECOND = 24 * 60 * 60 * 1000;
 
@@ -74,7 +75,8 @@ int main(int argc, const char* argv[])
             const string param = event.custom_id.substr(fsub + 1, 1);
             if (!param.length()) return;
             event.reply(dpp::ir_deferred_update_message, "");
-            mcmd::queue::update_page(event.command.msg.id, param, &event.command.msg);
+            // dpp::message* m = new dpp::message(event.command.msg);
+            mcmd::queue::update_page(event.command.msg.id, param);//, m);
         }
     });
 
@@ -237,12 +239,18 @@ int main(int argc, const char* argv[])
         sleep(5);
 
         // GC
-        if ((time(NULL) - last_gc) > ONE_DAY_MILISECOND) (
+        if ((time(NULL) - last_gc) > ONE_HOUR_MILISECOND)
+        {
+            printf("[GC] Starting scheduled gc\n");
+            time_t start_gc;
+            time(&start_gc);
             // gc codes
+            mcmd::queue::gc();
 
             // reset last_gc
             time(&last_gc);
-        )
+            printf("[GC] Ran for %ld ms\n", last_gc - start_gc);
+        }
     }
 
     return 0;
