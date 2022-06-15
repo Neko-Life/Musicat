@@ -49,7 +49,7 @@ namespace musicat_command {
             {
                 if (b > 10000) b = 10000;
                 g->set_max_history_size(b);
-                reply += "Set No Duplicate threshold to " + std::to_string(b);
+                reply += "Set No Duplicate Threshold to " + std::to_string(b);
             }
             event.reply(reply);
             if (c != g->auto_play || (g->auto_play && st != g->max_history_size)) try
