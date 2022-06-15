@@ -52,7 +52,7 @@ namespace musicat_command {
                 reply += "Set no duplicate threshold to " + std::to_string(b);
             }
             event.reply(reply);
-            if (c != g->auto_play || st != g->max_history_size) try
+            if (c != g->auto_play || (g->auto_play && st != g->max_history_size)) try
             {
                 player_manager->update_info_embed(event.command.guild_id);
             }
