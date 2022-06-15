@@ -32,6 +32,7 @@ namespace musicat_command {
             mc::get_inter_param(event, "no-duplicate-threshold", &b);
             auto g = player_manager->create_player(event.command.guild_id);
             bool c = g->auto_play;
+            size_t st = g->max_history_size;
             string reply = "";
             if (a > -1)
             {
@@ -51,7 +52,7 @@ namespace musicat_command {
                 reply += "Set no duplicate threshold to " + std::to_string(b);
             }
             event.reply(reply);
-            if (c != g->auto_play) try
+            if (c != g->auto_play || st != g->max_history_size) try
             {
                 player_manager->update_info_embed(event.command.guild_id);
             }

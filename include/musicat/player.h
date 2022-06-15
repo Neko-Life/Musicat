@@ -129,7 +129,7 @@ namespace musicat_player {
         ~Player();
         Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0, bool update_embed = true);
         Player& set_max_history_size(size_t siz = 0);
-        bool skip(dpp::voiceconn* v, size_t amount = 1) const;
+        bool skip(dpp::voiceconn* v) const;
 
         /**
          * @brief Set player auto play mode
@@ -271,7 +271,7 @@ namespace musicat_player {
          * @return false
          * @throw mc::exception
          */
-        bool skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id);
+        bool skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount = 1);
         void download(string fname, string url, dpp::snowflake guild_id);
         void wait_for_download(string file_name);
         void stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);

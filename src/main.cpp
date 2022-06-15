@@ -7,9 +7,7 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
-#define ONE_HOUR_MILISECOND 3600000
-
-static const time_t ONE_DAY_MILISECOND = 24 * 60 * 60 * 1000;
+#define ONE_HOUR_SECOND 3600
 
 namespace mc = musicat;
 namespace mpl = musicat_player;
@@ -239,7 +237,7 @@ int main(int argc, const char* argv[])
         sleep(5);
 
         // GC
-        if ((time(NULL) - last_gc) > ONE_HOUR_MILISECOND)
+        if ((time(NULL) - last_gc) > ONE_HOUR_SECOND)
         {
             printf("[GC] Starting scheduled gc\n");
             time_t start_gc;

@@ -1,5 +1,5 @@
 #include "musicat/cmds.h"
-#define ONE_HOUR_MILISECOND 3600000
+#define ONE_HOUR_SECOND 3600
 
 namespace musicat_command {
     namespace queue {
@@ -62,7 +62,7 @@ namespace musicat_command {
                 time_t t;
                 time(&t);
                 double L = this->message->get_creation_time();
-                disable_components = (t - (time_t)L) > ONE_HOUR_MILISECOND;
+                disable_components = (t - (time_t)L) > ONE_HOUR_SECOND;
             }
             if (!mc::has_permissions(
                 dpp::find_guild(this->message->guild_id),
@@ -283,7 +283,7 @@ namespace musicat_command {
             for (auto& i : paginated_messages)
             {
                 double L = i.second.message->get_creation_time();
-                if ((t - (time_t)L) > ONE_HOUR_MILISECOND)
+                if ((t - (time_t)L) > ONE_HOUR_SECOND)
                 {
                     paginated_messages.erase(i.first);
                     printf("Deleted %ld\n", ++d);

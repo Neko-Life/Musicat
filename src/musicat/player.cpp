@@ -60,7 +60,7 @@ namespace musicat_player {
         return *this;
     }
 
-    bool Player::skip(dpp::voiceconn* v, size_t amount) const {
+    bool Player::skip(dpp::voiceconn* v) const {
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
         {
             v->voiceclient->pause_audio(false);
@@ -325,7 +325,7 @@ namespace musicat_player {
         }
     }
 
-    bool Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id) {
+    bool Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount) {
         auto p = get_player(guild_id);
         if (!p) return false;
         try
@@ -337,12 +337,23 @@ namespace musicat_player {
         {
             throw mc::exception("You're not in a voice channel", 1);
         }
-        if (p->loop_mode == loop_mode_t::l_song || p->loop_mode == loop_mode_t::l_song_queue)
+        auto siz = p->queue.size();
+        if (amount < (siz || 1)) amount = siz || 1;
+        if (amount > 1000) amount = 1000;
+        const bool l_s = p->loop_mode == loop_mode_t::l_song_queue;
+        const bool l_q = p->loop_mode == loop_mode_t::l_queue;
         {
             std::lock_guard<std::mutex> lk(p->q_m);
-            auto l = p->queue.front();
-            p->queue.pop_front();
-            if (p->loop_mode == loop_mode_t::l_song_queue) p->queue.push_back(l);
+            for (int64_t i =
+                (p->loop_mode == loop_mode_t::l_song || l_s)
+                ? 0 : 1;
+                i < amount; i++)
+            {
+                if (p->queue.begin() == p->queue.end()) break;
+                auto l = p->queue.front();
+                p->queue.pop_front();
+                if (l_s || l_q) p->queue.push_back(l);
+            }
         }
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
             this->stop_stream(guild_id);
@@ -601,6 +612,7 @@ namespace musicat_player {
                 if (notify_error)
                 {
                     string msg = "";
+                    // Maybe connect/reconnect here if there's connection error
                     if (e == 2) msg = "Can't start playback";
                     else if (e == 1) msg = "No connection";
                     dpp::message m;
@@ -624,8 +636,7 @@ namespace musicat_player {
             else if (server_id && channel_id)
             {
                 std::lock_guard<std::mutex> lk(this->c_m);
-                if (this->connecting.find(server_id) == this->connecting.end())
-                    this->connecting[server_id] = channel_id;
+                this->connecting[server_id] = channel_id;
             }
         }, v, fname, channel_id, notify_error);
         tj.detach();
@@ -1049,6 +1060,7 @@ namespace musicat_player {
         {
             if (ft.length()) ft += " | ";
             ft += "Autoplay";
+            if (player->max_history_size) ft += string(" (") + std::to_string(player->max_history_size) + ")";
         }
         if (ft.length()) e.set_footer(ft, "");
         if (color)

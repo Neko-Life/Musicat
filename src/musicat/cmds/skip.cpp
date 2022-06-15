@@ -25,7 +25,9 @@ namespace musicat_command {
             try
             {
                 auto v = event.from->get_voice(event.command.guild_id);
-                if (player_manager->skip(v, event.command.guild_id, event.command.usr.id))
+                int64_t am = 1;
+                mc::get_inter_param(event, "amount", &am);
+                if (player_manager->skip(v, event.command.guild_id, event.command.usr.id, am))
                 {
                     event.reply("Skipped");
                 }
