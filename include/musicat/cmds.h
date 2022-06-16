@@ -124,6 +124,15 @@ namespace musicat_command {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
     }
+
+    namespace move {
+        namespace autocomplete {
+            void track(const dpp::autocomplete_t& event, string param, player_manager_ptr player_manager, dpp::cluster& client);
+        }
+
+        dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+    }
 }
 
 #endif // MUSICAT_COMMAND_H
