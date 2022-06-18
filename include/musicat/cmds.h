@@ -56,8 +56,9 @@ namespace musicat_command {
          * @param from_interaction Whether from an interaction or not
          * @param from Discord client used to reconnect/join voice channel
          * @param event Can be incomplete type or filled if from interaction
+         * @param continued Whether marker to initialize playback has been inserted
          */
-        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event = dpp::interaction_create_t(NULL, "{}"));
+        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event = dpp::interaction_create_t(NULL, "{}"), bool continued = false);
     }
 
     namespace loop {
@@ -130,6 +131,11 @@ namespace musicat_command {
             void track(const dpp::autocomplete_t& event, string param, player_manager_ptr player_manager, dpp::cluster& client);
         }
 
+        dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+    }
+
+    namespace remove {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
     }

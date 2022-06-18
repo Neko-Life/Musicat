@@ -68,7 +68,15 @@ namespace yt_search {
         req.setOpt(curlpp::options::Url(url));
         req.setOpt(curlpp::options::Header("User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:98.0) Gecko/20100101 Firefox/98.0"));
         req.setOpt(curlpp::options::WriteStream(&os));
-        req.perform();
+        try
+        {
+            req.perform();
+        }
+        catch (const curlpp::LibcurlRuntimeError& e)
+        {
+            fprintf(stderr, "[ERROR] LibcurlRuntimeError(%d): %s\n", e.whatCode(), e.what());
+            return;
+        }
 
         // MAGIC INIT
         const std::string rawhttp = os.str();

@@ -59,7 +59,7 @@ namespace musicat_command {
         }
 
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id) {
-            if (!player_manager->voice_ready(event.command.guild_id, event.from))
+            if (!player_manager->voice_ready(event.command.guild_id, event.from, event.command.usr.id))
             {
                 event.reply("Please wait while I'm getting ready to stream");
                 return;
@@ -150,16 +150,28 @@ namespace musicat_command {
             }
 
             auto op = player_manager->get_player(event.command.guild_id);
-
-            if (op && v && v->voiceclient && op->queue.size() && !v->voiceclient->is_paused() && !v->voiceclient->is_playing()) v->voiceclient->insert_marker("c");
+            bool continued = false;
+            if (op)
+            {
+                std::lock_guard<std::mutex> lk(op->q_m);
+                if (v &&
+                    v->voiceclient
+                    && op->queue.size()
+                    && !v->voiceclient->is_paused()
+                    && !v->voiceclient->is_playing())
+                {
+                    v->voiceclient->insert_marker("c");
+                    continued = true;
+                }
+            }
 
             if (arg_query.length() == 0) return event.reply("Provide song query if you wanna add a song, may be URL or song name");
 
             event.thinking();
-            add_track(false, guild_id, arg_query, arg_top, vcclient_cont, v, vcuser.first->id, sha_id, player_manager, true, from, event);
+            add_track(false, guild_id, arg_query, arg_top, vcclient_cont, v, vcuser.first->id, sha_id, player_manager, true, from, event, continued);
         }
 
-        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event) {
+        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event, bool continued) {
             std::vector<yt_search::YTrack> searches = playlist ? yt_search::get_playlist(arg_query).entries() : yt_search::search(arg_query).trackResults();
             if (!searches.size())
             {
@@ -239,7 +251,7 @@ namespace musicat_command {
             });
             pjt.detach();
 
-            std::thread dlt([player_manager, sha_id, dling, fname, arg_top, from_interaction, guild_id, from](const dpp::interaction_create_t event, yt_search::YTrack result) {
+            std::thread dlt([player_manager, sha_id, dling, fname, arg_top, from_interaction, guild_id, from, continued](const dpp::interaction_create_t event, yt_search::YTrack result) {
                 dpp::snowflake user_id = from_interaction ? event.command.usr.id : sha_id;
                 auto p = player_manager->create_player(guild_id);
                 dpp::snowflake channel_id = from_interaction ? event.command.channel_id : p->channel_id;
@@ -261,7 +273,7 @@ namespace musicat_command {
                 try { vu = mc::get_voice_from_gid(guild_id, sha_id); }
                 catch (const char* e) { b = false; }
 
-                if (from_interaction && from)
+                if (from_interaction && !continued && from)
                 {
                     dpp::voiceconn* v = from->get_voice(guild_id);
                     if (b && mc::has_listener(&vu.second)

@@ -283,7 +283,7 @@ namespace musicat_player {
         return this->waiting_vc_ready.find(guild_id) != this->waiting_vc_ready.end();
     }
 
-    bool Manager::voice_ready(dpp::snowflake guild_id, dpp::discord_client* from)
+    bool Manager::voice_ready(dpp::snowflake guild_id, dpp::discord_client* from, dpp::snowflake user_id)
     {
         bool re = is_connecting(guild_id);
         if (is_disconnecting(guild_id)
@@ -292,7 +292,7 @@ namespace musicat_player {
         {
             if (re && from)
             {
-                std::thread t([this](dpp::snowflake guild_id, dpp::discord_client* from) {
+                std::thread t([this, user_id, guild_id](dpp::discord_client* from) {
                     try
                     {
                         auto f = from->connecting_voice_channels.find(guild_id);
@@ -307,9 +307,18 @@ namespace musicat_player {
                     catch (...)
                     {
                         mc::reset_voice_channel(from, guild_id);
+
+                        if (user_id) try
+                        {
+                            auto c = mc::get_voice_from_gid(guild_id, user_id);
+                            std::lock_guard<std::mutex> lk(this->c_m);
+                            auto p = this->connecting.find(guild_id);
+                            if (p->second != c.first->id) p->second = c.first->id;
+                        }
+                        catch (...) {}
                     }
                     this->reconnect(from, guild_id);
-                }, guild_id, from);
+                }, from);
                 t.detach();
             }
             return false;
@@ -794,7 +803,14 @@ namespace musicat_player {
         if (!p) { printf("NO PLAYER\n"); return false; }
         MCTrack s;
         {
-            if (p->queue.size() == 0) { printf("NO SIZE BEFORE: %d\n", p->loop_mode);return false; }
+            {
+                std::lock_guard<std::mutex> lk(p->q_m);
+                if (p->queue.size() == 0)
+                {
+                    printf("NO SIZE BEFORE: %d\n", p->loop_mode);
+                    return false;
+                }
+            }
 
             // Handle shifted tracks (tracks shifted to the front of the queue)
             printf("Resetting shifted: %d\n", p->reset_shifted());

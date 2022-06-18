@@ -255,10 +255,11 @@ namespace musicat_player {
          *
          * @param guild_id
          * @param from
+         * @param user_id
          * @return true
          * @return false
          */
-        bool voice_ready(dpp::snowflake guild_id, dpp::discord_client* from = nullptr);
+        bool voice_ready(dpp::snowflake guild_id, dpp::discord_client* from = nullptr, dpp::snowflake user_id = 0);
         void stop_stream(dpp::snowflake guild_id);
 
         /**
