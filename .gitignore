@@ -1,7 +1,6 @@
 libs/curlpp
 libs/DPP
 libs/DPPUtils
-.vscode
 build
 exe/music
 exe/Shasha
