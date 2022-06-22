@@ -280,14 +280,16 @@ namespace musicat_command {
 
             printf("[QUEUE_PAGES_GC] SIZ0: %ld\n", paginated_messages.size());
             size_t d = 0;
-            for (auto& i : paginated_messages)
+            auto i = paginated_messages.begin();
+            while (i != paginated_messages.end())
             {
-                double L = i.second.message->get_creation_time();
+                double L = i->second.message->get_creation_time();
                 if ((t - (time_t)L) > ONE_HOUR_SECOND)
                 {
-                    paginated_messages.erase(i.first);
+                    paginated_messages.erase(i->first);
                     printf("Deleted %ld\n", ++d);
                 }
+                else i++;
             }
             printf("[QUEUE_PAGES_GC] SIZ1: %ld\n", paginated_messages.size());
         }

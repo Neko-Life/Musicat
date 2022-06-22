@@ -311,9 +311,17 @@ namespace musicat_player {
                         if (user_id) try
                         {
                             auto c = mc::get_voice_from_gid(guild_id, user_id);
+
                             std::lock_guard<std::mutex> lk(this->c_m);
                             auto p = this->connecting.find(guild_id);
-                            if (p->second != c.first->id) p->second = c.first->id;
+                            std::map<dpp::snowflake, dpp::voicestate> vm = {};
+                            if (p != this->connecting.end())
+                            {
+                                auto gc = dpp::find_channel(p->second);
+                                if (gc) vm = gc->get_voice_members();
+                                auto l = mc::has_listener(&vm);
+                                if (!l && p->second != c.first->id) p->second = c.first->id;
+                            }
                         }
                         catch (...) {}
                     }
