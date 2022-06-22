@@ -10,6 +10,9 @@ namespace musicat
 {
     using string = std::string;
 
+    // Main
+    int run(int argc, const char* argv[]);
+
     template <typename T>
     typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find);
 
