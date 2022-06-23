@@ -38,6 +38,10 @@ namespace musicat_player {
     Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
         size_t siz = 0;
         {
+            if (track.info.raw.is_null())
+            {
+                track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
+            }
             std::lock_guard<std::mutex> lk(this->q_m);
             siz = this->queue.size();
             if (top)
@@ -1064,16 +1068,32 @@ namespace musicat_player {
 
         string ft = "";
 
+        bool tinfo = !track.info.raw.is_null();
+
+        if (tinfo)
+        {
+            ft += mc::format_duration(track.info.duration());
+        }
+
+        bool has_p = false;
+
         if (player->from)
         {
             auto con = player->from->get_voice(guild_id);
             if (con && con->voiceclient)
                 if (con->voiceclient->get_secs_remaining() > 0.1)
+                {
+                    has_p = true;
+                    if (ft.length()) ft += " | ";
                     if (con->voiceclient->is_paused()) ft += p_mode[0];
                     else ft += p_mode[1];
+                }
         }
-
-        if (!ft.length() && force_playing_status) ft += p_mode[1];
+        if (force_playing_status && !has_p)
+        {
+            if (ft.length()) ft += " | ";
+            ft += p_mode[1];
+        }
 
         if (player->loop_mode)
         {
@@ -1085,6 +1105,11 @@ namespace musicat_player {
             if (ft.length()) ft += " | ";
             ft += "Autoplay";
             if (player->max_history_size) ft += string(" (") + std::to_string(player->max_history_size) + ")";
+        }
+        if (tinfo)
+        {
+            if (ft.length()) ft += " | [";
+            ft += std::to_string(track.info.average_bitrate()) + "]";
         }
         if (ft.length()) e.set_footer(ft, "");
         if (color)

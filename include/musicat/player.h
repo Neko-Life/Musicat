@@ -8,6 +8,7 @@
 #include <deque>
 #include <dpp/dpp.h>
 #include "musicat/yt-search.h"
+#include "musicat/yt-track-info.h"
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 
@@ -40,6 +41,8 @@ namespace musicat_player {
          *
          */
         dpp::snowflake user_id;
+
+        yt_search::audio_info_t info;
 
         MCTrack();
         MCTrack(yt_search::YTrack t);

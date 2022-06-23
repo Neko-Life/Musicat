@@ -172,4 +172,24 @@ namespace musicat
     bool has_permissions_from_ids(dpp::snowflake guild_id, dpp::snowflake user_id, dpp::snowflake channel_id, std::vector<uint64_t> permissions) {
         return has_permissions(dpp::find_guild(guild_id), dpp::find_user(user_id), dpp::find_channel(channel_id), permissions);
     }
+
+    string format_duration(uint64_t dur) {
+        uint64_t secondr = dur / 1000;
+        uint64_t minuter = secondr / 60;
+
+        uint64_t hour = minuter / 60;
+        uint8_t minute = minuter % 60;
+        uint8_t second = secondr % 60;
+        string ret = "";
+        if (hour)
+        {
+            string hstr = std::to_string(hour);
+            ret += string(hstr.length() < 2 ? "0" : "") + hstr + ":";
+        }
+        string mstr = std::to_string(minute);
+        string sstr = std::to_string(second);
+        ret += string(mstr.length() < 2 ? "0" : "") + mstr + ":" + string(sstr.length() < 2 ? "0" : "") + sstr;
+        printf("sr: %ld\nmr: %ld\nh: %ld\nm: %d\ns: %d\nres: %s\n", secondr, minuter, hour, minute, second, ret.c_str());
+        return ret;
+    }
 }

@@ -3,7 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/include"
+                "${workspaceFolder}/include",
+                "/usr/include/opus"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

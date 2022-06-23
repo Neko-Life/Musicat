@@ -96,6 +96,14 @@ namespace musicat
 
     bool has_permissions(dpp::guild* guild, dpp::user* user, dpp::channel* channel, std::vector<uint64_t> permissions = {});
     bool has_permissions_from_ids(dpp::snowflake guild_id, dpp::snowflake user_id, dpp::snowflake channel_id, std::vector<uint64_t> permissions = {});
+
+    /**
+     * @brief Format ms duration to HH:MM:SS
+     *
+     * @param dur
+     * @return string
+     */
+    string format_duration(uint64_t dur);
 }
 
 #endif

@@ -193,22 +193,34 @@ namespace musicat_command {
             size_t qs = queue.size();
             size_t count = 0;
 
+            uint64_t totald = 0;
+
+            for (auto i = queue.begin(); i != queue.end(); i++)
+                if (!i->info.raw.is_null())
+                    totald += i->info.duration();
             for (auto i = queue.begin(); i != queue.end(); i++)
             {
+                uint64_t dur = 0;
+                if (!i->info.raw.is_null()) dur = i->info.duration();
                 if (i == queue.begin())
                 {
-                    desc += "Current track: [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n\n";
+                    desc += "Current track: [" + i->title() + "](" + i->url() + ")"
+                        + string(dur ? string(" [") + mc::format_duration(dur) + "]" : "")
+                        + " - <@" + std::to_string(i->user_id) + ">\n\n";
                 }
                 else
                 {
-                    desc += std::to_string(id) + ": [" + i->title() + "](" + i->url() + ") - <@" + std::to_string(i->user_id) + ">\n";
+                    desc += std::to_string(id) + ": [" + i->title() + "](" + i->url() + ")"
+                        + string(dur ? string(" [") + mc::format_duration(dur) + "]" : "")
+                        + " - <@" + std::to_string(i->user_id) + ">\n";
                     id++;
                     count++;
                 }
-                if (count && (!(count % 10) || id == qs))
+                if ((count && !(count % 10)) || id == qs)
                 {
                     embed.set_title("Queue")
                         .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
+                    if (dur) embed.set_footer(mc::format_duration(dur), "");
                     embeds.emplace_back(embed);
                     embed = dpp::embed();
                     desc = "";
