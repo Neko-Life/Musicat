@@ -220,7 +220,7 @@ namespace musicat_command {
                 {
                     embed.set_title("Queue")
                         .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
-                    if (dur) embed.set_footer(mc::format_duration(dur), "");
+                    if (totald) embed.set_footer(mc::format_duration(totald), "");
                     embeds.emplace_back(embed);
                     embed = dpp::embed();
                     desc = "";
