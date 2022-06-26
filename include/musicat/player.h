@@ -161,7 +161,8 @@ namespace musicat_player {
          * @return Player&
          */
         Player& set_channel(dpp::snowflake channel_id);
-        int remove_track(int pos, int amount = 1);
+
+        size_t remove_track(size_t pos, size_t amount = 1);
         int remove_track_by_user(dpp::snowflake user_id, int amount = -1);
         bool pause(dpp::discord_client* from, dpp::snowflake user_id) const;
         int seek(int pos, bool abs);
@@ -329,6 +330,8 @@ namespace musicat_player {
         bool set_info_message_as_deleted(dpp::snowflake id);
         void handle_on_message_delete(const dpp::message_delete_t& event);
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
+
+        size_t remove_track(dpp::snowflake guild_id, size_t pos, size_t amount = 1);
     };
 }
 

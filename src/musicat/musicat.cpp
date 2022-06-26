@@ -189,7 +189,6 @@ namespace musicat
         string mstr = std::to_string(minute);
         string sstr = std::to_string(second);
         ret += string(mstr.length() < 2 ? "0" : "") + mstr + ":" + string(sstr.length() < 2 ? "0" : "") + sstr;
-        printf("sr: %ld\nmr: %ld\nh: %ld\nm: %d\ns: %d\nres: %s\n", secondr, minuter, hour, minute, second, ret.c_str());
         return ret;
     }
 }

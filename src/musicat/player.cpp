@@ -36,26 +36,29 @@ namespace musicat_player {
     Player::~Player() = default;
 
     Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
-        size_t siz = 0;
-        {
-            if (track.info.raw.is_null())
+        std::thread t([this, top, guild_id, update_embed](MCTrack track) {
+            size_t siz = 0;
             {
-                track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
-            }
-            std::lock_guard<std::mutex> lk(this->q_m);
-            siz = this->queue.size();
-            if (top)
-            {
-                this->queue.push_front(track);
-                if (this->shifted_track < this->queue.size() - 1)
+                if (track.info.raw.is_null())
                 {
-                    std::lock_guard<std::mutex> lk(this->st_m);
-                    this->shifted_track++;
+                    track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
                 }
+                std::lock_guard<std::mutex> lk(this->q_m);
+                siz = this->queue.size();
+                if (top)
+                {
+                    this->queue.push_front(track);
+                    if (this->shifted_track < this->queue.size() - 1)
+                    {
+                        std::lock_guard<std::mutex> lk(this->st_m);
+                        this->shifted_track++;
+                    }
+                }
+                else this->queue.push_back(track);
             }
-            else this->queue.push_back(track);
-        }
-        if (update_embed && siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
+            if (update_embed && siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
+        }, track);
+        t.detach();
         return *this;
     }
 
@@ -115,8 +118,22 @@ namespace musicat_player {
         return *this;
     }
 
-    int Player::remove_track(int pos, int amount) {
-        return 0;
+    size_t Player::remove_track(size_t pos, size_t amount) {
+        if (!pos || !amount) return 0;
+        std::lock_guard<std::mutex> lk(this->q_m);
+        auto siz = this->queue.size();
+        if ((pos + 1) > siz) return 0;
+        auto max = siz - pos;
+        if (amount > max) amount = max;
+        auto b = this->queue.begin() + pos;
+        size_t a = 0;
+        while (b != this->queue.end())
+        {
+            if (a == amount) break;
+            this->queue.erase(b);
+            a++;
+        }
+        return amount;
     }
 
     int Player::remove_track_by_user(dpp::snowflake user_id, int amount) {
@@ -654,10 +671,14 @@ namespace musicat_player {
                 }
             }
             if (v && !v->terminating) v->insert_marker("e");
-            else if (server_id && channel_id)
+            else
             {
-                std::lock_guard<std::mutex> lk(this->c_m);
-                this->connecting[server_id] = channel_id;
+                if (server_id && channel_id)
+                {
+                    std::lock_guard<std::mutex> lk(this->c_m);
+                    this->connecting[server_id] = channel_id;
+                }
+                v->~discord_voice_client();
             }
         }, v, fname, channel_id, notify_error);
         tj.detach();
@@ -1121,6 +1142,7 @@ namespace musicat_player {
 
     std::vector<string> Manager::get_available_tracks(const size_t amount) const {
         std::vector<string> ret = {};
+        size_t c = 0;
         auto dir = opendir("./music");
 
         if (dir != NULL)
@@ -1134,7 +1156,7 @@ namespace musicat_player {
                     ret.push_back(s.substr(0, s.length() - 4));
                 }
 
-                if (amount && ret.size() == amount) break;
+                if (amount && ++c == amount) break;
                 file = readdir(dir);
             }
             closedir(dir);
@@ -1276,6 +1298,8 @@ namespace musicat_player {
                 }
             }
         }
+        // if (muted) player_manager->pause(event.guild_id);
+        // else player_manager->resume(guild_id);
     }
 
     bool Manager::set_info_message_as_deleted(dpp::snowflake id) {
@@ -1298,5 +1322,11 @@ namespace musicat_player {
 
     void Manager::handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event) {
         for (auto i : event.deleted) this->set_info_message_as_deleted(i);
+    }
+
+    size_t Manager::remove_track(dpp::snowflake guild_id, size_t pos, size_t amount) {
+        auto p = this->get_player(guild_id);
+        if (!p) return 0;
+        return p->remove_track(pos, amount);
     }
 }

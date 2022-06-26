@@ -196,6 +196,7 @@ namespace musicat {
             else if (cmd == "queue") mcmd::queue::slash_run(event, player_manager);
             else if (cmd == "autoplay") mcmd::autoplay::slash_run(event, player_manager);
             else if (cmd == "move") mcmd::move::slash_run(event, player_manager);
+            else if (cmd == "remove") mcmd::remove::slash_run(event, player_manager);
         });
 
         client.on_voice_ready([&player_manager](const dpp::voice_ready_t& event) {
