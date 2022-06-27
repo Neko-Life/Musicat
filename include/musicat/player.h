@@ -163,7 +163,7 @@ namespace musicat_player {
         Player& set_channel(dpp::snowflake channel_id);
 
         size_t remove_track(size_t pos, size_t amount = 1);
-        int remove_track_by_user(dpp::snowflake user_id, int amount = -1);
+        size_t remove_track_by_user(dpp::snowflake user_id);
         bool pause(dpp::discord_client* from, dpp::snowflake user_id) const;
         bool shuffle();
         int seek(int pos, bool abs);
@@ -256,11 +256,11 @@ namespace musicat_player {
         bool is_connecting(dpp::snowflake guild_id);
         bool is_waiting_vc_ready(dpp::snowflake guild_id);
         /**
-         * @brief Check whether client is ready to stream in vc and make changes to playback and player queue, will auto reconnect if `from` provide
+         * @brief Check whether client is ready to stream in vc and make changes to playback and player queue, will auto reconnect if `from` provided
          *
          * @param guild_id
          * @param from
-         * @param user_id
+         * @param user_id User who's invoked the function and in a vc
          * @return true
          * @return false
          */

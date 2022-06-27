@@ -132,8 +132,21 @@ namespace musicat_player {
         return amount;
     }
 
-    int Player::remove_track_by_user(dpp::snowflake user_id, int amount) {
-        return 0;
+    size_t Player::remove_track_by_user(dpp::snowflake user_id) {
+        if (!user_id) return 0;
+        size_t ret = 0;
+        std::lock_guard<std::mutex> lk(this->q_m);
+        auto i = this->queue.begin();
+        while (i != this->queue.end())
+        {
+            if (i->user_id == user_id)
+            {
+                this->queue.erase(i);
+                ret++;
+            }
+            else i++;
+        }
+        return ret;
     }
 
     bool Player::pause(dpp::discord_client* from, dpp::snowflake user_id) const {
@@ -176,6 +189,7 @@ namespace musicat_player {
 
         this->queue = n_queue;
         this->queue.push_front(os);
+        this->manager->update_info_embed(this->guild_id);
         return true;
     }
 

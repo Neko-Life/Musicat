@@ -277,7 +277,7 @@ namespace musicat_command {
                 {
                     dpp::voiceconn* v = from->get_voice(guild_id);
                     if (b && mc::has_listener(&vu.second)
-                        && v && v->voiceclient && v->voiceclient->get_secs_remaining() < 0.1)
+                        && v && v->voiceclient && v->voiceclient->is_ready() && v->voiceclient->get_secs_remaining() < 0.1)
                         v->voiceclient->insert_marker("s");
                 }
             }, event, result);
