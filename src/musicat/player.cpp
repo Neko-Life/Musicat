@@ -180,15 +180,17 @@ namespace musicat_player {
         this->reset_shifted();
         std::deque<MCTrack> n_queue = {};
         auto b = mc::shuffle_indexes(siz - 1);
-        std::lock_guard<std::mutex> lk(this->q_m);
-        MCTrack os = this->queue.at(0);
-        this->queue.erase(this->queue.begin());
+        {
+            std::lock_guard<std::mutex> lk(this->q_m);
+            MCTrack os = this->queue.at(0);
+            this->queue.erase(this->queue.begin());
 
-        for (auto i : b) n_queue.push_back(this->queue.at(i));
-        this->queue.clear();
+            for (auto i : b) n_queue.push_back(this->queue.at(i));
+            this->queue.clear();
 
-        this->queue = n_queue;
-        this->queue.push_front(os);
+            this->queue = n_queue;
+            this->queue.push_front(os);
+        }
         this->manager->update_info_embed(this->guild_id);
         return true;
     }

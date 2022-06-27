@@ -230,16 +230,18 @@ namespace musicat_command {
                     }
                     auto p = player_manager->get_player(event.command.guild_id);
                     p->reset_shifted();
-                    std::lock_guard<std::mutex> lk(p->q_m);
-                    musicat_player::MCTrack t = p->queue.at(0);
+                    {
+                        std::lock_guard<std::mutex> lk(p->q_m);
+                        musicat_player::MCTrack t = p->queue.at(0);
 
-                    std::deque<musicat_player::MCTrack> n_queue = {};
-                    for (size_t i = (siz - 1); i > 0; i--)
-                        n_queue.push_back(p->queue.at(i));
+                        std::deque<musicat_player::MCTrack> n_queue = {};
+                        for (size_t i = (siz - 1); i > 0; i--)
+                            n_queue.push_back(p->queue.at(i));
 
-                    p->queue.clear();
-                    p->queue = n_queue;
-                    p->queue.push_front(t);
+                        p->queue.clear();
+                        p->queue = n_queue;
+                        p->queue.push_front(t);
+                    }
                     player_manager->update_info_embed(event.command.guild_id);
                     event.reply("Reversed");
 
@@ -290,6 +292,7 @@ namespace musicat_command {
                         event.reply("No user left this session yet");
                         break;
                     }
+                    player_manager->update_info_embed(event.command.guild_id);
                     event.reply(std::to_string(usiz)
                         + " user" + string(usiz > 1 ? "s" : "")
                         + " left this session. Removed "
