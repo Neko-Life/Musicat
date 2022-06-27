@@ -191,4 +191,23 @@ namespace musicat
         ret += string(mstr.length() < 2 ? "0" : "") + mstr + ":" + string(sstr.length() < 2 ? "0" : "") + sstr;
         return ret;
     }
+
+    std::vector<size_t> shuffle_indexes(size_t len) {
+        std::vector<size_t> ret = {};
+        ret.reserve(len);
+        std::vector<size_t> ori = {};
+        ori.reserve(len);
+        for (size_t i = 0; i < len; i++) ori.push_back(i);
+        auto io = ori.begin();
+        while (io != ori.end())
+        {
+            int r = rand() % ori.size();
+            auto it = io + r;
+            ret.push_back(*it);
+            ori.erase(it);
+        }
+        const size_t s = ret.size();
+        if (s != len) fprintf(stderr, "[WARN(musicat.209)] Return size %ld != %ld\n", s, len);
+        return ret;
+    }
 }

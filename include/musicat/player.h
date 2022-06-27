@@ -165,6 +165,7 @@ namespace musicat_player {
         size_t remove_track(size_t pos, size_t amount = 1);
         int remove_track_by_user(dpp::snowflake user_id, int amount = -1);
         bool pause(dpp::discord_client* from, dpp::snowflake user_id) const;
+        bool shuffle();
         int seek(int pos, bool abs);
         int stop();
         int resume();
@@ -332,6 +333,7 @@ namespace musicat_player {
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
 
         size_t remove_track(dpp::snowflake guild_id, size_t pos, size_t amount = 1);
+        bool shuffle_queue(dpp::snowflake guild_id);
     };
 }
 

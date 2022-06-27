@@ -36,29 +36,26 @@ namespace musicat_player {
     Player::~Player() = default;
 
     Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
-        std::thread t([this, top, guild_id, update_embed](MCTrack track) {
-            size_t siz = 0;
+        size_t siz = 0;
+        {
+            if (track.info.raw.is_null())
             {
-                if (track.info.raw.is_null())
-                {
-                    track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
-                }
-                std::lock_guard<std::mutex> lk(this->q_m);
-                siz = this->queue.size();
-                if (top)
-                {
-                    this->queue.push_front(track);
-                    if (this->shifted_track < this->queue.size() - 1)
-                    {
-                        std::lock_guard<std::mutex> lk(this->st_m);
-                        this->shifted_track++;
-                    }
-                }
-                else this->queue.push_back(track);
+                track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
             }
-            if (update_embed && siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
-        }, track);
-        t.detach();
+            std::lock_guard<std::mutex> lk(this->q_m);
+            siz = this->queue.size();
+            if (top)
+            {
+                this->queue.push_front(track);
+                if (this->shifted_track < this->queue.size() - 1)
+                {
+                    std::lock_guard<std::mutex> lk(this->st_m);
+                    this->shifted_track++;
+                }
+            }
+            else this->queue.push_back(track);
+        }
+        if (update_embed && siz > 0UL && guild_id && this->manager) this->manager->update_info_embed(guild_id);
         return *this;
     }
 
@@ -83,20 +80,18 @@ namespace musicat_player {
     }
 
     bool Player::reset_shifted() {
+        std::lock_guard<std::mutex> lk(this->q_m);
+        std::lock_guard<std::mutex> lk2(this->st_m);
+        if (this->queue.size() && this->shifted_track > 0)
         {
-            std::lock_guard<std::mutex> lk(this->q_m);
-            std::lock_guard<std::mutex> lk2(this->st_m);
-            if (this->queue.size() && this->shifted_track > 0)
-            {
-                auto i = this->queue.begin() + this->shifted_track;
-                auto s = *i;
-                this->queue.erase(i);
-                this->queue.push_front(s);
-                this->shifted_track = 0;
-                return true;
-            }
-            else return false;
+            auto i = this->queue.begin() + this->shifted_track;
+            auto s = *i;
+            this->queue.erase(i);
+            this->queue.push_front(s);
+            this->shifted_track = 0;
+            return true;
         }
+        else return false;
     }
 
     Player& Player::set_loop_mode(int8_t mode) {
@@ -120,6 +115,7 @@ namespace musicat_player {
 
     size_t Player::remove_track(size_t pos, size_t amount) {
         if (!pos || !amount) return 0;
+        this->reset_shifted();
         std::lock_guard<std::mutex> lk(this->q_m);
         auto siz = this->queue.size();
         if ((pos + 1) > siz) return 0;
@@ -159,6 +155,28 @@ namespace musicat_player {
         }
         // Not playing anythin
         else return false;
+    }
+
+    bool Player::shuffle() {
+        size_t siz = 0;
+        {
+            std::lock_guard<std::mutex> lk(this->q_m);
+            siz = this->queue.size();
+            if (siz < 3) return false;
+        }
+        this->reset_shifted();
+        std::deque<MCTrack> n_queue = {};
+        auto b = mc::shuffle_indexes(siz - 1);
+        std::lock_guard<std::mutex> lk(this->q_m);
+        MCTrack os = this->queue.at(0);
+        this->queue.erase(this->queue.begin());
+
+        for (auto i : b) n_queue.push_back(this->queue.at(i));
+        this->queue.clear();
+
+        this->queue = n_queue;
+        this->queue.push_front(os);
+        return true;
     }
 
     int Player::seek(int pos, bool abs) {
@@ -678,7 +696,7 @@ namespace musicat_player {
                     std::lock_guard<std::mutex> lk(this->c_m);
                     this->connecting[server_id] = channel_id;
                 }
-                v->~discord_voice_client();
+                if (v) v->~discord_voice_client();
             }
         }, v, fname, channel_id, notify_error);
         tj.detach();
@@ -1328,5 +1346,11 @@ namespace musicat_player {
         auto p = this->get_player(guild_id);
         if (!p) return 0;
         return p->remove_track(pos, amount);
+    }
+
+    bool Manager::shuffle_queue(dpp::snowflake guild_id) {
+        auto p = this->get_player(guild_id);
+        if (!p) return false;
+        return p->shuffle();
     }
 }

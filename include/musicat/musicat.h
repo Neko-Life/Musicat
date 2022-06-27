@@ -104,6 +104,14 @@ namespace musicat
      * @return string
      */
     string format_duration(uint64_t dur);
+
+    /**
+     * @brief Get random index of len to use as base to shuffle an array
+     *
+     * @param len
+     * @return std::vector<size_t>
+     */
+    std::vector<size_t> shuffle_indexes(size_t len);
 }
 
 #endif

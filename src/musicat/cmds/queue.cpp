@@ -184,6 +184,47 @@ namespace musicat_command {
                 return;
             }
 
+            int64_t qarg = -1;
+            mc::get_inter_param(event, "action", &qarg);
+
+            if (qarg > -1)
+            {
+                switch (qarg)
+                {
+                case queue_modify_t::m_clear: {
+                    auto siz = queue.size();
+                    if (siz < 2)
+                    {
+                        event.reply("No track to clear, skip the current song to clear the queue completely");
+                        break;
+                    }
+                    auto p = player_manager->get_player(event.command.guild_id);
+                    p->reset_shifted();
+                    std::lock_guard<std::mutex> lk(p->q_m);
+                    musicat_player::MCTrack t = p->queue.at(0);
+                    p->queue.clear();
+                    p->queue.push_back(t);
+                    event.reply("Cleared");
+
+                    break;
+                }
+                case queue_modify_t::m_shuffle: {
+                    if (player_manager->shuffle_queue(event.command.guild_id))
+                    {
+                        event.reply("Shuffled" + string(queue.size() < 5 ? ", I suggest the `/move` command if you do think my shuffling skill isn't very much satisfying" : ""));
+                        break;
+                    }
+                    else
+                    {
+                        event.reply("Doesn't seem like shuffleable");
+                        break;
+                    }
+                }
+                default: event.reply("Option not yet supported and is still in development");
+                }
+                return;
+            }
+
             std::vector<dpp::embed> embeds = {};
 
             dpp::embed embed;
