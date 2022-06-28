@@ -1289,12 +1289,16 @@ namespace musicat_player {
                     {
                         std::thread tj([this, event](dpp::discord_voice_client* vc) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-                            auto a = mc::get_voice_from_gid(event.state.guild_id, event.state.user_id);
-                            if (vc && !vc->terminating && a.first && a.first->id == event.state.channel_id)
+                            try
                             {
-                                vc->pause_audio(false);
-                                this->update_info_embed(event.state.guild_id);
+                                auto a = mc::get_voice_from_gid(event.state.guild_id, event.state.user_id);
+                                if (vc && !vc->terminating && a.first && a.first->id == event.state.channel_id)
+                                {
+                                    vc->pause_audio(false);
+                                    this->update_info_embed(event.state.guild_id);
+                                }
                             }
+                            catch (...) {}
                         }, v->voiceclient);
                         tj.detach();
                     }
