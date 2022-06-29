@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <chrono>
 #include <dpp/dpp.h>
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
@@ -249,14 +250,15 @@ namespace musicat {
             if ((time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
                 printf("[GC] Starting scheduled gc\n");
-                time_t start_gc;
-                time(&start_gc);
+                auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
                 mcmd::queue::gc();
 
                 // reset last_gc
                 time(&last_gc);
-                printf("[GC] Ran for %ld ms\n", last_gc - start_gc);
+                auto end_time = std::chrono::high_resolution_clock::now();
+                auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                printf("[GC] Ran for %ld ms\n", done.count());
             }
         }
 
