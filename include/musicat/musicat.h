@@ -37,8 +37,9 @@ namespace musicat
      *
      * @param client The client
      * @param guild_id Guild Id of the vc client connecting in
+     * @param delete_voiceconn Whether to delete found voiceconn, can cause segfault if the underlying structure doesn't exist
      */
-    void reset_voice_channel(dpp::discord_client* client, dpp::snowflake guild_id);
+    void reset_voice_channel(dpp::discord_client* client, dpp::snowflake guild_id, bool delete_voiceconn = false);
 
     /**
      * @brief Get the voice object and connected voice members a vc of a guild

@@ -1,4 +1,5 @@
 #include <vector>
+#include <chrono>
 #include "musicat/musicat.h"
 
 namespace musicat
@@ -47,12 +48,16 @@ namespace musicat
      *
      * @param client The client
      * @param guild_id Guild Id of the vc client connecting in
+     * @param delete_voiceconn Whether to delete found voiceconn, can cause segfault if the underlying structure doesn't exist
      */
-    void reset_voice_channel(dpp::discord_client* client, dpp::snowflake guild_id) {
+    void reset_voice_channel(dpp::discord_client* client, dpp::snowflake guild_id, bool delete_voiceconn) {
         auto v = client->connecting_voice_channels.find(guild_id);
         if (v == client->connecting_voice_channels.end()) return;
-        delete v->second;
-        v->second = nullptr;
+        if (v->second && delete_voiceconn)
+        {
+            delete v->second;
+            v->second = nullptr;
+        }
         client->connecting_voice_channels.erase(v);
     }
 
@@ -193,6 +198,8 @@ namespace musicat
     }
 
     std::vector<size_t> shuffle_indexes(size_t len) {
+        auto r = std::chrono::high_resolution_clock::now();
+        srand(r.time_since_epoch().count());
         std::vector<size_t> ret = {};
         ret.reserve(len);
         std::vector<size_t> ori = {};
