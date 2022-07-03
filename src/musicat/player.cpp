@@ -955,6 +955,7 @@ namespace musicat_player {
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             printf("Starting thread\n");
+            s.skip_vote.clear();
             std::thread tj([this, shared_manager](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
                 bool timed_out = false;
                 auto guild_id = v->server_id;
