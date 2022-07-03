@@ -41,6 +41,7 @@ namespace musicat_player {
          *
          */
         dpp::snowflake user_id;
+        std::deque<dpp::snowflake> skip_vote;
 
         yt_search::audio_info_t info;
 
@@ -132,7 +133,14 @@ namespace musicat_player {
         ~Player();
         Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0, bool update_embed = true);
         Player& set_max_history_size(size_t siz = 0);
-        bool skip(dpp::voiceconn* v) const;
+
+        /**
+         * @brief Resume paused playback and empty playback buffer
+         *
+         * @param v
+         * @return int 0 on success, > 0 on vote, -1 on failure
+         */
+        int skip(dpp::voiceconn* v) const;
 
         /**
          * @brief Set player auto play mode
@@ -273,11 +281,10 @@ namespace musicat_player {
          * @param v
          * @param guild_id
          * @param user_id
-         * @return true
-         * @return false
+         * @return int 0 on success, > 0 on vote, -1 on failure
          * @throw mc::exception
          */
-        bool skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount = 1);
+        int skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount = 1);
         void download(string fname, string url, dpp::snowflake guild_id);
         void wait_for_download(string file_name);
         void stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id = 0);

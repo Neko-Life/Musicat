@@ -14,7 +14,7 @@ namespace musicat_player {
 
     using string = std::string;
 
-    MCTrack::MCTrack() {};
+    MCTrack::MCTrack() {}
 
     MCTrack::MCTrack(YTrack t) {
         this->raw = t.raw;
@@ -64,14 +64,14 @@ namespace musicat_player {
         return *this;
     }
 
-    bool Player::skip(dpp::voiceconn* v) const {
+    int Player::skip(dpp::voiceconn* v) const {
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
         {
             v->voiceclient->pause_audio(false);
             v->voiceclient->skip_to_next_marker();
-            return true;
+            return 0;
         }
-        else return false;
+        else return -1;
     }
 
     Player& Player::set_auto_play(bool state) {
@@ -397,13 +397,61 @@ namespace musicat_player {
         }
     }
 
-    bool Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount) {
+    int Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount) {
+        if (!v) return -1;
         auto p = get_player(guild_id);
-        if (!p) return false;
+        if (!p) return -1;
         try
         {
             auto u = mc::get_voice_from_gid(guild_id, user_id);
             if (u.first->id != v->channel_id) throw mc::exception("You're not in my voice channel", 0);
+
+            unsigned siz = 0;
+            for (size_t i = 0; i < u.second.size(); i++)
+            {
+                auto& a = u.second.at(i);
+                if (a.is_deaf() || a.is_self_deaf()) continue;
+                auto user = dpp::find_user(a.user_id);
+                if (user->is_bot()) continue;
+                siz++;
+            }
+            if (siz > 1U)
+            {
+                std::lock_guard<std::mutex> lk(p->q_m);
+                auto& track = p->queue.at(0);
+                if (track.user_id != user_id)
+                {
+                    amount = 1;
+                    bool exist = false;
+                    for (const auto& i : track.skip_vote)
+                    {
+                        if (i == user_id)
+                        {
+                            exist = true;
+                            break;
+                        }
+                    }
+                    if (!exist)
+                    {
+                        track.skip_vote.push_back(user_id);
+                    }
+
+                    unsigned ts = siz / 2U + 1U;
+                    size_t ret = track.skip_vote.size();
+                    if (ret < ts) return (int)ret;
+                    else track.skip_vote.clear();
+                }
+                else
+                {
+                    int64_t count = 0;
+                    for (const auto& t : p->queue)
+                    {
+                        if (t.user_id == user_id) count++;
+                        else break;
+                    }
+                    if (amount > count) amount = count;
+                }
+            }
         }
         catch (const char* e)
         {
@@ -429,7 +477,7 @@ namespace musicat_player {
         }
         if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
             this->stop_stream(guild_id);
-        bool a = p->skip(v);
+        int a = p->skip(v);
         return a;
     }
 
@@ -631,7 +679,7 @@ namespace musicat_player {
 
                         bool br = v->terminating;
 
-                        while (v && !v->terminating && v->get_secs_remaining() > 3.0)
+                        while (v && !v->terminating && v->get_secs_remaining() > 1.5)
                         {
                             sleep(1);
                             if (v->terminating) br = true;
@@ -968,9 +1016,18 @@ namespace musicat_player {
                 if (player->auto_play)
                 {
                     printf("Getting new autoplay track: %s\n", id.c_str());
-                    musicat_command::play::add_track(true, v->server_id, string(
-                        "https://www.youtube.com/watch?v="
-                    ) + id + "&list=RD" + id, 0, true, NULL, 0, this->sha_id, shared_manager, false, player->from);
+                    musicat_command::play::add_track(true,
+                        v->server_id, string(
+                            "https://www.youtube.com/watch?v="
+                        ) + id + "&list=RD" + id,
+                        0,
+                        true,
+                        NULL,
+                        0,
+                        this->sha_id,
+                        shared_manager,
+                        false,
+                        player->from);
                 }
                 {
                     std::lock_guard<std::mutex> lk(player->h_m);

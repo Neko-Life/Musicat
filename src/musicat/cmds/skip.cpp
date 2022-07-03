@@ -27,11 +27,13 @@ namespace musicat_command {
                 auto v = event.from->get_voice(event.command.guild_id);
                 int64_t am = 1;
                 mc::get_inter_param(event, "amount", &am);
-                if (player_manager->skip(v, event.command.guild_id, event.command.usr.id, am))
+                int res = player_manager->skip(v, event.command.guild_id, event.command.usr.id, am);
+                switch (res)
                 {
-                    event.reply("Skipped");
+                case 0: event.reply("Skipped"); break;
+                case -1: event.reply("I'm not playing anything"); break;
+                default: event.reply(std::to_string(res) + " member" + string(res > 1 ? "s" : "") + " voted to skip, add more vote to skip current track");
                 }
-                else event.reply("I'm not playing anything");
             }
             catch (const mc::exception& e)
             {
