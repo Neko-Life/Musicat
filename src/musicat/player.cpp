@@ -407,9 +407,9 @@ namespace musicat_player {
             if (u.first->id != v->channel_id) throw mc::exception("You're not in my voice channel", 0);
 
             unsigned siz = 0;
-            for (size_t i = 0; i < u.second.size(); i++)
+            for (auto& i : u.second)
             {
-                auto& a = u.second.at(i);
+                auto& a = i.second;
                 if (a.is_deaf() || a.is_self_deaf()) continue;
                 auto user = dpp::find_user(a.user_id);
                 if (user->is_bot()) continue;
