@@ -1,5 +1,5 @@
 #include <ogg/ogg.h>
-#include <opus/opusfile.h>
+// #include <opus/opusfile.h>
 #include <filesystem>
 #include <sys/stat.h>
 #include <regex>
@@ -673,13 +673,13 @@ namespace musicat_player {
                         }
 
                         /* Send the audio */
-                        int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
+                        // int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
 
-                        if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, samples / 48);
+                        if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, 20);//samples / 48);
 
                         bool br = v->terminating;
 
-                        while (v && !v->terminating && v->get_secs_remaining() > 1.5)
+                        while (v && !v->terminating && v->get_secs_remaining() > 2.5f)
                         {
                             sleep(1);
                             if (v->terminating) br = true;
@@ -948,14 +948,16 @@ namespace musicat_player {
                 this->delete_info_embed(event.voice_client->server_id);
                 return false;
             }
+            p->queue.front().skip_vote.clear();
             s = p->queue.front();
+
+            if (s.skip_vote.size()) fprintf(stderr, "[WARN] Track '%s' skip_vote isn't cleared!", s.title().c_str());
         }
 
         printf("To play\n");
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             printf("Starting thread\n");
-            s.skip_vote.clear();
             std::thread tj([this, shared_manager](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
                 bool timed_out = false;
                 auto guild_id = v->server_id;
