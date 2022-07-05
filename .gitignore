@@ -8,3 +8,5 @@ exe/sha_conf.json
 ignore
 include/nlohmann
 include/fmt
+*.d
+*.o

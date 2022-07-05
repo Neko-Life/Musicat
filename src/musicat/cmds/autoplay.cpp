@@ -19,8 +19,7 @@ namespace musicat_command {
                     dpp::command_option(
                         dpp::co_integer,
                         "no-duplicate-threshold",
-                        "Number of duplicate guard, max 10000",
-                        false
+                        "Number of duplicate guard, max 10000"
                     )
                 );
         }

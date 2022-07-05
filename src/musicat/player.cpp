@@ -760,7 +760,7 @@ namespace musicat_player {
                     std::lock_guard<std::mutex> lk(this->c_m);
                     this->connecting[server_id] = channel_id;
                 }
-                if (v) v->~discord_voice_client();
+                // if (v) v->~discord_voice_client();
             }
         }, v, fname, channel_id, notify_error);
         tj.detach();
