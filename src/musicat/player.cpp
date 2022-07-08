@@ -270,7 +270,7 @@ namespace musicat_player {
                     using namespace std::chrono_literals;
                     if (from_dc) std::this_thread::sleep_for(500ms);
                 }
-                from->connect_voice(guild_id, a->second);
+                from->connect_voice(guild_id, a->second, false, true);
                 this->dl_cv.wait(lk, [this, &guild_id]() {
                     auto t = this->connecting.find(guild_id);
                     return t == this->connecting.end();
@@ -348,6 +348,16 @@ namespace musicat_player {
             if (re && from)
             {
                 std::thread t([this, user_id, guild_id](dpp::discord_client* from) {
+                    bool user_vc = true;
+                    std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uservc;
+                    try
+                    {
+                        uservc = mc::get_voice_from_gid(guild_id, user_id);
+                    }
+                    catch (...)
+                    {
+                        user_vc = false;
+                    }
                     try
                     {
                         auto f = from->connecting_voice_channels.find(guild_id);
@@ -358,15 +368,22 @@ namespace musicat_player {
                             this->disconnecting[guild_id] = 1;
                             from->disconnect_voice(guild_id);
                         }
+                        else if (user_vc && f->second && uservc.first->id != f->second->channel_id)
+                        {
+                            printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
+                            std::lock_guard<std::mutex> lk(this->dc_m);
+                            std::lock_guard<std::mutex> lk2(this->c_m);
+                            this->disconnecting[guild_id] = f->second->channel_id;
+                            this->connecting[guild_id] = uservc.first->id;
+                            from->disconnect_voice(guild_id);
+                        }
                     }
                     catch (...)
                     {
                         mc::reset_voice_channel(from, guild_id);
 
-                        if (user_id) try
+                        if (user_id && user_vc) try
                         {
-                            auto c = mc::get_voice_from_gid(guild_id, user_id);
-
                             std::lock_guard<std::mutex> lk(this->c_m);
                             auto p = this->connecting.find(guild_id);
                             std::map<dpp::snowflake, dpp::voicestate> vm = {};
@@ -375,7 +392,7 @@ namespace musicat_player {
                                 auto gc = dpp::find_channel(p->second);
                                 if (gc) vm = gc->get_voice_members();
                                 auto l = mc::has_listener(&vm);
-                                if (!l && p->second != c.first->id) p->second = c.first->id;
+                                if (!l && p->second != uservc.first->id) p->second = uservc.first->id;
                             }
                         }
                         catch (...) {}

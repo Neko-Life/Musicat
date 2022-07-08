@@ -117,8 +117,8 @@ namespace musicat_command {
                 vcclient_cont = false;
                 printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
                 std::lock_guard<std::mutex> lk(player_manager->dc_m);
-                from->disconnect_voice(guild_id);
                 player_manager->disconnecting[guild_id] = vcclient.first->id;
+                from->disconnect_voice(guild_id);
             }
             if (vcclient_cont && vcclient.first->id != vcuser.first->id)
             {
@@ -137,9 +137,8 @@ namespace musicat_command {
                         player_manager->stop_stream(guild_id);
 
                     std::lock_guard<std::mutex> lk(player_manager->dc_m);
-                    // FIXME: It WILL segvault (with gdb?) if you wait a song until it ends and move to other vc and play another song that trigger this
-                    from->disconnect_voice(guild_id);
                     player_manager->disconnecting[guild_id] = vcclient.first->id;
+                    from->disconnect_voice(guild_id);
                 }
             }
 
