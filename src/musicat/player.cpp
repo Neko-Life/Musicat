@@ -776,10 +776,10 @@ namespace musicat_player {
                 try
                 {
                     mc::get_voice_from_gid(server_id, this->sha_id);
+                    return;
                 }
                 catch (...)
                 {
-                    return;
                 }
                 if (server_id && voice_channel_id)
                 {
