@@ -934,6 +934,16 @@ namespace musicat_player {
 
     bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager) {
         printf("Handling voice marker: \"%s\"\n", event.track_meta.c_str());
+
+        {
+            std::lock_guard<std::mutex> lk(this->mp_m);
+            auto l = mc::vector_find(&this->manually_paused, event.voice_client->server_id);
+            if (l != this->manually_paused.end())
+            {
+                this->manually_paused.erase(l);
+            }
+        }
+
         if (!event.voice_client) { printf("NO CLIENT\n");return false; }
         if (this->is_disconnecting(event.voice_client->server_id))
         {
