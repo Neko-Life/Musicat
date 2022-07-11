@@ -368,7 +368,7 @@ namespace musicat_player {
                             this->disconnecting[guild_id] = 1;
                             from->disconnect_voice(guild_id);
                         }
-                        else if (user_vc && f->second && uservc.first->id != f->second->channel_id)
+                        else if (user_vc && uservc.first->id != c.first->id)
                         {
                             printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
                             std::lock_guard<std::mutex> lk(this->dc_m);
@@ -535,7 +535,7 @@ namespace musicat_player {
         });
     }
 
-    void Manager::stream(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id) {
+    void Manager::stream(dpp::discord_voice_client* v, string fname) {
         dpp::snowflake server_id;
         std::chrono::_V2::system_clock::time_point start_time;
         if (v && !v->terminating && v->is_ready())
@@ -739,9 +739,10 @@ namespace musicat_player {
         std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id, bool notify_error) {
             printf("Attempt to stream\n");
             auto server_id = v->server_id;
+            auto voice_channel_id = v->channel_id;
             try
             {
-                this->stream(v, fname, channel_id);
+                this->stream(v, fname);
             }
             catch (int e)
             {
@@ -772,10 +773,18 @@ namespace musicat_player {
             if (v && !v->terminating) v->insert_marker("e");
             else
             {
-                if (server_id && channel_id)
+                try
+                {
+                    mc::get_voice_from_gid(server_id, this->sha_id);
+                }
+                catch (...)
+                {
+                    return;
+                }
+                if (server_id && voice_channel_id)
                 {
                     std::lock_guard<std::mutex> lk(this->c_m);
-                    this->connecting[server_id] = channel_id;
+                    this->connecting[server_id] = voice_channel_id;
                 }
                 // if (v) v->~discord_voice_client();
             }
@@ -972,6 +981,14 @@ namespace musicat_player {
         }
 
         printf("To play\n");
+
+        try
+        {
+            auto c = mc::get_voice_from_gid(event.voice_client->server_id, this->sha_id);
+            if (!mc::has_listener(&c.second)) return false;
+        }
+        catch (...) {}
+
         if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
         {
             printf("Starting thread\n");
@@ -1310,10 +1327,11 @@ namespace musicat_player {
         if (event.state.user_id != sha_id)
         {
             dpp::voiceconn* v = event.from->get_voice(event.state.guild_id);
+
+            if (!v || !v->channel_id || !v->voiceclient) return;
+
             // Pause audio when no user listening in vc
-            if (v && v->channel_id
-                && v->channel_id != event.state.channel_id
-                && v->voiceclient
+            if (v->channel_id != event.state.channel_id
                 && v->voiceclient->get_secs_remaining() > 0.1
                 && !v->voiceclient->is_paused())
             {
@@ -1354,9 +1372,7 @@ namespace musicat_player {
             }
             else
             {
-                if (v && v->channel_id
-                    && v->channel_id == event.state.channel_id
-                    && v->voiceclient
+                if (v->channel_id == event.state.channel_id
                     && v->voiceclient->get_secs_remaining() > 0.1
                     && v->voiceclient->is_paused())
                 {
@@ -1380,7 +1396,28 @@ namespace musicat_player {
                         tj.detach();
                     }
                 }
-
+                else if (v->channel_id != event.state.channel_id)
+                {
+                    try
+                    {
+                        auto m = mc::get_voice_from_gid(event.state.guild_id, this->sha_id);
+                        if (mc::has_listener(&m.second))
+                        {
+                            std::lock_guard<std::mutex> lk(this->dc_m);
+                            std::lock_guard<std::mutex> lk2(this->c_m);
+                            std::lock_guard<std::mutex> lk3(this->wd_m);
+                            this->disconnecting[event.state.guild_id] = v->channel_id;
+                            this->connecting[event.state.guild_id] = event.state.channel_id;
+                            this->waiting_vc_ready[event.state.guild_id] = "0";
+                            event.from->disconnect_voice(event.state.guild_id);
+                        }
+                        std::thread tj([this, event]() {
+                            this->reconnect(event.from, event.state.guild_id);
+                        });
+                        tj.detach();
+                    }
+                    catch (...) {}
+                }
             }
 
             // End non client's user code
@@ -1412,6 +1449,38 @@ namespace musicat_player {
                     this->dl_cv.notify_all();
                 }
             }
+
+            try
+            {
+                auto a = mc::get_voice_from_gid(event.state.guild_id, event.state.user_id);
+                auto v = event.from->get_voice(event.state.guild_id);
+                if (v && v->channel_id && v->channel_id != a.first->id)
+                {
+                    this->stop_stream(event.state.guild_id);
+                    if (v->voiceclient && !v->voiceclient->terminating)
+                    {
+                        v->voiceclient->pause_audio(false);
+                        v->voiceclient->skip_to_next_marker();
+                    }
+                    std::lock_guard<std::mutex> lk(this->dc_m);
+                    this->disconnecting[event.state.guild_id] = v->channel_id;
+                    event.from->disconnect_voice(event.state.guild_id);
+                }
+                if (mc::has_listener(&a.second))
+                {
+                    std::lock_guard<std::mutex> lk(this->c_m);
+                    std::lock_guard<std::mutex> lk2(this->wd_m);
+                    this->connecting.insert_or_assign(event.state.guild_id, a.first->id);
+                    this->waiting_vc_ready[event.state.guild_id] = "0";
+                }
+            }
+            catch (...) {}
+
+            std::thread tj([this, event]() {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                this->voice_ready(event.state.guild_id, event.from);
+            });
+            tj.detach();
         }
         // if (muted) player_manager->pause(event.guild_id);
         // else player_manager->resume(guild_id);

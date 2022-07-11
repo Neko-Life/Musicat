@@ -130,15 +130,33 @@ namespace musicat_command {
                 //     v->voiceclient->stop_audio();
                 // }
                 vcclient_cont = false;
-                if (v && arg_query.length() > 0)
+                if (v)
                 {
-                    printf("Disconnecting as no member in vc: %ld\n", guild_id);
+                    printf("Disconnecting as no member in vc: %ld connecting to %ld\n", guild_id, vcuser.first->id);
                     if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
+                    {
+                        if (!v->voiceclient->terminating)
+                        {
+                            v->voiceclient->pause_audio(false);
+                            v->voiceclient->skip_to_next_marker();
+                        }
                         player_manager->stop_stream(guild_id);
+                    }
 
-                    std::lock_guard<std::mutex> lk(player_manager->dc_m);
-                    player_manager->disconnecting[guild_id] = vcclient.first->id;
-                    from->disconnect_voice(guild_id);
+                    {
+                        std::lock_guard<std::mutex> lk(player_manager->dc_m);
+                        player_manager->disconnecting[guild_id] = vcclient.first->id;
+                        std::lock_guard<std::mutex> lk2(player_manager->c_m);
+                        std::lock_guard<std::mutex> lk3(player_manager->wd_m);
+                        player_manager->connecting.insert_or_assign(guild_id, vcuser.first->id);
+                        player_manager->waiting_vc_ready[guild_id] = "0";
+                        from->disconnect_voice(guild_id);
+                    }
+
+                    std::thread pjt([player_manager, from, guild_id]() {
+                        player_manager->reconnect(from, guild_id);
+                    });
+                    pjt.detach();
                 }
             }
 
@@ -153,8 +171,8 @@ namespace musicat_command {
             if (op)
             {
                 std::lock_guard<std::mutex> lk(op->q_m);
-                if (v &&
-                    v->voiceclient
+                if (v
+                    && v->voiceclient
                     && op->queue.size()
                     && !v->voiceclient->is_paused()
                     && !v->voiceclient->is_playing())
