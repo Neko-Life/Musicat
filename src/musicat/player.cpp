@@ -436,7 +436,7 @@ namespace musicat_player {
             {
                 std::lock_guard<std::mutex> lk(p->q_m);
                 auto& track = p->queue.at(0);
-                if (track.user_id != user_id)
+                if (track.user_id != user_id && track.user_id != this->sha_id)
                 {
                     amount = 1;
                     bool exist = false;
@@ -458,13 +458,15 @@ namespace musicat_player {
                     if (ret < ts) return (int)ret;
                     else track.skip_vote.clear();
                 }
-                else
+                else if (amount > 1)
                 {
                     int64_t count = 0;
                     for (const auto& t : p->queue)
                     {
-                        if (t.user_id == user_id) count++;
+                        if (t.user_id == user_id || t.user_id == this->sha_id) count++;
                         else break;
+
+                        if (amount == count) break;
                     }
                     if (amount > count) amount = count;
                 }
