@@ -198,6 +198,11 @@ namespace musicat {
             else if (cmd == "autoplay") mcmd::autoplay::slash_run(event, player_manager);
             else if (cmd == "move") mcmd::move::slash_run(event, player_manager);
             else if (cmd == "remove") mcmd::remove::slash_run(event, player_manager);
+            else if (cmd == "bubble_wrap") mcmd::bubble_wrap::slash_run(event);
+            else
+            {
+                event.reply("Seems like somethin's wrong here, I can't find that command anywhere in my database");
+            }
         });
 
         client.on_voice_ready([&player_manager](const dpp::voice_ready_t& event) {

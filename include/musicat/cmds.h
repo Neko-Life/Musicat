@@ -139,6 +139,11 @@ namespace musicat_command {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
         void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
     }
+
+    namespace bubble_wrap {
+        dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event);
+    }
 }
 
 #endif // MUSICAT_COMMAND_H
