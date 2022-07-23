@@ -58,7 +58,7 @@ namespace musicat_command {
             );
         }
 
-        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id) {
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
             if (!player_manager->voice_ready(event.command.guild_id, event.from, event.command.usr.id))
             {
                 event.reply("Please wait while I'm getting ready to stream");
@@ -68,6 +68,7 @@ namespace musicat_command {
             auto guild_id = event.command.guild_id;
             auto from = event.from;
             auto user_id = event.command.usr.id;
+            const dpp::snowflake sha_id = player_manager->sha_id;
             string arg_query = "";
             int64_t arg_top = 0;
             mc::get_inter_param(event, "query", &arg_query);

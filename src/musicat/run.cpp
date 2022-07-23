@@ -79,7 +79,7 @@ namespace musicat {
             }
         });
 
-        client.on_autocomplete([&player_manager, &client, &sha_settings, &sha_id](const dpp::autocomplete_t& event) {
+        client.on_autocomplete([&player_manager, &client, &sha_settings](const dpp::autocomplete_t& event) {
             const string cmd = event.name;
             string opt = "";
             string param = "";
@@ -107,7 +107,7 @@ namespace musicat {
             }
         });
 
-        client.on_interaction_create([&player_manager, &client, &sha_settings, &sha_id](const dpp::interaction_create_t& event)
+        client.on_interaction_create([&player_manager, &client, &sha_settings](const dpp::interaction_create_t& event)
         {
             if (!event.command.guild_id) return;
             if (event.command.usr.is_bot()) return;
@@ -192,13 +192,14 @@ namespace musicat {
             //     else event.reply("I'm not playing anything right now");
             // }
             else if (cmd == "skip") mcmd::skip::slash_run(event, player_manager);
-            else if (cmd == "play") mcmd::play::slash_run(event, player_manager, sha_id);
-            else if (cmd == "loop") mcmd::loop::slash_run(event, player_manager, sha_id);
+            else if (cmd == "play") mcmd::play::slash_run(event, player_manager);
+            else if (cmd == "loop") mcmd::loop::slash_run(event, player_manager);
             else if (cmd == "queue") mcmd::queue::slash_run(event, player_manager);
             else if (cmd == "autoplay") mcmd::autoplay::slash_run(event, player_manager);
             else if (cmd == "move") mcmd::move::slash_run(event, player_manager);
             else if (cmd == "remove") mcmd::remove::slash_run(event, player_manager);
             else if (cmd == "bubble_wrap") mcmd::bubble_wrap::slash_run(event);
+            else if (cmd == "search") mcmd::search::slash_run(event);
             else
             {
                 event.reply("Seems like somethin's wrong here, I can't find that command anywhere in my database");

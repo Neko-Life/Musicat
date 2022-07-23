@@ -25,14 +25,16 @@ namespace musicat_command {
             );
         }
 
-        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id)
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager)
         {
             if (!player_manager->voice_ready(event.command.guild_id))
             {
                 event.reply("Please wait while I'm getting ready to stream");
                 return;
             }
+            const dpp::snowflake sha_id = player_manager->sha_id;
             static const char* loop_message[] = { "Turned off repeat mode", "Set to repeat a song", "Set to repeat queue", "Set to repeat a song and not to remove skipped song" };
+            
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uvc;
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> cvc;
             try

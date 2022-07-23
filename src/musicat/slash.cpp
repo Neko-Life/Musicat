@@ -20,6 +20,7 @@ namespace musicat_slash {
             mcmd::move::get_register_obj(sha_id),
             mcmd::remove::get_register_obj(sha_id),
             mcmd::bubble_wrap::get_register_obj(sha_id),
+            mcmd::search::get_register_obj(sha_id),
             });
         return slash_commands;
     }

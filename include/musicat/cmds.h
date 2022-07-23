@@ -39,7 +39,7 @@ namespace musicat_command {
         }
 
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
-        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
 
         /**
          * @brief Search and add track to guild queue, can be used for interaction and non interaction. Interaction must have already deferred/replied
@@ -63,7 +63,7 @@ namespace musicat_command {
 
     namespace loop {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
-        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
     }
 
     namespace queue {
@@ -142,6 +142,11 @@ namespace musicat_command {
 
     namespace bubble_wrap {
         dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+        void slash_run(const dpp::interaction_create_t& event);
+    }
+
+    namespace search {
+        dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
         void slash_run(const dpp::interaction_create_t& event);
     }
 }
