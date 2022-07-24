@@ -8,6 +8,8 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
+#include "musicat/pagination.h"
+
 #define ONE_HOUR_SECOND 3600
 
 namespace musicat {
@@ -75,7 +77,7 @@ namespace musicat {
                 if (!param.length()) return;
                 event.reply(dpp::ir_deferred_update_message, "");
                 // dpp::message* m = new dpp::message(event.command.msg);
-                mcmd::queue::update_page(event.command.msg.id, param);//, m);
+                paginate::update_page(event.command.msg.id, param);//, m);
             }
         });
 
@@ -233,12 +235,12 @@ namespace musicat {
 
         client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
             player_manager->handle_on_message_delete(event);
-            mcmd::queue::handle_on_message_delete(event);
+            paginate::handle_on_message_delete(event);
         });
 
         client.on_message_delete_bulk([&player_manager](const dpp::message_delete_bulk_t& event) {
             player_manager->handle_on_message_delete_bulk(event);
-            mcmd::queue::handle_on_message_delete_bulk(event);
+            paginate::handle_on_message_delete_bulk(event);
         });
 
         // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
@@ -258,7 +260,7 @@ namespace musicat {
                 printf("[GC] Starting scheduled gc\n");
                 auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
-                mcmd::queue::gc();
+                paginate::gc();
 
                 // reset last_gc
                 time(&last_gc);
