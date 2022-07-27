@@ -74,10 +74,50 @@ namespace musicat {
             if (cmd == "page_queue")
             {
                 const string param = event.custom_id.substr(fsub + 1, 1);
-                if (!param.length()) return;
+                if (!param.length())
+                {
+                    fprintf(stderr, "[WARN(run.78)] command \"page_queue\" have no param\n");
+                    return;
+                }
                 event.reply(dpp::ir_deferred_update_message, "");
                 // dpp::message* m = new dpp::message(event.command.msg);
                 paginate::update_page(event.command.msg.id, param);//, m);
+            }
+            else if (cmd == "modal_p")
+            {
+                const string param = event.custom_id.substr(fsub + 1, string::npos);
+                if (!param.length())
+                {
+                    fprintf(stderr, "[WARN(run.87)] command \"modal_p\" have no param\n");
+                    return;
+                }
+                if (param == "que_s_track")
+                {
+                    event.dialog(mcmd::search::modal_enqueue_searched_track());
+                }
+                else
+                {
+                    fprintf(stderr, "[WARN(run.98)] modal_p param isn't handled: \"%s\"\n", param.c_str());
+                }
+            }
+        });
+
+        client.on_form_submit([](const dpp::form_submit_t& event) {
+            printf("[FORM] %s %ld\n", event.custom_id.c_str(), event.command.message_id);
+            if (event.custom_id == "modal_p")
+            {
+                if (event.components.size())
+                {
+                    auto comp = event.components.at(0).components.at(0);
+                    if (comp.custom_id == "que_s_track")
+                    {
+                        event.reply("a");
+                    }
+                }
+                else
+                {
+                    fprintf(stderr, "[WARN(run.112)] Form modal_p doesn't contain any components row\n");
+                }
             }
         });
 

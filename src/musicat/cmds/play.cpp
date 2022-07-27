@@ -189,7 +189,19 @@ namespace musicat_command {
             add_track(false, guild_id, arg_query, arg_top, vcclient_cont, v, vcuser.first->id, sha_id, player_manager, true, from, event, continued);
         }
 
-        void add_track(bool playlist, dpp::snowflake guild_id, string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn* v, const dpp::snowflake channel_id, const dpp::snowflake sha_id, player_manager_ptr player_manager, bool from_interaction, dpp::discord_client* from, const dpp::interaction_create_t event, bool continued) {
+        void add_track(bool playlist,
+            dpp::snowflake guild_id,
+            string arg_query,
+            int64_t arg_top,
+            bool vcclient_cont,
+            dpp::voiceconn* v,
+            const dpp::snowflake channel_id,
+            const dpp::snowflake sha_id,
+            player_manager_ptr player_manager,
+            bool from_interaction,
+            dpp::discord_client* from,
+            const dpp::interaction_create_t event,
+            bool continued) {
             std::vector<yt_search::YTrack> searches = playlist ? yt_search::get_playlist(arg_query).entries() : yt_search::search(arg_query).trackResults();
             if (!searches.size())
             {

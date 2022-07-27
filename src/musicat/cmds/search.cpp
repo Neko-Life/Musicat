@@ -16,6 +16,18 @@ namespace musicat_command {
                 );
         }
 
+        dpp::interaction_modal_response modal_enqueue_searched_track() {
+            dpp::component selmenu;
+            selmenu.set_type(dpp::cot_text)
+                .set_label("Input track number to add to playback queue:")
+                .set_id("que_s_track")
+                .set_text_style(dpp::text_short);
+
+            dpp::interaction_modal_response modal("modal_p", "Add Track");
+            modal.add_component(selmenu);
+            return modal;
+        }
+
         void slash_run(const dpp::interaction_create_t& event) {
             string query = "";
             mc::get_inter_param(event, "query", &query);

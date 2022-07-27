@@ -4,6 +4,7 @@
 #include <dpp/dpp.h>
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/storage.h"
 
 #define ONE_HOUR_SECOND 3600
 
@@ -12,7 +13,15 @@ namespace musicat {
         std::map<dpp::snowflake, pages_t> paginated_messages = {}; // EXTERN VARIABLE
 
         void delete_page(dpp::snowflake msg_id) {
-            paginated_messages.erase(msg_id);
+            auto del = paginated_messages.find(msg_id);
+            if (del != paginated_messages.end())
+            {
+                if (del->second.has_storage_data)
+                {
+                    musicat::storage::remove(msg_id);
+                }
+                paginated_messages.erase(del);
+            }
         }
 
         pages_t::pages_t() {
@@ -20,13 +29,19 @@ namespace musicat {
             this->message = {};
             this->pages = {};
             this->current = 0;
+            this->has_storage_data = false;
         }
 
-        pages_t::pages_t(dpp::cluster* client, std::shared_ptr<dpp::message> message, std::vector<dpp::embed> pages, size_t current) {
+        pages_t::pages_t(dpp::cluster* client,
+            std::shared_ptr<dpp::message> message,
+            std::vector<dpp::embed> pages,
+            size_t current,
+            bool has_storage_data) {
             this->client = client;
             this->message = message;
             this->pages = pages;
             this->current = current;
+            this->has_storage_data = has_storage_data;
         }
 
         pages_t::~pages_t() = default;
@@ -159,24 +174,30 @@ namespace musicat {
             }
         }
 
-        dpp::command_completion_event_t get_inter_reply_cb(const dpp::interaction_create_t& event, bool paginate, dpp::cluster* client, std::vector<dpp::embed> embeds) {
-            return [event, paginate, client, embeds](const dpp::confirmation_callback_t& cb) {
+        dpp::command_completion_event_t get_inter_reply_cb(const dpp::interaction_create_t& event, bool paginate, dpp::cluster* client, std::vector<dpp::embed> embeds, std::any storage_data) {
+            return [event, paginate, client, embeds, storage_data](const dpp::confirmation_callback_t& cb) {
                 if (cb.is_error())
                 {
                     fprintf(stderr, "[ERROR(pagination.166)]: %s\n", cb.get_error().message.c_str());
                     return;
                 }
-                if (paginate)
+                bool has_v = storage_data.has_value();
+                if (paginate || has_v)
                 {
-                    event.get_original_response([client, embeds](const dpp::confirmation_callback_t& cb2) {
+                    event.get_original_response([client, embeds, has_v, storage_data](const dpp::confirmation_callback_t& cb2) {
                         if (cb2.is_error())
                         {
                             fprintf(stderr, "[ERROR(pagination.174)]: %s\n", cb2.get_error().message.c_str());
                             return;
                         }
                         std::shared_ptr<dpp::message> m = std::make_shared<dpp::message>(std::get<dpp::message>(cb2.value));
-                        paginated_messages[m->id] = pages_t(client, m, embeds);
-                        printf("SET ID: %ld\nLEN: %ld\n", paginated_messages.find(m->id)->second.message->id, paginated_messages.size());
+                        paginated_messages[m->id] = pages_t(client, m, embeds, has_v);
+                        printf("PAGINATED ID: %ld\nLEN: %ld\n", m->id, paginated_messages.size());
+                        if (has_v)
+                        {
+                            musicat::storage::set(m->id, storage_data);
+                            printf("STORAGE ID: %ld\nLEN: %ld\n", m->id, musicat::storage::size());
+                        }
                     });
                 }
             };
@@ -218,7 +239,8 @@ namespace musicat {
             time_t t;
             time(&t);
 
-            printf("[PAGINATION_GC] SIZ0: %ld\n", paginated_messages.size());
+            size_t pg_s = paginated_messages.size();
+            printf("[PAGINATION_GC] SIZ0: %ld, %ld\n", pg_s, musicat::storage::size());
             size_t d = 0;
             auto i = paginated_messages.begin();
             while (i != paginated_messages.end())
@@ -226,12 +248,13 @@ namespace musicat {
                 double L = i->second.message->get_creation_time();
                 if ((t - (time_t)L) > ONE_HOUR_SECOND)
                 {
-                    paginated_messages.erase(i->first);
-                    printf("Deleted %ld\n", ++d);
+                    printf("Deleting %ld: %ld\n", ++d, i->second.message->id);
+                    musicat::storage::remove(i->first);
+                    i = paginated_messages.erase(i);
                 }
                 else i++;
             }
-            printf("[PAGINATION_GC] SIZ1: %ld\n", paginated_messages.size());
+            printf("[PAGINATION_GC] SIZ1: %ld, %ld\n", paginated_messages.size(), musicat::storage::size());
         }
     }
 }

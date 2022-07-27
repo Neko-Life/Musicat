@@ -339,6 +339,14 @@ namespace musicat_player {
         void handle_on_message_delete(const dpp::message_delete_t& event);
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
 
+        /**
+         * @brief Remove guild's queue's amount of track starting from pos
+         *
+         * @param guild_id
+         * @param pos
+         * @param amount
+         * @return size_t Amount of track actually removed
+         */
         size_t remove_track(dpp::snowflake guild_id, size_t pos, size_t amount = 1);
         bool shuffle_queue(dpp::snowflake guild_id);
     };
