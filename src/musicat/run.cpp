@@ -4,11 +4,13 @@
 #include <regex>
 #include <chrono>
 #include <dpp/dpp.h>
+#include <any>
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
+#include "musicat/storage.h"
 
 #define ONE_HOUR_SECOND 3600
 
@@ -102,7 +104,7 @@ namespace musicat {
             }
         });
 
-        client.on_form_submit([](const dpp::form_submit_t& event) {
+        client.on_form_submit([&player_manager](const dpp::form_submit_t& event) {
             printf("[FORM] %s %ld\n", event.custom_id.c_str(), event.command.message_id);
             if (event.custom_id == "modal_p")
             {
@@ -111,7 +113,66 @@ namespace musicat {
                     auto comp = event.components.at(0).components.at(0);
                     if (comp.custom_id == "que_s_track")
                     {
-                        event.reply("a");
+                        if (!comp.value.index()) return;
+                        string q = std::get<string>(comp.value);
+                        if (!q.length()) return;
+
+                        int64_t pos = 0;
+                        sscanf(q.c_str(), "%ld", &pos);
+                        if (pos < 1) return;
+
+                        auto storage = storage::get(event.command.message_id);
+                        if (!storage.has_value())
+                        {
+                            event.reply("It seems like this result is outdated, try make a new search");
+                            return;
+                        }
+
+                        auto tracks = std::any_cast<std::vector<yt_search::YTrack>>(storage);
+                        if (tracks.size() < (size_t)pos) return;
+                        auto result = tracks.at(pos - 1);
+
+                        auto from = event.from;
+                        auto guild_id = event.command.guild_id;
+                        const string prepend_name = string("<@") + std::to_string(event.command.usr.id) + string("> ");
+
+                        event.thinking();
+                        string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
+                        bool dling = false;
+
+                        std::ifstream test((string("music/") + fname).c_str());
+                        if (!test.is_open())
+                        {
+                            dling = true;
+                            event.edit_response(prepend_name + string("Downloading ") + result.title() + string("... Gimme 10 sec ight"));
+                            if (player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end())
+                            {
+                                auto url = result.url();
+                                player_manager->download(fname, url, guild_id);
+                            }
+                        }
+                        else
+                        {
+                            test.close();
+                            event.edit_response(prepend_name + string("Added: ") + result.title());
+                        }
+
+                        std::thread dlt([prepend_name, player_manager, dling, fname, guild_id, from](const dpp::interaction_create_t event, yt_search::YTrack result) {
+                            dpp::snowflake user_id = event.command.usr.id;
+                            auto p = player_manager->create_player(guild_id);
+                            if (dling)
+                            {
+                                player_manager->wait_for_download(fname);
+                                event.edit_response(prepend_name + string("Added: ") + result.title());
+                            }
+                            if (from) p->from = from;
+
+                            mpl::MCTrack t(result);
+                            t.filename = fname;
+                            t.user_id = user_id;
+                            p->add_track(t, false, guild_id, dling);
+                        }, event, result);
+                        dlt.detach();
                     }
                 }
                 else

@@ -90,7 +90,8 @@ namespace musicat_command {
             bool paginate = embeds.size() > 1;
             if (paginate) musicat::paginate::add_pagination_buttons(&m);
 
-            event.reply(m, musicat::paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds));
+            std::any storage_data = tracks;
+            event.reply(m, musicat::paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds, storage_data));
         }
     }
 }
