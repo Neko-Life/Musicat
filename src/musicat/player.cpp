@@ -1408,7 +1408,7 @@ namespace musicat_player {
                         tj.detach();
                     }
                 }
-                else if (v->channel_id != event.state.channel_id)
+                else if (event.state.channel_id && v->channel_id != event.state.channel_id)
                 {
                     try
                     {
@@ -1469,30 +1469,35 @@ namespace musicat_player {
                 if (v && v->channel_id && v->channel_id != a.first->id)
                 {
                     this->stop_stream(event.state.guild_id);
+
                     if (v->voiceclient && !v->voiceclient->terminating)
                     {
                         v->voiceclient->pause_audio(false);
                         v->voiceclient->skip_to_next_marker();
                     }
-                    std::lock_guard<std::mutex> lk(this->dc_m);
-                    this->disconnecting[event.state.guild_id] = v->channel_id;
-                    event.from->disconnect_voice(event.state.guild_id);
-                }
-                if (mc::has_listener(&a.second))
-                {
-                    std::lock_guard<std::mutex> lk(this->c_m);
-                    std::lock_guard<std::mutex> lk2(this->wd_m);
-                    this->connecting.insert_or_assign(event.state.guild_id, a.first->id);
-                    this->waiting_vc_ready[event.state.guild_id] = "0";
+
+                    {
+                        std::lock_guard<std::mutex> lk(this->dc_m);
+                        this->disconnecting[event.state.guild_id] = v->channel_id;
+                        event.from->disconnect_voice(event.state.guild_id);
+                    }
+
+                    if (mc::has_listener(&a.second))
+                    {
+                        std::lock_guard<std::mutex> lk(this->c_m);
+                        std::lock_guard<std::mutex> lk2(this->wd_m);
+                        this->connecting.insert_or_assign(event.state.guild_id, a.first->id);
+                        this->waiting_vc_ready[event.state.guild_id] = "0";
+                    }
+
+                    std::thread tj([this, event]() {
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                        this->voice_ready(event.state.guild_id, event.from);
+                    });
+                    tj.detach();
                 }
             }
             catch (...) {}
-
-            std::thread tj([this, event]() {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                this->voice_ready(event.state.guild_id, event.from);
-            });
-            tj.detach();
         }
         // if (muted) player_manager->pause(event.guild_id);
         // else player_manager->resume(guild_id);
