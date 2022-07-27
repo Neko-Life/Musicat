@@ -191,7 +191,7 @@ namespace musicat {
                             return;
                         }
                         std::shared_ptr<dpp::message> m = std::make_shared<dpp::message>(std::get<dpp::message>(cb2.value));
-                        paginated_messages[m->id] = pages_t(client, m, embeds, has_v);
+                        paginated_messages[m->id] = pages_t(client, m, embeds, 0, has_v);
                         printf("PAGINATED ID: %ld\nLEN: %ld\n", m->id, paginated_messages.size());
                         if (has_v)
                         {
