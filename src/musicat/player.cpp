@@ -117,9 +117,9 @@ namespace musicat_player {
         if (!pos || !amount) return 0;
         this->reset_shifted();
         std::lock_guard<std::mutex> lk(this->q_m);
-        auto siz = this->queue.size();
+        size_t siz = this->queue.size();
         if ((pos + 1) > siz) return 0;
-        auto max = siz - pos;
+        size_t max = siz - pos;
         if (amount > max) amount = max;
         auto b = this->queue.begin() + pos;
         size_t a = 0;
