@@ -1065,7 +1065,7 @@ namespace musicat_player {
                 if (player->auto_play)
                 {
                     printf("Getting new autoplay track: %s\n", id.c_str());
-                    musicat_command::play::add_track(true,
+                    musicat::command::play::add_track(true,
                         v->server_id, string(
                             "https://www.youtube.com/watch?v="
                         ) + id + "&list=RD" + id,

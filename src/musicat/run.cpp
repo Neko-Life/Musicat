@@ -16,7 +16,7 @@
 
 namespace musicat {
     namespace mpl = musicat_player;
-    namespace mcmd = musicat_command;
+    namespace mcmd = musicat::command;
 
     using json = nlohmann::json;
     using string = std::string;

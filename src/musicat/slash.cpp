@@ -3,7 +3,7 @@
 #include "musicat/cmds.h"
 
 namespace mpl = musicat_player;
-namespace mcmd = musicat_command;
+namespace mcmd = musicat::command;
 
 namespace musicat_slash {
     using string = std::string;
