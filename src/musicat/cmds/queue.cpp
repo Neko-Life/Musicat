@@ -52,7 +52,7 @@ namespace musicat {
                         auto p = player_manager->get_player(event.command.guild_id);
                         p->reset_shifted();
                         std::lock_guard<std::mutex> lk(p->q_m);
-                        musicat_player::MCTrack t = p->queue.at(0);
+                        musicat::player::MCTrack t = p->queue.at(0);
                         p->queue.clear();
                         p->queue.push_back(t);
                         player_manager->update_info_embed(event.command.guild_id);
@@ -83,9 +83,9 @@ namespace musicat {
                         p->reset_shifted();
                         {
                             std::lock_guard<std::mutex> lk(p->q_m);
-                            musicat_player::MCTrack t = p->queue.at(0);
+                            musicat::player::MCTrack t = p->queue.at(0);
 
-                            std::deque<musicat_player::MCTrack> n_queue = {};
+                            std::deque<musicat::player::MCTrack> n_queue = {};
                             for (size_t i = (siz - 1); i > 0; i--)
                                 n_queue.push_back(p->queue.at(i));
 

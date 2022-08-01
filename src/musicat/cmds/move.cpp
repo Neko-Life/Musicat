@@ -97,7 +97,7 @@ namespace musicat {
                 if (fr > max_to) fr = max_to;
                 if (to > max_to) to = max_to;
 
-                musicat_player::MCTrack t;
+                musicat::player::MCTrack t;
                 {
                     std::lock_guard<std::mutex> lk(p->q_m);
                     t = p->queue.at(fr);

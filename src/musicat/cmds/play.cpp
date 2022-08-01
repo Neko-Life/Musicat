@@ -293,7 +293,7 @@ namespace musicat {
                     }
                     if (from) p->from = from;
 
-                    musicat_player::MCTrack t(result);
+                    musicat::player::MCTrack t(result);
                     t.filename = fname;
                     t.user_id = user_id;
                     p->add_track(t, arg_top ? true : false, guild_id, from_interaction || dling);

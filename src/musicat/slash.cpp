@@ -2,7 +2,7 @@
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 
-namespace mpl = musicat_player;
+namespace mpl = musicat::player;
 namespace mcmd = musicat::command;
 
 namespace musicat_slash {

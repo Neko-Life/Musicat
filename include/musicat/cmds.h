@@ -9,7 +9,7 @@
 
 namespace musicat {
     namespace command {
-        using player_manager_ptr = std::shared_ptr<musicat_player::Manager>;
+        using player_manager_ptr = std::shared_ptr<musicat::player::Manager>;
 
         namespace hello {
             dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
