@@ -4,7 +4,7 @@
 
 #define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n\treg <guild_id|\"g\">\n\trm-reg <guild_id|\"g\">\n")
 
-namespace msl = musicat_slash;
+namespace msl = musicat::command;
 
 namespace musicat {
     int _reg(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool rm = false, bool* running_state = nullptr) {

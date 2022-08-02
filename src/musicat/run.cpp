@@ -15,8 +15,8 @@
 #define ONE_HOUR_SECOND 3600
 
 namespace musicat {
-    namespace mpl = musicat_player;
-    namespace mcmd = musicat_command;
+    namespace mpl = musicat::player;
+    namespace mcmd = musicat::command;
 
     using json = nlohmann::json;
     using string = std::string;

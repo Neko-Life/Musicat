@@ -2,26 +2,24 @@
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 
-namespace mpl = musicat_player;
-namespace mcmd = musicat_command;
-
-namespace musicat_slash {
-    using string = std::string;
-    std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id) {
-        std::vector<dpp::slashcommand> slash_commands({
-            mcmd::hello::get_register_obj(sha_id),
-            mcmd::invite::get_register_obj(sha_id),
-            mcmd::play::get_register_obj(sha_id),
-            mcmd::skip::get_register_obj(sha_id),
-            mcmd::pause::get_register_obj(sha_id),
-            mcmd::loop::get_register_obj(sha_id),
-            mcmd::queue::get_register_obj(sha_id),
-            mcmd::autoplay::get_register_obj(sha_id),
-            mcmd::move::get_register_obj(sha_id),
-            mcmd::remove::get_register_obj(sha_id),
-            mcmd::bubble_wrap::get_register_obj(sha_id),
-            mcmd::search::get_register_obj(sha_id),
-            });
-        return slash_commands;
+namespace musicat {
+    namespace command {
+        std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id) {
+            std::vector<dpp::slashcommand> slash_commands({
+                hello::get_register_obj(sha_id),
+                invite::get_register_obj(sha_id),
+                play::get_register_obj(sha_id),
+                skip::get_register_obj(sha_id),
+                pause::get_register_obj(sha_id),
+                loop::get_register_obj(sha_id),
+                queue::get_register_obj(sha_id),
+                autoplay::get_register_obj(sha_id),
+                move::get_register_obj(sha_id),
+                remove::get_register_obj(sha_id),
+                bubble_wrap::get_register_obj(sha_id),
+                search::get_register_obj(sha_id),
+                });
+            return slash_commands;
+        }
     }
 }
