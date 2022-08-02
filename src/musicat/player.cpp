@@ -1267,8 +1267,8 @@ namespace musicat {
             }
             if (tinfo)
             {
-                if (ft.length()) ft += " | [";
-                ft += std::to_string(track.info.average_bitrate()) + "]";
+                if (ft.length()) ft += " | ";
+                ft += string("[") + std::to_string(track.info.average_bitrate()) + "]";
             }
             if (ft.length()) e.set_footer(ft, "");
             if (color)
