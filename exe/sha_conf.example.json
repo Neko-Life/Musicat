@@ -1,6 +1,9 @@
 {
-    "SHA_TKN": "", // Your mom number (bot discord token)
-    "SHA_PREFIX": "\\!", // Bot prefix
-    "SHA_ID": 0 // Your bot id
+    "SHA_TKN": "", // bot token
+    "SHA_ID": 0, // bot user id
+    "SHA_DB": { // PostgreSQL configuration
+        "host": "", // server address
+        "port": "" // database port
+    }
 }
 // Btw remove these comments tho
