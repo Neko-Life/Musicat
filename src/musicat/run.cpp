@@ -5,6 +5,7 @@
 #include <chrono>
 #include <dpp/dpp.h>
 #include <any>
+#include <libpq-fe.h>
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -52,11 +53,10 @@ namespace musicat {
         }
 
         {
-            printf("[DB] Initializing...\n");
-            int start = database::init(sha_cfg["SHA_DB"]);
-            if (start < 0)
+            int status = database::init(sha_cfg["SHA_DB"]);
+            if (status != CONNECTION_OK)
             {
-                fprintf(stderr, "[DB] Error initializing database, code: %d\n", start);
+                fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
             }
         }
 
