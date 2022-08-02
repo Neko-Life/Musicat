@@ -5,10 +5,16 @@
 #include <string>
 #include <vector>
 
-namespace musicat_slash {
-    using string = std::string;
-
-    std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id);
+namespace musicat {
+    namespace command {
+        /**
+         * @brief Get all application command object to register
+         *
+         * @param sha_id
+         * @return std::vector<dpp::slashcommand>
+         */
+        std::vector<dpp::slashcommand> get_all(dpp::snowflake sha_id);
+    }
 }
 
 #endif
