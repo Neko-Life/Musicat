@@ -53,10 +53,19 @@ namespace musicat {
         }
 
         {
-            int status = database::init(sha_cfg["SHA_DB"]);
-            if (status != CONNECTION_OK)
+            bool no_db = sha_cfg["SHA_DB"].is_null();
+            if (no_db)
             {
-                fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
+                printf("[WARN] No database configured, some functionality might not work\n");
+            }
+            else
+            {
+                string db_connect_param = sha_cfg["SHA_DB"].get<string>();
+                int status = database::init(db_connect_param);
+                if (status != CONNECTION_OK)
+                {
+                    fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
+                }
             }
         }
 

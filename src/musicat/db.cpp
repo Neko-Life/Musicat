@@ -19,6 +19,8 @@ namespace musicat {
             if (status != CONNECTION_OK)
             {
                 fprintf(stderr, "[DB] Can't connect to database\n");
+                PQfinish(conn);
+                conn = nullptr;
             }
             else printf("[DB] Database connected: %s\n", PQdb(conn));
 

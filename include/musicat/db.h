@@ -9,7 +9,7 @@ namespace musicat {
          * @brief Initialize database, load config and connecting to server
          *
          * @param _conninfo Connection param
-         * @return int Return -1 on error, 0 on success
+         * @return int Return conn status, 0 (CONNECTION_OK) on sucess
          */
         int init(std::string _conninfo);
 
