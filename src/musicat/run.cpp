@@ -17,9 +17,6 @@
 #define ONE_HOUR_SECOND 3600
 
 namespace musicat {
-    namespace mpl = musicat::player;
-    namespace mcmd = musicat::command;
-
     using json = nlohmann::json;
     using string = std::string;
 
@@ -61,7 +58,7 @@ namespace musicat {
             else
             {
                 string db_connect_param = sha_cfg["SHA_DB"].get<string>();
-                int status = database::init(db_connect_param);
+                ConnStatusType status = database::init(db_connect_param);
                 if (status != CONNECTION_OK)
                 {
                     fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
@@ -69,7 +66,7 @@ namespace musicat {
             }
         }
 
-        std::shared_ptr<mpl::Manager> player_manager = std::make_shared<mpl::Manager>(&client, sha_id);
+        std::shared_ptr<player::Manager> player_manager = std::make_shared<player::Manager>(&client, sha_id);
 
         client.on_log(dpp::utility::cout_logger());
 
@@ -112,7 +109,7 @@ namespace musicat {
                 }
                 if (param == "que_s_track")
                 {
-                    event.dialog(mcmd::search::modal_enqueue_searched_track());
+                    event.dialog(command::search::modal_enqueue_searched_track());
                 }
                 else
                 {
@@ -184,7 +181,7 @@ namespace musicat {
                             }
                             if (from) p->from = from;
 
-                            mpl::MCTrack t(result);
+                            player::MCTrack t(result);
                             t.filename = fname;
                             t.user_id = user_id;
                             p->add_track(t, false, guild_id, dling);
@@ -218,7 +215,7 @@ namespace musicat {
             {
                 if (cmd == "play")
                 {
-                    if (opt == "query") mcmd::play::autocomplete::query(event, param, player_manager, client);
+                    if (opt == "query") command::play::autocomplete::query(event, param, player_manager, client);
                 }
             }
         });
@@ -230,22 +227,24 @@ namespace musicat {
 
             auto cmd = event.command.get_command_name();
 
-            if (cmd == "hello") mcmd::hello::slash_run(event);
+            if (cmd == "hello") command::hello::slash_run(event);
             else if (cmd == "why") event.reply("Why not");
             else if (cmd == "hi") event.reply("HIII");
-            else if (cmd == "invite") mcmd::invite::slash_run(event);
+            else if (cmd == "invite") command::invite::slash_run(event);
             else if (cmd == "support") event.reply("https://www.discord.gg/vpk2KyKHtu");
             else if (cmd == "repo") event.reply("https://github.com/Neko-Life/Musicat");
-            else if (cmd == "pause") mcmd::pause::slash_run(event, player_manager);
-            else if (cmd == "skip") mcmd::skip::slash_run(event, player_manager);
-            else if (cmd == "play") mcmd::play::slash_run(event, player_manager);
-            else if (cmd == "loop") mcmd::loop::slash_run(event, player_manager);
-            else if (cmd == "queue") mcmd::queue::slash_run(event, player_manager);
-            else if (cmd == "autoplay") mcmd::autoplay::slash_run(event, player_manager);
-            else if (cmd == "move") mcmd::move::slash_run(event, player_manager);
-            else if (cmd == "remove") mcmd::remove::slash_run(event, player_manager);
-            else if (cmd == "bubble_wrap") mcmd::bubble_wrap::slash_run(event);
-            else if (cmd == "search") mcmd::search::slash_run(event);
+            else if (cmd == "pause") command::pause::slash_run(event, player_manager);
+            else if (cmd == "skip") command::skip::slash_run(event, player_manager); // add 'force' arg, save djrole within db
+            else if (cmd == "play") command::play::slash_run(event, player_manager);
+            else if (cmd == "loop") command::loop::slash_run(event, player_manager);
+            else if (cmd == "queue") command::queue::slash_run(event, player_manager);
+            else if (cmd == "autoplay") command::autoplay::slash_run(event, player_manager);
+            else if (cmd == "move") command::move::slash_run(event, player_manager);
+            else if (cmd == "remove") command::remove::slash_run(event, player_manager);
+            else if (cmd == "bubble_wrap") command::bubble_wrap::slash_run(event);
+            else if (cmd == "search") command::search::slash_run(event);
+            else if (cmd == "playlist") command::playlist::slash_run(event, player_manager);
+            else if (cmd == "stop") command::stop::slash_run(event, player_manager);
             else
             {
                 event.reply("Seems like somethin's wrong here, I can't find that command anywhere in my database");
@@ -261,7 +260,15 @@ namespace musicat {
         });
 
         client.on_voice_track_marker([&player_manager](const dpp::voice_track_marker_t& event) {
+            if (player_manager->has_ignore_marker(event.voice_client->server_id))
+            {
+                printf("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
+                return;
+            }
+
+            player_manager->set_ignore_marker(event.voice_client->server_id);
             player_manager->handle_on_track_marker(event, player_manager);
+            player_manager->remove_ignore_marker(event.voice_client->server_id);
         });
 
         client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {

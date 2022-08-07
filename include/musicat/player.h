@@ -195,7 +195,8 @@ namespace musicat {
             // mp: manually_paused
             // sq: stop_queue
             // imc: info_messages_cache
-            std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m;
+            // im: ignore_marker
+            std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m, im_m;
 
             // Conditional variable, use notify_all
             std::condition_variable dl_cv, stop_queue_cv;
@@ -205,6 +206,7 @@ namespace musicat {
             std::map<uint64_t, std::vector<std::string>> waiting_marker;
             std::vector<uint64_t> manually_paused;
             std::vector<dpp::snowflake> stop_queue;
+            std::vector<dpp::snowflake> ignore_marker;
 
             Manager(dpp::cluster* _cluster, dpp::snowflake _sha_id);
             ~Manager();
@@ -345,6 +347,9 @@ namespace musicat {
              */
             size_t remove_track(dpp::snowflake guild_id, size_t pos, size_t amount = 1);
             bool shuffle_queue(dpp::snowflake guild_id);
+            void set_ignore_marker(const dpp::snowflake& guild_id);
+            void remove_ignore_marker(const dpp::snowflake& guild_id);
+            bool has_ignore_marker(const dpp::snowflake& guild_id);
         };
     }
 }

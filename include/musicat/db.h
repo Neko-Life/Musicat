@@ -2,22 +2,77 @@
 #define MUSICAT_DATABASE_H
 
 #include <string>
+#include <libpq-fe.h>
+
+#define ERRBUFSIZE 256
 
 namespace musicat {
+    /**
+     * @brief Almost every function call locks and unlock a single mutex.
+     *
+     */
     namespace database {
+
+        // -----------------------------------------------------------------------
+        // INSTANCE MANIPULATION
+        // -----------------------------------------------------------------------
+
         /**
          * @brief Initialize database, load config and connecting to server
          *
          * @param _conninfo Connection param
-         * @return int Return conn status, 0 (CONNECTION_OK) on sucess
+         * @return ConnStatusType Return conn status, 0 (CONNECTION_OK) on sucess
          */
-        int init(std::string _conninfo);
+        ConnStatusType init(const std::string& _conninfo);
+
+        /**
+         * @brief Cancel currently running query
+         *
+         * @return int 1 on success, else 0
+         */
+        int cancel();
 
         /**
          * @brief Destroy database instance, must be called to free the memory (eg. before exiting program)
          *
          */
         void shutdown();
+
+        /**
+         * @brief Get current connect param
+         *
+         * @return std::string
+         */
+        const std::string get_connect_param() noexcept(true);
+
+        /**
+         * @brief Obtained PGresult* struct should always be cleared with this function
+         *
+         * @param res
+         * @param status
+         * @return ExecStatusType
+         */
+        ExecStatusType finish_res(PGresult* res, ExecStatusType status = PGRES_COMMAND_OK);
+
+        // -----------------------------------------------------------------------
+        // TABLE MANIPULATION
+        // -----------------------------------------------------------------------
+
+        /**
+         * @brief Create new playlist table for new user
+         *
+         * @param user_id
+         * @return ExecStatusType -1 if user_id is 0
+         */
+        ExecStatusType create_table_playlist(const dpp::snowflake& user_id);
+
+        /**
+         * @brief Get all user playlist, result must be freed using finish_res()
+         *
+         * @param user_id
+         * @return PGresult* Return nullptr if user_id is 0
+         */
+        PGresult* get_all_user_playlist(const dpp::snowflake& user_id);
     }
 }
 

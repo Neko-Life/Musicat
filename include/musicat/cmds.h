@@ -121,6 +121,31 @@ namespace musicat {
             dpp::interaction_modal_response modal_enqueue_searched_track();
             void slash_run(const dpp::interaction_create_t& event);
         }
+
+        namespace playlist {
+            namespace save {
+                namespace autocomplete {}
+
+                dpp::command_option get_option_obj();
+                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+            }
+
+            namespace load {
+                namespace autocomplete {}
+
+                dpp::command_option get_option_obj();
+                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+            }
+
+            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+        }
+
+        // OMGGG THEY WON'T STOP ASKING ME TO MAKE THIS OMIGOD, am making this for friends, don't take it the other way around!
+        namespace stop {
+            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
+            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+        }
     }
 }
 

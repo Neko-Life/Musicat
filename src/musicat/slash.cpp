@@ -18,6 +18,8 @@ namespace musicat {
                 remove::get_register_obj(sha_id),
                 bubble_wrap::get_register_obj(sha_id),
                 search::get_register_obj(sha_id),
+                playlist::get_register_obj(sha_id),
+                stop::get_register_obj(sha_id),
                 });
             return slash_commands;
         }

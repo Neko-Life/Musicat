@@ -430,45 +430,45 @@ namespace musicat {
                     if (user->is_bot()) continue;
                     siz++;
                 }
-                if (siz > 1U)
-                {
-                    std::lock_guard<std::mutex> lk(p->q_m);
-                    auto& track = p->queue.at(0);
-                    if (track.user_id != user_id && track.user_id != this->sha_id)
-                    {
-                        amount = 1;
-                        bool exist = false;
-                        for (const auto& i : track.skip_vote)
-                        {
-                            if (i == user_id)
-                            {
-                                exist = true;
-                                break;
-                            }
-                        }
-                        if (!exist)
-                        {
-                            track.skip_vote.push_back(user_id);
-                        }
+                // if (siz > 1U)
+                // {
+                //     std::lock_guard<std::mutex> lk(p->q_m);
+                //     auto& track = p->queue.at(0);
+                //     if (track.user_id != user_id && track.user_id != this->sha_id)
+                //     {
+                //         amount = 1;
+                //         bool exist = false;
+                //         for (const auto& i : track.skip_vote)
+                //         {
+                //             if (i == user_id)
+                //             {
+                //                 exist = true;
+                //                 break;
+                //             }
+                //         }
+                //         if (!exist)
+                //         {
+                //             track.skip_vote.push_back(user_id);
+                //         }
 
-                        unsigned ts = siz / 2U + 1U;
-                        size_t ret = track.skip_vote.size();
-                        if (ret < ts) return (int)ret;
-                        else track.skip_vote.clear();
-                    }
-                    else if (amount > 1)
-                    {
-                        int64_t count = 0;
-                        for (const auto& t : p->queue)
-                        {
-                            if (t.user_id == user_id || t.user_id == this->sha_id) count++;
-                            else break;
+                //         unsigned ts = siz / 2U + 1U;
+                //         size_t ret = track.skip_vote.size();
+                //         if (ret < ts) return (int)ret;
+                //         else track.skip_vote.clear();
+                //     }
+                //     else if (amount > 1)
+                //     {
+                //         int64_t count = 0;
+                //         for (const auto& t : p->queue)
+                //         {
+                //             if (t.user_id == user_id || t.user_id == this->sha_id) count++;
+                //             else break;
 
-                            if (amount == count) break;
-                        }
-                        if (amount > count) amount = count;
-                    }
-                }
+                //             if (amount == count) break;
+                //         }
+                //         if (amount > count) amount = count;
+                //     }
+                // }
             }
             catch (const char* e)
             {
@@ -933,7 +933,7 @@ namespace musicat {
         }
 
         bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager) {
-            printf("Handling voice marker: \"%s\"\n", event.track_meta.c_str());
+            printf("Handling voice marker: \"%s\" in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
 
             {
                 std::lock_guard<std::mutex> lk(this->mp_m);
@@ -944,7 +944,7 @@ namespace musicat {
                 }
             }
 
-            if (!event.voice_client) { printf("NO CLIENT\n");return false; }
+            if (!event.voice_client) { printf("NO CLIENT\n"); return false; }
             if (this->is_disconnecting(event.voice_client->server_id))
             {
                 printf("DISCONNECTING\n");
@@ -1533,6 +1533,31 @@ namespace musicat {
             auto p = this->get_player(guild_id);
             if (!p) return false;
             return p->shuffle();
+        }
+
+        void Manager::set_ignore_marker(const dpp::snowflake& guild_id) {
+            std::lock_guard<std::mutex> lk(this->im_m);
+            auto l = vector_find(&this->ignore_marker, guild_id);
+            if (l == this->ignore_marker.end())
+            {
+                this->ignore_marker.push_back(guild_id);
+            }
+        }
+
+        void Manager::remove_ignore_marker(const dpp::snowflake& guild_id) {
+            std::lock_guard<std::mutex> lk(this->im_m);
+            auto l = vector_find(&this->ignore_marker, guild_id);
+            if (l != this->ignore_marker.end())
+            {
+                this->ignore_marker.erase(l);
+            }
+        }
+
+        bool Manager::has_ignore_marker(const dpp::snowflake& guild_id) {
+            std::lock_guard<std::mutex> lk(this->im_m);
+            auto l = vector_find(&this->ignore_marker, guild_id);
+            if (l != this->ignore_marker.end()) return true;
+            else return false;
         }
     }
 }

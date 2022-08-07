@@ -2,6 +2,7 @@
 #include <vector>
 #include "musicat/musicat.h"
 #include "musicat/cmds.h"
+#include "musicat/autocomplete.h"
 #include "musicat/yt-search.h"
 #include "musicat/yt-playlist.h"
 
@@ -10,28 +11,18 @@ namespace musicat {
         namespace play {
             namespace autocomplete {
                 void query(const dpp::autocomplete_t& event, std::string param, player_manager_ptr player_manager, dpp::cluster& client) {
-                    std::vector<string> avail = {};
-                    if (!param.length()) avail = player_manager->get_available_tracks(25);
-                    else
-                    {
-                        auto r = player_manager->get_available_tracks();
-                        for (auto i : r)
-                        {
-                            const auto ori = i;
-                            for (auto& j : i) j = std::tolower(j);
-                            for (auto& j : param) j = std::tolower(j);
-                            if (i.find(param) != std::string::npos)
-                                avail.push_back(ori);
-                            if (avail.size() == 25) break;
-                        }
-                    }
-                    dpp::interaction_response r(dpp::ir_autocomplete_reply);
-                    for (const auto& i : avail)
-                    {
-                        auto v = i.length() > 100 ? i.substr(0, 100) : i;
-                        r.add_autocomplete_choice(dpp::command_option_choice(v, v));
-                    }
-                    client.interaction_response_create(event.command.id, event.command.token, r);
+                    std::vector<std::pair<string, string>> avail = {};
+
+                    const bool no_len = !param.length();
+
+                    std::vector<string> get = player_manager->get_available_tracks(no_len ? 25U : 0U);
+                    avail.reserve(get.size());
+
+                    for (const std::string& i : get) avail.push_back(std::make_pair(i, i));
+
+                    if (!no_len) avail = musicat::autocomplete::filter_candidates(avail, param);
+
+                    musicat::autocomplete::create_response(avail, client, event.command.id, event.command.token);
                 }
             }
 
