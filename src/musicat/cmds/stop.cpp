@@ -43,6 +43,8 @@ namespace musicat {
 
                 player_manager->stop_stream(event.command.guild_id);
                 p->skip(v);
+                p->set_stopped(true);
+
                 v->voiceclient->pause_audio(true);
                 {
                     std::lock_guard<std::mutex> lk(player_manager->mp_m);

@@ -114,6 +114,8 @@ namespace musicat {
              */
             std::deque<MCTrack> queue;
 
+            bool stopped;
+
             /**
              * @brief Must use this whenever doing the appropriate action.
              *
@@ -121,9 +123,9 @@ namespace musicat {
              * ch: channel_id,
              * st: shifted_track,
              * h: history,
-             *
+             * s: stopped
              */
-            std::mutex skip_mutex, st_m, q_m, ch_m, h_m;
+            std::mutex skip_mutex, st_m, q_m, ch_m, h_m, s_m;
 
             Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
             ~Player();
@@ -177,6 +179,9 @@ namespace musicat {
             int join();
             int leave();
             int rejoin();
+
+            void set_stopped(const bool& val);
+            const bool& is_stopped();
         };
 
         class Manager {

@@ -29,6 +29,7 @@ namespace musicat {
             this->from = nullptr;
             this->auto_play = false;
             this->max_history_size = 0;
+            this->stopped = false;
         }
 
         Player::~Player() = default;
@@ -219,6 +220,16 @@ namespace musicat {
 
         int Player::rejoin() {
             return 0;
+        }
+
+        void Player::set_stopped(const bool& val) {
+            std::lock_guard<std::mutex> lk(s_m);
+            this->stopped = val;
+        }
+
+        const bool& Player::is_stopped() {
+            std::lock_guard<std::mutex> lk(s_m);
+            return this->stopped;
         }
 
         Manager::Manager(dpp::cluster* cluster, dpp::snowflake sha_id) {
@@ -968,7 +979,7 @@ namespace musicat {
                 std::lock_guard<std::mutex> lk(p->q_m);
 
                 // Do stuff according to loop mode when playback ends
-                if (event.track_meta == "e")
+                if (event.track_meta == "e" && !p->is_stopped())
                 {
                     if (p->loop_mode == loop_mode_t::l_none) p->queue.pop_front();
                     else if (p->loop_mode == loop_mode_t::l_queue)
@@ -986,8 +997,7 @@ namespace musicat {
                 }
                 p->queue.front().skip_vote.clear();
                 s = p->queue.front();
-
-                if (s.skip_vote.size()) fprintf(stderr, "[WARN] Track '%s' skip_vote isn't cleared!", s.title().c_str());
+                p->set_stopped(false);
             }
 
             printf("To play\n");
