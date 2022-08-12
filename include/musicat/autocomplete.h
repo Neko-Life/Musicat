@@ -15,21 +15,16 @@ namespace musicat {
          * @return std::vector<std::pair<std::string, std::string>>
          */
         std::vector<std::pair<std::string, std::string>>
-            filter_candidates(std::vector<std::pair<std::string, std::string>> candidates,
+            filter_candidates(const std::vector<std::pair<std::string, std::string>>& candidates,
                 std::string param);
 
         /**
-         * @brief Create event autocomplete response
+         * @brief Create autocomplete response
          *
          * @param avail
-         * @param client
-         * @param command_id
-         * @param command_token
+         * @param event
          */
-        void create_response(std::vector<std::pair<std::string, std::string>> avail,
-            dpp::cluster& client,
-            dpp::snowflake command_id,
-            std::string command_token);
+        void create_response(const std::vector<std::pair<std::string, std::string>>& avail, const dpp::autocomplete_t& event);
     }
 }
 

@@ -26,17 +26,28 @@ namespace musicat {
                 int64_t to = 1;
                 musicat::get_inter_param(event, "track", &fr);
                 musicat::get_inter_param(event, "amount", &to);
-                if (fr < 1 || ((size_t)fr + 1) >player_manager->get_queue(event.command.guild_id).size())
+                std::deque<player::MCTrack> queue = player_manager->get_queue(event.command.guild_id);
+                if (fr < 1 || ((size_t)fr + 1) > queue.size())
                 {
                     event.reply("No track in position " + std::to_string(fr));
                     return;
                 }
 
                 if (to < 1) to = 1;
+
+                player::MCTrack f_t = queue.at(1);
+                player::MCTrack l_t = queue.back();
+
                 size_t ret = player_manager->remove_track(event.command.guild_id, (size_t)fr, (size_t)to);
                 if (ret)
                 {
                     event.reply("Removed " + std::to_string(ret) + " track" + string(ret > 1 ? "s" : ""));
+                    std::deque<player::MCTrack> queue2 = player_manager->get_queue(event.command.guild_id);
+                    if (queue2.size() < 2U || queue2.at(1).title() != f_t.title() || queue2.back().title() != l_t.title()) try
+                    {
+                        player_manager->update_info_embed(event.command.guild_id);
+                    }
+                    catch (...) {}
                 }
                 else
                 {

@@ -4,8 +4,8 @@
 namespace musicat {
     namespace autocomplete {
         std::vector<std::pair<std::string, std::string>>
-            filter_candidates(std::vector<std::pair<std::string, std::string>> candidates, std::string param) {
-                
+            filter_candidates(const std::vector<std::pair<std::string, std::string>>& candidates, std::string param) {
+
             std::vector<std::pair<std::string, std::string>> avail = {};
             avail.reserve(25U);
 
@@ -23,7 +23,7 @@ namespace musicat {
             return avail;
         }
 
-        void create_response(std::vector<std::pair<std::string, std::string>> avail, dpp::cluster& client, dpp::snowflake command_id, std::string command_token) {
+        void create_response(const std::vector<std::pair<std::string, std::string>>& avail, const dpp::autocomplete_t& event) {
             dpp::interaction_response r(dpp::ir_autocomplete_reply);
 
             const bool b_25 = avail.size() > 25U;
@@ -35,7 +35,7 @@ namespace musicat {
                 r.add_autocomplete_choice(dpp::command_option_choice(v, v2));
                 if (b_25 && r.autocomplete_choices.size() == 25U) break;
             }
-            client.interaction_response_create(command_id, command_token, r);
+            event.from->creator->interaction_response_create(event.command.id, event.command.token, r);
         }
     }
 }

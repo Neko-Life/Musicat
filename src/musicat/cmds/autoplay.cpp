@@ -20,7 +20,7 @@ namespace musicat {
                         dpp::command_option(
                             dpp::co_integer,
                             "no-duplicate-threshold",
-                            "Number of duplicate guard, max 10000"
+                            "Number of duplicate guard, max 1000"
                         )
                     );
             }
@@ -44,12 +44,19 @@ namespace musicat {
                             )
                         + "\n";
                 }
-                else reply += std::string("Autoplay is currently ") + (g->auto_play ? "enabled" : "disabled") + "\n";
+                else reply += std::string("Autoplay is currently ")
+                    + (g->auto_play ? "enabled" : "disabled")
+                    + "\n";
+
                 if (b > -1)
                 {
-                    if (b > 10000) b = 10000;
+                    if (b > 1000) b = 1000;
                     g->set_max_history_size(b);
-                    reply += "Set No Duplicate Threshold to " + std::to_string(b);
+                    reply += "Set No-Duplicate Threshold to " + std::to_string(b);
+                }
+                else
+                {
+                    reply += "No-Duplicate Threshold is " + std::to_string(st);
                 }
                 event.reply(reply);
                 if (c != g->auto_play || (g->auto_play && st != g->max_history_size)) try

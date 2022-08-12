@@ -691,8 +691,8 @@ namespace musicat {
                             //     continue;
                             // }
                             /* Skip the opus tags */
-                            if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
-                                continue;
+                            // if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
+                            //     continue;
 
                             if (!v || v->terminating)
                             {
@@ -707,7 +707,7 @@ namespace musicat {
 
                             bool br = v->terminating;
 
-                            while (v && !v->terminating && v->get_secs_remaining() > 2.5f)
+                            while (v && !v->terminating && v->get_secs_remaining() > 3.0)
                             {
                                 sleep(1);
                                 if (v->terminating) br = true;

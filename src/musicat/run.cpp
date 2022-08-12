@@ -196,10 +196,13 @@ namespace musicat {
             }
         });
 
-        client.on_autocomplete([&player_manager, &client](const dpp::autocomplete_t& event) {
+        client.on_autocomplete([&player_manager](const dpp::autocomplete_t& event) {
             const string cmd = event.name;
             string opt = "";
+            std::vector<string> sub_cmd = {};
             string param = "";
+
+            bool sub_level = true;
 
             for (const auto& i : event.options)
             {
@@ -207,20 +210,52 @@ namespace musicat {
                 {
                     opt = i.name;
                     if (i.value.index()) param = std::get<string>(i.value);
+                    sub_level = false;
                     break;
                 }
             }
 
+            int cur_sub = 0;
+            std::vector<dpp::command_option> eopts = event.options;
+
+            while (sub_level && eopts.begin() != eopts.end())
+            {
+                cur_sub++;
+                auto sub = eopts.at(0);
+                sub_cmd.push_back(sub.name);
+                for (const auto& i : sub.options)
+                {
+                    if (i.focused)
+                    {
+                        opt = i.name;
+                        if (i.value.index()) param = std::get<string>(i.value);
+                        sub_level = false;
+                        break;
+                    }
+                }
+                if (!sub_level) break;
+                eopts = sub.options;
+            }
+
+            printf("%s\n", event.raw_event.c_str());
             if (opt.length())
             {
                 if (cmd == "play")
                 {
-                    if (opt == "query") command::play::autocomplete::query(event, param, player_manager, client);
+                    if (opt == "query") command::play::autocomplete::query(event, param, player_manager);
+                }
+                else if (cmd == "playlist")
+                {
+                    if (sub_cmd.begin() == sub_cmd.end()) return;
+                    if (sub_cmd.at(0) == "load")
+                    {
+                        if (opt == "id") command::playlist::load::autocomplete::id(event, param);
+                    }
                 }
             }
         });
 
-        client.on_interaction_create([&player_manager, &client](const dpp::interaction_create_t& event)
+        client.on_interaction_create([&player_manager](const dpp::interaction_create_t& event)
         {
             if (!event.command.guild_id) return;
             if (event.command.usr.is_bot()) return;

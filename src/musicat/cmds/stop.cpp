@@ -14,7 +14,7 @@ namespace musicat {
                 if (!p || !v
                     || !v->voiceclient
                     || !v->voiceclient->is_ready()
-                    || (v->voiceclient->get_secs_remaining() < 0.1f && p && !p->queue.size()))
+                    || (v->voiceclient->get_secs_remaining() < 0.1f && p && p->queue.begin() == p->queue.end()))
                 {
                     event.reply("I'm not playing anything");
                     return;

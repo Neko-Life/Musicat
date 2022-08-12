@@ -2,7 +2,9 @@
 #include <string>
 #include <mutex>
 #include <string.h>
+#include <regex>
 #include <dpp/dpp.h>
+#include "nlohmann/json.hpp"
 #include "musicat/db.h"
 
 namespace musicat {
@@ -27,6 +29,10 @@ namespace musicat {
         void _print_conn_error(const char* func_n) {
             fprintf(stderr, (std::string("[DB_ERROR] ") + func_n + ": %s\n").c_str(), PQerrorMessage(conn));
         }
+
+        // char* _escape_values_query(const std::string& str) {
+        //     printf("[DB_ESCAPE_VALUES] '%s'\n", str.c_str());
+        // }
 
         // -----------------------------------------------------------------------
         // INSTANCE MANIPULATION
@@ -107,6 +113,12 @@ namespace musicat {
             return status;
         }
 
+        bool valid_name(const std::string& str) {
+            printf("[DV_VALIDATE_NAME] '%s'\n", str.c_str());
+            if (std::regex_match(str, std::regex("^[0-9a-zA-Z_-]{1,100}$"))) return true;
+            else return false;
+        }
+
         // -----------------------------------------------------------------------
         // TABLE MANIPULATION
         // -----------------------------------------------------------------------
@@ -130,8 +142,10 @@ namespace musicat {
             return finish_res(res, status);
         }
 
-        PGresult* get_all_user_playlist(const dpp::snowflake& user_id) {
-            if (!user_id) return nullptr;
+        std::pair<PGresult*, ExecStatusType>
+            get_all_user_playlist(const dpp::snowflake& user_id) {
+
+            if (!user_id) return std::make_pair(nullptr, (ExecStatusType)-1);
 
             std::string query("SELECT * FROM \"");
             query += std::to_string(user_id) + "_playlist\";";
@@ -140,13 +154,37 @@ namespace musicat {
             PGresult* res = _db_exec(query.c_str());
 
             ExecStatusType status = PQresultStatus(res);
-            if (status != PGRES_COMMAND_OK)
+            if (status != PGRES_TUPLES_OK)
             {
                 _describe_result_status(status);
                 _print_conn_error("get_all_user_playlist");
             }
 
-            return res;
+            return std::make_pair(res, status);
+        }
+
+        std::pair<PGresult*, ExecStatusType>
+            update_user_playlist(const dpp::snowflake& user_id, const std::string& name, const nlohmann::json& data) {
+            return std::make_pair(nullptr, (ExecStatusType)-1);
+            // if (!user_id) return std::make_pair(nullptr, (ExecStatusType)-1);
+            // if (!valid_name(name)) return std::make_pair(nullptr, (ExecStatusType)-1);
+
+            // std::string data_str = data.dump();
+
+            // std::string query("INSERT INTO \"");
+            // query += std::to_string(user_id) + "_playlist\" (raw, name) VALUES (" + "" + ", '" + name + "');";
+
+            // std::lock_guard<std::mutex> lk(conn_mutex);
+            // PGresult* res = _db_exec(query.c_str());
+
+            // ExecStatusType status = PQresultStatus(res);
+            // if (status != PGRES_COMMAND_OK)
+            // {
+            //     _describe_result_status(status);
+            //     _print_conn_error("get_all_user_playlist");
+            // }
+
+            // return std::make_pair(res, status);
         }
     }
 }

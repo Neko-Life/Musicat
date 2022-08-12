@@ -10,7 +10,10 @@ namespace musicat {
     namespace command {
         namespace play {
             namespace autocomplete {
-                void query(const dpp::autocomplete_t& event, std::string param, player_manager_ptr player_manager, dpp::cluster& client) {
+                void query(const dpp::autocomplete_t& event,
+                    std::string param,
+                    player_manager_ptr player_manager) {
+
                     std::vector<std::pair<string, string>> avail = {};
 
                     const bool no_len = !param.length();
@@ -22,7 +25,7 @@ namespace musicat {
 
                     if (!no_len) avail = musicat::autocomplete::filter_candidates(avail, param);
 
-                    musicat::autocomplete::create_response(avail, client, event.command.id, event.command.token);
+                    musicat::autocomplete::create_response(avail, event);
                 }
             }
 
@@ -195,7 +198,7 @@ namespace musicat {
                 const dpp::interaction_create_t event,
                 bool continued) {
                 std::vector<yt_search::YTrack> searches = playlist ? yt_search::get_playlist(arg_query).entries() : yt_search::search(arg_query).trackResults();
-                if (!searches.size())
+                if (searches.begin() == searches.end())
                 {
                     if (from_interaction) event.edit_response("Can't find anything");
                     return;
@@ -207,7 +210,7 @@ namespace musicat {
                     auto p = player_manager->get_player(guild_id);
                     if (!p) return;
                     std::lock_guard<std::mutex> lk(p->q_m);
-                    if (!p->queue.size()) return;
+                    if (p->queue.begin() == p->queue.end()) return;
                     for (auto i : searches)
                     {
                         auto iid = i.id();

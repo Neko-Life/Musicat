@@ -54,6 +54,15 @@ namespace musicat {
          */
         ExecStatusType finish_res(PGresult* res, ExecStatusType status = PGRES_COMMAND_OK);
 
+        /**
+         * @brief Validate str for db playlist name
+         *
+         * @param str
+         * @return true
+         * @return false
+         */
+        bool valid_name(const std::string& str);
+
         // -----------------------------------------------------------------------
         // TABLE MANIPULATION
         // -----------------------------------------------------------------------
@@ -70,9 +79,10 @@ namespace musicat {
          * @brief Get all user playlist, result must be freed using finish_res()
          *
          * @param user_id
-         * @return PGresult* Return nullptr if user_id is 0
+         * @return std::pair<PGresult*, ExecStatusType> Return {nullptr,-1} if user_id is 0
          */
-        PGresult* get_all_user_playlist(const dpp::snowflake& user_id);
+        std::pair<PGresult*, ExecStatusType>
+            get_all_user_playlist(const dpp::snowflake& user_id);
     }
 }
 

@@ -33,7 +33,9 @@ namespace musicat {
 
         namespace play {
             namespace autocomplete {
-                void query(const dpp::autocomplete_t& event, std::string param, player_manager_ptr player_manager, dpp::cluster& client);
+                void query(const dpp::autocomplete_t& event,
+                    std::string param,
+                    player_manager_ptr player_manager);
             }
 
             dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
@@ -124,14 +126,18 @@ namespace musicat {
 
         namespace playlist {
             namespace save {
-                namespace autocomplete {}
+                namespace autocomplete {
+                    void id(const dpp::autocomplete_t& event, std::string param);
+                }
 
                 dpp::command_option get_option_obj();
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
             }
 
             namespace load {
-                namespace autocomplete {}
+                namespace autocomplete {
+                    void id(const dpp::autocomplete_t& event, std::string param);
+                }
 
                 dpp::command_option get_option_obj();
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
