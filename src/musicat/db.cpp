@@ -27,7 +27,7 @@ namespace musicat {
         }
 
         void _print_conn_error(const char* func_n) {
-            fprintf(stderr, (std::string("[DB_ERROR] ") + func_n + ": %s\n").c_str(), PQerrorMessage(conn));
+            fprintf(stderr, "[DB_ERROR] %s: %s\n", func_n, PQerrorMessage(conn));
         }
 
         // char* _escape_values_query(const std::string& str) {

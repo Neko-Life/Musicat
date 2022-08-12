@@ -216,7 +216,7 @@ namespace musicat {
             }
 
             int cur_sub = 0;
-            std::vector<dpp::command_option> eopts = event.options;
+            std::vector<dpp::command_data_option> eopts = event.command.get_autocomplete_interaction().options;
 
             while (sub_level && eopts.begin() != eopts.end())
             {
@@ -237,7 +237,6 @@ namespace musicat {
                 eopts = sub.options;
             }
 
-            printf("%s\n", event.raw_event.c_str());
             if (opt.length())
             {
                 if (cmd == "play")
