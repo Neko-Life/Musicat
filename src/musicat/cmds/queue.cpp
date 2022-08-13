@@ -46,16 +46,24 @@ namespace musicat {
                         auto siz = queue.size();
                         if (siz < 2)
                         {
-                            event.reply("No track to clear, skip the current song to clear the queue completely");
+                            event.reply("No track to clear, skip the current track to clear the queue completely");
                             break;
                         }
                         auto p = player_manager->get_player(event.command.guild_id);
                         p->reset_shifted();
-                        std::lock_guard<std::mutex> lk(p->q_m);
-                        musicat::player::MCTrack t = p->queue.at(0);
-                        p->queue.clear();
-                        p->queue.push_back(t);
-                        player_manager->update_info_embed(event.command.guild_id);
+
+                        {
+                            std::lock_guard<std::mutex> lk(p->q_m);
+                            musicat::player::MCTrack t = p->queue.at(0);
+                            p->queue.clear();
+                            p->queue.push_back(t);
+                        }
+
+                        try
+                        {
+                            player_manager->update_info_embed(event.command.guild_id);
+                        }
+                        catch (...) {}
                         event.reply("Cleared");
 
                         break;
