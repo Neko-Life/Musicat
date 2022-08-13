@@ -79,10 +79,17 @@ namespace musicat {
                         return;
                     }
 
+                    event.thinking();
+
                     ExecStatusType res = database::update_user_playlist(event.command.usr.id, p_id, q);
 
-                    event.reply(res == PGRES_COMMAND_OK
-                        ? std::string("Saved playlist with Id: ") + p_id
+                    event.edit_response(res == PGRES_COMMAND_OK
+                        ? std::string("Saved playlist containing ")
+                        + std::to_string(q_size)
+                        + " track"
+                        + (q_size > 1 ? "s" : "")
+                        + " with Id: "
+                        + p_id
                         : "Somethin went wrong, can't save playlist");
                 }
             }
