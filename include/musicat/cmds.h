@@ -9,7 +9,7 @@
 
 namespace musicat {
     namespace command {
-        using player_manager_ptr = std::shared_ptr<musicat::player::Manager>;
+        using player_manager_ptr = std::shared_ptr<player::Manager>;
 
         namespace hello {
             dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);
@@ -125,20 +125,16 @@ namespace musicat {
         }
 
         namespace playlist {
-            namespace save {
-                namespace autocomplete {
-                    void id(const dpp::autocomplete_t& event, std::string param);
-                }
+            namespace autocomplete {
+                void id(const dpp::autocomplete_t& event, std::string param);
+            }
 
+            namespace save {
                 dpp::command_option get_option_obj();
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
             }
 
             namespace load {
-                namespace autocomplete {
-                    void id(const dpp::autocomplete_t& event, std::string param);
-                }
-
                 dpp::command_option get_option_obj();
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
             }

@@ -120,12 +120,12 @@ namespace musicat {
             if ((pos + 1) > siz) return 0;
             size_t max = siz - pos;
             if (amount > max) amount = max;
-            auto b = this->queue.begin() + pos;
+            std::deque<MCTrack>::iterator b = this->queue.begin() + pos;
             size_t a = 0;
             while (b != this->queue.end())
             {
                 if (a == amount) break;
-                this->queue.erase(b);
+                b = this->queue.erase(b);
                 a++;
             }
             return amount;

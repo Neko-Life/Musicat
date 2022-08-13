@@ -47,7 +47,14 @@ namespace musicat {
                     for (const auto& i : avail)
                     {
                         std::string nm = std::to_string(i.first) + ": " + i.second;
-                        r.add_autocomplete_choice(dpp::command_option_choice(nm.length() > 100 ? nm.substr(0, 100) : nm, i.first));
+                        r.add_autocomplete_choice(
+                            dpp::command_option_choice(
+                                nm.length() > 100
+                                ? nm.substr(0, 100)
+                                : nm,
+                                (int64_t)i.first
+                            )
+                        );
                     }
                     client.interaction_response_create(event.command.id, event.command.token, r);
                 }
@@ -89,15 +96,15 @@ namespace musicat {
 
                 int64_t fr = 0;
                 int64_t to = 0;
-                musicat::get_inter_param(event, "track", &fr);
-                musicat::get_inter_param(event, "to", &to);
+                get_inter_param(event, "track", &fr);
+                get_inter_param(event, "to", &to);
 
                 if (fr < 1) fr = 1;
                 if (to < 1) to = 1;
                 if (fr > max_to) fr = max_to;
                 if (to > max_to) to = max_to;
 
-                musicat::player::MCTrack t;
+                player::MCTrack t;
                 {
                     std::lock_guard<std::mutex> lk(p->q_m);
                     t = p->queue.at(fr);

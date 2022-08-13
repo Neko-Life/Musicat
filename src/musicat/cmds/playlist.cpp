@@ -7,11 +7,36 @@
 namespace musicat {
     namespace command {
         namespace playlist {
-            namespace save {
-                namespace autocomplete {
-                    void save() {}
-                }
+            namespace autocomplete {
+                void id(const dpp::autocomplete_t& event, std::string param) {
+                    std::pair<PGresult*, ExecStatusType>
+                        res = database::get_all_user_playlist(event.command.usr.id, database::gup_name_only);
 
+                    std::vector<std::pair<std::string, std::string>> response = {};
+
+                    if (res.second == PGRES_TUPLES_OK)
+                    {
+                        int rn = 0;
+                        while (true)
+                        {
+                            if (PQgetisnull(res.first, rn, 0)) break;
+
+                            std::string val = std::string(PQgetvalue(res.first, rn, 0));
+
+                            response.push_back(std::make_pair(val, val));
+                            rn++;
+                        }
+                    }
+
+                    database::finish_res(res.first);
+                    res.first = nullptr;
+
+                    musicat::autocomplete::create_response(
+                        musicat::autocomplete::filter_candidates(response, param), event);
+                }
+            }
+
+            namespace save {
                 dpp::command_option get_option_obj() {
                     return dpp::command_option(
                         dpp::co_sub_command,
@@ -28,7 +53,7 @@ namespace musicat {
                 }
 
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
-                    std::deque<musicat::player::MCTrack> q = player_manager->get_queue(event.command.guild_id);
+                    std::deque<player::MCTrack> q = player_manager->get_queue(event.command.guild_id);
                     size_t q_size = q.size();
                     if (!q_size)
                     {
@@ -54,57 +79,15 @@ namespace musicat {
                         return;
                     }
 
-                    nlohmann::json jso;
-                    for (auto& t : q)
-                    {
-                        nlohmann::json r = t.raw;
-                        r["filename"] = t.filename;
-                        r["raw_info"] = t.info.raw;
-                        jso.push_back(r);
-                    }
-                    printf("JSON```\n%s\n```\n", jso.dump(2).c_str());
+                    ExecStatusType res = database::update_user_playlist(event.command.usr.id, p_id, q);
 
-                    // std::pair<PGresult*, ExecStatusType>
-                    //     res = database::get_user_playlist(event.command.usr.id, p_id, database::gup_raw_only);
-
-                    // event.reply(PQgetisnull(res.first, 0, 0) ? "Unknown playlist" : PQgetvalue(res.first, 0, 0));
-
-                    // database::finish_res(res.first);
-                    // res.first = nullptr;
-                    event.reply("Ye");
+                    event.reply(res == PGRES_COMMAND_OK
+                        ? std::string("Saved playlist with Id: ") + p_id
+                        : "Somethin went wrong, can't save playlist");
                 }
             }
 
             namespace load {
-                namespace autocomplete {
-                    void id(const dpp::autocomplete_t& event, std::string param) {
-                        std::pair<PGresult*, ExecStatusType>
-                            res = database::get_all_user_playlist(event.command.usr.id, database::gup_name_only);
-
-                        std::vector<std::pair<std::string, std::string>> response = {};
-
-                        if (res.second == PGRES_TUPLES_OK)
-                        {
-                            int rn = 0;
-                            while (true)
-                            {
-                                if (PQgetisnull(res.first, rn, 0)) break;
-
-                                std::string val = std::string(PQgetvalue(res.first, rn, 0));
-
-                                response.push_back(std::make_pair(val, val));
-                                rn++;
-                            }
-                        }
-
-                        database::finish_res(res.first);
-                        res.first = nullptr;
-
-                        musicat::autocomplete::create_response(
-                            musicat::autocomplete::filter_candidates(response, param), event);
-                    }
-                }
-
                 dpp::command_option get_option_obj() {
                     return dpp::command_option(
                         dpp::co_sub_command,
@@ -136,10 +119,47 @@ namespace musicat {
                     std::pair<PGresult*, ExecStatusType>
                         res = database::get_user_playlist(event.command.usr.id, p_id, database::gup_raw_only);
 
-                    event.reply(PQgetisnull(res.first, 0, 0) ? "Unknown playlist" : PQgetvalue(res.first, 0, 0));
+                    if (PQgetisnull(res.first, 0, 0))
+                    {
+                        database::finish_res(res.first);
+                        res.first = nullptr;
+                        event.reply("Unknown playlist");
+                    }
+                    else
+                    {
+                        nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res.first, 0, 0));
+                        database::finish_res(res.first);
+                        res.first = nullptr;
 
-                    database::finish_res(res.first);
-                    res.first = nullptr;
+                        if (jso.is_null() || !jso.is_array() || jso.empty())
+                            event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
+                        else
+                        {
+                            auto p = player_manager->create_player(event.command.guild_id);
+                            size_t count = 0;
+
+                            for (auto j = jso.begin(); j != jso.end(); j++)
+                            {
+                                if (j->is_null()) break;
+                                player::MCTrack t;
+                                t.raw = *j;
+                                t.filename = j->at("filename").get<std::string>();
+                                t.info.raw = j->at("raw_info");
+                                t.user_id = event.command.usr.id;
+
+                                p->add_track(t, false, event.command.guild_id, false);
+                                count++;
+                            }
+
+                            if (count) try
+                            {
+                                player_manager->update_info_embed(event.command.guild_id);
+                            }
+                            catch (...) {}
+
+                            event.reply(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
+                        }
+                    }
                 }
             }
 

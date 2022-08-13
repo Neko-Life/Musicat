@@ -6,6 +6,7 @@
 #include <dpp/dpp.h>
 #include "nlohmann/json.hpp"
 #include "musicat/db.h"
+#include "musicat/player.h"
 
 namespace musicat {
     namespace database {
@@ -43,9 +44,21 @@ namespace musicat {
             return ret;
         }
 
-        // char* _escape_values_query(const std::string& str) {
-        //     printf("[DB_ESCAPE_VALUES] '%s'\n", str.c_str());
-        // }
+        const std::string _escape_values_query(const std::string& str) {
+            printf("[DB_ESCAPE_VALUES] %ld\n", str.length());
+            char* res = PQescapeLiteral(conn, str.c_str(), str.length());
+
+            if (res == NULL)
+            {
+                _print_conn_error("_escape_values_query");
+            }
+
+            const std::string ret(res == NULL ? "" : res);
+
+            PQfreemem(res);
+            res = NULL;
+            return ret;
+        }
 
         // -----------------------------------------------------------------------
         // INSTANCE MANIPULATION
@@ -140,8 +153,10 @@ namespace musicat {
             if (!user_id) return (ExecStatusType)-1;
 
             std::string query("CREATE TABLE IF NOT EXISTS \"");
-            query += std::to_string(user_id) + "_playlist\" ( raw JSON NOT NULL, "\
-                "name VARCHAR(100) UNIQUE PRIMARY KEY NOT NULL, ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
+            query += std::to_string(user_id) + "_playlist\" "\
+                "( \"raw\" JSON NOT NULL, "\
+                "\"name\" VARCHAR(100) UNIQUE PRIMARY KEY NOT NULL, "\
+                "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
 
             std::lock_guard<std::mutex> lk(conn_mutex);
             PGresult* res = _db_exec(query.c_str());
@@ -209,23 +224,38 @@ namespace musicat {
             return std::make_pair(res, status);
         }
 
-        std::pair<PGresult*, ExecStatusType>
-            update_user_playlist(const dpp::snowflake& user_id, const std::string& name, const nlohmann::json& data) {
+        ExecStatusType update_user_playlist(const dpp::snowflake& user_id,
+            const std::string& name,
+            const std::deque<player::MCTrack>& playlist) {
 
-            return std::make_pair(nullptr, (ExecStatusType)-1);
-            // if (!user_id) return std::make_pair(nullptr, (ExecStatusType)-1);
+            if (!user_id) return (ExecStatusType)-1;
 
-            // std::string data_str = data.dump();
+            nlohmann::json jso;
+            for (auto& t : playlist)
+            {
+                nlohmann::json r = t.raw;
+                r["filename"] = t.filename;
+                r["raw_info"] = t.info.raw;
+                jso.push_back(r);
+            }
 
-            // std::string query("INSERT INTO \"");
-            // query += std::to_string(user_id) + "_playlist\" (raw, name) VALUES (" + "" + ", '" + name + "');";
+            const std::string values = _escape_values_query(jso.dump());
 
-            // std::lock_guard<std::mutex> lk(conn_mutex);
-            // PGresult* res = _db_exec(query.c_str());
+            std::string query("INSERT INTO \"");
+            query += std::to_string(user_id) + "_playlist\" "\
+                "(\"raw\", \"name\") VALUES ("
+                + values.c_str()
+                + ", '" + name
+                + "') ON CONFLICT (\"name\") DO UPDATE SET \"raw\" = "
+                + values.c_str()
+                + ", \"ts\" = CURRENT_TIMESTAMP;";
 
-            // ExecStatusType status = _check_status(res, "update_user_playlist", PGRES_COMMAND_OK);
+            std::lock_guard<std::mutex> lk(conn_mutex);
+            PGresult* res = _db_exec(query.c_str());
 
-            // return std::make_pair(res, status);
+            ExecStatusType status = _check_status(res, "update_user_playlist", PGRES_COMMAND_OK);
+
+            return finish_res(res, status);
         }
     }
 }

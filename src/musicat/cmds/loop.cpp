@@ -15,13 +15,13 @@ namespace musicat {
                         "Set [to this] mode",
                         true
                     ).add_choice(
-                        dpp::command_option_choice("One", musicat::player::loop_mode_t::l_song)
+                        dpp::command_option_choice("One", player::loop_mode_t::l_song)
                     ).add_choice(
-                        dpp::command_option_choice("Queue", musicat::player::loop_mode_t::l_queue)
+                        dpp::command_option_choice("Queue", player::loop_mode_t::l_queue)
                     ).add_choice(
-                        dpp::command_option_choice("One/Queue", musicat::player::loop_mode_t::l_song_queue)
+                        dpp::command_option_choice("One/Queue", player::loop_mode_t::l_song_queue)
                     ).add_choice(
-                        dpp::command_option_choice("Off", musicat::player::loop_mode_t::l_none)
+                        dpp::command_option_choice("Off", player::loop_mode_t::l_none)
                     )
                 );
             }

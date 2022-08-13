@@ -28,7 +28,7 @@ namespace musicat {
 
             void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager)
             {
-                auto queue = player_manager->get_queue(event.command.guild_id);
+                std::deque<player::MCTrack> queue = player_manager->get_queue(event.command.guild_id);
                 if (queue.empty())
                 {
                     event.reply("No track");
@@ -36,7 +36,7 @@ namespace musicat {
                 }
 
                 int64_t qarg = -1;
-                musicat::get_inter_param(event, "action", &qarg);
+                get_inter_param(event, "action", &qarg);
 
                 if (qarg > -1)
                 {
@@ -54,7 +54,7 @@ namespace musicat {
 
                         {
                             std::lock_guard<std::mutex> lk(p->q_m);
-                            musicat::player::MCTrack t = p->queue.at(0);
+                            player::MCTrack t = p->queue.at(0);
                             p->queue.clear();
                             p->queue.push_back(t);
                         }
@@ -91,9 +91,9 @@ namespace musicat {
                         p->reset_shifted();
                         {
                             std::lock_guard<std::mutex> lk(p->q_m);
-                            musicat::player::MCTrack t = p->queue.at(0);
+                            player::MCTrack t = p->queue.at(0);
 
-                            std::deque<musicat::player::MCTrack> n_queue = {};
+                            std::deque<player::MCTrack> n_queue = {};
                             for (size_t i = (siz - 1); i > 0; i--)
                                 n_queue.push_back(p->queue.at(i));
 
@@ -118,7 +118,7 @@ namespace musicat {
                         auto p = player_manager->get_player(event.command.guild_id);
                         try
                         {
-                            auto vc = musicat::get_voice_from_gid(event.command.guild_id, player_manager->sha_id);
+                            auto vc = get_voice_from_gid(event.command.guild_id, player_manager->sha_id);
                             {
                                 std::lock_guard<std::mutex> lk(p->q_m);
                                 for (auto i = p->queue.begin(); i != p->queue.end(); i++)
@@ -133,7 +133,7 @@ namespace musicat {
                                         }
                                     }
                                     if (cont) continue;
-                                    if (musicat::vector_find(&l_user, i->user_id) == l_user.end())
+                                    if (vector_find(&l_user, i->user_id) == l_user.end())
                                         l_user.push_back(i->user_id);
                                 }
                             }
@@ -186,13 +186,13 @@ namespace musicat {
                     if (i == queue.begin())
                     {
                         desc += "Current track: [" + i->title() + "](" + i->url() + ")"
-                            + std::string(dur ? std::string(" [") + musicat::format_duration(dur) + "]" : "")
+                            + std::string(dur ? std::string(" [") + format_duration(dur) + "]" : "")
                             + " - <@" + std::to_string(i->user_id) + ">\n\n";
                     }
                     else
                     {
                         desc += std::to_string(id) + ": [" + i->title() + "](" + i->url() + ")"
-                            + std::string(dur ? std::string(" [") + musicat::format_duration(dur) + "]" : "")
+                            + std::string(dur ? std::string(" [") + format_duration(dur) + "]" : "")
                             + " - <@" + std::to_string(i->user_id) + ">\n";
                         id++;
                         count++;
@@ -201,7 +201,7 @@ namespace musicat {
                     {
                         embed.set_title("Queue")
                             .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
-                        if (totald) embed.set_footer(musicat::format_duration(totald), "");
+                        if (totald) embed.set_footer(format_duration(totald), "");
                         embeds.emplace_back(embed);
                         embed = dpp::embed();
                         desc = "";
@@ -214,10 +214,10 @@ namespace musicat {
                 bool paginate = embeds.size() > 1;
                 if (paginate)
                 {
-                    musicat::paginate::add_pagination_buttons(&msg);
+                    paginate::add_pagination_buttons(&msg);
                 }
 
-                event.reply(msg, musicat::paginate::get_inter_reply_cb(event, paginate, player_manager->cluster, embeds));
+                event.reply(msg, paginate::get_inter_reply_cb(event, paginate, player_manager->cluster, embeds));
             }
         }
     }

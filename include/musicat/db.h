@@ -3,6 +3,7 @@
 
 #include <string>
 #include <libpq-fe.h>
+#include "musicat/player.h"
 
 #define ERRBUFSIZE 256
 
@@ -93,7 +94,7 @@ namespace musicat {
             get_all_user_playlist(const dpp::snowflake& user_id, const get_user_playlist_type type = gup_all);
 
         /**
-         * @brief Get one user playlist with id <name>, result must be freed using finish_res()
+         * @brief Get one user playlist with id `name`, result must be freed using finish_res()
          *
          * @param user_id
          * @param name
@@ -104,6 +105,18 @@ namespace musicat {
             get_user_playlist(const dpp::snowflake& user_id,
                 const std::string& name,
                 const get_user_playlist_type type = gup_raw_only);
+
+        /**
+         * @brief Update user playlist with id `name`, can be insertion or an update
+         *
+         * @param user_id
+         * @param name
+         * @param playlist
+         * @return ExecStatusType -1 if user_id is 0
+         */
+        ExecStatusType update_user_playlist(const dpp::snowflake& user_id,
+            const std::string& name,
+            const std::deque<player::MCTrack>& playlist);
     }
 }
 

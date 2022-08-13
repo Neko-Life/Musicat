@@ -138,7 +138,9 @@ namespace musicat {
                         auto storage = storage::get(event.command.message_id);
                         if (!storage.has_value())
                         {
-                            event.reply("It seems like this result is outdated, try make a new search");
+                            dpp::message m("It seems like this result is outdated, try make a new search");
+                            m.flags |= dpp::m_ephemeral;
+                            event.reply(m);
                             return;
                         }
 
@@ -245,10 +247,8 @@ namespace musicat {
                 }
                 else if (cmd == "playlist")
                 {
-                    if (sub_cmd.begin() == sub_cmd.end()) return;
-                    if (sub_cmd.at(0) == "load")
                     {
-                        if (opt == "id") command::playlist::load::autocomplete::id(event, param);
+                        if (opt == "id") command::playlist::autocomplete::id(event, param);
                     }
                 }
             }
