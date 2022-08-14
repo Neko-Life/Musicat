@@ -302,7 +302,25 @@ namespace musicat {
 
             player_manager->set_ignore_marker(event.voice_client->server_id);
             player_manager->handle_on_track_marker(event, player_manager);
-            player_manager->remove_ignore_marker(event.voice_client->server_id);
+
+            std::thread t([player_manager, event]() {
+                short int count = 0;
+                while (event.voice_client
+                    && !event.voice_client->terminating
+                    && !event.voice_client->is_playing()
+                    && !event.voice_client->is_paused())
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    count++;
+                    if (count == 10) break;
+                }
+
+                player_manager->remove_ignore_marker(event.voice_client->server_id);
+                printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
+                if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
+                printf("\n");
+            });
+            t.detach();
         });
 
         client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {

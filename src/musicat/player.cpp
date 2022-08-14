@@ -30,9 +30,19 @@ namespace musicat {
             this->auto_play = false;
             this->max_history_size = 0;
             this->stopped = false;
+            this->channel_id = 0;
         }
 
-        Player::~Player() = default;
+        Player::~Player() {
+            this->loop_mode = loop_mode_t::l_none;
+            this->shifted_track = 0;
+            this->info_message = nullptr;
+            this->from = nullptr;
+            this->auto_play = false;
+            this->max_history_size = 0;
+            this->stopped = false;
+            this->channel_id = 0;
+        };
 
         Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
             size_t siz = 0;
