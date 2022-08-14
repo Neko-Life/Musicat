@@ -3,6 +3,7 @@
 #include "musicat/cmds.h"
 #include "musicat/autocomplete.h"
 #include "musicat/db.h"
+#include "musicat/pagination.h"
 
 namespace musicat {
     namespace command {
@@ -110,7 +111,7 @@ namespace musicat {
                     );
                 }
 
-                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const bool view) {
                     dpp::command_interaction cmd = event.command.get_command_interaction();
 
                     dpp::command_value val = cmd.options.at(0).options.at(0).value;
@@ -131,42 +132,114 @@ namespace musicat {
                         database::finish_res(res.first);
                         res.first = nullptr;
                         event.reply("Unknown playlist");
+                        return;
                     }
-                    else
-                    {
-                        nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res.first, 0, 0));
-                        database::finish_res(res.first);
-                        res.first = nullptr;
 
-                        if (jso.is_null() || !jso.is_array() || jso.empty())
-                            event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
+                    nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res.first, 0, 0));
+                    database::finish_res(res.first);
+                    res.first = nullptr;
+
+                    if (jso.is_null() || !jso.is_array() || jso.empty())
+                    {
+                        event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
+                        return;
+                    }
+
+                    std::shared_ptr<player::Player> p;
+                    size_t count = 0;
+
+                    std::deque<player::MCTrack> q = {};
+
+                    if (view != true) p = player_manager->create_player(event.command.guild_id);
+
+                    for (auto j = jso.begin(); j != jso.end(); j++)
+                    {
+                        if (j->is_null()) break;
+                        player::MCTrack t;
+                        t.raw = *j;
+                        t.filename = j->at("filename").get<std::string>();
+                        t.info.raw = j->at("raw_info");
+                        t.user_id = event.command.usr.id;
+
+                        if (view) q.push_back(t);
                         else
                         {
-                            auto p = player_manager->create_player(event.command.guild_id);
-                            size_t count = 0;
-
-                            for (auto j = jso.begin(); j != jso.end(); j++)
-                            {
-                                if (j->is_null()) break;
-                                player::MCTrack t;
-                                t.raw = *j;
-                                t.filename = j->at("filename").get<std::string>();
-                                t.info.raw = j->at("raw_info");
-                                t.user_id = event.command.usr.id;
-
-                                p->add_track(t, false, event.command.guild_id, false);
-                                count++;
-                            }
-
-                            if (count) try
-                            {
-                                player_manager->update_info_embed(event.command.guild_id);
-                            }
-                            catch (...) {}
-
-                            event.reply(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
+                            p->add_track(t, false, event.command.guild_id, false);
+                            count++;
                         }
                     }
+
+                    if (view) paginate::reply_paginated_playlist(event, q, p_id);
+                    else
+                    {
+                        if (count) try
+                        {
+                            player_manager->update_info_embed(event.command.guild_id);
+                        }
+                        catch (...) {}
+
+                        event.reply(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
+
+                        std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
+                            c;
+                        bool has_c = false;
+                        bool no_vc = false;
+                        try
+                        {
+                            c = get_voice_from_gid(event.command.guild_id, event.command.usr.id);
+                            has_c = true;
+                        }
+                        catch (...) {}
+
+                        try
+                        {
+                            get_voice_from_gid(event.command.guild_id, event.from->creator->me.id);
+                        }
+                        catch (...)
+                        {
+                            no_vc = true;
+                        }
+
+                        if (has_c && no_vc && c.first && has_permissions_from_ids(event.command.guild_id,
+                            event.from->creator->me.id,
+                            c.first->id, { dpp::p_view_channel,dpp::p_connect }))
+                        {
+                            if (!p->channel_id) p->channel_id = event.command.channel_id;
+
+                            {
+                                std::lock_guard<std::mutex> lk(player_manager->c_m);
+                                std::lock_guard<std::mutex> lk2(player_manager->wd_m);
+                                player_manager->connecting.insert_or_assign(event.command.guild_id, c.first->id);
+                                player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id, "2");
+                            }
+
+                            std::thread t([player_manager, event]() {
+                                player_manager->reconnect(event.from, event.command.guild_id);
+                            });
+                            t.detach();
+                        }
+                    }
+                }
+            }
+
+            namespace view {
+                dpp::command_option get_option_obj() {
+                    return dpp::command_option(
+                        dpp::co_sub_command,
+                        "view",
+                        "View [saved playlist] tracks"
+                    ).add_option(
+                        dpp::command_option(
+                            dpp::co_string,
+                            "id",
+                            "Playlist name [to view]",
+                            true
+                        ).set_auto_complete(true)
+                    );
+                }
+
+                void slash_run(const dpp::interaction_create_t& event) {
+                    load::slash_run(event, {}, true);
                 }
             }
 
@@ -176,6 +249,8 @@ namespace musicat {
                         save::get_option_obj()
                     ).add_option(
                         load::get_option_obj()
+                    ).add_option(
+                        view::get_option_obj()
                     );
             }
 
@@ -192,6 +267,7 @@ namespace musicat {
                 const std::string cmd = inter.options.at(0).name;
                 if (cmd == "save") save::slash_run(event, player_manager);
                 else if (cmd == "load") load::slash_run(event, player_manager);
+                else if (cmd == "view") view::slash_run(event);
                 else
                 {
                     fprintf(stderr, "[ERROR] !!! NO SUB-COMMAND '%s' FOR COMMAND 'playlist' !!!\n", cmd.c_str());

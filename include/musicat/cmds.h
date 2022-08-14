@@ -136,7 +136,12 @@ namespace musicat {
 
             namespace load {
                 dpp::command_option get_option_obj();
-                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager);
+                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const bool view = false);
+            }
+
+            namespace view {
+                dpp::command_option get_option_obj();
+                void slash_run(const dpp::interaction_create_t& event);
             }
 
             dpp::slashcommand get_register_obj(const dpp::snowflake sha_id);

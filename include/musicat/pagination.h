@@ -2,6 +2,7 @@
 #define MUSICAT_PAGINATE_H
 
 #include <any>
+#include "musicat/player.h"
 
 namespace musicat {
     namespace paginate {
@@ -53,6 +54,14 @@ namespace musicat {
         void handle_on_message_delete(const dpp::message_delete_t& event);
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
         void gc();
+
+        /**
+         * @brief Construct and replay interaction with paginated message
+         *
+         * @param event
+         * @param queue
+         */
+        void reply_paginated_playlist(const dpp::interaction_create_t& event, std::deque<player::MCTrack> queue, const std::string& title = "Queue");
     }
 }
 
