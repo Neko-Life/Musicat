@@ -303,7 +303,7 @@ namespace musicat {
                     if (qs)
                     {
                         if (fot.length()) fot += " | ";
-                        fot += std::to_string(qs) + "track" + (qs > 1 ? "s" : "");
+                        fot += std::to_string(qs) + " track" + (qs > 1 ? "s" : "");
                     }
                     if (fot.length()) embed.set_footer(fot, "");
                     embeds.emplace_back(embed);
