@@ -4,8 +4,6 @@
 
 #define PRINT_USAGE_REGISTER_SLASH printf("Usage:\n\treg <guild_id|\"g\">\n\trm-reg <guild_id|\"g\">\n")
 
-namespace msl = musicat::command;
-
 namespace musicat {
     int _reg(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool rm = false, bool* running_state = nullptr) {
         if (argc == 2)
@@ -38,7 +36,7 @@ namespace musicat {
                 });
                 return 0;
             }
-            auto c = msl::get_all(sha_id);
+            auto c = command::get_all(sha_id);
             client.global_bulk_command_create(c);
             *running_state = false;
             return 0;
@@ -80,7 +78,7 @@ namespace musicat {
                 });
                 return 0;
             }
-            auto c = msl::get_all(sha_id);
+            auto c = command::get_all(sha_id);
             client.guild_bulk_command_create(c, gid);
             *running_state = false;
             return 0;

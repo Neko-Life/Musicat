@@ -20,7 +20,7 @@ namespace musicat {
                     if (player_manager->pause(event.from, event.command.guild_id, event.command.usr.id)) event.reply("Paused");
                     else event.reply("I'm not playing anything");
                 }
-                catch (const musicat::exception& e)
+                catch (const exception& e)
                 {
                     event.reply(e.what());
                 }

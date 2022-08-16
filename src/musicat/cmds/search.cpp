@@ -31,7 +31,7 @@ namespace musicat {
 
             void slash_run(const dpp::interaction_create_t& event) {
                 std::string query = "";
-                musicat::get_inter_param(event, "query", &query);
+                get_inter_param(event, "query", &query);
 
                 auto res = yt_search::search(query);
                 auto tracks = res.trackResults();
@@ -89,10 +89,10 @@ namespace musicat {
                 );
 
                 bool paginate = embeds.size() > 1;
-                if (paginate) musicat::paginate::add_pagination_buttons(&m);
+                if (paginate) paginate::add_pagination_buttons(&m);
 
                 std::any storage_data = tracks;
-                event.reply(m, musicat::paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds, storage_data));
+                event.reply(m, paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds, storage_data));
             }
         }
     }

@@ -40,7 +40,7 @@ namespace musicat {
                 std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> cvc;
                 try
                 {
-                    uvc = musicat::get_voice_from_gid(event.command.guild_id, event.command.usr.id);
+                    uvc = get_voice_from_gid(event.command.guild_id, event.command.usr.id);
                 }
                 catch (const char* e)
                 {
@@ -48,7 +48,7 @@ namespace musicat {
                 }
                 try
                 {
-                    cvc = musicat::get_voice_from_gid(event.command.guild_id, sha_id);
+                    cvc = get_voice_from_gid(event.command.guild_id, sha_id);
                 }
                 catch (const char* e)
                 {
@@ -56,7 +56,7 @@ namespace musicat {
                 }
                 if (uvc.first->id != cvc.first->id) return event.reply("You're not in my voice channel");
                 int64_t g_l = 0;
-                musicat::get_inter_param(event, "mode", &g_l);
+                get_inter_param(event, "mode", &g_l);
 
                 int8_t a_l = (int8_t)g_l;
 

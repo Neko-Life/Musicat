@@ -164,12 +164,12 @@ namespace musicat {
             {
                 try
                 {
-                    auto u = musicat::get_voice_from_gid(guild_id, user_id);
-                    if (u.first->id != v->channel_id) throw musicat::exception("You're not in my voice channel", 0);
+                    auto u = get_voice_from_gid(guild_id, user_id);
+                    if (u.first->id != v->channel_id) throw exception("You're not in my voice channel", 0);
                 }
                 catch (const char* e)
                 {
-                    throw musicat::exception("You're not in a voice channel", 1);
+                    throw exception("You're not in a voice channel", 1);
                 }
                 v->voiceclient->pause_audio(true);
                 // Paused
@@ -188,7 +188,7 @@ namespace musicat {
             }
             this->reset_shifted();
             std::deque<MCTrack> n_queue = {};
-            auto b = musicat::shuffle_indexes(siz - 1);
+            auto b = shuffle_indexes(siz - 1);
             {
                 std::lock_guard<std::mutex> lk(this->q_m);
                 MCTrack os = this->queue.at(0);
@@ -320,7 +320,7 @@ namespace musicat {
             if (a)
             {
                 std::lock_guard<std::mutex> lk(mp_m);
-                if (musicat::vector_find(&this->manually_paused, guild_id) == this->manually_paused.end())
+                if (vector_find(&this->manually_paused, guild_id) == this->manually_paused.end())
                     this->manually_paused.push_back(guild_id);
                 this->update_info_embed(guild_id);
             }
@@ -329,7 +329,7 @@ namespace musicat {
 
         bool Manager::unpause(dpp::discord_voice_client* voiceclient, dpp::snowflake guild_id) {
             std::lock_guard<std::mutex> lk(this->mp_m);
-            auto l = musicat::vector_find(&this->manually_paused, guild_id);
+            auto l = vector_find(&this->manually_paused, guild_id);
             bool ret;
             if (l != this->manually_paused.end())
             {
@@ -371,7 +371,7 @@ namespace musicat {
                         std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uservc;
                         try
                         {
-                            uservc = musicat::get_voice_from_gid(guild_id, user_id);
+                            uservc = get_voice_from_gid(guild_id, user_id);
                         }
                         catch (...)
                         {
@@ -380,7 +380,7 @@ namespace musicat {
                         try
                         {
                             auto f = from->connecting_voice_channels.find(guild_id);
-                            auto c = musicat::get_voice_from_gid(guild_id, from->creator->me.id);
+                            auto c = get_voice_from_gid(guild_id, from->creator->me.id);
                             if (f == from->connecting_voice_channels.end() || !f->second)
                             {
                                 std::lock_guard<std::mutex> lk(this->dc_m);
@@ -399,7 +399,7 @@ namespace musicat {
                         }
                         catch (...)
                         {
-                            musicat::reset_voice_channel(from, guild_id);
+                            reset_voice_channel(from, guild_id);
 
                             if (user_id && user_vc) try
                             {
@@ -410,7 +410,7 @@ namespace musicat {
                                 {
                                     auto gc = dpp::find_channel(p->second);
                                     if (gc) vm = gc->get_voice_members();
-                                    auto l = musicat::has_listener(&vm);
+                                    auto l = has_listener(&vm);
                                     if (!l && p->second != uservc.first->id) p->second = uservc.first->id;
                                 }
                             }
@@ -428,7 +428,7 @@ namespace musicat {
         void Manager::stop_stream(dpp::snowflake guild_id) {
             {
                 std::lock_guard<std::mutex> lk(this->sq_m);
-                if (musicat::vector_find(&this->stop_queue, guild_id) == this->stop_queue.end())
+                if (vector_find(&this->stop_queue, guild_id) == this->stop_queue.end())
                     this->stop_queue.push_back(guild_id);
             }
         }
@@ -439,8 +439,8 @@ namespace musicat {
             if (!p) return -1;
             try
             {
-                auto u = musicat::get_voice_from_gid(guild_id, user_id);
-                if (u.first->id != v->channel_id) throw musicat::exception("You're not in my voice channel", 0);
+                auto u = get_voice_from_gid(guild_id, user_id);
+                if (u.first->id != v->channel_id) throw exception("You're not in my voice channel", 0);
 
                 unsigned siz = 0;
                 for (auto& i : u.second)
@@ -493,7 +493,7 @@ namespace musicat {
             }
             catch (const char* e)
             {
-                throw musicat::exception("You're not in a voice channel", 1);
+                throw exception("You're not in a voice channel", 1);
             }
             auto siz = p->queue.size();
             if (amount < (siz || 1)) amount = siz || 1;
@@ -651,7 +651,7 @@ namespace musicat {
                     {
                         {
                             std::lock_guard<std::mutex> lk(this->sq_m);
-                            auto sq = musicat::vector_find(&this->stop_queue, server_id);
+                            auto sq = vector_find(&this->stop_queue, server_id);
                             if (sq != this->stop_queue.end()) break;
                         }
                         if (!v || v->terminating)
@@ -676,7 +676,7 @@ namespace musicat {
                         {
                             {
                                 std::lock_guard<std::mutex> lk(this->sq_m);
-                                auto sq = musicat::vector_find(&this->stop_queue, server_id);
+                                auto sq = vector_find(&this->stop_queue, server_id);
                                 if (sq != this->stop_queue.end()) break;
                             }
                             if (res < 1)
@@ -725,7 +725,7 @@ namespace musicat {
 
                             {
                                 std::lock_guard<std::mutex> lk(this->sq_m);
-                                auto sq = musicat::vector_find(&this->stop_queue, server_id);
+                                auto sq = vector_find(&this->stop_queue, server_id);
                                 if (sq != this->stop_queue.end())
                                 {
                                     br = true;
@@ -783,7 +783,7 @@ namespace musicat {
                 if (server_id)
                 {
                     std::lock_guard<std::mutex> lk(this->sq_m);
-                    auto sq = musicat::vector_find(&this->stop_queue, server_id);
+                    auto sq = vector_find(&this->stop_queue, server_id);
                     if (sq != this->stop_queue.end())
                     {
                         printf("ERASING QUEUE\n");
@@ -796,7 +796,7 @@ namespace musicat {
                 {
                     try
                     {
-                        musicat::get_voice_from_gid(server_id, this->sha_id);
+                        get_voice_from_gid(server_id, this->sha_id);
                         return;
                     }
                     catch (...)
@@ -816,7 +816,7 @@ namespace musicat {
         bool Manager::send_info_embed(dpp::snowflake guild_id, bool update, bool force_playing_status) {
             {
                 auto player = this->get_player(guild_id);
-                if (!player) throw musicat::exception("No player");
+                if (!player) throw exception("No player");
 
                 if (update && !player->info_message)
                 {
@@ -828,8 +828,8 @@ namespace musicat {
 
                 auto g = dpp::find_guild(guild_id);
                 auto c = dpp::find_channel(channel_id);
-                bool embed_perms = musicat::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
-                bool view_history_perm = musicat::has_permissions(g, &this->cluster->me, c, { dpp::p_read_message_history });
+                bool embed_perms = has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+                bool view_history_perm = has_permissions(g, &this->cluster->me, c, { dpp::p_read_message_history });
 
                 bool delete_original = false;
                 if (update)
@@ -842,7 +842,7 @@ namespace musicat {
                 }
                 else
                 {
-                    if (!embed_perms) throw musicat::exception("No permission");
+                    if (!embed_perms) throw exception("No permission");
                 }
 
                 dpp::embed e;
@@ -850,7 +850,7 @@ namespace musicat {
                 {
                     e = get_playing_info_embed(guild_id, force_playing_status);
                 }
-                catch (const musicat::exception& e)
+                catch (const exception& e)
                 {
                     fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed: %s\n", e.what());
                     return false;
@@ -958,7 +958,7 @@ namespace musicat {
 
             {
                 std::lock_guard<std::mutex> lk(this->mp_m);
-                auto l = musicat::vector_find(&this->manually_paused, event.voice_client->server_id);
+                auto l = vector_find(&this->manually_paused, event.voice_client->server_id);
                 if (l != this->manually_paused.end())
                 {
                     this->manually_paused.erase(l);
@@ -1002,7 +1002,6 @@ namespace musicat {
                 if (p->queue.size() == 0)
                 {
                     printf("NO SIZE AFTER: %d\n", p->loop_mode);
-                    this->delete_info_embed(event.voice_client->server_id);
                     return false;
                 }
                 p->queue.front().skip_vote.clear();
@@ -1010,18 +1009,15 @@ namespace musicat {
                 p->set_stopped(false);
             }
 
-            printf("To play\n");
-
             try
             {
-                auto c = musicat::get_voice_from_gid(event.voice_client->server_id, this->sha_id);
-                if (!musicat::has_listener(&c.second)) return false;
+                auto c = get_voice_from_gid(event.voice_client->server_id, this->sha_id);
+                if (!has_listener(&c.second)) return false;
             }
             catch (...) {}
 
             if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
             {
-                printf("Starting thread\n");
                 std::thread tj([this, shared_manager](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
                     bool timed_out = false;
                     auto guild_id = v->server_id;
@@ -1055,7 +1051,6 @@ namespace musicat {
                                 //     return true;
                                 // }
                                 auto c = t == this->waiting_vc_ready.end();
-                                printf("Checking for ready state: %d\n", c);
                                 return c;
                             });
                         }
@@ -1074,7 +1069,6 @@ namespace musicat {
                                 //     return true;
                                 // }
                                 auto c = t == this->waiting_file_download.end();
-                                printf("Checking for download: %s \"%s\"\n", c ? "DONE" : "DOWNLOADING", track.filename.c_str());
                                 return c;
                             });
                         }
@@ -1083,7 +1077,7 @@ namespace musicat {
                     if (player->auto_play)
                     {
                         printf("Getting new autoplay track: %s\n", id.c_str());
-                        musicat::command::play::add_track(true,
+                        command::play::add_track(true,
                             v->server_id, string(
                                 "https://www.youtube.com/watch?v="
                             ) + id + "&list=RD" + id,
@@ -1109,7 +1103,7 @@ namespace musicat {
                     }
                     auto c = dpp::find_channel(channel_id);
                     auto g = dpp::find_guild(guild_id);
-                    bool embed_perms = musicat::has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+                    bool embed_perms = has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
                     {
                         std::ifstream test(string("music/") + track.filename, std::ios_base::in | std::ios_base::binary);
                         if (!test.is_open())
@@ -1126,7 +1120,7 @@ namespace musicat {
                         }
                         else test.close();
                     }
-                    if (timed_out) throw musicat::exception("Operation took too long, aborted...", 0);
+                    if (timed_out) throw exception("Operation took too long, aborted...", 0);
                     if (meta == "r") v->send_silence(60);
 
                     // Send play info embed
@@ -1135,16 +1129,6 @@ namespace musicat {
                         this->play(v, track.filename, channel_id, embed_perms);
                         if (embed_perms)
                         {
-                            // Channel debug
-                            printf("BEGIN EMBED INFO UPDATE DEBUG\n");
-                            if (c) printf("Channel found: %ld, last message: %ld\n", c->id, c->last_message_id);
-                            if (player->info_message)
-                            {
-                                printf("Last Info Embed exist: %ld, with channel: %ld\n", player->info_message->id, player->info_message->channel_id);
-                            }
-                            if (c && player->info_message && c->last_message_id == player->info_message->id)
-                                printf("Channel last message Id is the same as Last Info Embed Id: %ld, %ld\nUPDATE SHOULD EXECUTE\n", c->last_message_id, player->info_message->id);
-
                             // Update if last message is the info embed message
                             if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
                             {
@@ -1157,9 +1141,9 @@ namespace musicat {
                                 this->send_info_embed(guild_id, false, true);
                             }
                         }
-                        else printf("No channel or permission to send info embed\n");
+                        else fprintf(stderr, "[EMBED_UPDATE] No channel or permission to send info embed\n");
                     }
-                    catch (const musicat::exception& e)
+                    catch (const exception& e)
                     {
                         fprintf(stderr, "[ERROR(player.646)] %s\n", e.what());
                         auto cd = e.code();
@@ -1182,7 +1166,7 @@ namespace musicat {
 
         dpp::embed Manager::get_playing_info_embed(dpp::snowflake guild_id, bool force_playing_status) {
             auto player = this->get_player(guild_id);
-            if (!player) throw musicat::exception("No player");
+            if (!player) throw exception("No player");
 
             // Reset shifted tracks
             player->reset_shifted();
@@ -1194,7 +1178,7 @@ namespace musicat {
             {
                 std::lock_guard<std::mutex> lk(player->q_m);
                 auto siz = player->queue.size();
-                if (!siz) throw musicat::exception("No track");
+                if (!siz) throw exception("No track");
                 track = player->queue.front();
 
                 prev_track = player->queue.at(siz - 1UL);
@@ -1251,7 +1235,7 @@ namespace musicat {
 
             if (tinfo)
             {
-                ft += musicat::format_duration(track.info.duration());
+                ft += format_duration(track.info.duration());
             }
 
             bool has_p = false;
@@ -1367,11 +1351,11 @@ namespace musicat {
                 {
                     std::lock_guard<std::mutex> lk(this->mp_m);
                     if (event.from
-                        && musicat::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
+                        && vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
                     {
                         try
                         {
-                            auto voice = musicat::get_voice_from_gid(event.state.guild_id, sha_id);
+                            auto voice = get_voice_from_gid(event.state.guild_id, sha_id);
                             // Whether there's human listening in the vc
                             bool p = false;
                             for (auto l : voice.second)
@@ -1408,13 +1392,13 @@ namespace musicat {
                     {
                         std::lock_guard<std::mutex> lk(this->mp_m);
                         // Whether the track paused automatically
-                        if (musicat::vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
+                        if (vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
                         {
                             std::thread tj([this, event](dpp::discord_voice_client* vc) {
                                 std::this_thread::sleep_for(std::chrono::milliseconds(2500));
                                 try
                                 {
-                                    auto a = musicat::get_voice_from_gid(event.state.guild_id, event.state.user_id);
+                                    auto a = get_voice_from_gid(event.state.guild_id, event.state.user_id);
                                     if (vc && !vc->terminating && a.first && a.first->id == event.state.channel_id)
                                     {
                                         vc->pause_audio(false);
@@ -1430,8 +1414,8 @@ namespace musicat {
                     {
                         try
                         {
-                            auto m = musicat::get_voice_from_gid(event.state.guild_id, this->sha_id);
-                            if (musicat::has_listener(&m.second))
+                            auto m = get_voice_from_gid(event.state.guild_id, this->sha_id);
+                            if (has_listener(&m.second))
                             {
                                 std::lock_guard<std::mutex> lk(this->dc_m);
                                 std::lock_guard<std::mutex> lk2(this->c_m);
@@ -1482,7 +1466,7 @@ namespace musicat {
 
                 try
                 {
-                    auto a = musicat::get_voice_from_gid(event.state.guild_id, event.state.user_id);
+                    auto a = get_voice_from_gid(event.state.guild_id, event.state.user_id);
                     auto v = event.from->get_voice(event.state.guild_id);
                     if (v && v->channel_id && v->channel_id != a.first->id)
                     {
@@ -1500,7 +1484,7 @@ namespace musicat {
                             event.from->disconnect_voice(event.state.guild_id);
                         }
 
-                        if (musicat::has_listener(&a.second))
+                        if (has_listener(&a.second))
                         {
                             std::lock_guard<std::mutex> lk(this->c_m);
                             std::lock_guard<std::mutex> lk2(this->wd_m);

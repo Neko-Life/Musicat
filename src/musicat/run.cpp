@@ -301,7 +301,9 @@ namespace musicat {
             }
 
             player_manager->set_ignore_marker(event.voice_client->server_id);
-            player_manager->handle_on_track_marker(event, player_manager);
+            if (!player_manager->handle_on_track_marker(event, player_manager)){
+                player_manager->delete_info_embed(event.voice_client->server_id);
+            }
 
             std::thread t([player_manager, event]() {
                 short int count = 0;

@@ -28,8 +28,8 @@ namespace musicat {
             void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
                 int64_t a = -1;
                 int64_t b = -1;
-                musicat::get_inter_param(event, "state", &a);
-                musicat::get_inter_param(event, "no-duplicate-threshold", &b);
+                get_inter_param(event, "state", &a);
+                get_inter_param(event, "no-duplicate-threshold", &b);
                 auto g = player_manager->create_player(event.command.guild_id);
                 bool c = g->auto_play;
                 size_t st = g->max_history_size;

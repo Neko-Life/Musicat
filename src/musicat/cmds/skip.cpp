@@ -27,7 +27,7 @@ namespace musicat {
                 {
                     auto v = event.from->get_voice(event.command.guild_id);
                     int64_t am = 1;
-                    musicat::get_inter_param(event, "amount", &am);
+                    get_inter_param(event, "amount", &am);
                     int res = player_manager->skip(v, event.command.guild_id, event.command.usr.id, am);
                     switch (res)
                     {
@@ -36,7 +36,7 @@ namespace musicat {
                     default: event.reply(std::to_string(res) + " member" + std::string(res > 1 ? "s" : "") + " voted to skip, add more vote to skip current track");
                     }
                 }
-                catch (const musicat::exception& e)
+                catch (const exception& e)
                 {
                     event.reply(e.what());
                 }

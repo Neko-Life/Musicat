@@ -19,7 +19,7 @@ namespace musicat {
             {
                 if (del->second.has_storage_data)
                 {
-                    musicat::storage::remove(msg_id);
+                    storage::remove(msg_id);
                 }
                 paginated_messages.erase(del);
             }
@@ -86,7 +86,7 @@ namespace musicat {
                 double L = this->message->get_creation_time();
                 disable_components = (t - (time_t)L) > ONE_HOUR_SECOND;
             }
-            if (!musicat::has_permissions(
+            if (!has_permissions(
                 dpp::find_guild(this->message->guild_id),
                 &this->client->me,
                 dpp::find_channel(this->message->channel_id),
@@ -196,8 +196,8 @@ namespace musicat {
                         printf("PAGINATED ID: %ld\nLEN: %ld\n", m->id, paginated_messages.size());
                         if (has_v)
                         {
-                            musicat::storage::set(m->id, storage_data);
-                            printf("STORAGE ID: %ld\nLEN: %ld\n", m->id, musicat::storage::size());
+                            storage::set(m->id, storage_data);
+                            printf("STORAGE ID: %ld\nLEN: %ld\n", m->id, storage::size());
                         }
                     });
                 }
@@ -241,7 +241,7 @@ namespace musicat {
             time(&t);
 
             size_t pg_s = paginated_messages.size();
-            printf("[PAGINATION_GC] SIZ0: %ld, %ld\n", pg_s, musicat::storage::size());
+            printf("[PAGINATION_GC] SIZ0: %ld, %ld\n", pg_s, storage::size());
             size_t d = 0;
             auto i = paginated_messages.begin();
             while (i != paginated_messages.end())
@@ -250,12 +250,12 @@ namespace musicat {
                 if ((t - (time_t)L) > ONE_HOUR_SECOND)
                 {
                     printf("Deleting %ld: %ld\n", ++d, i->second.message->id);
-                    musicat::storage::remove(i->first);
+                    storage::remove(i->first);
                     i = paginated_messages.erase(i);
                 }
                 else i++;
             }
-            printf("[PAGINATION_GC] SIZ1: %ld, %ld\n", paginated_messages.size(), musicat::storage::size());
+            printf("[PAGINATION_GC] SIZ1: %ld, %ld\n", paginated_messages.size(), storage::size());
         }
 
         void reply_paginated_playlist(const dpp::interaction_create_t& event, std::deque<player::MCTrack> queue, const std::string& title) {
@@ -296,7 +296,16 @@ namespace musicat {
                 {
                     embed.set_title(title)
                         .set_description(desc.length() > 2048 ? "Description too long, pagination is on the way!" : desc);
-                    if (totald) embed.set_footer(format_duration(totald), "");
+
+                    std::string fot = "";
+
+                    if (totald) fot += format_duration(totald);
+                    if (qs)
+                    {
+                        if (fot.length()) fot += " | ";
+                        fot += std::to_string(qs) + "track" + (qs > 1 ? "s" : "");
+                    }
+                    if (fot.length()) embed.set_footer(fot, "");
                     embeds.emplace_back(embed);
                     embed = dpp::embed();
                     desc = "";

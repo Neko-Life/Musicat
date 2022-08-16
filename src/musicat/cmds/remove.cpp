@@ -24,8 +24,8 @@ namespace musicat {
             void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
                 int64_t fr = 1;
                 int64_t to = 1;
-                musicat::get_inter_param(event, "track", &fr);
-                musicat::get_inter_param(event, "amount", &to);
+                get_inter_param(event, "track", &fr);
+                get_inter_param(event, "amount", &to);
                 std::deque<player::MCTrack> queue = player_manager->get_queue(event.command.guild_id);
                 if (fr < 1 || ((size_t)fr + 1) > queue.size())
                 {
