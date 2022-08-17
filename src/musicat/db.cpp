@@ -92,6 +92,16 @@ namespace musicat {
             return status;
         }
 
+        ConnStatusType reconnect(const bool& force, const std::string& _conninfo) {
+            if (conn == nullptr || force)
+            {
+                if (_conninfo.length()) conninfo = _conninfo;
+                shutdown();
+                return init(conninfo);
+            }
+            return CONNECTION_OK;
+        }
+
         int cancel() {
             if (!conn) return 0;
             std::lock_guard<std::mutex> lk(conn_mutex);
@@ -244,16 +254,32 @@ namespace musicat {
             std::string query("INSERT INTO \"");
             query += std::to_string(user_id) + "_playlist\" "\
                 "(\"raw\", \"name\") VALUES ("
-                + values.c_str()
+                + values
                 + ", '" + name
                 + "') ON CONFLICT (\"name\") DO UPDATE SET \"raw\" = "
-                + values.c_str()
+                + values
                 + ", \"ts\" = CURRENT_TIMESTAMP;";
 
             std::lock_guard<std::mutex> lk(conn_mutex);
             PGresult* res = _db_exec(query.c_str());
 
             ExecStatusType status = _check_status(res, "update_user_playlist", PGRES_COMMAND_OK);
+
+            return finish_res(res, status);
+        }
+
+        ExecStatusType
+            delete_user_playlist(const dpp::snowflake& user_id, const std::string& name) {
+
+            if (!user_id) return (ExecStatusType)-1;
+
+            std::string query("INSERT INTO \"");
+            query += std::to_string(user_id) + "_playlist\";";
+
+            std::lock_guard<std::mutex> lk(conn_mutex);
+            PGresult* res = _db_exec(query.c_str());
+
+            ExecStatusType status = _check_status(res, "delete_user_playlist", PGRES_COMMAND_OK);
 
             return finish_res(res, status);
         }

@@ -717,9 +717,9 @@ namespace musicat {
 
                             bool br = v->terminating;
 
-                            while (v && !v->terminating && v->get_secs_remaining() > 3.0)
+                            while (v && !v->terminating && v->get_secs_remaining() > 0.5)
                             {
-                                sleep(1);
+                                std::this_thread::sleep_for(std::chrono::milliseconds(250));
                                 if (v->terminating) br = true;
                             }
 

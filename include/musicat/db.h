@@ -47,6 +47,15 @@ namespace musicat {
         void shutdown();
 
         /**
+         * @brief Reconnect database, setting the conninfo with new one if provided
+         *
+         * @param force Whether to force even it's not needed to reconnect
+         * @param _conninfo Conn param
+         * @return ConnStatusType Return CONNECTION_OK on success or not needing to reconnect
+         */
+        ConnStatusType reconnect(const bool& force = false, const std::string& _conninfo = "");
+
+        /**
          * @brief Get current connect param
          *
          * @return std::string

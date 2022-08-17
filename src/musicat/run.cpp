@@ -45,19 +45,20 @@ namespace musicat {
         if (argc > 1)
         {
             int ret = cli(client, sha_id, argc, argv, &running);
-            while (running) sleep(1);
+            while (running) std::this_thread::sleep_for(std::chrono::seconds(1));
             return ret;
         }
 
+        const bool no_db = sha_cfg["SHA_DB"].is_null();
+        string db_connect_param = "";
         {
-            bool no_db = sha_cfg["SHA_DB"].is_null();
             if (no_db)
             {
                 printf("[WARN] No database configured, some functionality might not work\n");
             }
             else
             {
-                string db_connect_param = sha_cfg["SHA_DB"].get<string>();
+                db_connect_param = sha_cfg["SHA_DB"].get<string>();
                 ConnStatusType status = database::init(db_connect_param);
                 if (status != CONNECTION_OK)
                 {
@@ -301,7 +302,8 @@ namespace musicat {
             }
 
             player_manager->set_ignore_marker(event.voice_client->server_id);
-            if (!player_manager->handle_on_track_marker(event, player_manager)){
+            if (!player_manager->handle_on_track_marker(event, player_manager))
+            {
                 player_manager->delete_info_embed(event.voice_client->server_id);
             }
 
@@ -344,7 +346,7 @@ namespace musicat {
 
         while (running)
         {
-            sleep(5);
+            std::this_thread::sleep_for(std::chrono::seconds(30));
 
             // GC
             if ((time(NULL) - last_gc) > ONE_HOUR_SECOND)
@@ -360,6 +362,8 @@ namespace musicat {
                 auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
                 printf("[GC] Ran for %ld ms\n", done.count());
             }
+
+            if (!no_db) database::reconnect(false, db_connect_param);
         }
 
         database::shutdown();
