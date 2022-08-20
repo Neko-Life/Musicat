@@ -1282,8 +1282,8 @@ namespace musicat {
             return e;
         }
 
-        std::vector<string> Manager::get_available_tracks(const size_t amount) const {
-            std::vector<string> ret = {};
+        std::vector<std::string> Manager::get_available_tracks(const size_t amount) const {
+            std::vector<std::string> ret = {};
             size_t c = 0;
             auto dir = opendir("./music");
 

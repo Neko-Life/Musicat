@@ -6,8 +6,6 @@
 
 namespace musicat {
     namespace paginate {
-        using string = std::string;
-
         struct pages_t {
             dpp::cluster* client;
             std::shared_ptr<dpp::message> message;
@@ -45,7 +43,7 @@ namespace musicat {
 
         extern std::map<dpp::snowflake, pages_t> paginated_messages;
 
-        void update_page(dpp::snowflake msg_id, string param);//, dpp::message* msg = NULL);
+        void update_page(dpp::snowflake msg_id, std::string param);//, dpp::message* msg = NULL);
         void delete_page(dpp::snowflake msg_id);
 
         dpp::command_completion_event_t get_inter_reply_cb(const dpp::interaction_create_t& event, bool paginate, dpp::cluster* client, std::vector<dpp::embed> embeds, std::any storage_data = std::any());

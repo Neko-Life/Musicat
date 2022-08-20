@@ -60,7 +60,7 @@ namespace musicat {
                     );
                 return;
             }
-            if (new_current == string::npos)
+            if (new_current == std::string::npos)
             {
                 delete_page(this->message->id);
                 return;
@@ -104,7 +104,7 @@ namespace musicat {
             if (disable_components)
             {
                 printf("(t > 3600)\n");
-                c = string::npos;
+                c = std::string::npos;
                 for (auto& i : this->message->components)
                     for (auto& a : i.components)
                         a.set_disabled(true);
@@ -140,7 +140,7 @@ namespace musicat {
             this->edit(0);
         }
 
-        void update_page(dpp::snowflake msg_id, string param) {//, dpp::message* msg) {
+        void update_page(dpp::snowflake msg_id, std::string param) {//, dpp::message* msg) {
             auto a = paginated_messages.find(msg_id);
             if (a == paginated_messages.end())
             {

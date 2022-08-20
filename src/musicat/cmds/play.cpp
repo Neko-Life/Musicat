@@ -14,11 +14,11 @@ namespace musicat {
                     std::string param,
                     player_manager_ptr player_manager) {
 
-                    std::vector<std::pair<string, string>> avail = {};
+                    std::vector<std::pair<std::string, std::string>> avail = {};
 
                     const bool no_len = !param.length();
 
-                    std::vector<string> get = player_manager->get_available_tracks(no_len ? 25U : 0U);
+                    std::vector<std::string> get = player_manager->get_available_tracks(no_len ? 25U : 0U);
                     avail.reserve(get.size());
 
                     for (const std::string& i : get) avail.push_back(std::make_pair(i, i));
@@ -295,14 +295,14 @@ namespace musicat {
 
                 bool dling = false;
 
-                std::ifstream test((string("music/") + fname).c_str());
+                std::ifstream test((std::string("music/") + fname).c_str());
                 if (!test.is_open())
                 {
                     dling = true;
                     if (from_interaction)
-                        event.edit_response(string("Downloading ")
+                        event.edit_response(std::string("Downloading ")
                             + result.title()
-                            + std::string("... Gimme 10 sec ight"));
+                            + "... Gimme 10 sec ight");
 
                     if (player_manager->waiting_file_download.find(fname) == player_manager->waiting_file_download.end())
                     {
@@ -313,7 +313,7 @@ namespace musicat {
                 else
                 {
                     test.close();
-                    if (from_interaction) event.edit_response(string("Added: ") + result.title());
+                    if (from_interaction) event.edit_response(std::string("Added: ") + result.title());
                 }
 
                 std::thread pjt([player_manager, from, guild_id]() {
@@ -341,7 +341,7 @@ namespace musicat {
                     if (dling)
                     {
                         player_manager->wait_for_download(fname);
-                        if (from_interaction) event.edit_response(string("Added: ") + result.title());
+                        if (from_interaction) event.edit_response(std::string("Added: ") + result.title());
                     }
                     if (from) p->from = from;
 

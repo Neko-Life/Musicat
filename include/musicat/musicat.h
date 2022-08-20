@@ -8,8 +8,6 @@
 
 namespace musicat
 {
-    using string = std::string;
-
     // Main
     int run(int argc, const char* argv[]);
 
@@ -18,14 +16,14 @@ namespace musicat
 
     struct settings
     {
-        string defaultPrefix;
+        std::string defaultPrefix;
 
-        std::map<dpp::snowflake, string> prefix;
+        std::map<dpp::snowflake, std::string> prefix;
         std::vector<dpp::snowflake> joining_list;
 
-        string get_prefix(const dpp::snowflake guildId) const;
+        std::string get_prefix(const dpp::snowflake guildId) const;
 
-        auto set_prefix(const dpp::snowflake guildId, const string newPrefix);
+        auto set_prefix(const dpp::snowflake guildId, const std::string newPrefix);
 
         void set_joining_vc(dpp::snowflake vc_id);
 
@@ -65,16 +63,16 @@ namespace musicat
      * @brief Execute shell cmd and return anything it printed to console
      *
      * @param cmd Command
-     * @return string
+     * @return std::string
      * @throw const char* Exec failed (can't call popen or unknown command)
      */
-    string exec(string cmd);
+    std::string exec(std::string cmd);
 
     bool has_listener(std::map<dpp::snowflake, dpp::voicestate>* vstate_map);
 
     bool has_listener_fetch(dpp::cluster* client, std::map<dpp::snowflake, dpp::voicestate>* vstate_map);
 
-    template<typename T, typename E> void get_inter_param(const E& event, string param_name, T* param)
+    template<typename T, typename E> void get_inter_param(const E& event, std::string param_name, T* param)
     {
         auto p = event.get_parameter(param_name);
         if (p.index()) *param = std::get<T>(p);
@@ -102,9 +100,9 @@ namespace musicat
      * @brief Format ms duration to HH:MM:SS
      *
      * @param dur
-     * @return string
+     * @return std::string
      */
-    string format_duration(uint64_t dur);
+    std::string format_duration(uint64_t dur);
 
     /**
      * @brief Get random index of len to use as base to shuffle an array

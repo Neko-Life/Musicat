@@ -41,7 +41,7 @@ namespace musicat {
                 size_t ret = player_manager->remove_track(event.command.guild_id, (size_t)fr, (size_t)to);
                 if (ret)
                 {
-                    event.reply("Removed " + std::to_string(ret) + " track" + string(ret > 1 ? "s" : ""));
+                    event.reply("Removed " + std::to_string(ret) + " track" + std::string(ret > 1 ? "s" : ""));
                     std::deque<player::MCTrack> queue2 = player_manager->get_queue(event.command.guild_id);
                     if (queue2.size() < 2U || queue2.at(1).title() != f_t.title() || queue2.back().title() != l_t.title()) try
                     {

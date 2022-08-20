@@ -202,7 +202,7 @@ namespace musicat {
         client.on_autocomplete([&player_manager](const dpp::autocomplete_t& event) {
             const string cmd = event.name;
             string opt = "";
-            std::vector<string> sub_cmd = {};
+            std::vector<std::string> sub_cmd = {};
             string param = "";
 
             bool sub_level = true;

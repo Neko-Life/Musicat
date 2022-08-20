@@ -11,10 +11,10 @@ namespace musicat {
             printf("Provide guild_id or \"g\" to register globally\n");
             return 0;
         }
-        string a2 = string(argv[2]);
+        std::string a2 = std::string(argv[2]);
         if (a2 == "g")
         {
-            printf((string(rm ? "Deleting" : "Registering") + " commands globally...\n").c_str());
+            printf((std::string(rm ? "Deleting" : "Registering") + " commands globally...\n").c_str());
             if (rm)
             {
                 client.me.id = sha_id;
@@ -56,7 +56,7 @@ namespace musicat {
                 printf("Invalid integer, too large\n");
                 return 0;
             }
-            printf((string(rm ? "Deleting" : "Registering") + " commands in %ld\n").c_str(), gid);
+            printf((std::string(rm ? "Deleting" : "Registering") + " commands in %ld\n").c_str(), gid);
             if (rm)
             {
                 client.me.id = sha_id;
@@ -87,7 +87,7 @@ namespace musicat {
 
     int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool* running_state)
     {
-        string a1 = string(argv[1]);
+        std::string a1 = std::string(argv[1]);
         // for (int i = 1; i <= argc; i++){
         //     auto a=argv[i];
         //     if (a)
