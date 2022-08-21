@@ -267,7 +267,7 @@ namespace musicat {
                         return;
                     }
 
-                    if (database::delete_user_playlist(event.command.usr.id, p_id) == PGRES_COMMAND_OK)
+                    if (database::delete_user_playlist(event.command.usr.id, p_id) == PGRES_TUPLES_OK)
                         event.reply(std::string("Deleted playlist ") + p_id);
                     else event.reply("Unknown playlist");
                 }

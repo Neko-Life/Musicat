@@ -276,12 +276,16 @@ namespace musicat {
             std::string query("DELETE FROM \"");
             query += std::to_string(user_id) + "_playlist\" "\
                 "WHERE \"name\" = '"
-                + name + "';";
+                + name + "' RETURNING \"name\" ;";
 
             std::lock_guard<std::mutex> lk(conn_mutex);
             PGresult* res = _db_exec(query.c_str());
 
-            ExecStatusType status = _check_status(res, "delete_user_playlist", PGRES_COMMAND_OK);
+            ExecStatusType status = PGRES_FATAL_ERROR;
+
+            if (!PQgetisnull(res, 0, 0))
+                status = _check_status(res, "delete_user_playlist", PGRES_TUPLES_OK);
+            else _check_status(res, "delete_user_playlist", PGRES_TUPLES_OK);
 
             return finish_res(res, status);
         }
