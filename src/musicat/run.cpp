@@ -348,12 +348,12 @@ namespace musicat {
             std::this_thread::sleep_for(std::chrono::seconds(30));
 
             // GC
-            if ((time(NULL) - last_gc) > ONE_HOUR_SECOND)
+            if (!running || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
                 printf("[GC] Starting scheduled gc\n");
                 auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
-                paginate::gc();
+                paginate::gc(!running);
 
                 // reset last_gc
                 time(&last_gc);

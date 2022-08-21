@@ -51,7 +51,7 @@ namespace musicat {
 
         void handle_on_message_delete(const dpp::message_delete_t& event);
         void handle_on_message_delete_bulk(const dpp::message_delete_bulk_t& event);
-        void gc();
+        void gc(bool clear);
 
         /**
          * @brief Construct and replay interaction with paginated message

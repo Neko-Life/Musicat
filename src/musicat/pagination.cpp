@@ -236,7 +236,7 @@ namespace musicat {
             for (auto i : event.deleted) delete_page(i);
         }
 
-        void gc() {
+        void gc(bool clear) {
             time_t t;
             time(&t);
 
@@ -247,7 +247,7 @@ namespace musicat {
             while (i != paginated_messages.end())
             {
                 double L = i->second.message->get_creation_time();
-                if ((t - (time_t)L) > ONE_HOUR_SECOND)
+                if (clear || (t - (time_t)L) > ONE_HOUR_SECOND)
                 {
                     printf("Deleting %ld: %ld\n", ++d, i->second.message->id);
                     storage::remove(i->first);
