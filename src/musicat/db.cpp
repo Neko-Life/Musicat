@@ -273,8 +273,10 @@ namespace musicat {
 
             if (!user_id) return (ExecStatusType)-1;
 
-            std::string query("INSERT INTO \"");
-            query += std::to_string(user_id) + "_playlist\";";
+            std::string query("DELETE FROM \"");
+            query += std::to_string(user_id) + "_playlist\" "\
+                "WHERE \"name\" = '"
+                + name + "';";
 
             std::lock_guard<std::mutex> lk(conn_mutex);
             PGresult* res = _db_exec(query.c_str());

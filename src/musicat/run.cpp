@@ -258,9 +258,8 @@ namespace musicat {
         client.on_interaction_create([&player_manager](const dpp::interaction_create_t& event)
         {
             if (!event.command.guild_id) return;
-            if (event.command.usr.is_bot()) return;
 
-            auto cmd = event.command.get_command_name();
+            string cmd = event.command.get_command_name();
 
             if (cmd == "hello") command::hello::slash_run(event);
             else if (cmd == "why") event.reply("Why not");

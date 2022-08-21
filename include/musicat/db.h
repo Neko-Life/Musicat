@@ -121,11 +121,20 @@ namespace musicat {
          * @param user_id
          * @param name
          * @param playlist
-         * @return ExecStatusType -1 if user_id is 0
+         * @return ExecStatusType -1 if user_id is 0 else PGRES_COMMAND_OK
          */
         ExecStatusType update_user_playlist(const dpp::snowflake& user_id,
             const std::string& name,
             const std::deque<player::MCTrack>& playlist);
+
+        /**
+         * @brief Delete user playlist with id `name`
+         *
+         * @param user_id
+         * @param name
+         * @return ExecStatusType -1 if user_id is 0 else PGRES_COMMAND_OK
+         */
+        ExecStatusType delete_user_playlist(const dpp::snowflake& user_id, const std::string& name);
     }
 }
 

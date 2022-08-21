@@ -7,6 +7,13 @@
 
 namespace musicat {
     namespace command {
+        std::string _get_id_arg(const dpp::interaction_create_t& event) {
+            dpp::command_interaction cmd = event.command.get_command_interaction();
+
+            dpp::command_value val = cmd.options.at(0).options.at(0).value;
+            return val.index() ? std::get<std::string>(val) : "";
+        }
+
         namespace playlist {
             namespace autocomplete {
                 void id(const dpp::autocomplete_t& event, std::string param) {
@@ -58,15 +65,11 @@ namespace musicat {
                     size_t q_size = q.size();
                     if (!q_size)
                     {
-                        event.reply("Not a track currently waiting in the queue");
+                        event.reply("Not a single track currently waiting in the queue");
                         return;
                     }
 
-                    dpp::command_interaction cmd = event.command.get_command_interaction();
-
-                    dpp::command_value val = cmd.options.at(0).options.at(0).value;
-
-                    const std::string p_id = val.index() ? std::get<std::string>(val) : "";
+                    const std::string p_id = _get_id_arg(event);
 
                     if (!database::valid_name(p_id))
                     {
@@ -105,18 +108,14 @@ namespace musicat {
                         dpp::command_option(
                             dpp::co_string,
                             "id",
-                            "Playlist name",
+                            "Playlist name [to load]",
                             true
                         ).set_auto_complete(true)
                     );
                 }
 
                 void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const bool view) {
-                    dpp::command_interaction cmd = event.command.get_command_interaction();
-
-                    dpp::command_value val = cmd.options.at(0).options.at(0).value;
-
-                    const std::string p_id = val.index() ? std::get<std::string>(val) : "";
+                    const std::string p_id = _get_id_arg(event);
 
                     if (!database::valid_name(p_id))
                     {
@@ -243,6 +242,37 @@ namespace musicat {
                 }
             }
 
+            namespace delete_ {
+                dpp::command_option get_option_obj() {
+                    return dpp::command_option(
+                        dpp::co_sub_command,
+                        "delete",
+                        "Delete [saved playlist]"
+                    ).add_option(
+                        dpp::command_option(
+                            dpp::co_string,
+                            "id",
+                            "Playlist name [to delete]",
+                            true
+                        ).set_auto_complete(true)
+                    );
+                }
+
+                void slash_run(const dpp::interaction_create_t& event) {
+                    const std::string p_id = _get_id_arg(event);
+
+                    if (!database::valid_name(p_id))
+                    {
+                        event.reply("Invalid `id` format!");
+                        return;
+                    }
+
+                    if (database::delete_user_playlist(event.command.usr.id, p_id) == PGRES_COMMAND_OK)
+                        event.reply(std::string("Deleted playlist ") + p_id);
+                    else event.reply("Unknown playlist");
+                }
+            }
+
             dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
                 return dpp::slashcommand("playlist", "Your playlist manager", sha_id)
                     .add_option(
@@ -251,6 +281,8 @@ namespace musicat {
                         load::get_option_obj()
                     ).add_option(
                         view::get_option_obj()
+                    ).add_option(
+                        delete_::get_option_obj()
                     );
             }
 
@@ -268,6 +300,7 @@ namespace musicat {
                 if (cmd == "save") save::slash_run(event, player_manager);
                 else if (cmd == "load") load::slash_run(event, player_manager);
                 else if (cmd == "view") view::slash_run(event);
+                else if (cmd == "delete") delete_::slash_run(event);
                 else
                 {
                     fprintf(stderr, "[ERROR] !!! NO SUB-COMMAND '%s' FOR COMMAND 'playlist' !!!\n", cmd.c_str());
