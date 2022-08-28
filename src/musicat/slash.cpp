@@ -20,6 +20,7 @@ namespace musicat {
                 search::get_register_obj(sha_id),
                 playlist::get_register_obj(sha_id),
                 stop::get_register_obj(sha_id),
+		// interactive_message::get_register_obj(sha_id),
                 });
             return slash_commands;
         }

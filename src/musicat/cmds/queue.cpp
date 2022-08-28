@@ -4,7 +4,7 @@
 namespace musicat {
     namespace command {
         namespace queue {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand(
                     "queue",
                     "Show or modify [tracks in the] queue",

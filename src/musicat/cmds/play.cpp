@@ -29,7 +29,7 @@ namespace musicat {
                 }
             }
 
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand(
                     "play",
                     "Play [a song], resume [paused playback], or add [song to queue]",

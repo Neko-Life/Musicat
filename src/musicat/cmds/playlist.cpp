@@ -273,7 +273,7 @@ namespace musicat {
                 }
             }
 
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("playlist", "Your playlist manager", sha_id)
                     .add_option(
                         save::get_option_obj()

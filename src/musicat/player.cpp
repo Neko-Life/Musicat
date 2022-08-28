@@ -584,12 +584,9 @@ namespace musicat {
 		    }
 		    start_time = std::chrono::high_resolution_clock::now();
 		    printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
-		    {
-			std::ifstream fs((string("music/") + fname).c_str());
-			if (!fs.is_open()) throw 2;
-			else fs.close();
-		    }
+		    
 		    fd = fopen((string("music/") + fname).c_str(), "rb");
+		    if (!fd) throw 2;
 
 		    printf("Initializing buffer\n");
 		    ogg_page og;
@@ -609,13 +606,16 @@ namespace musicat {
 
 		    buffer = ogg_sync_buffer(&oy, sz);
 		    fread(buffer, 1, sz, fd);
+		    fclose(fd);
+
+		    bool no_prob = true;
 
 		    ogg_sync_wrote(&oy, sz);
 
 		    if (ogg_sync_pageout(&oy, &og) != 1)
 		    {
 			fprintf(stderr, "Does not appear to be ogg stream.\n");
-			exit(1);
+			no_prob = false;
 		    }
 
 		    ogg_stream_init(&os, ogg_page_serialno(&og));
@@ -623,13 +623,13 @@ namespace musicat {
 		    if (ogg_stream_pagein(&os, &og) < 0)
 		    {
 			fprintf(stderr, "Error reading initial page of ogg stream.\n");
-			exit(1);
+			no_prob = false;
 		    }
 
 		    if (ogg_stream_packetout(&os, &op) != 1)
 		    {
 			fprintf(stderr, "Error reading header packet of ogg stream.\n");
-			exit(1);
+			no_prob = false;
 		    }
 
 		    /* We must ensure that the ogg stream actually contains opus data */
@@ -654,7 +654,7 @@ namespace musicat {
 		    // }
 
 		    /* Now loop though all the pages and send the packets to the vc */
-		    while (ogg_sync_pageout(&oy, &og) == 1)
+		    if (no_prob) while (ogg_sync_pageout(&oy, &og) == 1)
 		    {
 			{
 			    std::lock_guard<std::mutex> lk(this->sq_m);
@@ -674,7 +674,7 @@ namespace musicat {
 			if (ogg_stream_pagein(&os, &og) < 0)
 			{
 			    fprintf(stderr, "Error reading page of Ogg bitstream data.\n");
-			    exit(1);
+			    break;
 			}
 
 			int res;
@@ -753,7 +753,6 @@ namespace musicat {
 		    fprintf(stderr, "[ERROR(player.553)] %d: %s\n", e.code().value(), e.what());
 		}
 		/* Cleanup */
-		fclose(fd);
 		ogg_stream_clear(&os);
 		ogg_sync_clear(&oy);
 		auto end_time = std::chrono::high_resolution_clock::now();

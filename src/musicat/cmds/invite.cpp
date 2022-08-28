@@ -3,7 +3,7 @@
 namespace musicat {
     namespace command {
         namespace invite {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("invite", "My invite link", sha_id);
             }
 

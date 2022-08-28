@@ -279,6 +279,7 @@ namespace musicat {
             else if (cmd == "search") command::search::slash_run(event);
             else if (cmd == "playlist") command::playlist::slash_run(event, player_manager);
             else if (cmd == "stop") command::stop::slash_run(event, player_manager);
+            else if (cmd == "interactive_message") command::interactive_message::slash_run(event);
             else
             {
                 event.reply("Seems like somethin's wrong here, I can't find that command anywhere in my database");

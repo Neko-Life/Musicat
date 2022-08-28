@@ -3,7 +3,7 @@
 namespace musicat {
     namespace command {
         namespace autoplay {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("autoplay", "Set [guild player] autoplay [state]", sha_id)
                     .add_option(
                         dpp::command_option(

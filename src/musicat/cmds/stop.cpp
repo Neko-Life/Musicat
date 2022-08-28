@@ -3,7 +3,7 @@
 namespace musicat {
     namespace command {
         namespace stop {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("stop", "STOP CURRENT PLAYBACK! STOP IT NOW!!!", sha_id);
             }
 

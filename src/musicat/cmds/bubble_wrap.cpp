@@ -3,7 +3,7 @@
 namespace musicat {
     namespace command {
         namespace bubble_wrap {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("bubble_wrap", "Pop dems bubbles!!!", sha_id);
             }
 

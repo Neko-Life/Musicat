@@ -3,7 +3,7 @@
 namespace musicat {
     namespace command {
         namespace skip {
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand(
                     "skip",
                     "Skip [currently playing] song",

@@ -60,7 +60,7 @@ namespace musicat {
                 }
             }
 
-            dpp::slashcommand get_register_obj(const dpp::snowflake sha_id) {
+            dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
                 return dpp::slashcommand("move", "Move [track position] around the queue", sha_id)
                     .add_option(
                         dpp::command_option(
