@@ -157,7 +157,7 @@ namespace musicat {
                         string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
                         bool dling = false;
 
-                        std::ifstream test((string("music/") + fname).c_str());
+                        std::ifstream test(string("music/") + fname, std::ios_base::in | std::ios_base::binary);
                         if (!test.is_open())
                         {
                             dling = true;

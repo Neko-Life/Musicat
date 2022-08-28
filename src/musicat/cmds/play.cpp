@@ -295,7 +295,7 @@ namespace musicat {
 
                 bool dling = false;
 
-                std::ifstream test((std::string("music/") + fname).c_str());
+                std::ifstream test(std::string("music/") + fname, std::ios_base::in | std::ios_base::binary);
                 if (!test.is_open())
                 {
                     dling = true;
