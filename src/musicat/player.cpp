@@ -154,9 +154,8 @@ namespace musicat {
 	    auto i = this->queue.begin();
 	    while (i != this->queue.end())
 	    {
-		if (i->user_id == user_id)
+		if (i->user_id == user_id && i != this->queue.begin())
 		{
-		    if (i == this->queue.begin()) continue;
 		    this->queue.erase(i);
 		    ret++;
 		}
