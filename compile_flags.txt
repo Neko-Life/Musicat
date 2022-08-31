@@ -1,0 +1,9 @@
+--language=c++
+-std=c++17
+-Iinclude
+-ldpp
+-pthread
+-lcurl
+-lcurlpp
+-logg
+-lpq
