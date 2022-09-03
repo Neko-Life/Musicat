@@ -58,6 +58,7 @@ namespace musicat {
 			std::lock_guard<std::mutex> lk(player_manager->dc_m);
 			player_manager->disconnecting.insert_or_assign(event.command.guild_id, usc.first->id);
 			event.from->disconnect_voice(event.command.guild_id);
+			event.reply("Leaving...");
 			return;
 		    }
 		} catch (...) {
