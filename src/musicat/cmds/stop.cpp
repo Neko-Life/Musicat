@@ -7,7 +7,7 @@ namespace musicat {
                 return dpp::slashcommand("stop", "STOP CURRENT PLAYBACK! STOP IT NOW!!!", sha_id);
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 auto p = player_manager->get_player(event.command.guild_id);
                 dpp::voiceconn* v = event.from->get_voice(event.command.guild_id);
 

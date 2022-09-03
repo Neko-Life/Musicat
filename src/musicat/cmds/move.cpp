@@ -4,7 +4,7 @@ namespace musicat {
     namespace command {
         namespace move {
             namespace autocomplete {
-                void track(const dpp::autocomplete_t& event, std::string param, player_manager_ptr player_manager, dpp::cluster& client) {
+                void track(const dpp::autocomplete_t& event, std::string param, player::player_manager_ptr player_manager, dpp::cluster& client) {
                     std::map<size_t, std::string> avail = {};
                     auto player = player_manager->get_player(event.command.guild_id);
 
@@ -79,7 +79,7 @@ namespace musicat {
                     );
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 auto p = player_manager->get_player(event.command.guild_id);
                 size_t queue_siz = 0;
                 if (p)

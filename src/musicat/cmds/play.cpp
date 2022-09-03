@@ -12,7 +12,7 @@ namespace musicat {
             namespace autocomplete {
                 void query(const dpp::autocomplete_t& event,
                     std::string param,
-                    player_manager_ptr player_manager) {
+                    player::player_manager_ptr player_manager) {
 
                     std::vector<std::pair<std::string, std::string>> avail = {};
 
@@ -53,7 +53,7 @@ namespace musicat {
                 );
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 if (!player_manager->voice_ready(event.command.guild_id, event.from, event.command.usr.id))
                 {
                     event.reply("Please wait while I'm getting ready to stream");
@@ -219,7 +219,7 @@ namespace musicat {
                 dpp::voiceconn* v,
                 const dpp::snowflake channel_id,
                 const dpp::snowflake sha_id,
-                player_manager_ptr player_manager,
+                player::player_manager_ptr player_manager,
                 bool from_interaction,
                 dpp::discord_client* from,
                 const dpp::interaction_create_t event,

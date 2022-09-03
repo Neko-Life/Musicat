@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include "musicat/player.h"
 
 namespace musicat
 {
@@ -111,6 +112,24 @@ namespace musicat
      * @return std::vector<size_t>
      */
     std::vector<size_t> shuffle_indexes(size_t len);
+
+    /**
+     * @brief Attempt to join voice channel
+     *
+     * @param from
+     * @param player_manager
+     * @param guild_id
+     * @param user_id
+     * @param sha_id
+     *
+     * @return int 0 if request to connect sent
+     */
+    int join_voice(dpp::discord_client* from,
+	    player::player_manager_ptr player_manager,
+	    const dpp::snowflake& guild_id,
+	    const dpp::snowflake& user_id,
+	    const dpp::snowflake& sha_id);
+
 }
 
 #endif

@@ -9,7 +9,7 @@ namespace musicat {
                 return dpp::slashcommand("pause", "Pause [currently playing] song", sha_id);
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 if (!player_manager->voice_ready(event.command.guild_id))
                 {
                     event.reply("Please wait while I'm getting ready to stream");

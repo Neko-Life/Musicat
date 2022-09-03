@@ -21,7 +21,7 @@ namespace musicat {
                     );
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 int64_t fr = 1;
                 int64_t to = 1;
                 get_inter_param(event, "track", &fr);

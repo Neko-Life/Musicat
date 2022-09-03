@@ -10,7 +10,6 @@
 #include "musicat/yt-search.h"
 #include "musicat/yt-track-info.h"
 #include "nlohmann/json.hpp"
-#include "musicat/musicat.h"
 
 namespace musicat {
     namespace player {
@@ -47,6 +46,7 @@ namespace musicat {
         };
 
         class Manager;
+	using player_manager_ptr = std::shared_ptr<Manager>;
 
         class Player {
         public:

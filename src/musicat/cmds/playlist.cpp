@@ -60,7 +60,7 @@ namespace musicat {
                     );
                 }
 
-                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+                void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                     std::deque<player::MCTrack> q = player_manager->get_queue(event.command.guild_id);
                     size_t q_size = q.size();
                     if (!q_size)
@@ -114,7 +114,7 @@ namespace musicat {
                     );
                 }
 
-                void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager, const bool view) {
+                void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view) {
                     const std::string p_id = _get_id_arg(event);
 
                     if (!database::valid_name(p_id))
@@ -286,7 +286,7 @@ namespace musicat {
                     );
             }
 
-            void slash_run(const dpp::interaction_create_t& event, player_manager_ptr player_manager) {
+            void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
                 auto inter = event.command.get_command_interaction();
 
                 if (inter.options.begin() == inter.options.end())

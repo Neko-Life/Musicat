@@ -21,6 +21,8 @@ namespace musicat {
                 playlist::get_register_obj(sha_id),
                 stop::get_register_obj(sha_id),
 		// interactive_message::get_register_obj(sha_id),
+		join::get_register_obj(sha_id),
+		leave::get_register_obj(sha_id),
                 });
             return slash_commands;
         }
