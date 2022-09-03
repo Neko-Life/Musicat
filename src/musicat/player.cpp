@@ -1473,6 +1473,16 @@ namespace musicat {
 		{
 		    auto a = get_voice_from_gid(event.state.guild_id, event.state.user_id);
 		    auto v = event.from->get_voice(event.state.guild_id);
+
+		    if (v && v->voiceclient) {
+			std::lock_guard<std::mutex> lk(this->wd_m);
+			auto i = this->waiting_vc_ready.find(v->voiceclient->server_id);
+			if (v->voiceclient->is_ready() && i != this->waiting_vc_ready.end()) {
+			    this->waiting_vc_ready.erase(i);
+			    this->dl_cv.notify_all();
+			}
+		    }
+
 		    if (v && v->channel_id && v->channel_id != a.first->id)
 		    {
 			this->stop_stream(event.state.guild_id);

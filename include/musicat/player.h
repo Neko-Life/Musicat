@@ -205,11 +205,11 @@ namespace musicat {
 
             // Conditional variable, use notify_all
             std::condition_variable dl_cv, stop_queue_cv;
-            std::map<uint64_t, uint64_t> connecting, disconnecting;
-            std::map<uint64_t, std::string> waiting_vc_ready;
-            std::map<std::string, uint64_t> waiting_file_download;
-            std::map<uint64_t, std::vector<std::string>> waiting_marker;
-            std::vector<uint64_t> manually_paused;
+            std::map<dpp::snowflake, dpp::snowflake> connecting, disconnecting;
+            std::map<dpp::snowflake, std::string> waiting_vc_ready;
+            std::map<std::string, dpp::snowflake> waiting_file_download;
+            std::map<dpp::snowflake, std::vector<std::string>> waiting_marker;
+            std::vector<dpp::snowflake> manually_paused;
             std::vector<dpp::snowflake> stop_queue;
             std::vector<dpp::snowflake> ignore_marker;
 
