@@ -203,7 +203,7 @@ namespace musicat {
                             event.from->creator->me.id,
                             c.first->id, { dpp::p_view_channel,dpp::p_connect }))
                         {
-                            if (!p->channel_id) p->set_channel(event.command.channel_id);
+                            p->set_channel(event.command.channel_id);
 
                             {
                                 std::lock_guard<std::mutex> lk(player_manager->c_m);
