@@ -80,6 +80,15 @@ namespace musicat {
          */
         bool valid_name(const std::string& str);
 
+	/**
+	 * @brief Convert playlist to json
+	 *
+	 * @param playlist Playlist to convert to json
+	 * @return nlohmann::json An array of track from the playlist
+	 */
+	nlohmann::json
+	    convert_playlist_to_json(const std::deque<player::MCTrack>& playlist);
+
         // -----------------------------------------------------------------------
         // TABLE MANIPULATION
         // -----------------------------------------------------------------------
@@ -88,9 +97,16 @@ namespace musicat {
          * @brief Create new playlist table for new user
          *
          * @param user_id
-         * @return ExecStatusType -1 if user_id is 0
+         * @return ExecStatusType PGRES_COMMAND_OK on success, -1 if user_id is 0
          */
         ExecStatusType create_table_playlist(const dpp::snowflake& user_id);
+
+	/**
+	 * @brief Create guild_current_queue table
+	 *
+	 * @return ExecStatusType PGRES_COMMAND_OK on success
+	 */
+	ExecStatusType create_table_guilds_current_queue();
 
         /**
          * @brief Get all user playlist, result must be freed using finish_res()
@@ -135,6 +151,17 @@ namespace musicat {
          * @return ExecStatusType -1 if user_id is 0 else PGRES_COMMAND_OK
          */
         ExecStatusType delete_user_playlist(const dpp::snowflake& user_id, const std::string& name);
+
+	/**
+	 * @brief Update guild current queue in database
+	 *
+	 * @param guild_id
+	 * @param playlist New queue
+	 * @return ExecStatusType -1 if guild_id is 0, -2 if playlist have no size
+	 * 			-3 if failed to create new table, PGRES_COMMAND_OK on success
+	 */
+	ExecStatusType
+	    update_guild_current_queue(const dpp::snowflake& guild_id, const std::deque<player::MCTrack>& playlist);
     }
 }
 
