@@ -117,32 +117,37 @@ namespace musicat {
                 void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view) {
                     const std::string p_id = _get_id_arg(event);
 
-                    if (!database::valid_name(p_id))
-                    {
-                        event.reply("Invalid `id` format!");
-                        return;
-                    }
-
                     std::pair<PGresult*, ExecStatusType>
                         res = database::get_user_playlist(event.command.usr.id, p_id, database::gup_raw_only);
 
-                    if (PQgetisnull(res.first, 0, 0))
+		    std::pair<std::deque<player::MCTrack>, int>
+			playlist_res = database::get_playlist_from_PGresult(res.first);
+                    
+		    int retnow = 0;
+		    
+		    if (playlist_res.second == -2)
                     {
-                        database::finish_res(res.first);
-                        res.first = nullptr;
-                        event.reply("Unknown playlist");
-                        return;
+			if (!res.first) {
+			    switch (res.second) {
+				case -3: event.reply("Invalid `id` format!"); break;
+				default:
+					 event.reply(std::string("[ERROR] Unexpected error getting user playlist with code: ") + std::to_string(res.second));
+					 fprintf(stderr, "[CMD_PLAYLIST_ERROR] Unexpected error database::get_user_playlist with code: %d\n", res.second);
+			    }
+			} else event.reply("Unknown playlist");
+
+                        retnow = 1;
+                    }
+		    else if (playlist_res.second == -1)
+                    {
+                        event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
+                        retnow = 1;
                     }
 
-                    nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res.first, 0, 0));
                     database::finish_res(res.first);
                     res.first = nullptr;
 
-                    if (jso.is_null() || !jso.is_array() || jso.empty())
-                    {
-                        event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
-                        return;
-                    }
+		    if (retnow) return;
 
                     std::shared_ptr<player::Player> p;
                     size_t count = 0;
@@ -151,15 +156,8 @@ namespace musicat {
 
                     if (view != true) p = player_manager->create_player(event.command.guild_id);
 
-                    for (auto j = jso.begin(); j != jso.end(); j++)
-                    {
-                        if (j->is_null()) break;
-                        player::MCTrack t;
-                        t.raw = *j;
-                        t.filename = j->at("filename").get<std::string>();
-                        t.info.raw = j->at("raw_info");
-                        t.user_id = event.command.usr.id;
-
+		    for (auto& t : playlist_res.first) {
+			t.user_id = event.command.usr.id;
                         if (view) q.push_back(t);
                         else
                         {

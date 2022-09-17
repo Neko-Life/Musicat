@@ -40,7 +40,7 @@ namespace musicat {
 
         dpp::cluster client(sha_cfg["SHA_TKN"], dpp::i_message_content | dpp::i_guild_members | dpp::i_default_intents);
 
-        dpp::snowflake sha_id(sha_cfg["SHA_ID"]);
+        dpp::snowflake sha_id(sha_cfg["SHA_ID"].get<int64_t>());
 
         if (argc > 1)
         {

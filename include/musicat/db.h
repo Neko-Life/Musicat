@@ -124,12 +124,23 @@ namespace musicat {
          * @param user_id
          * @param name
          * @param type
-         * @return std::pair<PGresult*, ExecStatusType> Return code -1 if user_id is 0, -2 if invalid type
+         * @return std::pair<PGresult*, ExecStatusType> Return code -1 if user_id is 0, -2 if invalid type,
+	 * -3 if invalid name format
          */
         std::pair<PGresult*, ExecStatusType>
             get_user_playlist(const dpp::snowflake& user_id,
                 const std::string& name,
                 const get_user_playlist_type type = gup_raw_only);
+
+	/**
+	 * @brief Construct std::deque containing tracks from PGresult object, 
+	 * 	this function doesn't free the PGresult object.
+	 *
+	 * @param res PGresult object
+	 * @return std::pair<std::deque<player::MCTrack>, int> code -1 if json is null, -2 if no row found in the table else 0
+	 */
+	std::pair<std::deque<player::MCTrack>, int>
+	    get_playlist_from_PGresult(PGresult *res);
 
         /**
          * @brief Update user playlist with id `name`, can be insertion or an update
@@ -148,12 +159,12 @@ namespace musicat {
          *
          * @param user_id
          * @param name
-         * @return ExecStatusType -1 if user_id is 0 else PGRES_COMMAND_OK
-         */
+         * @return ExecStatusType PGRES_FATAL_ERROR if row not found in table or table not found, -1 if user_id is 0 else PGRES_TUPLES_OK
+	 */
         ExecStatusType delete_user_playlist(const dpp::snowflake& user_id, const std::string& name);
 
 	/**
-	 * @brief Update guild current queue in database
+	 * @brief Update guild current queue in table
 	 *
 	 * @param guild_id
 	 * @param playlist New queue
@@ -162,6 +173,15 @@ namespace musicat {
 	 */
 	ExecStatusType
 	    update_guild_current_queue(const dpp::snowflake& guild_id, const std::deque<player::MCTrack>& playlist);
+	
+	/**
+	 * @brief Delete guild current queue row from table
+	 * 
+	 * @param guild_id
+	 * @return ExecStatusType PGRES_FATAL_ERROR if row not found in table,-1 if guild_id is 0 else PGRES_TUPLES_OK
+	 */
+	ExecStatusType
+	    delete_guild_current_queue(const dpp::snowflake& guild_id);
     }
 }
 

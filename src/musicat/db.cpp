@@ -242,6 +242,11 @@ namespace musicat {
 
 		if (!user_id) return std::make_pair(nullptr, (ExecStatusType)-1);
 
+		if (!valid_name(name))
+		{
+		    return std::make_pair(nullptr, (ExecStatusType)-3);
+		}
+
 		std::string query("SELECT ");
 
 		switch (type)
@@ -265,6 +270,29 @@ namespace musicat {
 		ExecStatusType status = _check_status(res, "get_user_playlist", PGRES_TUPLES_OK);
 
 		return std::make_pair(res, status);
+	    }
+
+	std::pair<std::deque<player::MCTrack>, int>
+	    get_playlist_from_PGresult(PGresult *res) {
+		std::deque<player::MCTrack> ret = {};
+                if (PQgetisnull(res, 0, 0)) return std::make_pair(ret, -2);
+
+		nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res, 0, 0));
+
+		if (jso.is_null() || !jso.is_array() || jso.empty()) return std::make_pair(ret,-1);
+
+		for (auto j = jso.begin(); j != jso.end(); j++)
+		{
+		    if (j->is_null()) continue;
+		    player::MCTrack t;
+		    t.raw = *j;
+		    t.filename = j->at("filename").get<std::string>();
+		    t.info.raw = j->at("raw_info");
+
+		    ret.push_back(t);
+		}
+
+		return std::make_pair(ret,0);
 	    }
 
 	ExecStatusType update_user_playlist(const dpp::snowflake& user_id,
@@ -345,6 +373,28 @@ namespace musicat {
 
 		ExecStatusType status = _check_status(res, "update_guild_current_queue");
 	    
+		return finish_res(res, status);
+	    }
+
+	ExecStatusType
+	    delete_guild_current_queue(const dpp::snowflake& guild_id) {
+		if (!guild_id) return (ExecStatusType)-1;
+
+		std::string query("DELETE FROM \"");
+		query += "guilds_current_queue\" "\
+			 "WHERE \"gid\" = '"
+			 + std::to_string(guild_id)
+			 + "' RETURNING \"gid\" ;";
+
+		std::lock_guard<std::mutex> lk(conn_mutex);
+		PGresult* res = _db_exec(query.c_str());
+
+		ExecStatusType status = PGRES_FATAL_ERROR;
+
+		if (!PQgetisnull(res, 0, 0))
+		    status = _check_status(res, "delete_guild_current_queue", PGRES_TUPLES_OK);
+		else _check_status(res, "delete_guild_current_queue", PGRES_TUPLES_OK);
+
 		return finish_res(res, status);
 	    }
     }
