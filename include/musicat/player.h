@@ -86,6 +86,11 @@ namespace musicat {
              */
             bool auto_play;
 
+	    /**
+	     * @brief Whether this player already tried to load saved queue after reboot.
+	     */
+	    bool saved_queue_loaded;
+
             /**
              * @brief History size limiter
              *
@@ -127,7 +132,8 @@ namespace musicat {
              */
             std::mutex skip_mutex, st_m, q_m, ch_m, h_m, s_m;
 
-            Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
+            Player();
+	    Player(dpp::cluster* _cluster, dpp::snowflake _guild_id);
             ~Player();
             Player& add_track(MCTrack track, bool top = false, dpp::snowflake guild_id = 0, bool update_embed = true);
             Player& set_max_history_size(size_t siz = 0);
@@ -355,6 +361,15 @@ namespace musicat {
             void set_ignore_marker(const dpp::snowflake& guild_id);
             void remove_ignore_marker(const dpp::snowflake& guild_id);
             bool has_ignore_marker(const dpp::snowflake& guild_id);
+	    
+	    /**
+	     * @brief Load guild queue saved in database, you wanna call this after the bot rebooted.
+	     *
+	     * @param guild_id
+	     * @param user_id User to be the author of the tracks added
+	     * @return -1 if json is null, -2 if no row found in the table else 0
+	     */
+	    int load_guild_current_queue(const dpp::snowflake& guild_id, const dpp::snowflake *user_id = NULL);
         };
     }
 }

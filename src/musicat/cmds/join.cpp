@@ -12,6 +12,9 @@ namespace musicat {
 	    }
 
 	    void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
+		auto p = player_manager->create_player(event.command.guild_id);
+		if (!p->channel_id) p->set_channel(event.command.channel_id);
+
 		int res = join_voice(event.from,
 			player_manager,
 			event.command.guild_id,

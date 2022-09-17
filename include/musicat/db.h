@@ -135,6 +135,7 @@ namespace musicat {
 	/**
 	 * @brief Construct std::deque containing tracks from PGresult object, 
 	 * 	this function doesn't free the PGresult object.
+	 * 	All track will have the `user_id` member omitted.
 	 *
 	 * @param res PGresult object
 	 * @return std::pair<std::deque<player::MCTrack>, int> code -1 if json is null, -2 if no row found in the table else 0
@@ -174,6 +175,15 @@ namespace musicat {
 	ExecStatusType
 	    update_guild_current_queue(const dpp::snowflake& guild_id, const std::deque<player::MCTrack>& playlist);
 	
+	/**
+	 * @brief Get saved guild playback
+	 *
+	 * @param guild_id
+	 * @return std::pair<PGresult*, ExecStatusType> code -1 if guild_id is 0, else PGRES_TUPLES_OK
+	 */
+	std::pair<PGresult*, ExecStatusType>
+	    get_guild_current_queue(const dpp::snowflake& guild_id);
+
 	/**
 	 * @brief Delete guild current queue row from table
 	 * 

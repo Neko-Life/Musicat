@@ -28,6 +28,8 @@ namespace musicat {
 
             void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager)
             {
+		const dpp::snowflake shaid = event.from->creator->me.id;
+		player_manager->load_guild_current_queue(event.command.guild_id, &shaid);
                 std::deque<player::MCTrack> queue = player_manager->get_queue(event.command.guild_id);
                 if (queue.empty())
                 {

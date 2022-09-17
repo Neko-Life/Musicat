@@ -196,7 +196,7 @@ namespace musicat {
 
 	ExecStatusType create_table_guilds_current_queue() {
 
-	    static const char query[] = "CREATE TABLE IF NOT EXIST \""\
+	    static const char query[] = "CREATE TABLE IF NOT EXISTS \""\
 		    "guilds_current_queue\" ( \"raw\" JSON NOT NULL, "\
 		     "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "\
 		     "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
@@ -258,7 +258,7 @@ namespace musicat {
 		    default: return std::make_pair(nullptr, (ExecStatusType)-2);
 		}
 
-		query += std::string(" FROM \"")
+		query += " FROM \""
 		    + std::to_string(user_id)
 		    + "_playlist\" WHERE \"name\" = '"
 		    + name
@@ -374,6 +374,21 @@ namespace musicat {
 		ExecStatusType status = _check_status(res, "update_guild_current_queue");
 	    
 		return finish_res(res, status);
+	    }
+
+	std::pair<PGresult*, ExecStatusType>
+	    get_guild_current_queue(const dpp::snowflake& guild_id) {
+		if (!guild_id) return std::make_pair(nullptr, (ExecStatusType)-1);
+
+		std::string query("SELECT \"raw\" FROM \"guilds_current_queue\" WHERE \"gid\" = '");
+		query += std::to_string(guild_id) + "';";
+
+		std::lock_guard<std::mutex> lk(conn_mutex);
+		PGresult *res = _db_exec(query.c_str());
+
+		ExecStatusType status = _check_status(res, "get_guild_current_queue", PGRES_TUPLES_OK);
+
+		return std::make_pair(res, status);
 	    }
 
 	ExecStatusType

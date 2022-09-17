@@ -1,3 +1,5 @@
+#include <deque>
+#include <libpq-fe.h>
 #include <ogg/ogg.h>
 // #include <opus/opusfile.h>
 #include <filesystem>
@@ -5,6 +7,7 @@
 #include <regex>
 #include <chrono>
 #include <dirent.h>
+#include "musicat/db.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 
@@ -20,6 +23,20 @@ namespace musicat {
 
 	MCTrack::~MCTrack() = default;
 
+	Player::Player() {
+	    this->guild_id = 0;
+	    this->cluster = nullptr;
+	    this->loop_mode = loop_mode_t::l_none;
+	    this->shifted_track = 0;
+	    this->info_message = nullptr;
+	    this->from = nullptr;
+	    this->auto_play = false;
+	    this->max_history_size = 0;
+	    this->stopped = false;
+	    this->channel_id = 0;
+	    this->saved_queue_loaded = false;
+	}
+	
 	Player::Player(dpp::cluster* _cluster, dpp::snowflake _guild_id) {
 	    this->guild_id = _guild_id;
 	    this->cluster = _cluster;
@@ -31,6 +48,7 @@ namespace musicat {
 	    this->max_history_size = 0;
 	    this->stopped = false;
 	    this->channel_id = 0;
+	    this->saved_queue_loaded = false;
 	}
 
 	Player::~Player() {
@@ -42,6 +60,7 @@ namespace musicat {
 	    this->max_history_size = 0;
 	    this->stopped = false;
 	    this->channel_id = 0;
+	    this->saved_queue_loaded = false;
 	};
 
 	Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
@@ -978,6 +997,8 @@ namespace musicat {
 	    }
 	    auto p = this->get_player(event.voice_client->server_id);
 	    if (!p) { printf("NO PLAYER\n"); return false; }
+	    if (p->saved_queue_loaded != true) this->load_guild_current_queue(event.voice_client->server_id, &sha_id);
+
 	    MCTrack s;
 	    {
 		{
@@ -1007,11 +1028,13 @@ namespace musicat {
 		if (p->queue.size() == 0)
 		{
 		    printf("NO SIZE AFTER: %d\n", p->loop_mode);
+		    database::delete_guild_current_queue(event.voice_client->server_id);
 		    return false;
 		}
 		p->queue.front().skip_vote.clear();
 		s = p->queue.front();
 		p->set_stopped(false);
+		database::update_guild_current_queue(event.voice_client->server_id, p->queue);
 	    }
 
 	    try
@@ -1577,6 +1600,31 @@ namespace musicat {
 	    auto l = vector_find(&this->ignore_marker, guild_id);
 	    if (l != this->ignore_marker.end()) return true;
 	    else return false;
+	}
+
+	int Manager::load_guild_current_queue(const dpp::snowflake& guild_id, const dpp::snowflake *user_id) {
+	    auto player = this->create_player(guild_id);
+	    if (player->saved_queue_loaded == true) return 0;
+	    player->saved_queue_loaded = true;
+
+	    std::pair<PGresult*, ExecStatusType>
+		res = database::get_guild_current_queue(guild_id);
+
+	    std::pair<std::deque<MCTrack>, int> queue = database::get_playlist_from_PGresult(res.first);
+
+	    database::finish_res(res.first);
+	    res.first = nullptr;
+
+	    if (queue.second != 0) {
+		return queue.second;
+	    }
+
+	    for (auto& t : queue.first) {
+		if (user_id) t.user_id = *user_id;
+		player->add_track(t);
+	    }
+
+	    return queue.second;
 	}
     }
 }
