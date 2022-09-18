@@ -574,7 +574,7 @@ namespace musicat {
 
 		if (!PQgetisnull(res, 0, 2)) {
 		    const char* val = PQgetvalue(res, 0, 2);
-		    printf("[DB_DEBUG] Parse player config atp_state: %s\n", val);
+		    printf("[DB_DEBUG] Parse player config l_mode: %s\n", val);
 		    ret.loop_mode = _parse_loop_mode(val);
 		    set = true;
 		}

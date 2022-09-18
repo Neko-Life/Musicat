@@ -1006,7 +1006,12 @@ namespace musicat {
 	    }
 	    auto p = this->get_player(event.voice_client->server_id);
 	    if (!p) { printf("NO PLAYER\n"); return false; }
-	    if (p->saved_queue_loaded != true) this->load_guild_current_queue(event.voice_client->server_id, &sha_id);
+
+	    bool just_loaded_queue = false;
+	    if (p->saved_queue_loaded != true) {
+		this->load_guild_current_queue(event.voice_client->server_id, &sha_id);
+		just_loaded_queue = true;
+	    }
 	    if (p->saved_config_loaded != true) this->load_guild_player_config(event.voice_client->server_id);
 
 	    MCTrack s;
@@ -1038,13 +1043,13 @@ namespace musicat {
 		if (p->queue.size() == 0)
 		{
 		    printf("NO SIZE AFTER: %d\n", p->loop_mode);
-		    database::delete_guild_current_queue(event.voice_client->server_id);
+		    if (!just_loaded_queue) database::delete_guild_current_queue(event.voice_client->server_id);
 		    return false;
 		}
 		p->queue.front().skip_vote.clear();
 		s = p->queue.front();
 		p->set_stopped(false);
-		database::update_guild_current_queue(event.voice_client->server_id, p->queue);
+		if (!just_loaded_queue) database::update_guild_current_queue(event.voice_client->server_id, p->queue);
 	    }
 
 	    try
