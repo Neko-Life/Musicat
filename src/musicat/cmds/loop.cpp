@@ -68,6 +68,7 @@ namespace musicat {
 
                 auto player = player_manager->create_player(event.command.guild_id);
                 player->from = event.from;
+		if (player->saved_config_loaded != true) player_manager->load_guild_player_config(event.command.guild_id);
 
                 if (player->loop_mode == a_l)
                 {

@@ -87,9 +87,14 @@ namespace musicat {
             bool auto_play;
 
 	    /**
-	     * @brief Whether this player already tried to load saved queue after reboot.
+	     * @brief Whether this player already tried to load saved queue after boot.
 	     */
 	    bool saved_queue_loaded;
+
+	    /**
+	     * @brief Whether this player already tried to load saved config after boot.
+	     */
+	    bool saved_config_loaded;
 
             /**
              * @brief History size limiter
@@ -367,9 +372,17 @@ namespace musicat {
 	     *
 	     * @param guild_id
 	     * @param user_id User to be the author of the tracks added
-	     * @return -1 if json is null, -2 if no row found in the table else 0
+	     * @return int -1 if json is null, -2 if no row found in the table else 0
 	     */
 	    int load_guild_current_queue(const dpp::snowflake& guild_id, const dpp::snowflake *user_id = NULL);
+
+	    /**
+	     * @brief Load guild player config saved in database, you wanna call this after the bot rebooted.
+	     *
+	     * @param guild_id
+	     * @return int 1 if everything is default value, 0 if something loaded.
+	     */
+	    int load_guild_player_config(const dpp::snowflake& guild_id);
         };
     }
 }

@@ -35,6 +35,7 @@ namespace musicat {
 	    this->stopped = false;
 	    this->channel_id = 0;
 	    this->saved_queue_loaded = false;
+	    this->saved_config_loaded = false;
 	}
 	
 	Player::Player(dpp::cluster* _cluster, dpp::snowflake _guild_id) {
@@ -49,6 +50,7 @@ namespace musicat {
 	    this->stopped = false;
 	    this->channel_id = 0;
 	    this->saved_queue_loaded = false;
+	    this->saved_config_loaded = false;
 	}
 
 	Player::~Player() {
@@ -61,6 +63,7 @@ namespace musicat {
 	    this->stopped = false;
 	    this->channel_id = 0;
 	    this->saved_queue_loaded = false;
+	    this->saved_config_loaded = false;
 	};
 
 	Player& Player::add_track(MCTrack track, bool top, dpp::snowflake guild_id, bool update_embed) {
@@ -89,6 +92,8 @@ namespace musicat {
 
 	Player& Player::set_max_history_size(size_t siz) {
 	    this->max_history_size = siz;
+	    int set = (int)siz;
+	    database::update_guild_player_config(this->guild_id, NULL, &set, NULL);
 	    return *this;
 	}
 
@@ -104,6 +109,7 @@ namespace musicat {
 
 	Player& Player::set_auto_play(bool state) {
 	    this->auto_play = state;
+	    database::update_guild_player_config(this->guild_id, &state, NULL, NULL);
 	    return *this;
 	}
 
@@ -131,7 +137,10 @@ namespace musicat {
 		case 2: nm = loop_mode_t::l_queue; break;
 		case 3: nm = loop_mode_t::l_song_queue; break;
 	    }
+
 	    this->loop_mode = nm;
+	    database::update_guild_player_config(this->guild_id, NULL, NULL, &nm);
+	    
 	    return *this;
 	}
 
@@ -998,6 +1007,7 @@ namespace musicat {
 	    auto p = this->get_player(event.voice_client->server_id);
 	    if (!p) { printf("NO PLAYER\n"); return false; }
 	    if (p->saved_queue_loaded != true) this->load_guild_current_queue(event.voice_client->server_id, &sha_id);
+	    if (p->saved_config_loaded != true) this->load_guild_player_config(event.voice_client->server_id);
 
 	    MCTrack s;
 	    {
@@ -1615,9 +1625,7 @@ namespace musicat {
 	    database::finish_res(res.first);
 	    res.first = nullptr;
 
-	    if (queue.second != 0) {
-		return queue.second;
-	    }
+	    if (queue.second != 0) return queue.second;
 
 	    for (auto& t : queue.first) {
 		if (user_id) t.user_id = *user_id;
@@ -1625,6 +1633,29 @@ namespace musicat {
 	    }
 
 	    return queue.second;
+	}
+
+	int Manager::load_guild_player_config(const dpp::snowflake& guild_id) {
+	    auto player = this->create_player(guild_id);
+	    if (player->saved_config_loaded == true) return 0;
+	    player->saved_config_loaded = true;
+
+	    std::pair<PGresult*, ExecStatusType>
+		res = database::get_guild_player_config(guild_id);
+
+	    std::pair<database::player_config, int>
+		conf = database::parse_guild_player_config_PGresult(res.first);
+
+	    database::finish_res(res.first);
+	    res.first = nullptr;
+
+	    if (conf.second != 0) return conf.second;
+
+	    player->loop_mode = conf.first.loop_mode;
+	    player->max_history_size = (size_t)conf.first.autoplay_threshold;
+	    player->auto_play = conf.first.autoplay_state;
+
+	    return conf.second;
 	}
     }
 }

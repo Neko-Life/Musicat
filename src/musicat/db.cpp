@@ -7,6 +7,7 @@
 #include <string.h>
 #include <regex>
 #include <dpp/dpp.h>
+#include <vector>
 #include "nlohmann/json.hpp"
 #include "musicat/db.h"
 #include "musicat/player.h"
@@ -60,6 +61,42 @@ namespace musicat {
 
 	    PQfreemem(res);
 	    res = NULL;
+	    return ret;
+	}
+
+	ExecStatusType _create_table(const char* query, const char* fn = "msg") {
+	    std::lock_guard<std::mutex> lk(conn_mutex);
+	    PGresult* res = _db_exec(query);
+
+	    ExecStatusType status = _check_status(res, fn);
+
+	    return finish_res(res, status);
+	}
+
+	std::string _stringify_loop_mode(const player::loop_mode_t loop_mode) {
+	    std::string tp = "-1";
+	    switch (loop_mode)
+	    {
+		case player::loop_mode_t::l_none: tp = "0"; break;
+		case player::loop_mode_t::l_song: tp = "1"; break;
+		case player::loop_mode_t::l_queue: tp = "2"; break;
+		case player::loop_mode_t::l_song_queue: tp = "3"; break;
+		default: fprintf(stderr, "[DB_ERROR] Unexpected loop mode to stringify: %d\n", loop_mode);
+	    }
+	    return tp;
+	}
+
+	player::loop_mode_t _parse_loop_mode(const char* loop_mode) {
+	    player::loop_mode_t ret = player::loop_mode_t::l_none;
+	    int tp = atoi(loop_mode);
+	    switch (tp)
+	    {
+		case 0: break;
+		case 1: ret = player::loop_mode_t::l_song; break;
+		case 2: ret = player::loop_mode_t::l_queue; break;
+		case 3: ret = player::loop_mode_t::l_song_queue; break;
+		default: fprintf(stderr, "[DB_ERROR] Unexpected loop mode to parse: %d\n", tp);
+	    }
 	    return ret;
 	}
 
@@ -186,27 +223,31 @@ namespace musicat {
 		     "\"name\" VARCHAR(100) UNIQUE PRIMARY KEY NOT NULL, "\
 		     "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
 
-	    std::lock_guard<std::mutex> lk(conn_mutex);
-	    PGresult* res = _db_exec(query.c_str());
-
-	    ExecStatusType status = _check_status(res, "create_table_playlist");
-
-	    return finish_res(res, status);
+	    return _create_table(query.c_str(), "create_table_playlist");
 	}
 
 	ExecStatusType create_table_guilds_current_queue() {
 
 	    static const char query[] = "CREATE TABLE IF NOT EXISTS \""\
-		    "guilds_current_queue\" ( \"raw\" JSON NOT NULL, "\
-		     "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "\
-		     "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
+					 "guilds_current_queue\" ( \"raw\" JSON NOT NULL, "\
+					 "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "\
+					 "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
 
-	    std::lock_guard<std::mutex> lk(conn_mutex);
-	    PGresult *res = _db_exec(query);
+	    return _create_table(query, "create_table_guilds_current_queue");
+	}
 
-	    ExecStatusType status = _check_status(res, "create_table_guilds_current_queue");
+	ExecStatusType create_table_guilds_player_config() {
 
-	    return finish_res(res, status);
+	    static const char query[] = "CREATE TABLE IF NOT EXISTS \""\
+					 "guilds_player_config\" ( \"autoplay_state\" BOOL DEFAULT FALSE, "\
+					 "\"autoplay_threshold\" INT DEFAULT 0 "\
+					 "CHECK (\"autoplay_threshold\" >= 0 AND \"autoplay_threshold\" <= 10000), "\
+					 "\"loop_mode\" SMALLINT DEFAULT 0 "\
+					 "CHECK (\"loop_mode\" >= 0 AND \"loop_mode\" <= 10), "\
+					 "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "\
+					 "\"ts\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP );";
+
+	    return _create_table(query, "create_table_guilds_player_config");
 	}
 
 	std::pair<PGresult*, ExecStatusType>
@@ -273,13 +314,13 @@ namespace musicat {
 	    }
 
 	std::pair<std::deque<player::MCTrack>, int>
-	    get_playlist_from_PGresult(PGresult *res) {
+	    get_playlist_from_PGresult(PGresult* res) {
 		std::deque<player::MCTrack> ret = {};
-                if (PQgetisnull(res, 0, 0)) return std::make_pair(ret, -2);
+		if (PQgetisnull(res, 0, 0)) return std::make_pair(ret, -2);
 
 		nlohmann::json jso = nlohmann::json::parse(PQgetvalue(res, 0, 0));
 
-		if (jso.is_null() || !jso.is_array() || jso.empty()) return std::make_pair(ret,-1);
+		if (jso.is_null() || !jso.is_array() || jso.empty()) return std::make_pair(ret, -1);
 
 		for (auto j = jso.begin(); j != jso.end(); j++)
 		{
@@ -292,7 +333,7 @@ namespace musicat {
 		    ret.push_back(t);
 		}
 
-		return std::make_pair(ret,0);
+		return std::make_pair(ret, 0);
 	    }
 
 	ExecStatusType update_user_playlist(const dpp::snowflake& user_id,
@@ -350,7 +391,8 @@ namespace musicat {
 		if (!guild_id) return (ExecStatusType)-1;
 		if (!playlist.size()) return (ExecStatusType)-2;
 
-		if (create_table_guilds_current_queue() != PGRES_COMMAND_OK) {
+		if (create_table_guilds_current_queue() != PGRES_COMMAND_OK)
+		{
 		    fprintf(stderr, "[DB_ERROR] Failed to create table guilds_current_queue, can't update guild current queue\n");
 		    return (ExecStatusType)-3;
 		}
@@ -369,10 +411,10 @@ namespace musicat {
 		    + ", \"ts\" = CURRENT_TIMESTAMP;";
 
 		std::lock_guard<std::mutex> lk(conn_mutex);
-		PGresult *res = _db_exec(query.c_str());
+		PGresult* res = _db_exec(query.c_str());
 
 		ExecStatusType status = _check_status(res, "update_guild_current_queue");
-	    
+
 		return finish_res(res, status);
 	    }
 
@@ -384,7 +426,7 @@ namespace musicat {
 		query += std::to_string(guild_id) + "';";
 
 		std::lock_guard<std::mutex> lk(conn_mutex);
-		PGresult *res = _db_exec(query.c_str());
+		PGresult* res = _db_exec(query.c_str());
 
 		ExecStatusType status = _check_status(res, "get_guild_current_queue", PGRES_TUPLES_OK);
 
@@ -397,9 +439,9 @@ namespace musicat {
 
 		std::string query("DELETE FROM \"");
 		query += "guilds_current_queue\" "\
-			 "WHERE \"gid\" = '"
-			 + std::to_string(guild_id)
-			 + "' RETURNING \"gid\" ;";
+			  "WHERE \"gid\" = '"
+			  + std::to_string(guild_id)
+			  + "' RETURNING \"gid\" ;";
 
 		std::lock_guard<std::mutex> lk(conn_mutex);
 		PGresult* res = _db_exec(query.c_str());
@@ -411,6 +453,133 @@ namespace musicat {
 		else _check_status(res, "delete_guild_current_queue", PGRES_TUPLES_OK);
 
 		return finish_res(res, status);
+	    }
+
+	ExecStatusType
+	    update_guild_player_config(const dpp::snowflake& guild_id,
+		    const bool* autoplay_state,
+		    const int* autoplay_threshold,
+		    const player::loop_mode_t* loop_mode) {
+
+		if (!guild_id) return (ExecStatusType)-1;
+
+		if (create_table_guilds_player_config() != PGRES_COMMAND_OK)
+		{
+		    fprintf(stderr, "[DB_ERROR] Failed to create table guilds_player_config, can't update guild player config\n");
+		    return (ExecStatusType)-3;
+		}
+
+		if (!autoplay_state && !autoplay_threshold && !loop_mode)
+		{
+		    // nothing to update
+		    return (ExecStatusType)-2;
+		}
+
+		std::vector<std::string> values, names;
+		values.reserve(3);
+		names.reserve(3);
+
+		if (autoplay_state)
+		{
+		    names.push_back("\"autoplay_state\"");
+		    values.push_back(*autoplay_state ? "TRUE" : "FALSE");
+		}
+
+		if (autoplay_threshold)
+		{
+		    names.push_back("\"autoplay_threshold\"");
+		    values.push_back(std::to_string(*autoplay_threshold));
+		}
+
+		if (loop_mode)
+		{
+		    names.push_back("\"loop_mode\"");
+		    values.push_back(_stringify_loop_mode(*loop_mode));
+		}
+
+		std::string query("INSERT INTO \"guilds_player_config\" ");
+		query += "( \"gid\", ";
+
+		for (auto i = names.begin(); i != names.end(); i++)
+		{
+		    query += *i;
+		    if ((i + 1) != names.end()) query += ", ";
+		}
+
+		query += " ) VALUES ( '"
+		    + std::to_string(guild_id) + "', ";
+
+		for (auto i = values.begin(); i != values.end(); i++)
+		{
+		    query += *i;
+		    if ((i + 1) != values.end()) query += ", ";
+		}
+
+		query += " ) ON CONFLICT (\"gid\") DO UPDATE SET ";
+
+		for (int i = 0; i < names.size(); i++)
+		{
+		    query += names[i] + " = " + values[i] + ", ";
+		}
+
+		query += "\"ts\" = CURRENT_TIMESTAMP;";
+
+		std::lock_guard<std::mutex> lk(conn_mutex);
+		PGresult* res = _db_exec(query.c_str(), true);
+
+		ExecStatusType status = _check_status(res, "update_guild_player_config");
+
+		return finish_res(res, status);
+	    }
+
+	std::pair<PGresult*, ExecStatusType>
+	    get_guild_player_config(const dpp::snowflake& guild_id) {
+		if (!guild_id) return std::make_pair(nullptr, (ExecStatusType)-1);
+
+		std::string query("SELECT \"autoplay_state\", \"autoplay_threshold\", \"loop_mode\" FROM \"guilds_player_config\" WHERE \"gid\" = '");
+		query += std::to_string(guild_id) + "';";
+
+		std::lock_guard<std::mutex> lk(conn_mutex);
+		PGresult* res = _db_exec(query.c_str());
+
+		ExecStatusType status = _check_status(res, "get_guild_player_config", PGRES_TUPLES_OK);
+
+		return std::make_pair(res, status);
+	    }
+
+	std::pair<player_config, int>
+	    parse_guild_player_config_PGresult(PGresult *res) {
+		player_config ret;
+		ret.autoplay_state = false;
+		ret.autoplay_threshold = 0;
+		ret.loop_mode = player::loop_mode_t::l_none;
+
+		bool set = false;
+
+		if (!PQgetisnull(res, 0, 0)) {
+		    const char *val = PQgetvalue(res, 0, 0);
+		    printf("[DB_DEBUG] Parse player config atp_state: %s\n", val);
+		    if (strcmp("t", val) == 0) {
+			ret.autoplay_state = true;
+			set = true;
+		    }
+		}
+
+		if (!PQgetisnull(res, 0, 1)) {
+		    const char *val = PQgetvalue(res, 0, 1);
+		    printf("[DB_DEBUG] Parse player config atp_thres: %s\n", val);
+		    ret.autoplay_threshold = atoi(val);
+		    set = true;
+		}
+
+		if (!PQgetisnull(res, 0, 2)) {
+		    const char* val = PQgetvalue(res, 0, 2);
+		    printf("[DB_DEBUG] Parse player config atp_state: %s\n", val);
+		    ret.loop_mode = _parse_loop_mode(val);
+		    set = true;
+		}
+
+		return std::make_pair(ret, set ? 0 : 1);
 	    }
     }
 }

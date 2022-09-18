@@ -31,6 +31,7 @@ namespace musicat {
                 get_inter_param(event, "state", &a);
                 get_inter_param(event, "no-duplicate-threshold", &b);
                 auto g = player_manager->create_player(event.command.guild_id);
+		if (g->saved_config_loaded != true) player_manager->load_guild_player_config(event.command.guild_id);
                 bool c = g->auto_play;
                 size_t st = g->max_history_size;
                 std::string reply = "";
