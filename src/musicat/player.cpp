@@ -37,7 +37,7 @@ namespace musicat {
 	    this->saved_queue_loaded = false;
 	    this->saved_config_loaded = false;
 	}
-	
+
 	Player::Player(dpp::cluster* _cluster, dpp::snowflake _guild_id) {
 	    this->guild_id = _guild_id;
 	    this->cluster = _cluster;
@@ -140,7 +140,7 @@ namespace musicat {
 
 	    this->loop_mode = nm;
 	    database::update_guild_player_config(this->guild_id, NULL, NULL, &nm);
-	    
+
 	    return *this;
 	}
 
@@ -611,7 +611,7 @@ namespace musicat {
 		    }
 		    start_time = std::chrono::high_resolution_clock::now();
 		    printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
-		    
+
 		    fd = fopen((string("music/") + fname).c_str(), "rb");
 		    if (!fd) throw 2;
 
