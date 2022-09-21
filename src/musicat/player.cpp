@@ -467,7 +467,7 @@ namespace musicat {
 	    }
 	}
 
-	int Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount) {
+	int Manager::skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount, bool remove) {
 	    if (!v) return -1;
 	    auto p = get_player(guild_id);
 	    if (!p) return -1;
@@ -544,7 +544,7 @@ namespace musicat {
 		    if (p->queue.begin() == p->queue.end()) break;
 		    auto l = p->queue.front();
 		    p->queue.pop_front();
-		    if (l_s || l_q) p->queue.push_back(l);
+		    if (!remove && (l_s || l_q)) p->queue.push_back(l);
 		}
 	    }
 	    if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)

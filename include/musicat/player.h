@@ -295,10 +295,11 @@ namespace musicat {
              * @param v
              * @param guild_id
              * @param user_id
+	     * @param remove
              * @return int 0 on success, > 0 on vote, -1 on failure
              * @throw musicat::exception
              */
-            int skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount = 1);
+            int skip(dpp::voiceconn* v, dpp::snowflake guild_id, dpp::snowflake user_id, int64_t amount = 1, bool remove = false);
             void download(std::string fname, std::string url, dpp::snowflake guild_id);
             void wait_for_download(std::string file_name);
             void stream(dpp::discord_voice_client* v, std::string fname);
