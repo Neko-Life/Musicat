@@ -303,7 +303,7 @@ namespace musicat {
                 return;
             }
 
-            player_manager->set_ignore_marker(event.voice_client->server_id);
+            if (event.track_meta != "rm") player_manager->set_ignore_marker(event.voice_client->server_id);
             if (!player_manager->handle_on_track_marker(event, player_manager))
             {
                 player_manager->delete_info_embed(event.voice_client->server_id);

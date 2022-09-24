@@ -549,7 +549,12 @@ namespace musicat {
 	    }
 	    if (v && v->voiceclient && v->voiceclient->get_secs_remaining() > 0.1)
 		this->stop_stream(guild_id);
+
 	    int a = p->skip(v);
+
+	    if (v && v->voiceclient && remove)
+		v->voiceclient->insert_marker("rm");
+
 	    return a;
 	}
 
@@ -913,6 +918,7 @@ namespace musicat {
 			return;
 		    }
 		    if (cb.value.index())
+
 		    {
 			if (!player)
 			{
@@ -928,9 +934,12 @@ namespace musicat {
 			}
 
 			player->info_message = std::make_shared<dpp::message>(std::get<dpp::message>(cb.value));
-			this->info_messages_cache[player->info_message->id] = player->info_message;
-			printf("New message info: %ld\n", player->info_message->id);
+			if (player->info_message) {
+				this->info_messages_cache[player->info_message->id] = player->info_message;
+				printf("New message info: %ld\n", player->info_message->id);
+			}
 		    }
+
 		    else printf("No message_create cb size\n");
 		};
 
@@ -970,13 +979,15 @@ namespace musicat {
 
 	    auto retdel = [player, this]() {
 		std::lock_guard<std::mutex> lk(this->imc_m);
-		auto id = player->info_message->id;
-		this->info_messages_cache.erase(id);
-		return true;
+		if (player->info_message) {
+			auto id = player->info_message->id;
+			this->info_messages_cache.erase(id);
+			return true;
+		} else return false;
 	    };
 
 	    if (!player->info_message) return false;
-	    else if (player->info_message->is_source_message_deleted()) return retdel();
+	    if (player->info_message->is_source_message_deleted()) return retdel();
 
 	    auto mid = player->info_message->id;
 	    auto cid = player->info_message->channel_id;
@@ -1039,13 +1050,18 @@ namespace musicat {
 			p->queue.pop_front();
 			p->queue.push_back(l);
 		    }
+		} else if (event.track_meta == "rm") {
+		    p->queue.pop_front();
+		    return false;
 		}
+
 		if (p->queue.size() == 0)
 		{
 		    printf("NO SIZE AFTER: %d\n", p->loop_mode);
 		    if (!just_loaded_queue) database::delete_guild_current_queue(event.voice_client->server_id);
 		    return false;
 		}
+
 		p->queue.front().skip_vote.clear();
 		s = p->queue.front();
 		p->set_stopped(false);
