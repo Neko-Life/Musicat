@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <deque>
 #include <libpq-fe.h>
 #include <ogg/ogg.h>
@@ -606,19 +607,23 @@ namespace musicat {
 		try
 		{
 		    server_id = v->server_id;
-		    {
-			struct stat buf;
-			if (stat("music", &buf) != 0)
-			{
-			    std::filesystem::create_directory("music");
-			    throw 2;
-			}
-		    }
+
+		    const std::string file_path = string("music/") + fname;
+
 		    start_time = std::chrono::high_resolution_clock::now();
 		    printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
 
-		    fd = fopen((string("music/") + fname).c_str(), "rb");
-		    if (!fd) throw 2;
+		    fd = fopen(file_path.c_str(), "rb");
+		    if (!fd) {
+			std::filesystem::create_directory("music");
+			throw 2;
+		    }
+
+		    struct stat buf;
+		    if (fstat(fileno(fd), &buf) != 0) {
+			fclose(fd);
+			throw 2;
+		    }
 
 		    printf("Initializing buffer\n");
 		    ogg_page og;
@@ -626,10 +631,8 @@ namespace musicat {
 		    // OpusHead header;
 		    char* buffer;
 
-		    fseek(fd, 0L, SEEK_END);
-		    size_t sz = ftell(fd);
+		    size_t sz = buf.st_size;
 		    printf("SIZE_T: %ld\n", sz);
-		    rewind(fd);
 
 		    ogg_sync_init(&oy);
 
