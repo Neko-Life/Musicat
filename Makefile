@@ -28,12 +28,3 @@ $(DSFILES): $(SRC)
 
 clean:
 	rm $(OBJS) $(DSFILES) $(OUT)
-
-ex:
-	g++ -Wall -Wextra -g -Iinclude -lcurlpp -lcurl exec.cpp src/musicat/yt_search.cpp src/musicat/encode.cpp -o ex
-
-ex2:
-	g++ -Wall -Wextra -g -Iinclude exec2.cpp -o ex2
-
-d:
-	g++ -Wall -Wextra -Iinclude -lcurlpp -lcurl d.cpp -o d
