@@ -1,0 +1,9 @@
+version: '3.9'
+
+services:
+  debian:
+    command: sleep 9999999999
+    build:
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/root/musicat
