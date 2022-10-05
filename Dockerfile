@@ -1,27 +1,39 @@
-FROM debian:stable-slim
+FROM archlinux:base-devel
+
+RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist
 
 WORKDIR /tmp
 
-RUN apt update && \
-    apt install -y curl git libcurl4-openssl-dev zlib1g-dev libssl-dev libpq-dev libogg-dev python3 ffmpeg opus-tools g++ make cmake
+RUN pacman -S --noconfirm git cmake python3 python-pip ffmpeg opus
 
-RUN curl https://dl.dpp.dev/latest --output ./dpp.deb && \
-    curl https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp --output /usr/local/sbin/yt-dlp && \
-    curl -L https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp --output json.hpp && \
-    git clone https://github.com/jpbarrette/curlpp.git && \
-    git clone https://github.com/brainboxdotcc/DPP.git
+RUN git clone https://github.com/brainboxdotcc/DPP.git && \
+    mkdir /tmp/DPP/build && cd /tmp/DPP/build && \
+    cmake ../ && \
+    make -j$(nproc) install
 
-ENV CXX=/usr/bin/g++
+RUN python3 -m pip install -U yt-dlp
 
-RUN chmod +x /usr/local/sbin/yt-dlp && \
-    dpkg -i /tmp/dpp.deb && apt -f install && \
-    mkdir /tmp/curlpp/build && cd /tmp/curlpp/build && cmake ../ && make && make -j$(nproc) install
-    # mkdir /tmp/DPP/build && cd /tmp/DPP/build && cmake ../ -DCMAKE_INSTALL_PREFIX=/usr/local && make -j$(nproc) install
+RUN git clone https://github.com/jpbarrette/curlpp.git && \
+    mkdir /tmp/curlpp/build && \
+    cd /tmp/curlpp/build && \
+    cmake ../ && \
+    make && make -j$(nproc) install
+
+RUN pacman -S --noconfirm postgresql-libs
+
+RUN curl -L https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp --output json.hpp
 
 WORKDIR /root/musicat
 
-COPY ./ /root/musicat/
+COPY include ./include
+COPY src ./src
+COPY Makefile compile_flags.txt ./
 
-# RUN export CPLUS_INCLUDE_PATH=/usr/include/postgresql:include/nlohmann && \
-#     mkdir include/nlohmann && cp /tmp/json.hpp include/nlohmann/ && \
-#     make -j$(nproc) all
+RUN mkdir -p include/nlohmann && cp /tmp/json.hpp include/nlohmann/ && \
+    mkdir exe && \
+    make -j$(nproc) all
+
+WORKDIR /root/musicat/exe
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
+CMD echo "{\"SHA_TKN\":\"$BOT_TOKEN\",\"SHA_ID\":$BOT_CLIENT_ID,\"SHA_DB\":\"$DB_CONNECTION_STRING\"}" > sha_conf.json && ./Shasha

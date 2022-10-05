@@ -6,17 +6,22 @@
 # Build image
 
 ```
-docker-compose build debian
+docker-compose build musicat
 # OR
-docker compose build debian
+docker compose build musicat
 ```
 
-# Start a terminal inside the container to continue playing around with docker
+# Set env variables
 
 ```
-docker-compose run --rm debian bash
+export BOT_TOKEN=XXXXXXXXXXXXXX
+export BOT_CLIENT_ID=1234567890
+```
+
+# Start
+
+```
+docker-compose up
 # OR
-docker compose run --rm debian bash
+docker compose up
 ```
-
-Try using `ls` inside the container to see the source files

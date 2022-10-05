@@ -1,9 +1,21 @@
 version: '3.9'
 
 services:
-  debian:
-    command: sleep 9999999999
+  musicat:
     build:
       dockerfile: Dockerfile
-    volumes:
-      - ./:/root/musicat
+    environment:
+      - BOT_TOKEN
+      - BOT_CLIENT_ID
+      - DB_CONNECTION_STRING=dbname=musicat host=db port=5432 user=musicat password=musicat
+    # volumes:
+    #   - ./:/root/musicat
+
+  db:
+    image: postgres:14.5-bullseye
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: musicat
+      POSTGRES_PASSWORD: musicat
+      POSTGRES_DB: musicat

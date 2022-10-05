@@ -5,10 +5,10 @@ CXX = g++
 CCF = -std=c++17 -MMD -Wall -Wextra -g
 
 # Specify include folder
-INC = -Iinclude -I/usr/include -I/usr/include/postgresql # -I/usr/include/opus # -lxml2 -lz -llzma -licui18n -licuuc -licudata -lm
+INC = -Iinclude # -I/usr/include/opus # -lxml2 -lz -llzma -licui18n -licuuc -licudata -lm
 
 # Specify libs to use
-LIB = -L/usr/lib -L/usr/lib/dpp-10.0 -ldpp -pthread -lcurl -lcurlpp -logg -lpq # -lopus -lopusfile # -lllhttp
+LIB = -ldpp -pthread -lcurl -lcurlpp -logg -lpq # -lopus -lopusfile # -lllhttp
 
 # Specify source file
 SRC = $(wildcard src/musicat/*.cpp) $(wildcard src/musicat/cmds/*.cpp) src/main.cpp # libs/opusfile/src/*.c # src/include/*.cpp
