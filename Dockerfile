@@ -5,7 +5,7 @@ RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorli
 WORKDIR /tmp
 
 #   Download dependencies
-RUN pacman -S --noconfirm git cmake python3 python-pip ffmpeg opus postgresql-libs && \
+RUN pacman -S --noconfirm git cmake python3 python-pip ffmpeg opus postgresql-libs libsodium zlib openssl && \
     python3 -m pip install -U yt-dlp && \
     curl -L https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp --output json.hpp && \
     git clone https://github.com/brainboxdotcc/DPP.git && \
