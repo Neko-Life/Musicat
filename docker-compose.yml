@@ -2,6 +2,7 @@ version: '3.9'
 
 services:
   musicat:
+    image: shasha/musicat:0.1.0
     build:
       dockerfile: Dockerfile
     environment:
