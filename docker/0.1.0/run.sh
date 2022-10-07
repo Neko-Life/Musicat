@@ -1,7 +1,6 @@
 #!/bin/bash
 
-check=$(stat ../../exe/music &>/dev/null)
-if [ check != 0 ]; then
+if [ ! -d ../../exe/music ]; then
     mkdir -p ../../exe/music
 fi
 
