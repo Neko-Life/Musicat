@@ -9,8 +9,18 @@ services:
       - BOT_TOKEN
       - BOT_CLIENT_ID
       - DB_CONNECTION_STRING=dbname=musicat host=db port=5432 user=musicat password=musicat
-    # volumes:
-    #   - ./:/root/musicat
+    volumes:
+      - ./exe/music:/root/musicat/exe/music
+      - ./exe/sha_conf.json:/root/musicat/exe/sha_conf.json
+    stdin_open: true
+    tty: true
+    memswap_limit: 512M
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   db:
     image: postgres:14.5-bullseye
@@ -20,3 +30,5 @@ services:
       POSTGRES_USER: musicat
       POSTGRES_PASSWORD: musicat
       POSTGRES_DB: musicat
+    volumes:
+      - /var/lib/postgres/data:/var/lib/postgres/data

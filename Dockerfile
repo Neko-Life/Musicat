@@ -38,4 +38,4 @@ RUN mkdir -p include/nlohmann && cp /tmp/json.hpp include/nlohmann/ && \
 WORKDIR /root/musicat/exe
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-CMD echo "{\"SHA_TKN\":\"$BOT_TOKEN\",\"SHA_ID\":$BOT_CLIENT_ID,\"SHA_DB\":\"$DB_CONNECTION_STRING\"}" > sha_conf.json && ./Shasha
+CMD ./Shasha
