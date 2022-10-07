@@ -21,6 +21,6 @@ Discord Music Bot written in C++
 
 ## Docker
 
-* `cd` to `docker/[version]/` and run `compose.sh` as root.
-* Run `run-db.sh` to start the database.
-* Run `run.sh` to start the bot. You can pass arguments too.
+* `cd` to `docker/[version]/` and run `compose.sh` as root to build the image.
+* Run `./register.sh g` to register Musicat's slash commands to discord globally.
+* Run `run.sh` to start the bot.
