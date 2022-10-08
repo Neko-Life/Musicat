@@ -150,9 +150,10 @@ namespace musicat {
 	    PGcancel* cobj = PQgetCancel(conn);
 
 	    char err[256];
+	    memset(err, '\0', sizeof(err));
 	    int ret = PQcancel(cobj, err, ERRBUFSIZE);
 
-	    if (strlen(err) > 0U)
+	    if (strlen(err) > 0UL)
 	    {
 		fprintf(stderr, "[DB_ERROR] Cancel error: '%s'\n", err);
 	    }
