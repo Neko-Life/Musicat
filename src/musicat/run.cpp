@@ -6,6 +6,7 @@
 #include <dpp/dpp.h>
 #include <any>
 #include <libpq-fe.h>
+#include <mutex>
 #include "nlohmann/json.hpp"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -21,6 +22,30 @@ namespace musicat {
     using string = std::string;
 
     bool running = true;
+    bool debug = false;
+    std::mutex main_mutex;
+
+    const bool get_running_state() {
+	std::lock_guard<std::mutex> lk(main_mutex);
+	return running;
+    }
+
+    int set_running_state(const bool state) {
+	std::lock_guard<std::mutex> lk(main_mutex);
+	running = state;
+	return 0;
+    }
+
+    const bool get_debug_state() {
+	std::lock_guard<std::mutex> lk(main_mutex);
+	return debug;
+    }
+
+    int set_debug_state(const bool state) {
+	std::lock_guard<std::mutex> lk(main_mutex);
+	debug = state;
+	return 0;
+    }
 
     void on_sigint(int code) {
         printf("RECEIVED SIGINT\nCODE: %d\n", code);
@@ -34,11 +59,17 @@ namespace musicat {
         json sha_cfg;
         {
             std::ifstream scs("sha_conf.json");
+	    if (!scs.is_open()) {
+		fprintf(stderr, "[ERROR] No config file exist\n");
+		scs.close();
+		return -1;
+	    }
+
             scs >> sha_cfg;
             scs.close();
         }
 
-        dpp::cluster client(sha_cfg["SHA_TKN"], dpp::i_guild_members | dpp::i_default_intents);
+        dpp::cluster client(sha_cfg["SHA_TKN"].get<string>(), dpp::i_guild_members | dpp::i_default_intents);
 
         dpp::snowflake sha_id(sha_cfg["SHA_ID"].get<int64_t>());
 
@@ -71,16 +102,22 @@ namespace musicat {
 
         client.on_log(dpp::utility::cout_logger());
 
-        client.on_ready([](const dpp::ready_t& event)
-        {
-            printf("SHARD: %d\nWS_PING: %f\n", event.shard_id, event.from->websocket_ping);
-        });
+	client.on_ready([](const dpp::ready_t& event) {
+		dpp::discord_client *from = event.from;
+		dpp::user me = from->creator->me;
+
+		printf("[READY] Shard: %d\n", from->shard_id);
+		printf("Logged in as %s#%d (%ld)\n",
+			me.username.c_str(),
+			me.discriminator,
+			me.id);
+		});
 
         client.on_message_create([](const dpp::message_create_t& event) {
             // Update channel last message Id
-            auto c = dpp::find_channel(event.msg.channel_id);
-            if (c) c->last_message_id = event.msg.id;
-        });
+		dpp::channel *c = dpp::find_channel(event.msg.channel_id);
+		if (c) c->last_message_id = event.msg.id;
+		});
 
         client.on_button_click([](const dpp::button_click_t& event) {
             const size_t fsub = event.custom_id.find("/");
@@ -93,7 +130,7 @@ namespace musicat {
                 const string param = event.custom_id.substr(fsub + 1, 1);
                 if (!param.length())
                 {
-                    fprintf(stderr, "[WARN(run.78)] command \"page_queue\" have no param\n");
+                    fprintf(stderr, "[WARN] command \"page_queue\" have no param\n");
                     return;
                 }
                 event.reply(dpp::ir_deferred_update_message, "");
@@ -105,7 +142,7 @@ namespace musicat {
                 const string param = event.custom_id.substr(fsub + 1, string::npos);
                 if (!param.length())
                 {
-                    fprintf(stderr, "[WARN(run.87)] command \"modal_p\" have no param\n");
+                    fprintf(stderr, "[WARN] command \"modal_p\" have no param\n");
                     return;
                 }
                 if (param == "que_s_track")
@@ -114,7 +151,7 @@ namespace musicat {
                 }
                 else
                 {
-                    fprintf(stderr, "[WARN(run.98)] modal_p param isn't handled: \"%s\"\n", param.c_str());
+                    fprintf(stderr, "[WARN] modal_p param isn't handled: \"%s\"\n", param.c_str());
                 }
             }
         });
@@ -194,7 +231,7 @@ namespace musicat {
                 }
                 else
                 {
-                    fprintf(stderr, "[WARN(run.112)] Form modal_p doesn't contain any components row\n");
+                    fprintf(stderr, "[WARN] Form modal_p doesn't contain any components row\n");
                 }
             }
         });
@@ -202,7 +239,7 @@ namespace musicat {
         client.on_autocomplete([&player_manager](const dpp::autocomplete_t& event) {
             const string cmd = event.name;
             string opt = "";
-            std::vector<std::string> sub_cmd = {};
+            std::vector<string> sub_cmd = {};
             string param = "";
 
             bool sub_level = true;
@@ -344,11 +381,13 @@ namespace musicat {
         client.start(true);
 
         time_t last_gc;
+        time_t last_recon;
         time(&last_gc);
+	time(&last_recon);
 
         while (running)
         {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
 
             // GC
             if (!running || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
@@ -365,7 +404,10 @@ namespace musicat {
                 printf("[GC] Ran for %ld ms\n", done.count());
             }
 
-            if (!no_db) database::reconnect(false, db_connect_param);
+            if (running && !no_db && (time(NULL) - last_recon) > 60) {
+		const ConnStatusType status = database::reconnect(false, db_connect_param);
+		printf("[DB_RECONNECT] Status code: %d\n", status);
+	    }
         }
 
         database::shutdown();

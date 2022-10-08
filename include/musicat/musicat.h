@@ -12,24 +12,33 @@ namespace musicat
     // Main
     int run(int argc, const char* argv[]);
 
+    /**
+     * @brief Get current running state
+     */
+    const bool get_running_state();
+
+    /**
+     * @brief Set current running state, setting to false will cause program to perform clean up and exit
+     *
+     * @return int 0 on success
+     */
+    int set_running_state(const bool state);
+
+    /**
+     * @brief Get current debug state
+     */
+    const bool get_debug_state();
+
+    /**
+     * @brief Set current debug state, setting to true will enable verbose logging
+     *
+     * @return int 0 on success
+     */
+    int set_debug_state(const bool state);
+
+
     template <typename T>
     typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find);
-
-    struct settings
-    {
-        std::string defaultPrefix;
-
-        std::map<dpp::snowflake, std::string> prefix;
-        std::vector<dpp::snowflake> joining_list;
-
-        std::string get_prefix(const dpp::snowflake guildId) const;
-
-        auto set_prefix(const dpp::snowflake guildId, const std::string newPrefix);
-
-        void set_joining_vc(dpp::snowflake vc_id);
-
-        void remove_joining_vc(dpp::snowflake vc_id);
-    };
 
     /**
      * @brief Destroy and reset connecting state of the guild, must be invoked when failed to join or left a vc
