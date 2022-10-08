@@ -15,7 +15,7 @@ namespace musicat
     /**
      * @brief Get current running state
      */
-    const bool get_running_state();
+    bool get_running_state();
 
     /**
      * @brief Set current running state, setting to false will cause program to perform clean up and exit
@@ -27,7 +27,7 @@ namespace musicat
     /**
      * @brief Get current debug state
      */
-    const bool get_debug_state();
+    bool get_debug_state();
 
     /**
      * @brief Set current debug state, setting to true will enable verbose logging
@@ -36,9 +36,23 @@ namespace musicat
      */
     int set_debug_state(const bool state);
 
-
+    /**
+     * @brief Search _find inside _vec
+     *
+     * @param _vec
+     * @param _find
+     *
+     * @return std::vector<T>::iterator iterator to _find
+     */
     template <typename T>
-    typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find);
+	typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find) {
+	    auto i = _vec->begin();
+	    for (; i != _vec->end();i++)
+	    {
+		if (*i == _find) return i;
+	    }
+	    return i;
+	}
 
     /**
      * @brief Destroy and reset connecting state of the guild, must be invoked when failed to join or left a vc
@@ -101,7 +115,7 @@ namespace musicat
         virtual int code() const noexcept;
     };
 
-    int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[], bool* running_state = nullptr);
+    int cli(dpp::cluster& client, dpp::snowflake sha_id, int argc, const char* argv[]);
 
     bool has_permissions(dpp::guild* guild, dpp::user* user, dpp::channel* channel, std::vector<uint64_t> permissions = {});
     bool has_permissions_from_ids(dpp::snowflake guild_id, dpp::snowflake user_id, dpp::snowflake channel_id, std::vector<uint64_t> permissions = {});

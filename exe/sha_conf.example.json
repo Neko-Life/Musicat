@@ -1,5 +1,6 @@
 {
     "SHA_TKN": "", // bot token
     "SHA_ID": 0, // bot user id
-    "SHA_DB": "dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat" // PostgreSQL connect configuration. See https://www.postgresql.org/docs/14/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+    "SHA_DB": "dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat", // PostgreSQL connect configuration. See https://www.postgresql.org/docs/14/libpq-connect.html#LIBPQ-PARAMKEYWORDS
+    "DEBUG": false // Default debug mode state on boot
 }

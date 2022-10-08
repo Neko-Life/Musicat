@@ -517,7 +517,7 @@ namespace musicat {
 
 		query += " ) ON CONFLICT (\"gid\") DO UPDATE SET ";
 
-		for (int i = 0; i < names.size(); i++)
+		for (size_t i = 0; i < names.size(); i++)
 		{
 		    query += names[i] + " = " + values[i] + ", ";
 		}

@@ -9,43 +9,6 @@ namespace musicat
 {
     using string = std::string;
 
-    template <typename T>
-	typename std::vector<T>::iterator vector_find(std::vector<T>* _vec, T _find) {
-	    auto i = _vec->begin();
-	    for (; i != _vec->end();i++)
-	    {
-		if (*i == _find) return i;
-	    }
-	    return i;
-	}
-
-    string settings::get_prefix(const dpp::snowflake guildId) const
-    {
-	auto gid = prefix.find(guildId);
-	if (gid == prefix.end())
-	    return defaultPrefix;
-	return gid->second;
-    }
-
-    auto settings::set_prefix(const dpp::snowflake guildId, const string newPrefix)
-    {
-	return prefix.insert_or_assign(guildId, newPrefix);
-    }
-
-    void settings::set_joining_vc(dpp::snowflake vc_id) {
-	if (vector_find(&joining_list, vc_id) != joining_list.end()) return;
-	joining_list.emplace_back(vc_id);
-    }
-
-    void settings::remove_joining_vc(dpp::snowflake vc_id) {
-	auto i = vector_find(&joining_list, vc_id);
-	if (i != joining_list.end())
-	{
-	    joining_list.erase(i);
-	    printf("ERASE IS CALLED\n");
-	}
-    }
-
     /**
      * @brief Destroy and reset connecting state of the guild, must be invoked when failed to join or left a vc
      *

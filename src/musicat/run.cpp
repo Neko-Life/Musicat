@@ -25,7 +25,7 @@ namespace musicat {
     bool debug = false;
     std::mutex main_mutex;
 
-    const bool get_running_state() {
+    bool get_running_state() {
 	std::lock_guard<std::mutex> lk(main_mutex);
 	return running;
     }
@@ -36,7 +36,7 @@ namespace musicat {
 	return 0;
     }
 
-    const bool get_debug_state() {
+    bool get_debug_state() {
 	std::lock_guard<std::mutex> lk(main_mutex);
 	return debug;
     }
@@ -44,6 +44,9 @@ namespace musicat {
     int set_debug_state(const bool state) {
 	std::lock_guard<std::mutex> lk(main_mutex);
 	debug = state;
+
+	printf("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
+
 	return 0;
     }
 
@@ -69,13 +72,30 @@ namespace musicat {
             scs.close();
         }
 
+	set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
+
+	printf("[INFO] Enter `-d` to toggle debug mode\n");
+
+	std::thread stdin_listener([]() {
+	    while (get_running_state()) {
+		char cmd[128];
+		memset(cmd, '\0', sizeof(cmd));
+		scanf("%s", cmd);
+
+		if (strcmp(cmd, "-d") == 0) {
+		    set_debug_state(!get_debug_state());
+		}
+	    }
+	});
+	stdin_listener.detach();
+
         dpp::cluster client(sha_cfg["SHA_TKN"].get<string>(), dpp::i_guild_members | dpp::i_default_intents);
 
         dpp::snowflake sha_id(sha_cfg["SHA_ID"].get<int64_t>());
 
         if (argc > 1)
         {
-            int ret = cli(client, sha_id, argc, argv, &running);
+            int ret = cli(client, sha_id, argc, argv);
             while (running) std::this_thread::sleep_for(std::chrono::seconds(1));
             return ret;
         }
@@ -333,38 +353,41 @@ namespace musicat {
             player_manager->handle_on_voice_state_update(event);
         });
 
-        client.on_voice_track_marker([&player_manager](const dpp::voice_track_marker_t& event) {
-            if (player_manager->has_ignore_marker(event.voice_client->server_id))
-            {
-                printf("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
-                return;
-            }
+	client.on_voice_track_marker([&player_manager](const dpp::voice_track_marker_t& event) {
+	    if (player_manager->has_ignore_marker(event.voice_client->server_id))
+	    {
+		if (get_debug_state()) printf("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
+		return;
+	    }
 
-            if (event.track_meta != "rm") player_manager->set_ignore_marker(event.voice_client->server_id);
-            if (!player_manager->handle_on_track_marker(event, player_manager))
-            {
-                player_manager->delete_info_embed(event.voice_client->server_id);
-            }
+	    if (event.track_meta != "rm") player_manager->set_ignore_marker(event.voice_client->server_id);
+	    if (!player_manager->handle_on_track_marker(event, player_manager))
+	    {
+		player_manager->delete_info_embed(event.voice_client->server_id);
+	    }
 
-            std::thread t([player_manager, event]() {
-                short int count = 0;
-                while (event.voice_client
-                    && !event.voice_client->terminating
-                    && !event.voice_client->is_playing()
-                    && !event.voice_client->is_paused())
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                    count++;
-                    if (count == 10) break;
-                }
+	    std::thread t([player_manager, event]() {
+		if (!event.voice_client) return;
+		short int count = 0;
 
-                player_manager->remove_ignore_marker(event.voice_client->server_id);
-                printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
-                if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
-                printf("\n");
-            });
-            t.detach();
-        });
+		while (!event.voice_client->terminating
+			&& !event.voice_client->is_playing()
+			&& !event.voice_client->is_paused())
+		{
+		    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		    count++;
+		    if (count == 10) break;
+		}
+
+		player_manager->remove_ignore_marker(event.voice_client->server_id);
+		if (get_debug_state()) return;
+
+		printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
+		if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
+		printf("\n");
+	    });
+	    t.detach();
+	});
 
         client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
             player_manager->handle_on_message_delete(event);
@@ -385,14 +408,14 @@ namespace musicat {
         time(&last_gc);
 	time(&last_recon);
 
-        while (running)
+        while (get_running_state())
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
             // GC
-            if (!running || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
+            if (!get_running_state() || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
-                printf("[GC] Starting scheduled gc\n");
+                if (get_debug_state()) printf("[GC] Starting scheduled gc\n");
                 auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
                 paginate::gc(!running);
@@ -401,12 +424,12 @@ namespace musicat {
                 time(&last_gc);
                 auto end_time = std::chrono::high_resolution_clock::now();
                 auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-                printf("[GC] Ran for %ld ms\n", done.count());
+                if (get_debug_state()) printf("[GC] Ran for %ld ms\n", done.count());
             }
 
-            if (running && !no_db && (time(NULL) - last_recon) > 60) {
+            if (get_running_state() && !no_db && (time(NULL) - last_recon) > 60) {
 		const ConnStatusType status = database::reconnect(false, db_connect_param);
-		printf("[DB_RECONNECT] Status code: %d\n", status);
+		if (get_debug_state()) printf("[DB_RECONNECT] Status code: %d\n", status);
 	    }
         }
 
