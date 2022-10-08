@@ -422,14 +422,18 @@ namespace musicat {
 
                 // reset last_gc
                 time(&last_gc);
-                auto end_time = std::chrono::high_resolution_clock::now();
+
+
+		auto end_time = std::chrono::high_resolution_clock::now();
                 auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
                 if (get_debug_state()) printf("[GC] Ran for %ld ms\n", done.count());
             }
 
             if (get_running_state() && !no_db && (time(NULL) - last_recon) > 60) {
 		const ConnStatusType status = database::reconnect(false, db_connect_param);
-		if (get_debug_state()) printf("[DB_RECONNECT] Status code: %d\n", status);
+		time(&last_recon);
+
+		if (status != CONNECTION_OK && get_debug_state()) printf("[DB_RECONNECT] Status code: %d\n", status);
 	    }
         }
 

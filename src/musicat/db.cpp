@@ -8,6 +8,7 @@
 #include <regex>
 #include <dpp/dpp.h>
 #include <vector>
+#include "musicat/musicat.h"
 #include "nlohmann/json.hpp"
 #include "musicat/db.h"
 #include "musicat/player.h"
@@ -105,12 +106,13 @@ namespace musicat {
 	// -----------------------------------------------------------------------
 
 	ConnStatusType init(const std::string& _conninfo) {
-	    printf("[DB] Initializing...\n");
+	    const bool debug = get_debug_state();
+	    if (debug) printf("[DB] Initializing...\n");
 
 	    std::lock_guard<std::mutex> lk(conn_mutex);
 	    conninfo = _conninfo;
 
-	    printf("[DB] Connecting to database with param: %s\n", conninfo.c_str());
+	    if (debug) printf("[DB] Connecting to database with param: %s\n", conninfo.c_str());
 	    conn = PQconnectdb(conninfo.c_str());
 
 	    ConnStatusType status = PQstatus(conn);
@@ -122,7 +124,7 @@ namespace musicat {
 		PQfinish(conn);
 		conn = nullptr;
 	    }
-	    else printf("[DB] Database connected: %s\n", PQdb(conn));
+	    else if (debug) printf("[DB] Database connected: %s\n", PQdb(conn));
 
 	    if (!PQisthreadsafe())
 	    {
@@ -162,21 +164,23 @@ namespace musicat {
 	}
 
 	void shutdown() {
-	    printf("[DB] Shutting down...\n");
+	    const bool debug = get_debug_state();
+
+	    if (debug) printf("[DB] Shutting down...\n");
 	    if (conn)
 	    {
 		if (cancel())
 		{
-		    printf("[DB] Latest query cancelled\n");
+		    if (debug) printf("[DB] Latest query cancelled\n");
 		}
-		else printf("[DB] No query cancelled\n");
+		else if (debug) printf("[DB] No query cancelled\n");
 
 		std::lock_guard<std::mutex> lk(conn_mutex);
 
 		PQfinish(conn);
 		conn = nullptr;
 	    }
-	    else printf("[DB] No connection\n");
+	    else if (debug) printf("[DB] No connection\n");
 	}
 
 	const std::string get_connect_param() noexcept(true) {
@@ -190,7 +194,7 @@ namespace musicat {
 	}
 
 	bool valid_name(const std::string& str) {
-	    printf("[DB_VALIDATE_NAME] '%s'\n", str.c_str());
+	    if (get_debug_state()) printf("[DB_VALIDATE_NAME] '%s'\n", str.c_str());
 	    if (std::regex_match(str, std::regex("^[0-9a-zA-Z_-]{1,100}$"))) return true;
 	    else return false;
 	}
@@ -525,7 +529,7 @@ namespace musicat {
 		query += "\"ts\" = CURRENT_TIMESTAMP;";
 
 		std::lock_guard<std::mutex> lk(conn_mutex);
-		PGresult* res = _db_exec(query.c_str(), true);
+		PGresult* res = _db_exec(query.c_str(), get_debug_state());
 
 		ExecStatusType status = _check_status(res, "update_guild_player_config");
 
@@ -555,10 +559,11 @@ namespace musicat {
 		ret.loop_mode = player::loop_mode_t::l_none;
 
 		bool set = false;
+		const bool debug = get_debug_state();
 
 		if (!PQgetisnull(res, 0, 0)) {
 		    const char *val = PQgetvalue(res, 0, 0);
-		    printf("[DB_DEBUG] Parse player config atp_state: %s\n", val);
+		    if (debug) printf("[DB_DEBUG] Parse player config atp_state: %s\n", val);
 		    if (strcmp("t", val) == 0) {
 			ret.autoplay_state = true;
 			set = true;
@@ -567,14 +572,14 @@ namespace musicat {
 
 		if (!PQgetisnull(res, 0, 1)) {
 		    const char *val = PQgetvalue(res, 0, 1);
-		    printf("[DB_DEBUG] Parse player config atp_thres: %s\n", val);
+		    if (debug) printf("[DB_DEBUG] Parse player config atp_thres: %s\n", val);
 		    ret.autoplay_threshold = atoi(val);
 		    set = true;
 		}
 
 		if (!PQgetisnull(res, 0, 2)) {
 		    const char* val = PQgetvalue(res, 0, 2);
-		    printf("[DB_DEBUG] Parse player config l_mode: %s\n", val);
+		    if (debug) printf("[DB_DEBUG] Parse player config l_mode: %s\n", val);
 		    ret.loop_mode = _parse_loop_mode(val);
 		    set = true;
 		}
