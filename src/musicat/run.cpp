@@ -87,17 +87,21 @@ namespace musicat {
 	printf("[INFO] Enter `-d` to toggle debug mode\n");
 
 	std::thread stdin_listener([]() {
-	    const std::map<const char*, const char*> commands = {
-		{"help:-h", "Print this message"},
-		{"debug:-d", "Toggle debug mode"},
-		{"clear:-c", "Clear console"},
+	    const std::map<std::pair<const char*, const char*>, const char*> commands = {
+		{{"command", "alias"}, "description"},
+		{{"help","-h"}, "Print this message"},
+		{{"debug","-d"}, "Toggle debug mode"},
+		{{"clear","-c"}, "Clear console"},
 	    };
 
-	    size_t padding = 0;
+	    size_t padding_command = 0;
+	    size_t padding_alias = 0;
 
-	    for (std::pair<const char*, const char*> desc : commands) {
-		const size_t len = strlen(desc.first);
-		if ((len + 1) > padding) padding = (len + 1);
+	    for (std::pair<std::pair<const char*, const char*>, const char*> desc : commands) {
+		const size_t len_command = strlen(desc.first.first);
+		const size_t len_alias = strlen(desc.first.second);
+		if ((len_command + 1) > padding_command) padding_command = (len_command + 1);
+		if ((len_alias + 1) > padding_alias) padding_alias = (len_alias + 1);
 	    }
 
 	    while (get_running_state()) {
@@ -108,15 +112,15 @@ namespace musicat {
 		if (strcmp(cmd, "help") == 0 || strcmp(cmd, "-h") == 0) {
 		    printf("Usage: [command] [args] <ENTER>\n\n");
 
-		    const char* _str = "command:alias";
-		    printf("%s", _str);
-		    _print_pad(padding - strlen(_str));
-		    printf(": description\n");
-
-		    for (std::pair<const char*, const char*> desc : commands) {
-			printf("%s", desc.first);
-			_print_pad(padding - strlen(desc.first));
-			printf(": %s\n", desc.second);
+		    for (std::pair<std::pair<const char*, const char*> ,const char*> desc : commands) {
+			printf("%s", desc.first.first);
+			_print_pad(padding_command - strlen(desc.first.first));
+			printf(":");
+			const size_t len_a = strlen(desc.first.second);
+			_print_pad(padding_alias - len_a);
+			printf("%s", desc.first.second);
+			_print_pad(padding_alias - len_a);
+			printf(": %s", desc.second);
 		    }
 		}
 		else if (strcmp(cmd, "debug") == 0 || strcmp(cmd, "-d") == 0) {
