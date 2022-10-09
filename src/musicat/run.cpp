@@ -16,16 +16,9 @@
 #include "musicat/pagination.h"
 #include "musicat/storage.h"
 #include "musicat/db.h"
+#include "musicat/runtime_cli.h"
 
 #define ONE_HOUR_SECOND 3600
-
-void _print_pad(size_t len) {
-    if ((long)len < 0L) len = 0UL;
-
-    for (size_t i = 0; i < len; i++) {
-	printf(" ");
-    }
-}
 
 namespace musicat {
     using json = nlohmann::json;
@@ -84,54 +77,7 @@ namespace musicat {
 
 	set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
 
-	printf("[INFO] Enter `-d` to toggle debug mode\n");
-
-	std::thread stdin_listener([]() {
-	    const std::map<std::pair<const char*, const char*>, const char*> commands = {
-		{{"command", "alias"}, "description"},
-		{{"help","-h"}, "Print this message"},
-		{{"debug","-d"}, "Toggle debug mode"},
-		{{"clear","-c"}, "Clear console"},
-	    };
-
-	    size_t padding_command = 0;
-	    size_t padding_alias = 0;
-
-	    for (std::pair<std::pair<const char*, const char*>, const char*> desc : commands) {
-		const size_t len_command = strlen(desc.first.first);
-		const size_t len_alias = strlen(desc.first.second);
-		if ((len_command + 1) > padding_command) padding_command = (len_command + 1);
-		if ((len_alias + 1) > padding_alias) padding_alias = (len_alias + 1);
-	    }
-
-	    while (get_running_state()) {
-		char cmd[128];
-		memset(cmd, '\0', sizeof(cmd));
-		scanf("%s", cmd);
-
-		if (strcmp(cmd, "help") == 0 || strcmp(cmd, "-h") == 0) {
-		    printf("Usage: [command] [args] <ENTER>\n\n");
-
-		    for (std::pair<std::pair<const char*, const char*> ,const char*> desc : commands) {
-			printf("%s", desc.first.first);
-			_print_pad(padding_command - strlen(desc.first.first));
-			printf(":");
-			const size_t len_a = strlen(desc.first.second);
-			_print_pad(padding_alias - len_a);
-			printf("%s", desc.first.second);
-			_print_pad(padding_alias - len_a);
-			printf(": %s", desc.second);
-		    }
-		}
-		else if (strcmp(cmd, "debug") == 0 || strcmp(cmd, "-d") == 0) {
-		    set_debug_state(!get_debug_state());
-		}
-		else if (strcmp(cmd, "clear") == 0 || strcmp(cmd, "-c") == 0) {
-		    system("clear");
-		}
-	    }
-	});
-	stdin_listener.detach();
+	if (sha_cfg["RUNTIME_CLI"].is_null() ? false : sha_cfg["RUNTIME_CLI"].get<bool>()) runtime_cli::attach_listener();
 
         dpp::cluster client(sha_cfg["SHA_TKN"].get<string>(), dpp::i_guild_members | dpp::i_default_intents);
 
