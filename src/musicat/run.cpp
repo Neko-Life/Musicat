@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstring>
 #include <stdio.h>
 #include <string>
 #include <vector>
@@ -16,6 +18,14 @@
 #include "musicat/db.h"
 
 #define ONE_HOUR_SECOND 3600
+
+void _print_pad(size_t len) {
+    if ((long)len < 0L) len = 0UL;
+
+    for (size_t i = 0; i < len; i++) {
+	printf(" ");
+    }
+}
 
 namespace musicat {
     using json = nlohmann::json;
@@ -77,13 +87,43 @@ namespace musicat {
 	printf("[INFO] Enter `-d` to toggle debug mode\n");
 
 	std::thread stdin_listener([]() {
+	    const std::map<const char*, const char*> commands = {
+		{"help:-h", "Print this message"},
+		{"debug:-d", "Toggle debug mode"},
+		{"clear:-c", "Clear console"},
+	    };
+
+	    size_t padding = 0;
+
+	    for (std::pair<const char*, const char*> desc : commands) {
+		const size_t len = strlen(desc.first);
+		if ((len + 1) > padding) padding = (len + 1);
+	    }
+
 	    while (get_running_state()) {
 		char cmd[128];
 		memset(cmd, '\0', sizeof(cmd));
 		scanf("%s", cmd);
 
-		if (strcmp(cmd, "-d") == 0) {
+		if (strcmp(cmd, "help") == 0 || strcmp(cmd, "-h") == 0) {
+		    printf("Usage: [command] [args] <ENTER>\n\n");
+
+		    const char* _str = "command:alias";
+		    printf("%s", _str);
+		    _print_pad(padding - strlen(_str));
+		    printf(": description\n");
+
+		    for (std::pair<const char*, const char*> desc : commands) {
+			printf("%s", desc.first);
+			_print_pad(padding - strlen(desc.first));
+			printf(": %s\n", desc.second);
+		    }
+		}
+		else if (strcmp(cmd, "debug") == 0 || strcmp(cmd, "-d") == 0) {
 		    set_debug_state(!get_debug_state());
+		}
+		else if (strcmp(cmd, "clear") == 0 || strcmp(cmd, "-c") == 0) {
+		    system("clear");
 		}
 	    }
 	});
