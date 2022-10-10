@@ -110,7 +110,11 @@ namespace musicat {
 
         std::shared_ptr<player::Manager> player_manager = std::make_shared<player::Manager>(&client, sha_id);
 
-        client.on_log(dpp::utility::cout_logger());
+	std::function<void (const dpp::log_t&)> dpp_on_log_handler = dpp::utility::cout_logger();
+        client.on_log([&dpp_on_log_handler](const dpp::log_t& event) {
+	    if (!get_debug_state()) return;
+	    dpp_on_log_handler(event);
+	});
 
 	client.on_ready([](const dpp::ready_t& event) {
 		dpp::discord_client *from = event.from;
@@ -167,7 +171,7 @@ namespace musicat {
         });
 
         client.on_form_submit([&player_manager](const dpp::form_submit_t& event) {
-            printf("[FORM] %s %ld\n", event.custom_id.c_str(), event.command.message_id);
+            if (get_debug_state()) printf("[FORM] %s %ld\n", event.custom_id.c_str(), event.command.message_id);
             if (event.custom_id == "modal_p")
             {
                 if (event.components.size())
@@ -359,6 +363,7 @@ namespace musicat {
 	    std::thread t([player_manager, event]() {
 		if (!event.voice_client) return;
 		short int count = 0;
+		const bool d_s = get_debug_state();
 
 		while (!event.voice_client->terminating
 			&& !event.voice_client->is_playing()
@@ -370,7 +375,7 @@ namespace musicat {
 		}
 
 		player_manager->remove_ignore_marker(event.voice_client->server_id);
-		if (get_debug_state()) return;
+		if (!d_s) return;
 
 		printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
 		if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
@@ -402,10 +407,12 @@ namespace musicat {
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
+	    const bool r_s = get_running_state();
             // GC
-            if (!get_running_state() || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
+            if (!r_s || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
-                if (get_debug_state()) printf("[GC] Starting scheduled gc\n");
+		const bool d_s = get_debug_state();
+                if (d_s) printf("[GC] Starting scheduled gc\n");
                 auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
                 paginate::gc(!running);
@@ -416,10 +423,10 @@ namespace musicat {
 
 		auto end_time = std::chrono::high_resolution_clock::now();
                 auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-                if (get_debug_state()) printf("[GC] Ran for %ld ms\n", done.count());
+                if (d_s) printf("[GC] Ran for %ld ms\n", done.count());
             }
 
-            if (get_running_state() && !no_db && (time(NULL) - last_recon) > 60) {
+            if (r_s && !no_db && (time(NULL) - last_recon) > 60) {
 		const ConnStatusType status = database::reconnect(false, db_connect_param);
 		time(&last_recon);
 

@@ -50,7 +50,7 @@ namespace musicat {
 	}
 
 	const std::string _escape_values_query(const std::string& str) {
-	    printf("[DB_ESCAPE_VALUES] %ld\n", str.length());
+	    if (get_debug_state()) printf("[DB_ESCAPE_VALUES] %ld\n", str.length());
 	    char* res = PQescapeLiteral(conn, str.c_str(), str.length());
 
 	    if (res == NULL)

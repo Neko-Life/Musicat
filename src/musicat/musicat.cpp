@@ -103,7 +103,7 @@ namespace musicat
 		{
 		    try
 		    {
-			printf("Fetching user %ld in vc %ld\n", r.second.user_id, r.second.channel_id);
+			if (get_debug_state()) printf("Fetching user %ld in vc %ld\n", r.second.user_id, r.second.channel_id);
 			dpp::user_identified uf = client->user_get_sync(r.second.user_id);
 			if (uf.is_bot()) continue;
 		    }

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <dirent.h>
 #include "musicat/db.h"
+#include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/cmds.h"
 
@@ -239,33 +240,33 @@ namespace musicat {
 	    return true;
 	}
 
-	int Player::seek(int pos, bool abs) {
-	    return 0;
-	}
+	// int Player::seek(int pos, bool abs) {
+	//     return 0;
+	// }
 
-	int Player::stop() {
-	    return 0;
-	}
+	// int Player::stop() {
+	//     return 0;
+	// }
 
-	int Player::resume() {
-	    return 0;
-	}
+	// int Player::resume() {
+	//     return 0;
+	// }
 
-	int Player::search(string query) {
-	    return 0;
-	}
+	// int Player::search(string query) {
+	//     return 0;
+	// }
 
-	int Player::join() {
-	    return 0;
-	}
+	// int Player::join() {
+	//     return 0;
+	// }
 
-	int Player::leave() {
-	    return 0;
-	}
+	// int Player::leave() {
+	//     return 0;
+	// }
 
-	int Player::rejoin() {
-	    return 0;
-	}
+	// int Player::rejoin() {
+	//     return 0;
+	// }
 
 	void Player::set_stopped(const bool& val) {
 	    std::lock_guard<std::mutex> lk(s_m);
@@ -402,56 +403,58 @@ namespace musicat {
 		if (re && from)
 		{
 		    std::thread t([this, user_id, guild_id](dpp::discord_client* from) {
-			    bool user_vc = true;
-			    std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uservc;
-			    try
-			    {
+			bool user_vc = true;
+			std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> uservc;
+
+			try
+			{
 			    uservc = get_voice_from_gid(guild_id, user_id);
-			    }
-			    catch (...)
-			    {
+			}
+			catch (...)
+			{
 			    user_vc = false;
-			    }
-			    try
-			    {
+			}
+
+			try
+			{
 			    auto f = from->connecting_voice_channels.find(guild_id);
 			    auto c = get_voice_from_gid(guild_id, from->creator->me.id);
 			    if (f == from->connecting_voice_channels.end() || !f->second)
 			    {
-			    std::lock_guard<std::mutex> lk(this->dc_m);
-			    this->disconnecting[guild_id] = 1;
-			    from->disconnect_voice(guild_id);
+				std::lock_guard<std::mutex> lk(this->dc_m);
+				this->disconnecting[guild_id] = 1;
+				from->disconnect_voice(guild_id);
 			    }
 			    else if (user_vc && uservc.first->id != c.first->id)
 			    {
-				printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
+				if (get_debug_state()) printf("Disconnecting as it seems I just got moved to different vc and connection not updated yet: %ld\n", guild_id);
 				std::lock_guard<std::mutex> lk(this->dc_m);
 				std::lock_guard<std::mutex> lk2(this->c_m);
 				this->disconnecting[guild_id] = f->second->channel_id;
 				this->connecting[guild_id] = uservc.first->id;
 				from->disconnect_voice(guild_id);
 			    }
-			    }
-			    catch (...)
-			    {
-				reset_voice_channel(from, guild_id);
+			}
+			catch (...)
+			{
+			    reset_voice_channel(from, guild_id);
 
-				if (user_id && user_vc) try
+			    if (user_id && user_vc) try
+			    {
+				std::lock_guard<std::mutex> lk(this->c_m);
+				auto p = this->connecting.find(guild_id);
+				std::map<dpp::snowflake, dpp::voicestate> vm = {};
+				if (p != this->connecting.end())
 				{
-				    std::lock_guard<std::mutex> lk(this->c_m);
-				    auto p = this->connecting.find(guild_id);
-				    std::map<dpp::snowflake, dpp::voicestate> vm = {};
-				    if (p != this->connecting.end())
-				    {
-					auto gc = dpp::find_channel(p->second);
-					if (gc) vm = gc->get_voice_members();
-					auto l = has_listener(&vm);
-					if (!l && p->second != uservc.first->id) p->second = uservc.first->id;
-				    }
+				    auto gc = dpp::find_channel(p->second);
+				    if (gc) vm = gc->get_voice_members();
+				    auto l = has_listener(&vm);
+				    if (!l && p->second != uservc.first->id) p->second = uservc.first->id;
 				}
-				catch (...) {}
 			    }
-			    this->reconnect(from, guild_id);
+			    catch (...) {}
+			}
+			this->reconnect(from, guild_id);
 		    }, from);
 		    t.detach();
 		}
@@ -562,28 +565,38 @@ namespace musicat {
 	void Manager::download(string fname, string url, dpp::snowflake guild_id) {
 	    std::thread tj([this](string fname, string url, dpp::snowflake guild_id) {
 		    {
-		    std::lock_guard<std::mutex> lk(this->dl_m);
-		    this->waiting_file_download[fname] = guild_id;
+			std::lock_guard<std::mutex> lk(this->dl_m);
+			this->waiting_file_download[fname] = guild_id;
 		    }
+
 		    {
-		    struct stat buf;
-		    if (stat("music", &buf) != 0)
-		    std::filesystem::create_directory("music");
+			struct stat buf;
+			if (stat("music", &buf) != 0)
+			std::filesystem::create_directory("music");
 		    }
+		    
 		    string cmd = string("yt-dlp -f 251 --http-chunk-size 2M -o - '") + url
-		    + string("' 2>/dev/null | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
-		    + std::regex_replace(
-			    fname, std::regex("(')"), "'\\''",
-			    std::regex_constants::match_any)
-		    + string("'");
-		    printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
-		    printf("CMD: %s\n", cmd.c_str());
+			    + string("' 2>/dev/null | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
+			    + std::regex_replace(
+				    fname, std::regex("(')"), "'\\''",
+				    std::regex_constants::match_any)
+			    + string("'");
+
+		    const bool debug = get_debug_state();
+		    
+		    if (debug) {
+			printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
+			printf("CMD: %s\n", cmd.c_str());
+		    }
+		    
 		    FILE* a = popen(cmd.c_str(), "w");
 		    pclose(a);
+		    
 		    {
 			std::lock_guard<std::mutex> lk(this->dl_m);
 			this->waiting_file_download.erase(fname);
 		    }
+
 		    this->dl_cv.notify_all();
 	    }, fname, url, guild_id);
 	    tj.detach();
@@ -599,6 +612,8 @@ namespace musicat {
 	void Manager::stream(dpp::discord_voice_client* v, string fname) {
 	    dpp::snowflake server_id;
 	    std::chrono::_V2::system_clock::time_point start_time;
+
+	    const bool debug = get_debug_state();
 	    if (v && !v->terminating && v->is_ready())
 	    {
 		FILE* fd;
@@ -611,7 +626,8 @@ namespace musicat {
 		    const std::string file_path = string("music/") + fname;
 
 		    start_time = std::chrono::high_resolution_clock::now();
-		    printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
+
+		    if (debug) printf("Streaming \"%s\" to %ld\n", fname.c_str(), server_id);
 
 		    fd = fopen(file_path.c_str(), "rb");
 		    if (!fd) {
@@ -625,14 +641,13 @@ namespace musicat {
 			throw 2;
 		    }
 
-		    printf("Initializing buffer\n");
 		    ogg_page og;
 		    ogg_packet op;
 		    // OpusHead header;
 		    char* buffer;
 
 		    size_t sz = buf.st_size;
-		    printf("SIZE_T: %ld\n", sz);
+		    if (debug) printf("BUFFER_SIZE: %ld\n", sz);
 
 		    ogg_sync_init(&oy);
 
@@ -698,7 +713,7 @@ namespace musicat {
 			}
 			if (!v || v->terminating)
 			{
-			    fprintf(stderr, "[ERROR(sha_player.431)] Can't continue streaming, connection broken\n");
+			    fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, connection broken\n");
 			    break;
 			}
 			while (ogg_stream_check(&os) != 0)
@@ -748,7 +763,7 @@ namespace musicat {
 
 			    if (!v || v->terminating)
 			    {
-				fprintf(stderr, "[ERROR(sha_player.382)] Can't continue streaming, connection broken\n");
+				fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, connection broken\n");
 				break;
 			    }
 
@@ -777,7 +792,7 @@ namespace musicat {
 
 			    if (br)
 			    {
-				printf("Breaking\n");
+				if (debug) printf("[MANAGER::STREAM] Stopping stream\n");
 				break;
 			    }
 			}
@@ -785,71 +800,82 @@ namespace musicat {
 		}
 		catch (const std::system_error& e)
 		{
-		    fprintf(stderr, "[ERROR(player.553)] %d: %s\n", e.code().value(), e.what());
+		    fprintf(stderr, "[ERROR MANAGER::STREAM] %d: %s\n", e.code().value(), e.what());
 		}
 		/* Cleanup */
 		ogg_stream_clear(&os);
 		ogg_sync_clear(&oy);
 		auto end_time = std::chrono::high_resolution_clock::now();
 		auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-		printf("Done streaming for %ld milliseconds\n", done.count());
+		if (debug) printf("Done streaming for %ld milliseconds\n", done.count());
 	    }
 	    else throw 1;
 	}
 
 	void Manager::play(dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id, bool notify_error) {
 	    std::thread tj([this](dpp::discord_voice_client* v, string fname, dpp::snowflake channel_id, bool notify_error) {
-		    printf("Attempt to stream\n");
-		    auto server_id = v->server_id;
-		    auto voice_channel_id = v->channel_id;
-		    try
-		    {
+		const bool debug = get_debug_state();
+
+		if (debug) printf("Attempt to stream\n");
+		auto server_id = v->server_id;
+		auto voice_channel_id = v->channel_id;
+
+		try
+		{
 		    this->stream(v, fname);
-		    }
-		    catch (int e)
-		    {
-		    printf("ERROR_CODE: %d\n", e);
+		}
+		catch (int e)
+		{
+		    fprintf(stderr, "[ERROR MANAGER::PLAY] Stream thrown error with code: %d\n", e);
+		    
 		    if (notify_error)
 		    {
-		    string msg = "";
-		    // Maybe connect/reconnect here if there's connection error
-		    if (e == 2) msg = "Can't start playback";
-		    else if (e == 1) msg = "No connection";
-		    dpp::message m;
-		    m.set_channel_id(channel_id)
-		    .set_content(msg);
-		    this->cluster->message_create(m);
+			string msg = "";
+		    
+			// Maybe connect/reconnect here if there's connection error
+			if (e == 2) msg = "Can't start playback";
+			else if (e == 1) msg = "No connection";
+		    
+			dpp::message m;
+			m.set_channel_id(channel_id)
+			    .set_content(msg);
+		    
+			this->cluster->message_create(m);
 		    }
-		    }
-		    if (server_id)
+		}
+
+		if (server_id)
+		{
+		    std::lock_guard<std::mutex> lk(this->sq_m);
+		    
+		    auto sq = vector_find(&this->stop_queue, server_id);
+		    if (sq != this->stop_queue.end())
 		    {
-			std::lock_guard<std::mutex> lk(this->sq_m);
-			auto sq = vector_find(&this->stop_queue, server_id);
-			if (sq != this->stop_queue.end())
-			{
-			    printf("ERASING QUEUE\n");
-			    this->stop_queue.erase(sq);
-			    this->stop_queue_cv.notify_all();
-			}
+			if (debug) printf("[MANAGER::STREAM] Stopped because stop query, cleaning up query\n");
+			this->stop_queue.erase(sq);
+			this->stop_queue_cv.notify_all();
 		    }
-		    if (v && !v->terminating) v->insert_marker("e");
-		    else
+		}
+		
+		if (v && !v->terminating) v->insert_marker("e");
+		else
+		{
+		    try
 		    {
-			try
-			{
-			    get_voice_from_gid(server_id, this->sha_id);
-			    return;
-			}
-			catch (...)
-			{
-			}
-			if (server_id && voice_channel_id)
-			{
-			    std::lock_guard<std::mutex> lk(this->c_m);
-			    this->connecting[server_id] = voice_channel_id;
-			}
-			// if (v) v->~discord_voice_client();
+			get_voice_from_gid(server_id, this->sha_id);
+			return;
 		    }
+		    catch (...)
+		    {
+		    }
+		    
+		    if (server_id && voice_channel_id)
+		    {
+			std::lock_guard<std::mutex> lk(this->c_m);
+			this->connecting[server_id] = voice_channel_id;
+		    }
+		    // if (v) v->~discord_voice_client();
+		}
 	    }, v, fname, channel_id, notify_error);
 	    tj.detach();
 	}
@@ -859,9 +885,11 @@ namespace musicat {
 		auto player = this->get_player(guild_id);
 		if (!player) throw exception("No player");
 
+		const bool debug = get_debug_state();
+
 		if (update && !player->info_message)
 		{
-		    printf("No message\n");
+		    if (debug) printf("[MANAGER:SEND_INFO_EMBED] No message to update\n");
 		    return false;
 		}
 
@@ -893,24 +921,24 @@ namespace musicat {
 		}
 		catch (const exception& e)
 		{
-		    fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed: %s\n", e.what());
+		    fprintf(stderr, "[ERROR MANAGER::SEND_INFO_EMBED] Failed to get_playing_info_embed: %s\n", e.what());
 		    return false;
 		}
 		catch (const dpp::exception& e)
 		{
-		    fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed [dpp::exception]: %s\n", e.what());
+		    fprintf(stderr, "[ERROR MANAGER::SEND_INFO_EMBED] Failed to get_playing_info_embed [dpp::exception]: %s\n", e.what());
 		    return false;
 		}
 		catch (const std::logic_error& e)
 		{
-		    fprintf(stderr, "[ERROR(player.646)] Failed to get_playing_info_embed [std::logic_error]: %s\n", e.what());
+		    fprintf(stderr, "[ERROR MANAGER::SEND_INFO_EMBED] Failed to get_playing_info_embed [std::logic_error]: %s\n", e.what());
 		    return false;
 		}
 
-		auto m_cb = [this, player, guild_id, channel_id](dpp::confirmation_callback_t cb) {
+		auto m_cb = [this, player, guild_id, channel_id, debug](dpp::confirmation_callback_t cb) {
 		    if (cb.is_error())
 		    {
-			fprintf(stderr, "[ERROR(player.668)] message_create callback error:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
+			fprintf(stderr, "[ERROR MANAGER::SEND_INFO_EMBED] message_create callback error:\nmes: %s\ncode: %d\nerr:\n", cb.get_error().message.c_str(), cb.get_error().code);
 			for (const auto& i : cb.get_error().errors)
 			    fprintf(stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
 				    i.code.c_str(),
@@ -920,12 +948,12 @@ namespace musicat {
 				   );
 			return;
 		    }
-		    if (cb.value.index())
 
+		    if (cb.value.index())
 		    {
 			if (!player)
 			{
-			    fprintf(stderr, "PLAYER GONE WTFF\n");
+			    fprintf(stderr, "[ERROR MANAGER::SEND_INFO_EMBED] PLAYER GONE WTFF\n");
 			    return;
 			}
 
@@ -939,11 +967,10 @@ namespace musicat {
 			player->info_message = std::make_shared<dpp::message>(std::get<dpp::message>(cb.value));
 			if (player->info_message) {
 				this->info_messages_cache[player->info_message->id] = player->info_message;
-				printf("New message info: %ld\n", player->info_message->id);
+				if (debug) printf("[MANAGER::SEND_INFO_EMBED] New message info: %ld\n", player->info_message->id);
 			}
 		    }
-
-		    else printf("No message_create cb size\n");
+		    else if  (debug) printf("[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
 		};
 
 		if (delete_original)
@@ -964,7 +991,8 @@ namespace musicat {
 		    auto mn = *player->info_message;
 		    mn.embeds.pop_back();
 		    mn.embeds.push_back(e);
-		    printf("Channel Info Embed Id Edit: %ld %ld\n", mn.channel_id, mn.id);
+
+		    if (debug) printf("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id Edit: %ld %ld\n", mn.channel_id, mn.id);
 		    this->cluster->message_edit(mn, m_cb);
 		}
 		return true;
@@ -972,7 +1000,7 @@ namespace musicat {
 	}
 
 	bool Manager::update_info_embed(dpp::snowflake guild_id, bool force_playing_status) {
-	    printf("Update info called\n");
+	    if (get_debug_state()) printf("[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
 	    return this->send_info_embed(guild_id, true, force_playing_status);
 	}
 
@@ -995,13 +1023,14 @@ namespace musicat {
 	    auto mid = player->info_message->id;
 	    auto cid = player->info_message->channel_id;
 
-	    printf("Channel Info Embed Id Delete: %ld\n", cid);
+	    if (get_debug_state()) printf("[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: %ld\n", cid);
 	    this->cluster->message_delete(mid, cid, callback);
 	    return retdel();
 	}
 
 	bool Manager::handle_on_track_marker(const dpp::voice_track_marker_t& event, std::shared_ptr<Manager> shared_manager) {
-	    printf("Handling voice marker: \"%s\" in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
+	    const bool debug = get_debug_state();
+	    if (debug) printf("Handling voice marker: \"%s\" in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
 
 	    {
 		std::lock_guard<std::mutex> lk(this->mp_m);
@@ -1015,11 +1044,14 @@ namespace musicat {
 	    if (!event.voice_client) { printf("NO CLIENT\n"); return false; }
 	    if (this->is_disconnecting(event.voice_client->server_id))
 	    {
-		printf("DISCONNECTING\n");
+		if (debug) printf("RETURN DISCONNECTING\n");
 		return false;
 	    }
 	    auto p = this->get_player(event.voice_client->server_id);
-	    if (!p) { printf("NO PLAYER\n"); return false; }
+	    if (!p) {
+		if (debug) printf("NO PLAYER\n");
+		return false;
+	    }
 
 	    bool just_loaded_queue = false;
 	    if (p->saved_queue_loaded != true) {
@@ -1034,13 +1066,13 @@ namespace musicat {
 		    std::lock_guard<std::mutex> lk(p->q_m);
 		    if (p->queue.size() == 0)
 		    {
-			printf("NO SIZE BEFORE: %d\n", p->loop_mode);
+			if (debug) printf("NO SIZE BEFORE: %d\n", p->loop_mode);
 			return false;
 		    }
 		}
 
 		// Handle shifted tracks (tracks shifted to the front of the queue)
-		printf("Resetting shifted: %d\n", p->reset_shifted());
+		if (debug) printf("Resetting shifted: %d\n", p->reset_shifted());
 		std::lock_guard<std::mutex> lk(p->q_m);
 
 		// Do stuff according to loop mode when playback ends
@@ -1060,7 +1092,7 @@ namespace musicat {
 
 		if (p->queue.size() == 0)
 		{
-		    printf("NO SIZE AFTER: %d\n", p->loop_mode);
+		    if (debug) printf("NO SIZE AFTER: %d\n", p->loop_mode);
 		    if (!just_loaded_queue) database::delete_guild_current_queue(event.voice_client->server_id);
 		    return false;
 		}
@@ -1080,149 +1112,156 @@ namespace musicat {
 
 	    if (event.voice_client && event.voice_client->get_secs_remaining() < 0.1)
 	    {
-		std::thread tj([this, shared_manager](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
-			bool timed_out = false;
-			auto guild_id = v->server_id;
-			dpp::snowflake channel_id = player->channel_id;
-			// std::thread tmt([this](bool* _v) {
-			//     int _w = 30;
-			//     while (_v && *_v == false && _w > 0)
-			//     {
-			//         sleep(1);
-			//         --_w;
-			//     }
-			//     if (_w) return;
-			//     if (_v)
-			//     {
-			//         *_v = true;
-			//         this->dl_cv.notify_all();
-			//     }
-			// }, &timed_out);
-			// tmt.detach();
-			{
+		std::thread tj([this, shared_manager, debug](dpp::discord_voice_client* v, MCTrack track, string meta, std::shared_ptr<Player> player) {
+		    bool timed_out = false;
+		    auto guild_id = v->server_id;
+		    dpp::snowflake channel_id = player->channel_id;
+		    // std::thread tmt([this](bool* _v) {
+		    //     int _w = 30;
+		    //     while (_v && *_v == false && _w > 0)
+		    //     {
+		    //         sleep(1);
+		    //         --_w;
+		    //     }
+		    //     if (_w) return;
+		    //     if (_v)
+		    //     {
+		    //         *_v = true;
+		    //         this->dl_cv.notify_all();
+		    //     }
+		    // }, &timed_out);
+		    // tmt.detach();
+		    
+		    {
 			std::unique_lock<std::mutex> lk(this->wd_m);
 			auto a = this->waiting_vc_ready.find(guild_id);
 			if (a != this->waiting_vc_ready.end())
 			{
-			    printf("Waiting for ready state\n");
+			    if (debug) printf("Waiting for ready state\n");
+			    
 			    this->dl_cv.wait(lk, [this, &guild_id, &timed_out]() {
-				    auto t = this->waiting_vc_ready.find(guild_id);
-				    // if (timed_out)
-				    // {
-				    //     this->waiting_vc_ready.erase(t);
-				    //     return true;
-				    // }
-				    auto c = t == this->waiting_vc_ready.end();
-				    return c;
-				    });
+				auto t = this->waiting_vc_ready.find(guild_id);
+				// if (timed_out)
+				// {
+				//     this->waiting_vc_ready.erase(t);
+				//     return true;
+				// }
+				auto c = t == this->waiting_vc_ready.end();
+				return c;
+			    });
 			}
-			}
-			{
-			    std::unique_lock<std::mutex> lk(this->dl_m);
-			    auto a = this->waiting_file_download.find(track.filename);
-			    if (a != this->waiting_file_download.end())
-			    {
-				printf("Waiting for download\n");
-				this->dl_cv.wait(lk, [this, track, &timed_out]() {
-					auto t = this->waiting_file_download.find(track.filename);
-					// if (timed_out)
-					// {
-					//     this->waiting_file_download.erase(t);
-					//     return true;
-					// }
-					auto c = t == this->waiting_file_download.end();
-					return c;
-					});
-			    }
-			}
-			string id = track.id();
-			if (player->auto_play)
-			{
-			    printf("Getting new autoplay track: %s\n", id.c_str());
-			    command::play::add_track(true,
-				    v->server_id, string(
-					"https://www.youtube.com/watch?v="
-					) + id + "&list=RD" + id,
-				    0,
-				    true,
-				    NULL,
-				    0,
-				    this->sha_id,
-				    shared_manager,
-				    false,
-				    player->from);
-			}
-			{
-			    std::lock_guard<std::mutex> lk(player->h_m);
-			    if (player->max_history_size)
-			    {
-				player->history.push_back(id);
-				while (player->history.size() > player->max_history_size)
-				{
-				    player->history.pop_front();
-				}
-			    }
-			}
-			auto c = dpp::find_channel(channel_id);
-			auto g = dpp::find_guild(guild_id);
-			bool embed_perms = has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
-			{
-			    std::ifstream test(string("music/") + track.filename, std::ios_base::in | std::ios_base::binary);
-			    if (!test.is_open())
-			    {
-				if (v && !v->terminating) v->insert_marker("e");
-				if (embed_perms)
-				{
-				    dpp::message m;
-				    m.set_channel_id(channel_id)
-					.set_content("Can't play track: " + track.title() + " (added by <@" + std::to_string(track.user_id) + ">)");
-				    this->cluster->message_create(m);
-				}
-				return;
-			    }
-			    else test.close();
-			}
-			if (timed_out) throw exception("Operation took too long, aborted...", 0);
-			if (meta == "r") v->send_silence(60);
+		    }
 
-			// Send play info embed
-			try
+		    {
+			std::unique_lock<std::mutex> lk(this->dl_m);
+			auto a = this->waiting_file_download.find(track.filename);
+			if (a != this->waiting_file_download.end())
 			{
-			    this->play(v, track.filename, channel_id, embed_perms);
+			    if (debug) printf("Waiting for download\n");
+			    
+			    this->dl_cv.wait(lk, [this, track, &timed_out]() {
+				auto t = this->waiting_file_download.find(track.filename);
+				// if (timed_out)
+				// {
+				//     this->waiting_file_download.erase(t);
+				//     return true;
+				// }
+				auto c = t == this->waiting_file_download.end();
+				return c;
+			    });
+			}
+		    }
+		    
+		    string id = track.id();
+		    if (player->auto_play)
+		    {
+			if (debug) printf("Getting new autoplay track: %s\n", id.c_str());
+			command::play::add_track(true,
+				v->server_id, string(
+				    "https://www.youtube.com/watch?v="
+				    ) + id + "&list=RD" + id,
+				0,
+				true,
+				NULL,
+				0,
+				this->sha_id,
+				shared_manager,
+				false,
+				player->from);
+		    }
+
+		    {
+			std::lock_guard<std::mutex> lk(player->h_m);
+			if (player->max_history_size)
+			{
+			    player->history.push_back(id);
+			    while (player->history.size() > player->max_history_size)
+			    {
+				player->history.pop_front();
+			    }
+			}
+		    }
+
+		    auto c = dpp::find_channel(channel_id);
+		    auto g = dpp::find_guild(guild_id);
+		    bool embed_perms = has_permissions(g, &this->cluster->me, c, { dpp::p_view_channel,dpp::p_send_messages,dpp::p_embed_links });
+		    {
+			std::ifstream test(string("music/") + track.filename, std::ios_base::in | std::ios_base::binary);
+			if (!test.is_open())
+			{
+			    if (v && !v->terminating) v->insert_marker("e");
 			    if (embed_perms)
 			    {
-				// Update if last message is the info embed message
-				if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
-				{
-				    if (player->loop_mode != loop_mode_t::l_song && player->loop_mode != loop_mode_t::l_song_queue)
-					this->update_info_embed(guild_id, true);
-				}
-				else
-				{
-				    this->delete_info_embed(guild_id);
-				    this->send_info_embed(guild_id, false, true);
-				}
+				dpp::message m;
+				m.set_channel_id(channel_id)
+				    .set_content("Can't play track: " + track.title() + " (added by <@" + std::to_string(track.user_id) + ">)");
+				this->cluster->message_create(m);
 			    }
-			    else fprintf(stderr, "[EMBED_UPDATE] No channel or permission to send info embed\n");
+			    return;
 			}
-			catch (const exception& e)
+			else test.close();
+		    }
+		    if (timed_out) throw exception("Operation took too long, aborted...", 0);
+		    if (meta == "r") v->send_silence(60);
+
+		    // Send play info embed
+		    try
+		    {
+			this->play(v, track.filename, channel_id, embed_perms);
+			if (embed_perms)
 			{
-			    fprintf(stderr, "[ERROR(player.646)] %s\n", e.what());
-			    auto cd = e.code();
-			    if (cd == 1 || cd == 2)
-				if (embed_perms)
-				{
-				    dpp::message m;
-				    m.set_channel_id(channel_id)
-					.set_content(e.what());
-				    this->cluster->message_create(m);
-				}
+			    // Update if last message is the info embed message
+			    if (c && player->info_message && c->last_message_id && c->last_message_id == player->info_message->id)
+			    {
+				if (player->loop_mode != loop_mode_t::l_song && player->loop_mode != loop_mode_t::l_song_queue)
+				    this->update_info_embed(guild_id, true);
+			    }
+			    else
+			    {
+				this->delete_info_embed(guild_id);
+				this->send_info_embed(guild_id, false, true);
+			    }
 			}
+			else fprintf(stderr, "[EMBED_UPDATE] No channel or permission to send info embed\n");
+		    }
+		    catch (const exception& e)
+		    {
+			fprintf(stderr, "[ERROR EMBED_UPDATE] %s\n", e.what());
+			auto cd = e.code();
+			if (cd == 1 || cd == 2)
+			    if (embed_perms)
+			    {
+				dpp::message m;
+				m.set_channel_id(channel_id)
+				    .set_content(e.what());
+				this->cluster->message_create(m);
+			    }
+		    }
 		}, event.voice_client, s, event.track_meta, p);
 		tj.detach();
 		return true;
 	    }
-	    else printf("TRACK SIZE\n");
+	    else if (debug) printf("RETURN NO TRACK SIZE\n");
 	    return false;
 	}
 
@@ -1270,6 +1309,7 @@ namespace musicat {
 		color = r->colour;
 		break;
 	    }
+	    
 	    string eaname = u.nickname.length() ? u.nickname : uc->username;
 	    dpp::embed_author ea;
 	    ea.name = eaname;
@@ -1280,6 +1320,7 @@ namespace musicat {
 
 	    static const char* l_mode[] = { "Repeat one", "Repeat queue", "Repeat one/queue" };
 	    static const char* p_mode[] = { "Paused", "Playing" };
+	    
 	    string et = track.bestThumbnail().url;
 	    dpp::embed e;
 	    e.set_description(track.snippetText())
@@ -1294,7 +1335,6 @@ namespace musicat {
 	    string ft = "";
 
 	    bool tinfo = !track.info.raw.is_null();
-
 	    if (tinfo)
 	    {
 		ft += format_duration(track.info.duration());
@@ -1369,36 +1409,39 @@ namespace musicat {
 	}
 
 	void Manager::handle_on_voice_ready(const dpp::voice_ready_t& event) {
+	    const bool debug = get_debug_state();
 	    {
 		std::lock_guard<std::mutex> lk(this->wd_m);
-		printf("on_voice_ready\n");
+		if (debug) printf("[EVENT] on_voice_ready\n");
 		if (this->waiting_vc_ready.find(event.voice_client->server_id) != this->waiting_vc_ready.end())
 		{
 		    this->waiting_vc_ready.erase(event.voice_client->server_id);
 		    this->dl_cv.notify_all();
 		}
 	    }
+
 	    {
+		std::lock_guard<std::mutex> lk(this->c_m);
+		if (this->connecting.find(event.voice_client->server_id) != this->connecting.end())
 		{
-		    std::lock_guard<std::mutex> lk(this->c_m);
-		    if (this->connecting.find(event.voice_client->server_id) != this->connecting.end())
-		    {
-			this->connecting.erase(event.voice_client->server_id);
-			this->dl_cv.notify_all();
-		    }
+		    this->connecting.erase(event.voice_client->server_id);
+		    this->dl_cv.notify_all();
 		}
 	    }
+
 	    auto i = event.voice_client->get_tracks_remaining();
 	    auto l = event.voice_client->get_secs_remaining();
-	    printf("TO INSERT %d::%f\n", i, l);
+	    if (debug) printf("TO INSERT %d::%f\n", i, l);
 	    if (l < 0.1)
 	    {
 		event.voice_client->insert_marker("r");
-		printf("INSERTED\n");
+		if (debug) printf("INSERTED \"r\" MARKER\n");
 	    }
 	}
 
 	void Manager::handle_on_voice_state_update(const dpp::voice_state_update_t& event) {
+	    const bool debug = get_debug_state();
+
 	    // Non client's user code
 	    if (event.state.user_id != sha_id)
 	    {
@@ -1437,12 +1480,12 @@ namespace musicat {
 			    {
 				v->voiceclient->pause_audio(true);
 				this->update_info_embed(event.state.guild_id);
-				printf("Paused %ld as no user in vc\n", event.state.guild_id);
+				if (debug) printf("Paused %ld as no user in vc\n", event.state.guild_id);
 			    }
 			}
 			catch (const char* e)
 			{
-			    printf("ERROR(main.405) %s\n", e);
+			    fprintf(stderr, "[ERROR VOICE_STATE_UPDATE] %s\n", e);
 			}
 		    }
 		}
@@ -1457,18 +1500,18 @@ namespace musicat {
 			if (vector_find(&this->manually_paused, event.state.guild_id) == this->manually_paused.end())
 			{
 			    std::thread tj([this, event](dpp::discord_voice_client* vc) {
-				    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-				    try
-				    {
+				std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+				try
+				{
 				    auto a = get_voice_from_gid(event.state.guild_id, event.state.user_id);
 				    if (vc && !vc->terminating && a.first && a.first->id == event.state.channel_id)
 				    {
-				    vc->pause_audio(false);
-				    this->update_info_embed(event.state.guild_id);
+					vc->pause_audio(false);
+					this->update_info_embed(event.state.guild_id);
 				    }
-				    }
-				    catch (...) {}
-				    }, v->voiceclient);
+				}
+				catch (...) {}
+			    }, v->voiceclient);
 			    tj.detach();
 			}
 		    }
@@ -1504,21 +1547,19 @@ namespace musicat {
 
 	    if (!event.state.channel_id)
 	    {
+		std::lock_guard<std::mutex> lk(this->dc_m);
+		if (debug) printf("[EVENT] on_voice_state_leave\n");
+		if (this->disconnecting.find(event.state.guild_id) != this->disconnecting.end())
 		{
-		    std::lock_guard<std::mutex> lk(this->dc_m);
-		    printf("on_voice_state_leave\n");
-		    if (this->disconnecting.find(event.state.guild_id) != this->disconnecting.end())
-		    {
-			this->disconnecting.erase(event.state.guild_id);
-			this->dl_cv.notify_all();
-		    }
+		    this->disconnecting.erase(event.state.guild_id);
+		    this->dl_cv.notify_all();
 		}
 	    }
 	    else
 	    {
 		{
 		    std::lock_guard<std::mutex> lk(this->c_m);
-		    printf("on_voice_state_join\n");
+		    if (debug) printf("[EVENT] on_voice_state_join\n");
 		    if (this->connecting.find(event.state.guild_id) != this->connecting.end())
 		    {
 			this->connecting.erase(event.state.guild_id);
