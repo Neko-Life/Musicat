@@ -124,7 +124,7 @@ namespace musicat {
 		PQfinish(conn);
 		conn = nullptr;
 	    }
-	    else if (debug) printf("[DB] Database connected: %s\n", PQdb(conn));
+	    else printf("[DB] Database connected: %s\n", PQdb(conn));
 
 	    if (!PQisthreadsafe())
 	    {

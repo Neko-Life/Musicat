@@ -54,8 +54,8 @@ namespace musicat {
     }
 
     void on_sigint(int code) {
-        printf("RECEIVED SIGINT\nCODE: %d\n", code);
-        running = false;
+        if (get_debug_state()) printf("RECEIVED SIGINT\nCODE: %d\n", code);
+	set_running_state(false);
     }
 
     int run(int argc, const char* argv[])
@@ -103,6 +103,7 @@ namespace musicat {
                 ConnStatusType status = database::init(db_connect_param);
                 if (status != CONNECTION_OK)
                 {
+		    database::shutdown();
                     fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
                 }
             }
@@ -117,21 +118,21 @@ namespace musicat {
 	});
 
 	client.on_ready([](const dpp::ready_t& event) {
-		dpp::discord_client *from = event.from;
-		dpp::user me = from->creator->me;
+	    dpp::discord_client *from = event.from;
+	    dpp::user me = from->creator->me;
 
-		printf("[READY] Shard: %d\n", from->shard_id);
-		printf("Logged in as %s#%d (%ld)\n",
-			me.username.c_str(),
-			me.discriminator,
-			me.id);
-		});
+	    printf("[READY] Shard: %d\n", from->shard_id);
+	    printf("Logged in as %s#%d (%ld)\n",
+		    me.username.c_str(),
+		    me.discriminator,
+		    me.id);
+	});
 
         client.on_message_create([](const dpp::message_create_t& event) {
             // Update channel last message Id
-		dpp::channel *c = dpp::find_channel(event.msg.channel_id);
-		if (c) c->last_message_id = event.msg.id;
-		});
+	    dpp::channel *c = dpp::find_channel(event.msg.channel_id);
+	    if (c) c->last_message_id = event.msg.id;
+	});
 
         client.on_button_click([](const dpp::button_click_t& event) {
             const size_t fsub = event.custom_id.find("/");
@@ -299,9 +300,7 @@ namespace musicat {
                 }
                 else if (cmd == "playlist")
                 {
-                    {
-                        if (opt == "id") command::playlist::autocomplete::id(event, param);
-                    }
+		    if (opt == "id") command::playlist::autocomplete::id(event, param);
                 }
             }
         });
@@ -408,10 +407,10 @@ namespace musicat {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
 	    const bool r_s = get_running_state();
+	    const bool d_s = get_debug_state();
             // GC
             if (!r_s || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
-		const bool d_s = get_debug_state();
                 if (d_s) printf("[GC] Starting scheduled gc\n");
                 auto start_time = std::chrono::high_resolution_clock::now();
                 // gc codes
@@ -430,7 +429,7 @@ namespace musicat {
 		const ConnStatusType status = database::reconnect(false, db_connect_param);
 		time(&last_recon);
 
-		if (status != CONNECTION_OK && get_debug_state()) printf("[DB_RECONNECT] Status code: %d\n", status);
+		if (status != CONNECTION_OK && d_s) fprintf(stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
 	    }
         }
 
