@@ -278,7 +278,7 @@ namespace musicat {
                     result.title()
                     + std::string("-")
                     + result.id()
-                    + std::string(".ogg"),
+                    + std::string(".opus"),
                     std::regex("/"),
                     "",
                     std::regex_constants::match_any

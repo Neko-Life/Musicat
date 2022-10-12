@@ -206,7 +206,7 @@ namespace musicat {
                         const string prepend_name = string("<@") + std::to_string(event.command.usr.id) + string("> ");
 
                         event.thinking();
-                        string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".ogg"), std::regex("/"), "", std::regex_constants::match_any);
+                        string fname = std::regex_replace(result.title() + string("-") + result.id() + string(".opus"), std::regex("/"), "", std::regex_constants::match_any);
                         bool dling = false;
 
                         std::ifstream test(string("music/") + fname, std::ios_base::in | std::ios_base::binary);

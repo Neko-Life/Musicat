@@ -575,12 +575,12 @@ namespace musicat {
 			std::filesystem::create_directory("music");
 		    }
 		    
-		    string cmd = string("yt-dlp -f 251 --http-chunk-size 2M -o - '") + url
-			    + string("' 2>/dev/null | ffmpeg -i - -b:a 384000 -ar 48000 -ac 2 -sn -vn -c libopus -f ogg 'music/")
+		    string cmd = string("yt-dlp -f 251 --http-chunk-size 2M '") + url
+			    + string("' -x --audio-format opus --audio-quality 0 -o 'music/")
 			    + std::regex_replace(
 				    fname, std::regex("(')"), "'\\''",
 				    std::regex_constants::match_any)
-			    + string("'");
+			    + string("' 2>/dev/null");
 
 		    const bool debug = get_debug_state();
 		    
