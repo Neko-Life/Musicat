@@ -580,17 +580,16 @@ namespace musicat {
 			    + std::regex_replace(
 				    fname, std::regex("(')"), "'\\''",
 				    std::regex_constants::match_any)
-			    + string("' 2>/dev/null");
+			    + string("'");
 
 		    const bool debug = get_debug_state();
 		    
 		    if (debug) {
 			printf("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str(), url.c_str());
 			printf("CMD: %s\n", cmd.c_str());
-		    }
+		    } else cmd += " 1>/dev/null";
 		    
-		    FILE* a = popen(cmd.c_str(), "w");
-		    pclose(a);
+		    system(cmd.c_str());
 		    
 		    {
 			std::lock_guard<std::mutex> lk(this->dl_m);
