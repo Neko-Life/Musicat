@@ -1397,7 +1397,7 @@ namespace musicat {
 		    if (file->d_type == DT_REG)
 		    {
 			string s = string(file->d_name);
-			ret.push_back(s.substr(0, s.length() - 4));
+			ret.push_back(s.substr(0, s.length() - 5));
 		    }
 
 		    if (amount && ++c == amount) break;
