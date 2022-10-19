@@ -74,6 +74,7 @@ namespace musicat {
 		if (track.info.raw.is_null())
 		{
 		    track.info.raw = yt_search::get_track_info(track.url()).audio_info(251).raw;
+		    track.thumbnails();
 		}
 		std::lock_guard<std::mutex> lk(this->q_m);
 		siz = this->queue.size();

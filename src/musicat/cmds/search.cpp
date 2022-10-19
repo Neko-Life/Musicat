@@ -33,13 +33,15 @@ namespace musicat {
                 std::string query = "";
                 get_inter_param(event, "query", &query);
 
+		event.thinking();
+
                 auto res = yt_search::search(query);
                 auto tracks = res.trackResults();
 
                 size_t pl_siz = tracks.size();
                 if (!pl_siz)
                 {
-                    event.reply("No result found");
+                    event.edit_response("No result found");
                     return;
                 }
 
@@ -92,7 +94,7 @@ namespace musicat {
                 if (paginate) paginate::add_pagination_buttons(&m);
 
                 std::any storage_data = tracks;
-                event.reply(m, paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds, storage_data));
+                event.edit_response(m, paginate::get_inter_reply_cb(event, paginate, event.from->creator, embeds, storage_data));
             }
         }
     }

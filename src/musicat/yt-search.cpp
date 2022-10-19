@@ -1,111 +1,228 @@
 /* Very simple YouTube track searching function. Made with love by Neko Life :heart: */
 
+#include <sstream>
 #include <string>
 #include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <curlpp/Infos.hpp>
 #include "nlohmann/json.hpp"
 #include "musicat/encode.h"
 #include "musicat/yt-search.h"
 
 namespace yt_search {
-    using json = nlohmann::json;
+	bool transverse(nlohmann::json& j, const std::initializer_list<const char*> path) {
+		for (auto& i : path)
+		{
+			j = j.size() ? (j.is_array() ? j.at(strtoul(i, NULL, 10)) : j.value<nlohmann::json>(i, {})) : nlohmann::json();
+			if (j.is_null())
+			{
+				fprintf(stderr, "[YT_SEARCH_TRANSVERSE] j[%s].is_null\n", i);
+				return false;
+			}
+		}
+		return true;
+	}
 
-    std::string YTrack::snippetText() {
-        std::string res = "";
-        json d = raw["detailedMetadataSnippets"][0]["snippetText"]["runs"];
-        if (d[0].is_null()) return res;
+	void loop_json(nlohmann::json& d, std::function<void (nlohmann::json::iterator)> cb) {
+		for (nlohmann::json::iterator i = d.begin(); i != d.end(); i++)
+		{
+			if (i->is_null()) continue;
+			cb(i);
+		}
+	}
 
-        for (size_t i = 0; i < d.size(); i++)
-        {
-            json data = d[i];
-            bool bold = data["bold"].is_null() ? false : data["bold"].get<bool>();
-            std::string text = data["text"].is_null() ? "" : data["text"].get<std::string>();
+	long status_code(const std::string& url) {
+		std::ostringstream stream;
+		curlpp::Cleanup curl_cleanup;
 
-            if (bold) res += "**" + text + "**";
-            else res += text;
-        }
-        return res;
-    }
+		curlpp::Easy req;
 
-    std::string YTrack::id() {
-        return raw["videoId"].is_null() ? "" : raw["videoId"].get<std::string>();
-    }
+		req.setOpt(curlpp::options::Url(url));
+		req.setOpt(curlpp::options::Header("User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:98.0) Gecko/20100101 Firefox/98.0"));
+		req.setOpt(curlpp::options::WriteStream(&stream));
+		
+		try
+		{
+			req.perform();
+		}
+		catch (const curlpp::LibcurlRuntimeError& e)
+		{
+			fprintf(stderr, "[ERROR STATUS_CODE] LibcurlRuntimeError(%d): %s\n", e.whatCode(), e.what());
+			return -1;
+		}
 
-    std::string YTrack::url() {
-        return std::string("https://www.youtube.com/watch?v=") + id();
-    }
+		return curlpp::infos::ResponseCode::get(req);
+	}
 
-    std::string YTrack::trackingParams() {
-        return raw["trackingParams"].is_null() ? "" : raw["trackingParams"].get<std::string>();
-    }
+	using json = nlohmann::json;
 
-    std::vector<YThumbnail> YTrack::thumbnails() {
-        std::vector<YThumbnail> res;
-        json d = raw["thumbnail"]["thumbnails"];
-        if (d[0].is_null()) return res;
-        for (size_t i = 0; i < d.size(); i++)
-        {
-            json data = d[i];
-            res.push_back({
-                data["height"].get<int>(),
-                data["url"].get<std::string>(),
-                data["width"].get<int>()
-                });
-        }
-        return res;
-    }
+	std::string YTrack::snippetText() const {
+		std::string res = "";
+		json d = raw;
 
-    YThumbnail YTrack::bestThumbnail() {
-        return thumbnails().back();
-    }
+		if (transverse(d, { "detailedMetadataSnippets", "0", "snippetText", "runs" }))
+			if (d.size() && d.is_array())
+				loop_json(d, [&res](nlohmann::json::iterator i) {
+					std::string text = i->value<std::string>("text", "");
 
-    // Track length
-    // TODO: Parse to ms
-    std::string YTrack::length() {
-        json res = raw["lengthText"]["simpleText"];
-        if (res.is_null()) return "";
-        return res.get<std::string>();
-    }
+					if (i->value<bool>("bold", false))
+						res += "**" + text + "**";
+					else res += text;
+				});
 
-    YChannel YTrack::channel() {
-        json d = raw["longBylineText"]["runs"][0];
-        if (d.is_null()) return {};
-        json m = d["navigationEndpoint"]["commandMetadata"]["webCommandMetadata"]["url"];
-        return {
-            d["text"].is_null() ? "" : d["text"].get<std::string>(),
-            m.is_null() ? "" : std::string("https://www.youtube.com") + m.get<std::string>()
-        };
-    }
+		return res;
+	}
 
-    std::string YTrack::title() {
-        json d = raw["title"]["runs"][0]["text"];
-        if (d.is_null()) if ((d = raw["title"]["simpleText"]).is_null()) return "";
-        return d.get<std::string>();
-    }
+	std::string YTrack::id() const {
+		return raw.is_null() ? "" : raw.value<std::string>("videoId", "");
+	}
 
-    // This is interesting
-    std::string YSearchResult::estimatedResults() {
-        return raw["estimatedResults"];
-    }
+	std::string YTrack::url() const {
+		return std::string("https://www.youtube.com/watch?v=") + id();
+	}
 
-    std::vector<YTrack> YSearchResult::trackResults() {
-        std::vector<YTrack> res;
-        json d = raw["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"][0]["itemSectionRenderer"]["contents"];
-        if (d[0].is_null()) return res;
+	std::string YTrack::trackingParams() const {
+		return raw.is_null() ? "" : raw.value<std::string>("trackingParams", "");
+	}
 
-        for (size_t i = 0; i < d.size(); i++)
-        {
-            json data = d[i]["videoRenderer"];
-            if (data.is_null()) continue;
-            res.push_back({
-                data
-                });
-        }
-        return res;
-    }
+	int YTrack::get_thumb(nlohmann::json& d, const std::string& url, const bool debug) {
+		int status = 0;
 
-    YSearchResult search(std::string search) {
-        YSearchResult ret;
-        get_data(std::string("https://www.youtube.com/results?search_query=") + encodeURIComponent(search), &ret);
-        return ret;
-    }
+		bool exist = false;
+		loop_json(d, [&exist, &url](nlohmann::json::iterator i) {
+			const std::string i_url = i->value<std::string>("url", "");
+			if (url == i_url) exist = true;
+		});
+
+		if (!exist) {
+			if (status_code(url) == 200L) {
+				nlohmann::json obj;
+				obj["url"] = url;
+				d.push_back(obj);
+				this->raw["thumbnail"]["thumbnails"] = d;
+				if (debug) printf("[THUMB HQ_MAX] Inserted thumb: '%s'\n", url.c_str());
+			}
+			else status = -1;
+		}
+
+		return status;
+	}
+
+	int YTrack::load_hq_thumb(nlohmann::json& d) {
+		const bool debug = true; // get_debug_state
+		const std::string id = this->id();
+
+		std::string url_max_res("http://i3.ytimg.com/vi/");
+		url_max_res += id + "/maxresdefault.jpg";
+
+		std::string url_hq_res("http://i3.ytimg.com/vi/");
+		url_hq_res += id + "/hqdefault.jpg";
+
+		int result_get = get_thumb(d, url_max_res, debug);
+		if (result_get != 0) result_get = get_thumb(d, url_hq_res, debug);
+
+		return result_get;
+	}
+
+	std::vector<YThumbnail> YTrack::thumbnails() {
+		std::vector<YThumbnail> res;
+		json d = raw;
+
+		if (transverse(d, { "thumbnail", "thumbnails" })) {		
+			if (d.size() && d.is_array()) {
+				// get_debug_state
+				if (load_hq_thumb(d) != 0 && true) fprintf(stderr, "[LOAD_HQ_THUMB] Failed to get hq thumb\n");
+				loop_json(d, [&res](nlohmann::json::iterator i) {
+					res.push_back({
+						i->value<int>("height", 0),
+						i->value<std::string>("url",""),
+						i->value<int>("width", 0)
+					});
+				});
+			}
+		}
+
+		return res;
+	}
+
+	YThumbnail YTrack::bestThumbnail() {
+		return thumbnails().back();
+	}
+
+	// Track length
+	// TODO: Parse to ms
+	std::string YTrack::length() const {
+		json d = raw;
+
+		return transverse(d, { "lengthText" }) ? d.value<std::string>("simpleText", "") : "";
+	}
+
+	YChannel YTrack::channel() const {
+		json d = raw;
+
+		if (!transverse(d, { "longBylineText","runs","0" })) return {};
+
+		json m = d;
+
+		return {
+			d.value<std::string>("text",""),
+				transverse(m, { "navigationEndpoint","commandMetadata","webCommandMetadata","url" })
+					? std::string("https://www.youtube.com") + m.get<std::string>()
+					: ""
+		};
+	}
+
+	std::string YTrack::title() const {
+		json d = raw;
+
+		if (!transverse(d, { "title","runs","0","text" }))
+		{
+			d = raw;
+
+			if (!transverse(d, { "title", "simpleText" })) return "";
+		}
+
+		return d.get<std::string>();
+	}
+
+	// This is interesting
+	std::string YSearchResult::estimatedResults() const {
+		return raw.is_null() ? "" : raw.value<std::string>("estimatedResults", "");
+	}
+
+	std::vector<YTrack> YSearchResult::trackResults() const {
+		std::vector<YTrack> res;
+		json d = raw;
+
+		transverse(d, { "contents",
+				"twoColumnSearchResultsRenderer",
+				"primaryContents",
+				"sectionListRenderer",
+				"contents",
+				"0",
+				"itemSectionRenderer",
+				"contents" });
+
+		if (!d.size() || (d.is_array() && d.at(0).is_null())) return res;
+
+		for (size_t i = 0; i < d.size(); i++)
+		{
+			json data = d;
+
+			if (!transverse(data, { std::to_string(i).c_str(),"videoRenderer" })) continue;
+
+			res.push_back({
+					data
+					});
+		}
+
+		return res;
+	}
+
+	YSearchResult search(std::string search) {
+		YSearchResult ret;
+		get_data(std::string("https://www.youtube.com/results?search_query=") + encodeURIComponent(search), &ret);
+		return ret;
+	}
 }
