@@ -96,14 +96,17 @@ namespace yt_search {
 		});
 
 		if (!exist) {
-			if (status_code(url) == 200L) {
-				nlohmann::json obj;
-				obj["url"] = url;
-				d.push_back(obj);
-				this->raw["thumbnail"]["thumbnails"] = d;
-				if (debug) printf("[THUMB HQ_MAX] Inserted thumb: '%s'\n", url.c_str());
-			}
-			else status = -1;
+			// if (status_code(url) == 200L) {
+			// 	nlohmann::json obj;
+			// 	obj["url"] = url;
+			// 	d.push_back(obj);
+			// 	this->raw["thumbnail"]["thumbnails"] = d;
+			// 	if (debug) printf("[THUMB HQ_MAX] Inserted thumb: '%s'\n", url.c_str());
+			// }
+			// else status = -1;
+			nlohmann::json obj;
+			obj["url"] = url;
+			d.push_back(obj);
 		}
 
 		return status;
@@ -119,9 +122,10 @@ namespace yt_search {
 		std::string url_hq_res("http://i3.ytimg.com/vi/");
 		url_hq_res += id + "/hqdefault.jpg";
 
-		int result_get = get_thumb(d, url_max_res, debug);
-		if (result_get != 0) result_get = get_thumb(d, url_hq_res, debug);
+		// int result_get = get_thumb(d, url_max_res, debug);
+		// if (result_get != 0) result_get = get_thumb(d, url_hq_res, debug);
 
+		int result_get = get_thumb(d, url_hq_res, debug);
 		return result_get;
 	}
 
