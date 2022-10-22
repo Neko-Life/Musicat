@@ -23,5 +23,5 @@ Discord Music Bot written in C++
 
 * `cd` to `docker/[version]/` and run `compose.sh` as root to build the image.
 * Fill out `exe/sha_conf.json`.
-* In the `docker/[version]/ directory, run `./register.sh g` to register Musicat's slash commands to discord globally, or `./register.sh <guild_id>` to register only in one specific guild.
+* In the `docker/[version]/` directory, run `./register.sh g` to register Musicat's slash commands to discord globally, or `./register.sh <guild_id>` to register only in one specific guild.
 * Run `run.sh` to start the bot.
