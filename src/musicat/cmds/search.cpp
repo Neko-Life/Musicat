@@ -29,11 +29,23 @@ namespace musicat {
                 return modal;
             }
 
+            dpp::interaction_modal_response modal_enqueue_searched_track_top() {
+                dpp::component selmenu;
+                selmenu.set_type(dpp::cot_text)
+                    .set_label("Input track number to add to top of queue:")
+                    .set_id("que_s_track_top")
+                    .set_text_style(dpp::text_short);
+
+                dpp::interaction_modal_response modal("modal_p", "Add Top");
+                modal.add_component(selmenu);
+                return modal;
+            }
+
             void slash_run(const dpp::interaction_create_t& event) {
                 std::string query = "";
                 get_inter_param(event, "query", &query);
 
-		event.thinking();
+								event.thinking();
 
                 auto res = yt_search::search(query);
                 auto tracks = res.trackResults();
@@ -87,6 +99,12 @@ namespace musicat {
                         .set_label("Add Track")
                         .set_style(dpp::cos_success)
                         .set_id("modal_p/que_s_track")
+                    ).add_component(
+                        dpp::component()
+                        .set_emoji(u8"🎵")
+                        .set_label("Add Top")
+                        .set_style(dpp::cos_danger)
+                        .set_id("modal_p/que_s_track_top")
                     )
                 );
 

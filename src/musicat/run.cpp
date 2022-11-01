@@ -160,9 +160,11 @@ namespace musicat {
                     fprintf(stderr, "[WARN] command \"modal_p\" have no param\n");
                     return;
                 }
-                if (param == "que_s_track")
+                if (param.find("que_s_track") != std::string::npos)
                 {
-                    event.dialog(command::search::modal_enqueue_searched_track());
+                    event.dialog( param.find("top") != std::string::npos
+												? command::search::modal_enqueue_searched_track_top()
+												: command::search::modal_enqueue_searched_track());
                 }
                 else
                 {
@@ -178,7 +180,7 @@ namespace musicat {
                 if (event.components.size())
                 {
                     auto comp = event.components.at(0).components.at(0);
-                    if (comp.custom_id == "que_s_track")
+                    if (comp.custom_id.find("que_s_track") != std::string::npos)
                     {
                         if (!comp.value.index()) return;
                         string q = std::get<string>(comp.value);
@@ -226,7 +228,7 @@ namespace musicat {
                             event.edit_response(prepend_name + string("Added: ") + result.title());
                         }
 
-                        std::thread dlt([prepend_name, player_manager, dling, fname, guild_id, from](const dpp::interaction_create_t event, yt_search::YTrack result) {
+                        std::thread dlt([comp, prepend_name, player_manager, dling, fname, guild_id, from](const dpp::interaction_create_t event, yt_search::YTrack result) {
                             dpp::snowflake user_id = event.command.usr.id;
                             auto p = player_manager->create_player(guild_id);
                             if (dling)
@@ -239,7 +241,7 @@ namespace musicat {
                             player::MCTrack t(result);
                             t.filename = fname;
                             t.user_id = user_id;
-                            p->add_track(t, false, guild_id, dling);
+                            p->add_track(t, comp.custom_id.find("top") != std::string::npos ? true : false, guild_id, dling);
                         }, event, result);
                         dlt.detach();
                     }

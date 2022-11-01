@@ -78,14 +78,16 @@ namespace musicat {
 
 	namespace queue {
 	    enum queue_modify_t : int8_t {
-		// Shuffle the queue
-		m_shuffle,
-		// Reverse the queue
-		m_reverse,
-		// Clear songs added by users who left the vc
-		m_clear_left,
-		// Clear queue
-		m_clear
+					// Shuffle the queue
+					m_shuffle,
+					// Reverse the queue
+					m_reverse,
+					// Clear songs added by users who left the vc
+					m_clear_left,
+					// Clear queue
+					m_clear,
+					// clear songs added by musicat
+					m_clear_musicat
 	    };
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
@@ -119,6 +121,7 @@ namespace musicat {
 	namespace search {
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
 	    dpp::interaction_modal_response modal_enqueue_searched_track();
+	    dpp::interaction_modal_response modal_enqueue_searched_track_top();
 	    void slash_run(const dpp::interaction_create_t& event);
 	}
 

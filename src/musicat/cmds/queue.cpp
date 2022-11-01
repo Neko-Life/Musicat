@@ -21,17 +21,21 @@ namespace musicat {
                     ).add_choice(
                         dpp::command_option_choice("Clear Left", queue_modify_t::m_clear_left)
                     ).add_choice(
-                        dpp::command_option_choice("Clear", queue_modify_t::m_clear)
+                        dpp::command_option_choice("Clear All", queue_modify_t::m_clear)
+                    ).add_choice(
+                        dpp::command_option_choice("Clear Musicat", queue_modify_t::m_clear_musicat)
                     )
                 );
             }
 
             void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager)
             {
-		const dpp::snowflake shaid = event.from->creator->me.id;
-		player_manager->load_guild_current_queue(event.command.guild_id, &shaid);
+								const dpp::snowflake shaid = event.from->creator->me.id;
+								player_manager->load_guild_current_queue(event.command.guild_id, &shaid);
+
                 std::deque<player::MCTrack> queue = player_manager->get_queue(event.command.guild_id);
-                if (queue.empty())
+                
+								if (queue.empty())
                 {
                     event.reply("No track");
                     return;
@@ -144,7 +148,7 @@ namespace musicat {
                         }
                         catch (...)
                         {
-                            event.reply("`ERROR`: Can't get current voice connection");
+                            event.reply("`[ERROR]` Can't get current voice connection");
                             break;
                         }
                         size_t usiz = l_user.size();
@@ -162,6 +166,16 @@ namespace musicat {
 
                         break;
                     }
+										case queue_modify_t::m_clear_musicat: {
+                        auto p = player_manager->get_player(event.command.guild_id);
+												p->reset_shifted();
+
+												const size_t rmed = p->remove_track_by_user(shaid);
+
+												event.reply(std::string("Removed ") + std::to_string(rmed) + " track" + std::string(rmed > 1 ? "s" : "") + " from queue");
+												
+												break;
+										}
                     default: event.reply("Option not yet supported and is still in development");
                     }
                     return;
