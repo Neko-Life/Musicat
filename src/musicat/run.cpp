@@ -29,34 +29,34 @@ namespace musicat {
     std::mutex main_mutex;
 
     bool get_running_state() {
-	std::lock_guard<std::mutex> lk(main_mutex);
-	return running;
+		std::lock_guard<std::mutex> lk(main_mutex);
+		return running;
     }
 
     int set_running_state(const bool state) {
-	std::lock_guard<std::mutex> lk(main_mutex);
-	running = state;
-	return 0;
+		std::lock_guard<std::mutex> lk(main_mutex);
+		running = state;
+		return 0;
     }
 
     bool get_debug_state() {
-	std::lock_guard<std::mutex> lk(main_mutex);
-	return debug;
+		std::lock_guard<std::mutex> lk(main_mutex);
+		return debug;
     }
 
     int set_debug_state(const bool state) {
-	std::lock_guard<std::mutex> lk(main_mutex);
-	debug = state;
+		std::lock_guard<std::mutex> lk(main_mutex);
+		debug = state;
 
-	printf("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
+		printf("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
 
-	return 0;
+		return 0;
     }
 
     void on_sigint(int code) {
         if (get_debug_state()) printf("RECEIVED SIGINT\nCODE: %d\n", code);
-	set_running_state(false);
-    }
+			set_running_state(false);
+		}
 
     int run(int argc, const char* argv[])
     {
@@ -65,19 +65,19 @@ namespace musicat {
         json sha_cfg;
         {
             std::ifstream scs("sha_conf.json");
-	    if (!scs.is_open()) {
-		fprintf(stderr, "[ERROR] No config file exist\n");
-		scs.close();
-		return -1;
-	    }
+			if (!scs.is_open()) {
+				fprintf(stderr, "[ERROR] No config file exist\n");
+				scs.close();
+				return -1;
+			}
 
             scs >> sha_cfg;
             scs.close();
         }
 
-	set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
+		set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
 
-	if (sha_cfg["RUNTIME_CLI"].is_null() ? false : sha_cfg["RUNTIME_CLI"].get<bool>()) runtime_cli::attach_listener();
+		if (sha_cfg["RUNTIME_CLI"].is_null() ? false : sha_cfg["RUNTIME_CLI"].get<bool>()) runtime_cli::attach_listener();
 
         dpp::cluster client(sha_cfg["SHA_TKN"].get<string>(), dpp::i_guild_members | dpp::i_default_intents);
 
@@ -103,7 +103,7 @@ namespace musicat {
                 ConnStatusType status = database::init(db_connect_param);
                 if (status != CONNECTION_OK)
                 {
-		    database::shutdown();
+					database::shutdown();
                     fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
                 }
             }
@@ -111,28 +111,29 @@ namespace musicat {
 
         std::shared_ptr<player::Manager> player_manager = std::make_shared<player::Manager>(&client, sha_id);
 
-	std::function<void (const dpp::log_t&)> dpp_on_log_handler = dpp::utility::cout_logger();
-        client.on_log([&dpp_on_log_handler](const dpp::log_t& event) {
-	    if (!get_debug_state()) return;
-	    dpp_on_log_handler(event);
-	});
+		std::function<void (const dpp::log_t&)> dpp_on_log_handler = dpp::utility::cout_logger();
 
-	client.on_ready([](const dpp::ready_t& event) {
-	    dpp::discord_client *from = event.from;
-	    dpp::user me = from->creator->me;
+		client.on_log([&dpp_on_log_handler](const dpp::log_t& event) {
+			if (!get_debug_state()) return;
+			dpp_on_log_handler(event);
+		});
 
-	    printf("[READY] Shard: %d\n", from->shard_id);
-	    printf("Logged in as %s#%d (%ld)\n",
-		    me.username.c_str(),
-		    me.discriminator,
-		    me.id);
-	});
+		client.on_ready([](const dpp::ready_t& event) {
+			dpp::discord_client *from = event.from;
+			dpp::user me = from->creator->me;
 
-        client.on_message_create([](const dpp::message_create_t& event) {
-            // Update channel last message Id
-	    dpp::channel *c = dpp::find_channel(event.msg.channel_id);
-	    if (c) c->last_message_id = event.msg.id;
-	});
+			printf("[READY] Shard: %d\n", from->shard_id);
+			printf("Logged in as %s#%d (%ld)\n",
+				me.username.c_str(),
+				me.discriminator,
+				me.id);
+		});
+
+		client.on_message_create([](const dpp::message_create_t& event) {
+			// Update channel last message Id
+			dpp::channel *c = dpp::find_channel(event.msg.channel_id);
+			if (c) c->last_message_id = event.msg.id;
+		});
 
         client.on_button_click([](const dpp::button_click_t& event) {
             const size_t fsub = event.custom_id.find("/");
@@ -163,8 +164,8 @@ namespace musicat {
                 if (param.find("que_s_track") != std::string::npos)
                 {
                     event.dialog( param.find("top") != std::string::npos
-												? command::search::modal_enqueue_searched_track_top()
-												: command::search::modal_enqueue_searched_track());
+						? command::search::modal_enqueue_searched_track_top()
+						: command::search::modal_enqueue_searched_track());
                 }
                 else
                 {
@@ -302,7 +303,7 @@ namespace musicat {
                 }
                 else if (cmd == "playlist")
                 {
-		    if (opt == "id") command::playlist::autocomplete::id(event, param);
+					if (opt == "id") command::playlist::autocomplete::id(event, param);
                 }
             }
         });
@@ -348,42 +349,43 @@ namespace musicat {
             player_manager->handle_on_voice_state_update(event);
         });
 
-	client.on_voice_track_marker([&player_manager](const dpp::voice_track_marker_t& event) {
-	    if (player_manager->has_ignore_marker(event.voice_client->server_id))
-	    {
-		if (get_debug_state()) printf("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
-		return;
-	    }
+		client.on_voice_track_marker([&player_manager](const dpp::voice_track_marker_t& event) {
+			if (player_manager->has_ignore_marker(event.voice_client->server_id))
+			{
+				if (get_debug_state()) printf("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild %ld\n", event.track_meta.c_str(), event.voice_client->server_id);
+				return;
+			}
 
-	    if (event.track_meta != "rm") player_manager->set_ignore_marker(event.voice_client->server_id);
-	    if (!player_manager->handle_on_track_marker(event, player_manager))
-	    {
-		player_manager->delete_info_embed(event.voice_client->server_id);
-	    }
+			if (event.track_meta != "rm") player_manager->set_ignore_marker(event.voice_client->server_id);
+			if (!player_manager->handle_on_track_marker(event, player_manager))
+			{
+				player_manager->delete_info_embed(event.voice_client->server_id);
+			}
 
-	    std::thread t([player_manager, event]() {
-		if (!event.voice_client) return;
-		short int count = 0;
-		const bool d_s = get_debug_state();
+			std::thread t([player_manager, event]() {
+				if (!event.voice_client) return;
+				short int count = 0;
+				const bool d_s = get_debug_state();
 
-		while (!event.voice_client->terminating
-			&& !event.voice_client->is_playing()
-			&& !event.voice_client->is_paused())
-		{
-		    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-		    count++;
-		    if (count == 10) break;
-		}
+				while (!event.voice_client->terminating
+					&& !event.voice_client->is_playing()
+					&& !event.voice_client->is_paused())
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(500));
+					count++;
+					if (count == 10) break;
+				}
 
-		player_manager->remove_ignore_marker(event.voice_client->server_id);
-		if (!d_s) return;
+				player_manager->remove_ignore_marker(event.voice_client->server_id);
+				if (!d_s) return;
 
-		printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
-		if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
-		printf("\n");
-	    });
-	    t.detach();
-	});
+				printf("Removed ignore marker for meta '%s'", event.track_meta.c_str());
+				if (event.voice_client) printf(" in %ld", event.voice_client->server_id);
+				printf("\n");
+			});
+			
+			t.detach();
+		});
 
         client.on_message_delete([&player_manager](const dpp::message_delete_t& event) {
             player_manager->handle_on_message_delete(event);
@@ -402,14 +404,14 @@ namespace musicat {
         time_t last_gc;
         time_t last_recon;
         time(&last_gc);
-	time(&last_recon);
+		time(&last_recon);
 
         while (get_running_state())
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
-	    const bool r_s = get_running_state();
-	    const bool d_s = get_debug_state();
+			const bool r_s = get_running_state();
+			const bool d_s = get_debug_state();
             // GC
             if (!r_s || (time(NULL) - last_gc) > ONE_HOUR_SECOND)
             {
@@ -422,17 +424,17 @@ namespace musicat {
                 time(&last_gc);
 
 
-		auto end_time = std::chrono::high_resolution_clock::now();
+				auto end_time = std::chrono::high_resolution_clock::now();
                 auto done = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
                 if (d_s) printf("[GC] Ran for %ld ms\n", done.count());
             }
 
-            if (r_s && !no_db && (time(NULL) - last_recon) > 60) {
-		const ConnStatusType status = database::reconnect(false, db_connect_param);
-		time(&last_recon);
+			if (r_s && !no_db && (time(NULL) - last_recon) > 60) {
+				const ConnStatusType status = database::reconnect(false, db_connect_param);
+				time(&last_recon);
 
-		if (status != CONNECTION_OK && d_s) fprintf(stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
-	    }
+				if (status != CONNECTION_OK && d_s) fprintf(stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
+			}
         }
 
         database::shutdown();

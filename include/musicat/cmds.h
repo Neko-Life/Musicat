@@ -31,9 +31,9 @@ namespace musicat {
 
 	namespace play {
 	    namespace autocomplete {
-		void query(const dpp::autocomplete_t& event,
-			std::string param,
-			player::player_manager_ptr player_manager);
+			void query(const dpp::autocomplete_t& event,
+				std::string param,
+				player::player_manager_ptr player_manager);
 	    }
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
@@ -78,16 +78,16 @@ namespace musicat {
 
 	namespace queue {
 	    enum queue_modify_t : int8_t {
-					// Shuffle the queue
-					m_shuffle,
-					// Reverse the queue
-					m_reverse,
-					// Clear songs added by users who left the vc
-					m_clear_left,
-					// Clear queue
-					m_clear,
-					// clear songs added by musicat
-					m_clear_musicat
+			// Shuffle the queue
+			m_shuffle,
+			// Reverse the queue
+			m_reverse,
+			// Clear songs added by users who left the vc
+			m_clear_left,
+			// Clear queue
+			m_clear,
+			// clear songs added by musicat
+			m_clear_musicat
 	    };
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
@@ -101,7 +101,7 @@ namespace musicat {
 
 	namespace move {
 	    namespace autocomplete {
-		void track(const dpp::autocomplete_t& event, std::string param, player::player_manager_ptr player_manager, dpp::cluster& client);
+			void track(const dpp::autocomplete_t& event, std::string param, player::player_manager_ptr player_manager, dpp::cluster& client);
 	    }
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
@@ -127,27 +127,27 @@ namespace musicat {
 
 	namespace playlist {
 	    namespace autocomplete {
-		void id(const dpp::autocomplete_t& event, std::string param);
+			void id(const dpp::autocomplete_t& event, std::string param);
 	    }
 
 	    namespace save {
-		dpp::command_option get_option_obj();
-		void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager);
+			dpp::command_option get_option_obj();
+			void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager);
 	    }
 
 	    namespace load {
-		dpp::command_option get_option_obj();
-		void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view = false);
+			dpp::command_option get_option_obj();
+			void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view = false);
 	    }
 
 	    namespace view {
-		dpp::command_option get_option_obj();
-		void slash_run(const dpp::interaction_create_t& event);
+			dpp::command_option get_option_obj();
+			void slash_run(const dpp::interaction_create_t& event);
 	    }
 
 	    namespace delete_ {
-		dpp::command_option get_option_obj();
-		void slash_run(const dpp::interaction_create_t& event);
+			dpp::command_option get_option_obj();
+			void slash_run(const dpp::interaction_create_t& event);
 	    }
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
@@ -162,8 +162,8 @@ namespace musicat {
 
 	namespace interactive_message {
 	    namespace create {
-		dpp::command_option get_option_obj();
-		void slash_run(const dpp::interaction_create_t& event);
+			dpp::command_option get_option_obj();
+			void slash_run(const dpp::interaction_create_t& event);
 	    }
 
 	    dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id);
