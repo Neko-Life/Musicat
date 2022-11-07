@@ -69,6 +69,14 @@ namespace musicat {
 		    dpp::discord_client* from,
 		    const dpp::interaction_create_t event = dpp::interaction_create_t(NULL, "{}"),
 		    bool continued = false);
+
+		/**
+		 * @brief Decide whether the client need to play or not at its current state
+		 * @param from
+		 * @param guild_id
+		 * @param continued
+		 */
+		void decide_play(dpp::discord_client *from, const dpp::snowflake& guild_id, const bool& continued);
 	}
 
 	namespace loop {

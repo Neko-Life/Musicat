@@ -25,6 +25,13 @@ namespace musicat {
 
                     if (!no_len) avail = musicat::autocomplete::filter_candidates(avail, param);
 
+		    if (get_debug_state()) {
+			    printf("[play::autocomplete::query] results:\n");
+			    for (size_t i = 0; i < avail.size(); i++) {
+				    printf("%ld: %s\n", i, avail.at(i).first.c_str());
+			    }
+		    }
+
                     musicat::autocomplete::create_response(avail, event);
                 }
             }
@@ -351,24 +358,34 @@ namespace musicat {
                     p->add_track(t, arg_top ? true : false, guild_id, from_interaction || dling);
                     if (from_interaction) p->set_channel(channel_id);
 
-                    std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
-                    bool b = true;
-
-                    try { vu = get_voice_from_gid(guild_id, sha_id); }
-                    catch (const char* e) { b = false; }
-
-                    if (from_interaction && !continued && from)
-                    {
-                        dpp::voiceconn* v = from->get_voice(guild_id);
-
-                        if (b && has_listener(&vu.second)
-                            && v && v->voiceclient && v->voiceclient->is_ready()
-                            && v->voiceclient->get_secs_remaining() < 0.1)
-                            v->voiceclient->insert_marker("s");
-                    }
+		    decide_play(from, guild_id, continued);
                 }, event, result);
                 dlt.detach();
             }
+
+	    void decide_play(dpp::discord_client *from, const dpp::snowflake& guild_id, const bool& continued) {
+		if (!from || !from->creator) return;
+		const dpp::snowflake sha_id = from->creator->me.id;
+
+		std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>> vu;
+		bool b = true;
+
+		try { vu = get_voice_from_gid(guild_id, sha_id); }
+		catch (const char* e) { b = false; }
+
+		if (b && !continued)
+		{
+		    dpp::voiceconn* v = from->get_voice(guild_id);
+
+		    if (has_listener(&vu.second)
+			&& v && v->voiceclient && v->voiceclient->is_ready())
+						    
+		    if ((!v->voiceclient->is_paused() && !v->voiceclient->is_playing())
+			    || v->voiceclient->get_secs_remaining() < 0.1)
+			    
+			    v->voiceclient->insert_marker("s");
+		}
+	    }
         }
     }
 }

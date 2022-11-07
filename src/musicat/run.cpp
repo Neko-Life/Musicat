@@ -29,34 +29,34 @@ namespace musicat {
     std::mutex main_mutex;
 
     bool get_running_state() {
-		std::lock_guard<std::mutex> lk(main_mutex);
-		return running;
+	std::lock_guard<std::mutex> lk(main_mutex);
+	return running;
     }
 
     int set_running_state(const bool state) {
-		std::lock_guard<std::mutex> lk(main_mutex);
-		running = state;
-		return 0;
+	std::lock_guard<std::mutex> lk(main_mutex);
+	running = state;
+	return 0;
     }
 
     bool get_debug_state() {
-		std::lock_guard<std::mutex> lk(main_mutex);
-		return debug;
+	std::lock_guard<std::mutex> lk(main_mutex);
+	return debug;
     }
 
     int set_debug_state(const bool state) {
-		std::lock_guard<std::mutex> lk(main_mutex);
-		debug = state;
+	std::lock_guard<std::mutex> lk(main_mutex);
+	debug = state;
 
-		printf("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
+	printf("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
 
-		return 0;
+	return 0;
     }
 
     void on_sigint(int code) {
         if (get_debug_state()) printf("RECEIVED SIGINT\nCODE: %d\n", code);
-			set_running_state(false);
-		}
+		set_running_state(false);
+    }
 
     int run(int argc, const char* argv[])
     {
@@ -65,19 +65,19 @@ namespace musicat {
         json sha_cfg;
         {
             std::ifstream scs("sha_conf.json");
-			if (!scs.is_open()) {
-				fprintf(stderr, "[ERROR] No config file exist\n");
-				scs.close();
-				return -1;
-			}
+	    if (!scs.is_open()) {
+		fprintf(stderr, "[ERROR] No config file exist\n");
+		scs.close();
+		return -1;
+	    }
 
             scs >> sha_cfg;
             scs.close();
         }
 
-		set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
+	set_debug_state(sha_cfg["DEBUG"].is_null() ? false : sha_cfg["DEBUG"].get<bool>());
 
-		if (sha_cfg["RUNTIME_CLI"].is_null() ? false : sha_cfg["RUNTIME_CLI"].get<bool>()) runtime_cli::attach_listener();
+	if (sha_cfg["RUNTIME_CLI"].is_null() ? false : sha_cfg["RUNTIME_CLI"].get<bool>()) runtime_cli::attach_listener();
 
         dpp::cluster client(sha_cfg["SHA_TKN"].get<string>(), dpp::i_guild_members | dpp::i_default_intents);
 
@@ -103,7 +103,7 @@ namespace musicat {
                 ConnStatusType status = database::init(db_connect_param);
                 if (status != CONNECTION_OK)
                 {
-					database::shutdown();
+		    database::shutdown();
                     fprintf(stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n", status);
                 }
             }
@@ -232,17 +232,21 @@ namespace musicat {
                         std::thread dlt([comp, prepend_name, player_manager, dling, fname, guild_id, from](const dpp::interaction_create_t event, yt_search::YTrack result) {
                             dpp::snowflake user_id = event.command.usr.id;
                             auto p = player_manager->create_player(guild_id);
+							const bool top = comp.custom_id.find("top") != std::string::npos;
                             if (dling)
                             {
                                 player_manager->wait_for_download(fname);
-                                event.edit_response(prepend_name + string("Added: ") + result.title());
+                                event.edit_response(prepend_name + string("Added: ") + result.title() + (top ? " to the top of the queue" : "" ));
                             }
                             if (from) p->from = from;
 
                             player::MCTrack t(result);
                             t.filename = fname;
                             t.user_id = user_id;
-                            p->add_track(t, comp.custom_id.find("top") != std::string::npos ? true : false, guild_id, dling);
+                            p->add_track(t, top ? true : false, guild_id, dling);
+
+			    if (from) command::play::decide_play(from, guild_id, false);
+			    else if (get_debug_state()) printf("[modal_p] No client to decide play\n");
                         }, event, result);
                         dlt.detach();
                     }
@@ -303,7 +307,7 @@ namespace musicat {
                 }
                 else if (cmd == "playlist")
                 {
-					if (opt == "id") command::playlist::autocomplete::id(event, param);
+		    if (opt == "id") command::playlist::autocomplete::id(event, param);
                 }
             }
         });
