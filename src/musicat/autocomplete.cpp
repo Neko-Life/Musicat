@@ -30,8 +30,8 @@ namespace musicat {
 
             for (const std::pair<std::string, std::string>& i : avail)
             {
-                std::string v = i.first.length() > 100 ? i.first.substr(0, 100) : i.first;
-                std::string v2 = i.second.length() > 100 ? i.second.substr(0, 100) : i.second;
+                std::string v = i.first.length() > 95 ? i.first.substr(0, 95) : i.first;
+                std::string v2 = i.second.length() > 95 ? i.second.substr(0, 95) : i.second;
                 r.add_autocomplete_choice(dpp::command_option_choice(v, v2));
                 if (b_25 && r.autocomplete_choices.size() == 25U) break;
             }
