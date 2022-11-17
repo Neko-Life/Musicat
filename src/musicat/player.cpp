@@ -978,6 +978,7 @@ namespace musicat {
 		    this->delete_info_embed(guild_id);
 		}
 
+		// TODO: Refactor this horrendous `update` flag system and check for existing info_message instead
 		if (!update)
 		{
 		    dpp::message m;
@@ -986,10 +987,10 @@ namespace musicat {
 
 		    this->cluster->message_create(m, m_cb);
 		}
-		else
+		else if (player->info_message)
 		{
 		    auto mn = *player->info_message;
-		    mn.embeds.pop_back();
+		    if (!mn.embeds.empty()) mn.embeds.pop_back();
 		    mn.embeds.push_back(e);
 
 		    if (debug) printf("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id Edit: %ld %ld\n", mn.channel_id, mn.id);
