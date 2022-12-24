@@ -644,7 +644,6 @@ namespace musicat {
 		    ogg_page og;
 		    ogg_packet op;
 		    // OpusHead header;
-		    char* buffer;
 
 		    size_t sz = buf.st_size;
 		    if (debug) printf("BUFFER_SIZE: %ld\n", sz);
@@ -654,9 +653,9 @@ namespace musicat {
 		    // int eos = 0;
 		    // int i;
 
-		    buffer = ogg_sync_buffer(&oy, sz);
-		    fread(buffer, 1, sz, fd);
+		    fread(ogg_sync_buffer(&oy, sz), 1, sz, fd);
 		    fclose(fd);
+		    fd = NULL;
 
 		    bool no_prob = true;
 
@@ -704,43 +703,52 @@ namespace musicat {
 		    // }
 
 		    /* Now loop though all the pages and send the packets to the vc */
-		    if (no_prob) while (ogg_sync_pageout(&oy, &og) == 1)
+		    bool br = false;
+		    if (no_prob) while (true)
 		    {
+			if (br)
+			{
+			    if (debug) printf("[MANAGER::STREAM] Stopping stream\n");
+			    break;
+			}
+
 			{
 			    std::lock_guard<std::mutex> lk(this->sq_m);
 			    auto sq = vector_find(&this->stop_queue, server_id);
 			    if (sq != this->stop_queue.end()) break;
 			}
+
 			if (!v || v->terminating)
 			{
 			    fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, connection broken\n");
 			    break;
 			}
-			while (ogg_stream_check(&os) != 0)
+
+			if (ogg_sync_pageout(&oy, &og) != 1)
 			{
-			    ogg_stream_init(&os, ogg_page_serialno(&og));
+			    // fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, corrupt audio (need recapture or incomplete audio file)\n");
+			    break;
 			}
 
 			if (ogg_stream_pagein(&os, &og) < 0)
 			{
-			    fprintf(stderr, "Error reading page of Ogg bitstream data.\n");
+			    fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, error reading page of Ogg bitstream data\n");
 			    break;
 			}
 
-			int res;
-
-			while ((res = ogg_stream_packetout(&os, &op)) != 0)
+			int po_res;
+			while ((po_res = ogg_stream_packetout(&os, &op)))
 			{
+			    if (po_res == -1)
 			    {
-				std::lock_guard<std::mutex> lk(this->sq_m);
-				auto sq = vector_find(&this->stop_queue, server_id);
-				if (sq != this->stop_queue.end()) break;
+				fprintf(stderr, "[WARN MANAGER::STREAM] Audio gap\n");
 			    }
-			    if (res < 1)
+			    if(po_res == 0)
 			    {
-				ogg_stream_pagein(&os, &og);
-				continue;
+				fprintf(stderr, "[WARN MANAGER::STREAM] Async or delayed audio\n");
+				break;
 			    }
+
 			    // /* Read remaining headers */
 			    // if (op.bytes > 8 && !memcmp("OpusHead", op.packet, 8))
 			    // {
@@ -758,21 +766,17 @@ namespace musicat {
 			    //     continue;
 			    // }
 			    /* Skip the opus tags */
-			    // if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
-			    //     continue;
-
-			    if (!v || v->terminating)
-			    {
-				fprintf(stderr, "[ERROR MANAGER::STREAM] Can't continue streaming, connection broken\n");
-				break;
-			    }
+			    if (op.bytes > 8 && !memcmp("OpusTags", op.packet, 8))
+			        continue;
 
 			    /* Send the audio */
 			    // int samples = opus_packet_get_samples_per_frame(op.packet, 48000);
 
-			    if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, 20);//samples / 48);
+			    if (v && !v->terminating) v->send_audio_opus(op.packet, op.bytes, 20); //samples / 48);
+			    /* if (ogg_stream_eos(&os)) */
+			    /*     break; */
 
-			    bool br = v->terminating;
+			    br = v->terminating;
 
 			    while (v && !v->terminating && v->get_secs_remaining() > 0.5)
 			    {
