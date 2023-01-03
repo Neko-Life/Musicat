@@ -1,4 +1,5 @@
 #include <libpq-fe.h>
+#include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "nlohmann/json.hpp"
 #include "musicat/cmds.h"
@@ -43,7 +44,7 @@ void id(const dpp::autocomplete_t& event, std::string param) {
     musicat::autocomplete::create_response(
             musicat::autocomplete::filter_candidates(response, param), event);
 }
-}
+} // autocomplete
 
 namespace save {
 dpp::command_option get_option_obj() {
@@ -97,7 +98,7 @@ void slash_run(const dpp::interaction_create_t& event, player::player_manager_pt
                         + p_id
                         : "Somethin went wrong, can't save playlist");
 }
-}
+} // save
 
 namespace load {
 dpp::command_option get_option_obj() {
@@ -171,13 +172,16 @@ else if (playlist_res.second == -1)
     if (view != true) p = player_manager->create_player(event.command.guild_id);
 
     const bool add_to_top = arg_top ? true : false;
+    const bool debug = get_debug_state();
+    if (debug) printf("[playlist::load] arg_top add_to_top: %ld %d\n", arg_top, add_to_top);
 
     std::deque<player::MCTrack> to_iter = {};
 
     if (add_to_top)
     {
-        for (const auto& d : playlist_res.first)
+        for (auto& d : playlist_res.first)
         {
+            if (debug) printf("[playlist::load] Pushed to front: '%s'\n", d.title().c_str());
             to_iter.push_front(d);
         }
     }
@@ -247,7 +251,7 @@ else
             }
         }
 }
-}
+} // load
 
 namespace view {
 dpp::command_option get_option_obj() {
