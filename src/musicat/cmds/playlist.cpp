@@ -9,11 +9,31 @@
 
 namespace musicat {
 namespace command {
-std::string _get_id_arg(const dpp::interaction_create_t& event) {
+template<typename T> 
+void _get_nested_arg(const dpp::interaction_create_t& event, const int at, T* result) {
     dpp::command_interaction cmd = event.command.get_command_interaction();
 
-    dpp::command_value val = cmd.options.at(0).options.at(0).value;
-    return val.index() ? std::get<std::string>(val) : "";
+    if (cmd.options.size())
+    {
+        auto& command_options = cmd.options.at(0).options;
+        if (command_options.size() > at)
+        {
+            dpp::command_value val = command_options.at(at).value;
+            if (val.index()) *result = std::get<T>(val);
+        }
+    }
+}
+
+std::string _get_id_arg(const dpp::interaction_create_t& event) {
+    std::string ret = "";
+    _get_nested_arg<std::string>(event, 0, &ret);
+    return ret;
+}
+
+int64_t _get_top_arg(const dpp::interaction_create_t& event) {
+    int64_t ret = 0;
+    _get_nested_arg<int64_t>(event, 1, &ret);
+    return ret;
 }
 
 namespace playlist {
@@ -128,8 +148,8 @@ dpp::command_option get_option_obj() {
 
 void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view) {
     const std::string p_id = _get_id_arg(event);
-    int64_t arg_top = 0;
-    get_inter_param(event, "top", &arg_top);
+    int64_t arg_top = _get_top_arg(event);
+    event.thinking();
 
     std::pair<PGresult*, ExecStatusType>
     res = database::get_user_playlist(event.command.usr.id, p_id, database::gup_raw_only);
@@ -143,19 +163,19 @@ void slash_run(const dpp::interaction_create_t& event, player::player_manager_pt
     {
         if (!res.first) {
             if (res.second == (ExecStatusType)-3)
-                event.reply("Invalid `id` format!");
+                event.edit_response("Invalid `id` format!");
             else {
-                    event.reply(std::string("`[ERROR]` Unexpected error getting user playlist with code: ") + std::to_string(res.second));
+                    event.edit_response(std::string("`[ERROR]` Unexpected error getting user playlist with code: ") + std::to_string(res.second));
                     fprintf(stderr, "[CMD_PLAYLIST_ERROR] Unexpected error database::get_user_playlist with code: %d\n", res.second);
                 }
 
-        } else event.reply("Unknown playlist");
+        } else event.edit_response("Unknown playlist");
 
         retnow = 1;
     }
 else if (playlist_res.second == -1)
     {
-        event.reply("This playlist is empty, save a new one with the same Id to overwrite it");
+        event.edit_response("This playlist is empty, save a new one with the same Id to overwrite it");
         retnow = 1;
     }
 
@@ -200,7 +220,7 @@ else
             }
     }
 
-    if (view) paginate::reply_paginated_playlist(event, q, p_id);
+    if (view) paginate::reply_paginated_playlist(event, q, p_id, true);
     else
         {
             if (count) try
@@ -209,7 +229,7 @@ else
                 }
                 catch (...) {}
 
-            event.reply(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
+            event.edit_response(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
 
             std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
             c;
@@ -292,16 +312,17 @@ dpp::command_option get_option_obj() {
 
 void slash_run(const dpp::interaction_create_t& event) {
     const std::string p_id = _get_id_arg(event);
+    event.thinking();
 
     if (!database::valid_name(p_id))
     {
-        event.reply("Invalid `id` format!");
+        event.edit_response("Invalid `id` format!");
         return;
     }
 
     if (database::delete_user_playlist(event.command.usr.id, p_id) == PGRES_TUPLES_OK)
-        event.reply(std::string("Deleted playlist ") + p_id);
-    else event.reply("Unknown playlist");
+        event.edit_response(std::string("Deleted playlist ") + p_id);
+    else event.edit_response("Unknown playlist");
 }
 } // delete_
 

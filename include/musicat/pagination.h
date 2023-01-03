@@ -58,8 +58,9 @@ namespace musicat {
          *
          * @param event
          * @param queue
+         * @param edit_response edit
          */
-        void reply_paginated_playlist(const dpp::interaction_create_t& event, std::deque<player::MCTrack> queue, const std::string& title = "Queue");
+        void reply_paginated_playlist(const dpp::interaction_create_t& event, std::deque<player::MCTrack> queue, const std::string& title = "Queue", const bool edit_response = false);
     }
 }
 
