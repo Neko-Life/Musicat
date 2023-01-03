@@ -99,13 +99,13 @@ void slash_run(const dpp::interaction_create_t& event, player::player_manager_pt
         return;
     }
 
+    event.thinking();
+
     if (database::create_table_playlist(event.command.usr.id) == PGRES_FATAL_ERROR)
     {
-        event.reply("`[FATAL]` INTERNAL MUSICAT ERROR!");
+        event.edit_response("`[FATAL]` INTERNAL MUSICAT ERROR!");
         return;
     }
-
-    event.thinking();
 
     ExecStatusType res = database::update_user_playlist(event.command.usr.id, p_id, q);
 
@@ -229,46 +229,51 @@ else
                 }
                 catch (...) {}
 
-            event.edit_response(std::string("Added ") + std::to_string(count) + " track" + (count > 1 ? "s" : "") + " from playlist " + p_id);
+            event.edit_response(
+                    std::string("Added ")
+                    + std::to_string(count)
+                    + " track" + (count > 1 ? "s" : "")
+                    + " from playlist " + p_id +
+                    (arg_top ? "to the top of the queue" : ""));
 
-            std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
-            c;
-            bool has_c = false;
-            bool no_vc = false;
-            try
-            {
-                c = get_voice_from_gid(event.command.guild_id, event.command.usr.id);
-                has_c = true;
-            }
-            catch (...) {}
+            // std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
+            // c;
+            // bool has_c = false;
+            // bool no_vc = false;
+            // try
+            // {
+            //     c = get_voice_from_gid(event.command.guild_id, event.command.usr.id);
+            //     has_c = true;
+            // }
+            // catch (...) {}
 
-            try
-            {
-                get_voice_from_gid(event.command.guild_id, event.from->creator->me.id);
-            }
-            catch (...)
-            {
-                no_vc = true;
-            }
+            // try
+            // {
+            //     get_voice_from_gid(event.command.guild_id, event.from->creator->me.id);
+            // }
+            // catch (...)
+            // {
+            //     no_vc = true;
+            // }
 
-            if (has_c && no_vc && c.first && has_permissions_from_ids(event.command.guild_id,
-                                                                      event.from->creator->me.id,
-                                                                      c.first->id, { dpp::p_view_channel,dpp::p_connect }))
-            {
-                p->set_channel(event.command.channel_id);
+            // if (has_c && no_vc && c.first && has_permissions_from_ids(event.command.guild_id,
+            //                                                           event.from->creator->me.id,
+            //                                                           c.first->id, { dpp::p_view_channel,dpp::p_connect }))
+            // {
+            //     p->set_channel(event.command.channel_id);
 
-                {
-                    std::lock_guard<std::mutex> lk(player_manager->c_m);
-                    std::lock_guard<std::mutex> lk2(player_manager->wd_m);
-                    player_manager->connecting.insert_or_assign(event.command.guild_id, c.first->id);
-                    player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id, "2");
-                }
+            //     {
+            //         std::lock_guard<std::mutex> lk(player_manager->c_m);
+            //         std::lock_guard<std::mutex> lk2(player_manager->wd_m);
+            //         player_manager->connecting.insert_or_assign(event.command.guild_id, c.first->id);
+            //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id, "2");
+            //     }
 
-                std::thread t([player_manager, event]() {
-                                  player_manager->reconnect(event.from, event.command.guild_id);
-                              });
-                t.detach();
-            }
+            //     std::thread t([player_manager, event]() {
+            //                       player_manager->reconnect(event.from, event.command.guild_id);
+            //                   });
+            //     t.detach();
+            // }
         }
 }
 } // load
