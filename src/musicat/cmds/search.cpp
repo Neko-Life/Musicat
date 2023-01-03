@@ -67,10 +67,11 @@ namespace musicat {
                 for (auto& t : tracks)
                 {
                     size_t cn = mult * 10 + (++count);
+		    const std::string tit = t.title();
 
                     desc += std::string("`")
                         + std::to_string(cn)
-                        + "`: [" + t.title() + "]("
+                        + "`: [" + tit.substr(0, 80) + (tit.length() > 80 ? "..." : "") + "]("
                         + t.url() + ") ["
                         + t.length() + "] - "
                         + t.channel().name
