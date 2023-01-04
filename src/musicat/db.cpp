@@ -196,7 +196,7 @@ ExecStatusType finish_res(PGresult* res, ExecStatusType status) {
 
 bool valid_name(const std::string& str) {
     if (get_debug_state()) printf("[DB_VALIDATE_NAME] '%s'\n", str.c_str());
-    if (std::regex_match(str, std::regex("^[0-9a-zA-Z_- ]{1,100}$"))) return true;
+    if (std::regex_match(str, std::regex("^[0-9a-zA-Z_ -]{1,100}$"))) return true;
 	else return false;
 }
 
