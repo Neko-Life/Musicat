@@ -234,7 +234,7 @@ else
                     + std::to_string(count)
                     + " track" + (count > 1 ? "s" : "")
                     + " from playlist " + p_id +
-                    (arg_top ? "to the top of the queue" : ""));
+                    (arg_top ? " to the top of the queue" : ""));
 
             // std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
             // c;
