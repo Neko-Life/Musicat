@@ -1,276 +1,319 @@
-#include <libpq-fe.h>
+#include "musicat/autocomplete.h"
+#include "musicat/cmds.h"
+#include "musicat/db.h"
 #include "musicat/musicat.h"
+#include "musicat/pagination.h"
 #include "musicat/player.h"
 #include "nlohmann/json.hpp"
-#include "musicat/cmds.h"
-#include "musicat/autocomplete.h"
-#include "musicat/db.h"
-#include "musicat/pagination.h"
+#include <libpq-fe.h>
 
-namespace musicat {
-namespace command {
-template<typename T> 
-void _get_nested_arg(const dpp::interaction_create_t& event, const int at, T* result) {
-    dpp::command_interaction cmd = event.command.get_command_interaction();
+namespace musicat
+{
+namespace command
+{
+template <typename T>
+void
+_get_nested_arg (const dpp::interaction_create_t &event, const int at,
+                 T *result)
+{
+    dpp::command_interaction cmd = event.command.get_command_interaction ();
 
-    if (cmd.options.size())
-    {
-        auto& command_options = cmd.options.at(0).options;
-        if (command_options.size() > at)
+    if (cmd.options.size ())
         {
-            dpp::command_value val = command_options.at(at).value;
-            if (val.index()) *result = std::get<T>(val);
+            auto &command_options = cmd.options.at (0).options;
+            if (command_options.size () > at)
+                {
+                    dpp::command_value val = command_options.at (at).value;
+                    if (val.index ())
+                        *result = std::get<T> (val);
+                }
         }
-    }
 }
 
-std::string _get_id_arg(const dpp::interaction_create_t& event) {
+std::string
+_get_id_arg (const dpp::interaction_create_t &event)
+{
     std::string ret = "";
-    _get_nested_arg<std::string>(event, 0, &ret);
+    _get_nested_arg<std::string> (event, 0, &ret);
     return ret;
 }
 
-int64_t _get_top_arg(const dpp::interaction_create_t& event) {
+int64_t
+_get_top_arg (const dpp::interaction_create_t &event)
+{
     int64_t ret = 0;
-    _get_nested_arg<int64_t>(event, 1, &ret);
+    _get_nested_arg<int64_t> (event, 1, &ret);
     return ret;
 }
 
-namespace playlist {
-namespace autocomplete {
-void id(const dpp::autocomplete_t& event, std::string param) {
-    std::pair<PGresult*, ExecStatusType>
-    res = database::get_all_user_playlist(event.command.usr.id, database::gup_name_only);
+namespace playlist
+{
+namespace autocomplete
+{
+void
+id (const dpp::autocomplete_t &event, std::string param)
+{
+    std::pair<PGresult *, ExecStatusType> res
+        = database::get_all_user_playlist (event.command.usr.id,
+                                           database::gup_name_only);
 
-    std::vector<std::pair<std::string, std::string>> response = {};
+    std::vector<std::pair<std::string, std::string> > response = {};
 
     if (res.second == PGRES_TUPLES_OK)
-    {
-        int rn = 0;
-        while (true)
-            {
-                if (PQgetisnull(res.first, rn, 0)) break;
+        {
+            int rn = 0;
+            while (true)
+                {
+                    if (PQgetisnull (res.first, rn, 0))
+                        break;
 
-                std::string val = std::string(PQgetvalue(res.first, rn, 0));
+                    std::string val
+                        = std::string (PQgetvalue (res.first, rn, 0));
 
-                response.push_back(std::make_pair(val, val));
-                rn++;
-            }
-    }
+                    response.push_back (std::make_pair (val, val));
+                    rn++;
+                }
+        }
 
-    database::finish_res(res.first);
+    database::finish_res (res.first);
     res.first = nullptr;
 
-    musicat::autocomplete::create_response(
-            musicat::autocomplete::filter_candidates(response, param), event);
+    musicat::autocomplete::create_response (
+        musicat::autocomplete::filter_candidates (response, param), event);
 }
 } // autocomplete
 
-namespace save {
-dpp::command_option get_option_obj() {
-    return dpp::command_option(
-        dpp::co_sub_command,
-        "save",
-        "Save [current playlist]"
-    ).add_option(
-        dpp::command_option(
-            dpp::co_string,
-            "id",
-            "Playlist name, must match validation regex /^[0-9a-zA-Z_-]{1,100}$/",
-            true
-        ).set_auto_complete(true)
-    );
+namespace save
+{
+dpp::command_option
+get_option_obj ()
+{
+    return dpp::command_option (dpp::co_sub_command, "save",
+                                "Save [current playlist]")
+        .add_option (
+            dpp::command_option (dpp::co_string, "id",
+                                 "Playlist name, must match validation regex "
+                                 "/^[0-9a-zA-Z_-]{1,100}$/",
+                                 true)
+                .set_auto_complete (true));
 }
 
-void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
-    std::deque<player::MCTrack> q = player_manager->get_queue(event.command.guild_id);
-    size_t q_size = q.size();
+void
+slash_run (const dpp::interaction_create_t &event,
+           player::player_manager_ptr player_manager)
+{
+    std::deque<player::MCTrack> q
+        = player_manager->get_queue (event.command.guild_id);
+    size_t q_size = q.size ();
     if (!q_size)
-    {
-        event.reply("Not a single track currently waiting in the queue");
-        return;
-    }
+        {
+            event.reply ("Not a single track currently waiting in the queue");
+            return;
+        }
 
-    const std::string p_id = _get_id_arg(event);
+    const std::string p_id = _get_id_arg (event);
 
-    if (!database::valid_name(p_id))
-    {
-        event.reply("Invalid `id` format!");
-        return;
-    }
+    if (!database::valid_name (p_id))
+        {
+            event.reply ("Invalid `id` format!");
+            return;
+        }
 
-    event.thinking();
+    event.thinking ();
 
-    if (database::create_table_playlist(event.command.usr.id) == PGRES_FATAL_ERROR)
-    {
-        event.edit_response("`[FATAL]` INTERNAL MUSICAT ERROR!");
-        return;
-    }
+    if (database::create_table_playlist (event.command.usr.id)
+        == PGRES_FATAL_ERROR)
+        {
+            event.edit_response ("`[FATAL]` INTERNAL MUSICAT ERROR!");
+            return;
+        }
 
-    ExecStatusType res = database::update_user_playlist(event.command.usr.id, p_id, q);
+    ExecStatusType res
+        = database::update_user_playlist (event.command.usr.id, p_id, q);
 
-    event.edit_response(res == PGRES_COMMAND_OK
-                        ? std::string("Saved playlist containing ")
-                        + std::to_string(q_size)
-                        + " track"
-                        + (q_size > 1 ? "s" : "")
-                        + " with Id: "
-                        + p_id
-                        : "Somethin went wrong, can't save playlist");
+    event.edit_response (res == PGRES_COMMAND_OK
+                             ? std::string ("Saved playlist containing ")
+                                   + std::to_string (q_size) + " track"
+                                   + (q_size > 1 ? "s" : "")
+                                   + " with Id: " + p_id
+                             : "Somethin went wrong, can't save playlist");
 }
 } // save
 
-namespace load {
-dpp::command_option get_option_obj() {
-    return dpp::command_option(
-        dpp::co_sub_command,
-        "load",
-        "Load [saved playlist]"
-    ).add_option(
-        dpp::command_option(
-            dpp::co_string,
-            "id",
-            "Playlist name [to load]",
-            true
-        ).set_auto_complete(true)
-    ).add_option(
-        dpp::command_option(
-            dpp::co_integer,
-            "top",
-            "Add [these song] to the top [of the queue]"
-        ).add_choice(
-            dpp::command_option_choice("Yes", 1)
-        ).add_choice(
-            dpp::command_option_choice("No", 0)
-        )
-    );
+namespace load
+{
+dpp::command_option
+get_option_obj ()
+{
+    return dpp::command_option (dpp::co_sub_command, "load",
+                                "Load [saved playlist]")
+        .add_option (dpp::command_option (dpp::co_string, "id",
+                                          "Playlist name [to load]", true)
+                         .set_auto_complete (true))
+        .add_option (
+            dpp::command_option (dpp::co_integer, "top",
+                                 "Add [these song] to the top [of the queue]")
+                .add_choice (dpp::command_option_choice ("Yes", 1))
+                .add_choice (dpp::command_option_choice ("No", 0)));
 }
 
-void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager, const bool view) {
-    const std::string p_id = _get_id_arg(event);
-    int64_t arg_top = _get_top_arg(event);
-    event.thinking();
+void
+slash_run (const dpp::interaction_create_t &event,
+           player::player_manager_ptr player_manager, const bool view)
+{
+    const std::string p_id = _get_id_arg (event);
+    int64_t arg_top = _get_top_arg (event);
+    event.thinking ();
 
-    std::pair<PGresult*, ExecStatusType>
-    res = database::get_user_playlist(event.command.usr.id, p_id, database::gup_raw_only);
+    std::pair<PGresult *, ExecStatusType> res = database::get_user_playlist (
+        event.command.usr.id, p_id, database::gup_raw_only);
 
-    std::pair<std::deque<player::MCTrack>, int>
-    playlist_res = database::get_playlist_from_PGresult(res.first);
+    std::pair<std::deque<player::MCTrack>, int> playlist_res
+        = database::get_playlist_from_PGresult (res.first);
 
     int retnow = 0;
 
     if (playlist_res.second == -2)
-    {
-        if (!res.first) {
-            if (res.second == (ExecStatusType)-3)
-                event.edit_response("Invalid `id` format!");
-            else {
-                    event.edit_response(std::string("`[ERROR]` Unexpected error getting user playlist with code: ") + std::to_string(res.second));
-                    fprintf(stderr, "[CMD_PLAYLIST_ERROR] Unexpected error database::get_user_playlist with code: %d\n", res.second);
+        {
+            if (!res.first)
+                {
+                    if (res.second == (ExecStatusType)-3)
+                        event.edit_response ("Invalid `id` format!");
+                    else
+                        {
+                            event.edit_response (
+                                std::string (
+                                    "`[ERROR]` Unexpected error getting user "
+                                    "playlist with code: ")
+                                + std::to_string (res.second));
+                            fprintf (
+                                stderr,
+                                "[CMD_PLAYLIST_ERROR] Unexpected error "
+                                "database::get_user_playlist with code: %d\n",
+                                res.second);
+                        }
                 }
+            else
+                event.edit_response ("Unknown playlist");
 
-        } else event.edit_response("Unknown playlist");
+            retnow = 1;
+        }
+    else if (playlist_res.second == -1)
+        {
+            event.edit_response ("This playlist is empty, save a new one with "
+                                 "the same Id to overwrite it");
+            retnow = 1;
+        }
 
-        retnow = 1;
-    }
-else if (playlist_res.second == -1)
-    {
-        event.edit_response("This playlist is empty, save a new one with the same Id to overwrite it");
-        retnow = 1;
-    }
-
-    database::finish_res(res.first);
+    database::finish_res (res.first);
     res.first = nullptr;
 
-    if (retnow) return;
+    if (retnow)
+        return;
 
     std::shared_ptr<player::Player> p;
     size_t count = 0;
 
     std::deque<player::MCTrack> q = {};
 
-    if (view != true) p = player_manager->create_player(event.command.guild_id);
+    if (view != true)
+        p = player_manager->create_player (event.command.guild_id);
 
     const bool add_to_top = arg_top ? true : false;
-    const bool debug = get_debug_state();
-    if (debug) printf("[playlist::load] arg_top add_to_top: %ld %d\n", arg_top, add_to_top);
+    const bool debug = get_debug_state ();
+    if (debug)
+        printf ("[playlist::load] arg_top add_to_top: %ld %d\n", arg_top,
+                add_to_top);
 
     std::deque<player::MCTrack> to_iter = {};
 
     if (add_to_top)
-    {
-        for (auto& d : playlist_res.first)
         {
-            if (debug) printf("[playlist::load] Pushed to front: '%s'\n", d.title().c_str());
-            to_iter.push_front(d);
+            for (auto &d : playlist_res.first)
+                {
+                    if (debug)
+                        printf ("[playlist::load] Pushed to front: '%s'\n",
+                                d.title ().c_str ());
+                    to_iter.push_front (d);
+                }
         }
-    }
-else
-    {
-        to_iter = playlist_res.first;
-    }
-
-    for (auto& t : to_iter) {
-        t.user_id = event.command.usr.id;
-        if (view) q.push_back(t);
-        else
-            {
-                p->add_track(t, add_to_top, event.command.guild_id, false);
-                count++;
-            }
-    }
-
-    if (view) paginate::reply_paginated_playlist(event, q, p_id, true);
     else
         {
-            if (count) try
+            to_iter = playlist_res.first;
+        }
+
+    for (auto &t : to_iter)
+        {
+            t.user_id = event.command.usr.id;
+            if (view)
+                q.push_back (t);
+            else
                 {
-                    player_manager->update_info_embed(event.command.guild_id);
+                    p->add_track (t, add_to_top, event.command.guild_id,
+                                  false);
+                    count++;
                 }
-                catch (...) {}
+        }
 
-            event.edit_response(
-                    std::string("Added ")
-                    + std::to_string(count)
-                    + " track" + (count > 1 ? "s" : "")
-                    + " from playlist " + p_id +
-                    (arg_top ? " to the top of the queue" : ""));
+    if (view)
+        paginate::reply_paginated_playlist (event, q, p_id, true);
+    else
+        {
+            if (count)
+                try
+                    {
+                        player_manager->update_info_embed (
+                            event.command.guild_id);
+                    }
+                catch (...)
+                    {
+                    }
 
-            // std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
-            // c;
-            // bool has_c = false;
-            // bool no_vc = false;
-            // try
+            event.edit_response (
+                std::string ("Added ") + std::to_string (count) + " track"
+                + (count > 1 ? "s" : "") + " from playlist " + p_id
+                + (arg_top ? " to the top of the queue" : ""));
+
+            // std::pair<dpp::channel*, std::map<dpp::snowflake,
+            // dpp::voicestate>> c; bool has_c = false; bool no_vc = false; try
             // {
-            //     c = get_voice_from_gid(event.command.guild_id, event.command.usr.id);
-            //     has_c = true;
+            //     c = get_voice_from_gid(event.command.guild_id,
+            //     event.command.usr.id); has_c = true;
             // }
             // catch (...) {}
 
             // try
             // {
-            //     get_voice_from_gid(event.command.guild_id, event.from->creator->me.id);
+            //     get_voice_from_gid(event.command.guild_id,
+            //     event.from->creator->me.id);
             // }
             // catch (...)
             // {
             //     no_vc = true;
             // }
 
-            // if (has_c && no_vc && c.first && has_permissions_from_ids(event.command.guild_id,
+            // if (has_c && no_vc && c.first &&
+            // has_permissions_from_ids(event.command.guild_id,
             //                                                           event.from->creator->me.id,
-            //                                                           c.first->id, { dpp::p_view_channel,dpp::p_connect }))
+            //                                                           c.first->id,
+            //                                                           {
+            //                                                           dpp::p_view_channel,dpp::p_connect
+            //                                                           }))
             // {
             //     p->set_channel(event.command.channel_id);
 
             //     {
             //         std::lock_guard<std::mutex> lk(player_manager->c_m);
             //         std::lock_guard<std::mutex> lk2(player_manager->wd_m);
-            //         player_manager->connecting.insert_or_assign(event.command.guild_id, c.first->id);
-            //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id, "2");
+            //         player_manager->connecting.insert_or_assign(event.command.guild_id,
+            //         c.first->id);
+            //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id,
+            //         "2");
             //     }
 
             //     std::thread t([player_manager, event]() {
-            //                       player_manager->reconnect(event.from, event.command.guild_id);
+            //                       player_manager->reconnect(event.from,
+            //                       event.command.guild_id);
             //                   });
             //     t.detach();
             // }
@@ -278,92 +321,100 @@ else
 }
 } // load
 
-namespace view {
-dpp::command_option get_option_obj() {
-    return dpp::command_option(
-        dpp::co_sub_command,
-        "view",
-        "View [saved playlist] tracks"
-    ).add_option(
-        dpp::command_option(
-            dpp::co_string,
-            "id",
-            "Playlist name [to view]",
-            true
-        ).set_auto_complete(true)
-    );
+namespace view
+{
+dpp::command_option
+get_option_obj ()
+{
+    return dpp::command_option (dpp::co_sub_command, "view",
+                                "View [saved playlist] tracks")
+        .add_option (dpp::command_option (dpp::co_string, "id",
+                                          "Playlist name [to view]", true)
+                         .set_auto_complete (true));
 }
 
-void slash_run(const dpp::interaction_create_t& event) {
-    load::slash_run(event, {}, true);
+void
+slash_run (const dpp::interaction_create_t &event)
+{
+    load::slash_run (event, {}, true);
 }
 } // view
 
-namespace delete_ {
-dpp::command_option get_option_obj() {
-    return dpp::command_option(
-        dpp::co_sub_command,
-        "delete",
-        "Delete [saved playlist]"
-    ).add_option(
-        dpp::command_option(
-            dpp::co_string,
-            "id",
-            "Playlist name [to delete]",
-            true
-        ).set_auto_complete(true)
-    );
+namespace delete_
+{
+dpp::command_option
+get_option_obj ()
+{
+    return dpp::command_option (dpp::co_sub_command, "delete",
+                                "Delete [saved playlist]")
+        .add_option (dpp::command_option (dpp::co_string, "id",
+                                          "Playlist name [to delete]", true)
+                         .set_auto_complete (true));
 }
 
-void slash_run(const dpp::interaction_create_t& event) {
-    const std::string p_id = _get_id_arg(event);
-    event.thinking();
+void
+slash_run (const dpp::interaction_create_t &event)
+{
+    const std::string p_id = _get_id_arg (event);
+    event.thinking ();
 
-    if (!database::valid_name(p_id))
-    {
-        event.edit_response("Invalid `id` format!");
-        return;
-    }
+    if (!database::valid_name (p_id))
+        {
+            event.edit_response ("Invalid `id` format!");
+            return;
+        }
 
-    if (database::delete_user_playlist(event.command.usr.id, p_id) == PGRES_TUPLES_OK)
-        event.edit_response(std::string("Deleted playlist ") + p_id);
-    else event.edit_response("Unknown playlist");
+    if (database::delete_user_playlist (event.command.usr.id, p_id)
+        == PGRES_TUPLES_OK)
+        event.edit_response (std::string ("Deleted playlist ") + p_id);
+    else
+        event.edit_response ("Unknown playlist");
 }
 } // delete_
 
-dpp::slashcommand get_register_obj(const dpp::snowflake& sha_id) {
-    return dpp::slashcommand("playlist", "Your playlist manager", sha_id)
-    .add_option(
-        save::get_option_obj()
-    ).add_option(
-        load::get_option_obj()
-    ).add_option(
-        view::get_option_obj()
-    ).add_option(
-        delete_::get_option_obj()
-    );
+dpp::slashcommand
+get_register_obj (const dpp::snowflake &sha_id)
+{
+    return dpp::slashcommand ("playlist", "Your playlist manager", sha_id)
+        .add_option (save::get_option_obj ())
+        .add_option (load::get_option_obj ())
+        .add_option (view::get_option_obj ())
+        .add_option (delete_::get_option_obj ());
 }
 
-void slash_run(const dpp::interaction_create_t& event, player::player_manager_ptr player_manager) {
-    auto inter = event.command.get_command_interaction();
+void
+slash_run (const dpp::interaction_create_t &event,
+           player::player_manager_ptr player_manager)
+{
+    auto inter = event.command.get_command_interaction ();
 
-    if (inter.options.begin() == inter.options.end())
-    {
-        fprintf(stderr, "[ERROR] !!! No options for command 'playlist' !!!\n");
-        event.reply("I don't have that command, how'd you get that?? Please report this to my developer");
-        return;
-    }
+    if (inter.options.begin () == inter.options.end ())
+        {
+            fprintf (stderr,
+                     "[ERROR] !!! No options for command 'playlist' !!!\n");
+            event.reply ("I don't have that command, how'd you get that?? "
+                         "Please report this to my developer");
+            return;
+        }
 
-    const std::string cmd = inter.options.at(0).name;
-    if (cmd == "save") save::slash_run(event, player_manager);
-    else if (cmd == "load") load::slash_run(event, player_manager);
-        else if (cmd == "view") view::slash_run(event);
-            else if (cmd == "delete") delete_::slash_run(event);
-                else
-                    {
-                        fprintf(stderr, "[ERROR] !!! NO SUB-COMMAND '%s' FOR COMMAND 'playlist' !!!\n", cmd.c_str());
-                        event.reply("Somethin went horribly wrong.... Please quickly report this to my developer");
-                    }
+    const std::string cmd = inter.options.at (0).name;
+    if (cmd == "save")
+        save::slash_run (event, player_manager);
+    else if (cmd == "load")
+        load::slash_run (event, player_manager);
+    else if (cmd == "view")
+        view::slash_run (event);
+    else if (cmd == "delete")
+        delete_::slash_run (event);
+    else
+        {
+            fprintf (
+                stderr,
+                "[ERROR] !!! NO SUB-COMMAND '%s' FOR COMMAND 'playlist' !!!\n",
+                cmd.c_str ());
+            event.reply ("Somethin went horribly wrong.... Please quickly "
+                         "report this to my developer");
+        }
 } // slash_run
 } // playlist
 } // command

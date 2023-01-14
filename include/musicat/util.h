@@ -3,12 +3,15 @@
 
 #include <string>
 
-namespace musicat {
-namespace util {
+namespace musicat
+{
+namespace util
+{
 /**
  * @brief Join str with join_str if join is true
  */
-std::string join(const bool join, const std::string& str, const std::string& join_str);
+std::string join (const bool join, const std::string &str,
+                  const std::string &join_str);
 
 } // util
 } // musicat
