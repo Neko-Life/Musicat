@@ -71,7 +71,7 @@ slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr pl
                 }
             else
                 {
-                    event.edit_response (std::string ("Added: ")
+                    event.edit_response (std::string ("Uploading: ")
                                          + result.title ());
                 }
         case 0:
