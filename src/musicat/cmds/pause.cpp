@@ -37,6 +37,6 @@ slash_run (const dpp::interaction_create_t &event,
             event.reply (e.what ());
         }
 }
-}
-}
-}
+} // pause
+} // command
+} // musicat

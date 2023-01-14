@@ -44,7 +44,7 @@ query (const dpp::autocomplete_t &event, std::string param,
 
     musicat::autocomplete::create_response (avail, event);
 }
-}
+} // autocomplete
 
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -416,6 +416,6 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
                     v->voiceclient->insert_marker ("s");
         }
 }
-}
-}
-}
+} // play
+} // command
+} // musicat
