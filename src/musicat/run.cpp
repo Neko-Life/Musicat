@@ -499,7 +499,7 @@ run (int argc, const char *argv[])
         else if (cmd == "leave")
             command::leave::slash_run (event, player_manager);
         else if (cmd == "download")
-            command::download::slash_run (event);
+            command::download::slash_run (event, player_manager);
 
         else
         {

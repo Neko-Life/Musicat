@@ -50,6 +50,27 @@ dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
 
+std::pair<yt_search::YTrack, int>
+find_track(
+    bool playlist,
+    std::string& arg_query,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_check_history = false);
+
+std::string
+get_filename_from_result (yt_search::YTrack &result);
+
+std::pair<bool, int>
+track_exist(
+    const std::string& fname,
+    const std::string& url,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_download = false);
+
 /**
  * @brief Search and add track to guild queue, can be used for interaction and
  * non interaction. Interaction must have already deferred/replied
@@ -240,7 +261,7 @@ void track (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr player_manager);
 }
 
 } // command

@@ -236,15 +236,15 @@ slash_run (const dpp::interaction_create_t &event,
         }
 }
 
-void
-add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
-           int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
-           const dpp::snowflake channel_id, const dpp::snowflake sha_id,
-           player::player_manager_ptr player_manager, bool from_interaction,
-           dpp::discord_client *from, const dpp::interaction_create_t event,
-           bool continued)
+std::pair<yt_search::YTrack, int>
+find_track(
+    bool playlist,
+    std::string& arg_query,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_check_history)
 {
-
     std::vector<yt_search::YTrack> searches
         = playlist ? yt_search::get_playlist (arg_query).entries ()
                    : yt_search::search (arg_query).trackResults ();
@@ -252,21 +252,20 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
     if (searches.begin () == searches.end ())
         {
             if (from_interaction)
-                event.edit_response ("Can't find anything");
-            return;
+                return {{}, -1};
         }
 
     yt_search::YTrack result = {};
-    if (playlist == false)
+    if (playlist == false || no_check_history)
         result = searches.front ();
-    else
+    else if (!no_check_history)
         {
             auto p = player_manager->get_player (guild_id);
             if (!p)
-                return;
+                return {{}, 1};
             std::lock_guard<std::mutex> lk (p->q_m);
             if (p->queue.begin () == p->queue.end ())
-                return;
+                return {{}, 1};
             for (auto i : searches)
                 {
                     auto iid = i.id ();
@@ -298,13 +297,90 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                     break;
                 }
             if (result.raw.is_null ())
-                return;
+                return {{}, 1};
+        }
+    return {result, 0};
+}
+
+std::string
+get_filename_from_result (yt_search::YTrack &result)
+{
+    return std::regex_replace (result.title () + std::string ("-")
+                                   + result.id () + std::string (".opus"),
+                               std::regex ("/"), "",
+                               std::regex_constants::match_any);
+}
+
+std::pair<bool, int>
+track_exist(
+    const std::string& fname,
+    const std::string& url,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_download)
+{
+    bool dling = false;
+    int status = 0;
+
+    std::ifstream test (get_music_folder_path () + fname,
+                        std::ios_base::in | std::ios_base::binary);
+    if (!test.is_open ())
+        {
+            dling = true;
+            if (from_interaction)
+                status = 1;
+
+            if (!no_download && player_manager->waiting_file_download.find (fname)
+                == player_manager->waiting_file_download.end ())
+                {
+                    player_manager->download (fname, url, guild_id);
+                }
+        }
+    else
+        {
+            test.close ();
+            if (from_interaction)
+                status = 1;
         }
 
-    const std::string fname = std::regex_replace (
-        result.title () + std::string ("-") + result.id ()
-            + std::string (".opus"),
-        std::regex ("/"), "", std::regex_constants::match_any);
+    return {dling, status};
+}
+
+void
+add_track (bool playlist,
+           dpp::snowflake guild_id,
+           std::string arg_query,
+           int64_t arg_top,
+           bool vcclient_cont,
+           dpp::voiceconn *v,
+           const dpp::snowflake channel_id,
+           const dpp::snowflake sha_id,
+           player::player_manager_ptr player_manager,
+           bool from_interaction,
+           dpp::discord_client *from,
+           const dpp::interaction_create_t event,
+           bool continued)
+{
+    auto find_result = find_track (playlist, arg_query, player_manager,
+                                   from_interaction, guild_id);
+
+    switch (find_result.second)
+        {
+        case -1:
+            event.edit_response ("Can't find anything");
+            return;
+        case 1:
+            return;
+        case 0:
+            break;
+        default:
+            fprintf(stderr, "[add_track WARN] Unhandled find_track return status: %d\n", find_result.second);
+        }
+
+    auto result = find_result.first;
+
+    const std::string fname = get_filename_from_result (result);
 
     if (from_interaction && (vcclient_cont == false || !v))
         {
@@ -315,31 +391,30 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
             player_manager->waiting_vc_ready[guild_id] = fname;
         }
 
-    bool dling = false;
-
-    std::ifstream test (get_music_folder_path() + fname,
-                        std::ios_base::in | std::ios_base::binary);
-    if (!test.is_open ())
+    auto download_result = track_exist (fname, result.url (), player_manager,
+                                        from_interaction, guild_id);
+    bool dling = download_result.first;
+    
+    switch (download_result.second)
         {
-            dling = true;
-            if (from_interaction)
-                event.edit_response (std::string ("Downloading ")
-                                     + result.title ()
-                                     + "... Gimme 10 sec ight");
-
-            if (player_manager->waiting_file_download.find (fname)
-                == player_manager->waiting_file_download.end ())
+        case 1:
+            if (dling)
                 {
-                    auto url = result.url ();
-                    player_manager->download (fname, url, guild_id);
+                    event.edit_response (std::string ("Downloading ")
+                                         + result.title ()
+                                         + "... Gimme 10 sec ight");
                 }
-        }
-    else
-        {
-            test.close ();
-            if (from_interaction)
-                event.edit_response (std::string ("Added: ")
-                                     + result.title ());
+            else
+                {
+                    event.edit_response (std::string ("Added: ")
+                                         + result.title ());
+                }
+        case 0:
+            break;
+        default:
+            fprintf (stderr,
+                     "[add_track WARN] Unhandled track_exist return status: %d\n",
+                     download_result.second);
         }
 
     std::thread pjt ([player_manager, from, guild_id] () {
