@@ -417,61 +417,64 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_interaction_create (
-        [&player_manager] (const dpp::interaction_create_t &event) {
-            if (!event.command.guild_id)
-                return;
+    client.on_interaction_create ([&player_manager] (
+                                      const dpp::interaction_create_t &event) {
+        if (!event.command.guild_id)
+            return;
 
-            string cmd = event.command.get_command_name ();
+        string cmd = event.command.get_command_name ();
 
-            if (cmd == "hello")
-                return command::hello::slash_run (event);
-            if (cmd == "why")
-                return event.reply ("Why not");
-            if (cmd == "hi")
-                return event.reply ("HIII");
-            if (cmd == "invite")
-                return command::invite::slash_run (event);
-            if (cmd == "support")
-                return event.reply ("https://www.discord.gg/vpk2KyKHtu");
-            if (cmd == "repo")
-                return event.reply ("https://github.com/Neko-Life/Musicat");
-            if (cmd == "pause")
-                return command::pause::slash_run (event, player_manager);
-            if (cmd == "skip")
-                return command::skip::slash_run (
-                    event,
-                    player_manager); // add 'force' arg, save djrole within db
-            if (cmd == "play")
-                return command::play::slash_run (event, player_manager);
-            if (cmd == "loop")
-                return command::loop::slash_run (event, player_manager);
-            if (cmd == "queue")
-                return command::queue::slash_run (event, player_manager);
-            if (cmd == "autoplay")
-                return command::autoplay::slash_run (event, player_manager);
-            if (cmd == "move")
-                return command::move::slash_run (event, player_manager);
-            if (cmd == "remove")
-                return command::remove::slash_run (event, player_manager);
-            if (cmd == "bubble_wrap")
-                return command::bubble_wrap::slash_run (event);
-            if (cmd == "search")
-                return command::search::slash_run (event);
-            if (cmd == "playlist")
-                return command::playlist::slash_run (event, player_manager);
-            if (cmd == "stop")
-                return command::stop::slash_run (event, player_manager);
-            if (cmd == "interactive_message")
-                return command::interactive_message::slash_run (event);
-            if (cmd == "join")
-                return command::join::slash_run (event, player_manager);
-            if (cmd == "leave")
-                return command::leave::slash_run (event, player_manager);
+        if (cmd == "hello")
+            command::hello::slash_run (event);
+        else if (cmd == "why")
+            event.reply ("Why not");
+        else if (cmd == "hi")
+            event.reply ("HIII");
+        else if (cmd == "invite")
+            command::invite::slash_run (event);
+        else if (cmd == "support")
+            event.reply ("https://www.discord.gg/vpk2KyKHtu");
+        else if (cmd == "repo")
+            event.reply ("https://github.com/Neko-Lelse ife/Musicat");
+        else if (cmd == "pause")
+            command::pause::slash_run (event, player_manager);
+        else if (cmd == "skip")
+            command::skip::slash_run (
+                event,
+                player_manager); // add 'force' arg, save djrole within db
+        else if (cmd == "play")
+            command::play::slash_run (event, player_manager);
+        else if (cmd == "loop")
+            command::loop::slash_run (event, player_manager);
+        else if (cmd == "queue")
+            command::queue::slash_run (event, player_manager);
+        else if (cmd == "autoplay")
+            command::autoplay::slash_run (event, player_manager);
+        else if (cmd == "move")
+            command::move::slash_run (event, player_manager);
+        else if (cmd == "remove")
+            command::remove::slash_run (event, player_manager);
+        else if (cmd == "bubble_wrap")
+            command::bubble_wrap::slash_run (event);
+        else if (cmd == "search")
+            command::search::slash_run (event);
+        else if (cmd == "playlist")
+            command::playlist::slash_run (event, player_manager);
+        else if (cmd == "stop")
+            command::stop::slash_run (event, player_manager);
+        else if (cmd == "interactive_message")
+            command::interactive_message::slash_run (event);
+        else if (cmd == "join")
+            command::join::slash_run (event, player_manager);
+        else if (cmd == "leave")
+            command::leave::slash_run (event, player_manager);
 
+        else
+        {
             event.reply ("Seems like somethin's wrong here, I can't find that "
                          "command anywhere in my database");
-        });
+        }
+    });
 
     client.on_voice_ready (
         [&player_manager] (const dpp::voice_ready_t &event) {
