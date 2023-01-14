@@ -721,16 +721,18 @@ Manager::download (string fname, string url, dpp::snowflake guild_id)
                 this->waiting_file_download[fname] = guild_id;
             }
 
+            const std::string music_folder_path = get_music_folder_path ();
+
             {
                 struct stat buf;
-                if (stat ("music", &buf) != 0)
-                    std::filesystem::create_directory ("music");
+                if (stat (music_folder_path.c_str (), &buf) != 0)
+                    std::filesystem::create_directory (music_folder_path);
             }
 
             string cmd
                 = string ("yt-dlp -f 251 --http-chunk-size 2M '") + url
-                  + string (
-                      "' -x --audio-format opus --audio-quality 0 -o 'music/")
+                  + string ("' -x --audio-format opus --audio-quality 0 -o '")
+                  + music_folder_path
                   + std::regex_replace (fname, std::regex ("(')"), "'\\''",
                                         std::regex_constants::match_any)
                   + string ("'");
@@ -775,6 +777,8 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
     dpp::snowflake server_id;
     std::chrono::_V2::system_clock::time_point start_time;
 
+    const string music_folder_path = get_music_folder_path ();
+
     const bool debug = get_debug_state ();
     if (v && !v->terminating && v->is_ready ())
         {
@@ -785,7 +789,7 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
                 {
                     server_id = v->server_id;
 
-                    const std::string file_path = string ("music/") + fname;
+                    const string file_path = music_folder_path + fname;
 
                     start_time = std::chrono::high_resolution_clock::now ();
 
@@ -796,7 +800,8 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
                     fd = fopen (file_path.c_str (), "rb");
                     if (!fd)
                         {
-                            std::filesystem::create_directory ("music");
+                            std::filesystem::create_directory (
+                                music_folder_path);
                             throw 2;
                         }
 
@@ -1549,7 +1554,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                         { dpp::p_view_channel, dpp::p_send_messages,
                           dpp::p_embed_links });
                     {
-                        std::ifstream test (string ("music/") + track.filename,
+                        const string music_folder_path = get_music_folder_path ();
+                        std::ifstream test (music_folder_path + track.filename,
                                             std::ios_base::in
                                                 | std::ios_base::binary);
                         if (!test.is_open ())
@@ -1793,7 +1799,7 @@ Manager::get_available_tracks (const size_t amount) const
 {
     std::vector<std::string> ret = {};
     size_t c = 0;
-    auto dir = opendir ("./music");
+    auto dir = opendir (get_music_folder_path().c_str());
 
     if (dir != NULL)
         {

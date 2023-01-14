@@ -6,6 +6,7 @@
 #include <dpp/dpp.h>
 #include <mutex>
 #include <vector>
+#include <string>
 
 namespace musicat
 {
@@ -228,6 +229,18 @@ namespace leave
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
+}
+
+namespace download
+{
+namespace autocomplete
+{
+void track (const dpp::autocomplete_t &event, std::string param,
+            player::player_manager_ptr player_manager);
+}
+
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::interaction_create_t &event);
 }
 
 } // command

@@ -317,7 +317,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
 
     bool dling = false;
 
-    std::ifstream test (std::string ("music/") + fname,
+    std::ifstream test (get_music_folder_path() + fname,
                         std::ios_base::in | std::ios_base::binary);
     if (!test.is_open ())
         {

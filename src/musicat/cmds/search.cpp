@@ -1,6 +1,7 @@
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
 #include "musicat/yt-search.h"
+#include <string>
 
 namespace musicat
 {
@@ -100,12 +101,12 @@ slash_run (const dpp::interaction_create_t &event)
     m.add_component (
         dpp::component ()
             .add_component (dpp::component ()
-                                .set_emoji (u8 "🎵")
+                                .set_emoji (u8"🎵")
                                 .set_label ("Add Track")
                                 .set_style (dpp::cos_success)
                                 .set_id ("modal_p/que_s_track"))
             .add_component (dpp::component ()
-                                .set_emoji (u8 "🎵")
+                                .set_emoji (u8"🎵")
                                 .set_label ("Add Top")
                                 .set_style (dpp::cos_danger)
                                 .set_id ("modal_p/que_s_track_top")));

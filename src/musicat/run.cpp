@@ -25,9 +25,26 @@ namespace musicat
 using json = nlohmann::json;
 using string = std::string;
 
+json sha_cfg;
+
 bool running = true;
 bool debug = false;
 std::mutex main_mutex;
+
+int
+load_config ()
+{
+    std::ifstream scs ("sha_conf.json");
+    if (!scs.is_open ())
+    {
+        fprintf (stderr, "[ERROR] No config file exist\n");
+        return -1;
+    }
+
+    scs >> sha_cfg;
+    scs.close ();
+    return 0;
+}
 
 bool
 get_running_state ()
@@ -62,6 +79,12 @@ set_debug_state (const bool state)
     return 0;
 }
 
+std::string
+get_music_folder_path ()
+{
+    return get_config_value<std::string> ("MUSIC_FOLDER", "");
+}
+
 void
 on_sigint (int code)
 {
@@ -75,32 +98,33 @@ run (int argc, const char *argv[])
 {
     signal (SIGINT, on_sigint);
 
-    json sha_cfg;
-    {
-        std::ifstream scs ("sha_conf.json");
-        if (!scs.is_open ())
-            {
-                fprintf (stderr, "[ERROR] No config file exist\n");
-                scs.close ();
-                return -1;
-            }
-
-        scs >> sha_cfg;
-        scs.close ();
-    }
+    // load config file
+    const int config_status = load_config ();
+    if (config_status != 0)
+        return config_status;
 
     set_debug_state (
-        sha_cfg["DEBUG"].is_null () ? false : sha_cfg["DEBUG"].get<bool> ());
+            get_config_value<bool> ("DEBUG", false));
 
-    if (sha_cfg["RUNTIME_CLI"].is_null ()
-            ? false
-            : sha_cfg["RUNTIME_CLI"].get<bool> ())
+    if (get_config_value<bool> ("RUNTIME_CLI", false))
         runtime_cli::attach_listener ();
 
-    dpp::cluster client (sha_cfg["SHA_TKN"].get<string> (),
+    const std::string sha_token = get_config_value<string> ("SHA_TKN", "");
+    if (!sha_token.length ())
+    {
+        fprintf(stderr, "[ERROR] No token provided\n");
+        return -1;
+    }
+
+    dpp::cluster client (sha_token,
                          dpp::i_guild_members | dpp::i_default_intents);
 
-    dpp::snowflake sha_id (sha_cfg["SHA_ID"].get<int64_t> ());
+    dpp::snowflake sha_id (get_config_value<int64_t>("SHA_ID", 0));
+    if (!sha_id)
+    {
+        fprintf(stderr, "[ERROR] No id provided\n");
+        return -1;
+    }
 
     if (argc > 1)
         {
@@ -120,7 +144,7 @@ run (int argc, const char *argv[])
             }
         else
             {
-                db_connect_param = sha_cfg["SHA_DB"].get<string> ();
+                db_connect_param = get_config_value<string> ("SHA_DB", "");
                 ConnStatusType status = database::init (db_connect_param);
                 if (status != CONNECTION_OK)
                     {
@@ -270,7 +294,7 @@ run (int argc, const char *argv[])
                                 bool dling = false;
 
                                 std::ifstream test (
-                                    string ("music/") + fname,
+                                    get_music_folder_path() + fname,
                                     std::ios_base::in | std::ios_base::binary);
                                 if (!test.is_open ())
                                     {
@@ -414,6 +438,12 @@ run (int argc, const char *argv[])
                         if (opt == "id")
                             command::playlist::autocomplete::id (event, param);
                     }
+                else if (cmd == "download")
+                    {
+                        if (opt == "track")
+                            command::download::autocomplete::track (
+                                event, param, player_manager);
+                    }
             }
     });
 
@@ -468,6 +498,8 @@ run (int argc, const char *argv[])
             command::join::slash_run (event, player_manager);
         else if (cmd == "leave")
             command::leave::slash_run (event, player_manager);
+        else if (cmd == "download")
+            command::download::slash_run (event);
 
         else
         {
