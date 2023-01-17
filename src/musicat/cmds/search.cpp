@@ -1,6 +1,7 @@
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
 #include "musicat/yt-search.h"
+#include "musicat/util.h"
 #include <string>
 
 namespace musicat
@@ -74,9 +75,11 @@ slash_run (const dpp::interaction_create_t &event)
         {
             size_t cn = mult * 10 + (++count);
             const std::string tit = t.title ();
+            char tit_char[512];
+            util::u8_limit_length(tit.c_str(), tit_char, 80);
 
             desc += std::string ("`") + std::to_string (cn) + "`: ["
-                    + tit.substr (0, 80) + (tit.length () > 80 ? "..." : "")
+                    + tit_char + (tit.length () > 80 ? "..." : "")
                     + "](" + t.url () + ") [" + t.length () + "] - "
                     + t.channel ().name + "\n";
 
