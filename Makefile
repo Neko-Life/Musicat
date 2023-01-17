@@ -8,7 +8,7 @@ CCF = -std=c++17 -MMD -Wall -Wextra -g
 INC = -Iinclude # -I/usr/include/opus # -lxml2 -lz -llzma -licui18n -licuuc -licudata -lm
 
 # Specify libs to use
-LIB = -ldpp -pthread -lcurl -lcurlpp -logg -lpq # -lopus -lopusfile # -lllhttp
+LIB = -ldpp -pthread -lcurl -lcurlpp -logg -lpq -licui18n -licuuc -licudata -licuio # -lopus -lopusfile # -lllhttp
 
 # Specify source file
 SRC = $(wildcard src/musicat/*.cpp) $(wildcard src/musicat/cmds/*.cpp) src/main.cpp # libs/opusfile/src/*.c # src/include/*.cpp
