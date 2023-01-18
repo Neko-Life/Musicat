@@ -1,6 +1,8 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
-#include <cstdint>
+#include <stdint.h>
+#include <string>
+
 #include <unicode/utypes.h>
 #include <unicode/uchar.h>
 #include <unicode/locid.h>
@@ -23,8 +25,6 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
 {
     icu_72::UnicodeString unicodeKey (unicode_str);
 
-    int32_t e = max_length;
-
     const bool debug = get_debug_state ();
 
     auto v_s = unicodeKey.extract (0, max_length, buf, max_length);
@@ -33,9 +33,9 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
     if (debug)
         {
             printf ("[util::u8_limit_length] need_length buf "
-                    "extracted_length: '%d' '%s' "
-                    "'%d'\n",
-                    v_s, buf, e);
+                    "extracted_length max_length: '%d' '%s' "
+                    "'%ld' '%d'\n",
+                    v_s, buf, strnlen(buf, std::string::npos), max_length);
         }
 }
 
