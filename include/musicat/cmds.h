@@ -97,7 +97,7 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 bool from_interaction, dpp::discord_client *from,
                 const dpp::interaction_create_t event
                 = dpp::interaction_create_t (NULL, "{}"),
-                bool continued = false);
+                bool continued = false, int64_t arg_slip = 0);
 
 /**
  * @brief Decide whether the client need to play or not at its current state
@@ -173,8 +173,11 @@ void slash_run (const dpp::interaction_create_t &event);
 namespace search
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+
 dpp::interaction_modal_response modal_enqueue_searched_track ();
 dpp::interaction_modal_response modal_enqueue_searched_track_top ();
+dpp::interaction_modal_response modal_enqueue_searched_track_slip ();
+
 void slash_run (const dpp::interaction_create_t &event);
 }
 

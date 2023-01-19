@@ -146,7 +146,8 @@ class Player
     Player (dpp::cluster *_cluster, dpp::snowflake _guild_id);
     ~Player ();
     Player &add_track (MCTrack track, bool top = false,
-                       dpp::snowflake guild_id = 0, bool update_embed = true);
+                       dpp::snowflake guild_id = 0, bool update_embed = true,
+                       int64_t arg_slip = 0);
     Player &set_max_history_size (size_t siz = 0);
 
     /**

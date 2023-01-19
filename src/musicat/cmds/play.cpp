@@ -61,7 +61,11 @@ get_register_obj (const dpp::snowflake &sha_id)
             dpp::command_option (dpp::co_integer, "top",
                                  "Add [this song] to the top [of the queue]")
                 .add_choice (dpp::command_option_choice ("Yes", 1))
-                .add_choice (dpp::command_option_choice ("No", 0)));
+                .add_choice (dpp::command_option_choice ("No", 0)))
+        .add_option (
+            dpp::command_option (dpp::co_integer, "slip",
+                                 "Slip [this song to this] position "
+                                 "[in the queue]"));
 }
 
 void
@@ -79,10 +83,13 @@ slash_run (const dpp::interaction_create_t &event,
     auto from = event.from;
     auto user_id = event.command.usr.id;
     const dpp::snowflake sha_id = player_manager->sha_id;
+
     std::string arg_query = "";
     int64_t arg_top = 0;
+    int64_t arg_slip = 0;
     get_inter_param (event, "query", &arg_query);
     get_inter_param (event, "top", &arg_top);
+    get_inter_param (event, "slip", &arg_slip);
 
     dpp::guild *g = dpp::find_guild (guild_id);
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
@@ -232,7 +239,7 @@ slash_run (const dpp::interaction_create_t &event,
 
             add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v,
                        vcuser.first->id, sha_id, player_manager, true, from,
-                       event, continued);
+                       event, continued, arg_slip);
         }
 }
 
@@ -360,7 +367,8 @@ add_track (bool playlist,
            bool from_interaction,
            dpp::discord_client *from,
            const dpp::interaction_create_t event,
-           bool continued)
+           bool continued,
+           int64_t arg_slip)
 {
     auto find_result = find_track (playlist, arg_query, player_manager,
                                    from_interaction, guild_id);
@@ -424,7 +432,7 @@ add_track (bool playlist,
 
     std::thread dlt (
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-         guild_id, from, continued] (const dpp::interaction_create_t event,
+         guild_id, from, continued, arg_slip] (const dpp::interaction_create_t event,
                                      yt_search::YTrack result) {
             dpp::snowflake user_id
                 = from_interaction ? event.command.usr.id : sha_id;
@@ -447,7 +455,7 @@ add_track (bool playlist,
             t.filename = fname;
             t.user_id = user_id;
             p->add_track (t, arg_top ? true : false, guild_id,
-                          from_interaction || dling);
+                          from_interaction || dling, arg_slip);
             if (from_interaction)
                 p->set_channel (channel_id);
 

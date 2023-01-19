@@ -2,6 +2,7 @@
 #include "musicat/pagination.h"
 #include "musicat/yt-search.h"
 #include "musicat/util.h"
+#include <dpp/message.h>
 #include <string>
 
 namespace musicat
@@ -10,6 +11,21 @@ namespace command
 {
 namespace search
 {
+// =============== PRIVATE ==================
+
+dpp::component
+create_short_text_input (const std::string &label, const std::string &id)
+{
+    dpp::component component;
+    component.set_type (dpp::cot_text)
+        .set_label (label)
+        .set_id (id)
+        .set_text_style (dpp::text_short);
+    return component;
+}
+
+// =============== PRIVATE END ==================
+
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
@@ -21,28 +37,37 @@ get_register_obj (const dpp::snowflake &sha_id)
 dpp::interaction_modal_response
 modal_enqueue_searched_track ()
 {
-    dpp::component selmenu;
-    selmenu.set_type (dpp::cot_text)
-        .set_label ("Input track number to add to playback queue:")
-        .set_id ("que_s_track")
-        .set_text_style (dpp::text_short);
+    dpp::component input = create_short_text_input ("Input track number to add to playback queue:",
+                                                    "que_s_track");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Track");
-    modal.add_component (selmenu);
+    modal.add_component (input);
     return modal;
 }
 
 dpp::interaction_modal_response
 modal_enqueue_searched_track_top ()
 {
-    dpp::component selmenu;
-    selmenu.set_type (dpp::cot_text)
-        .set_label ("Input track number to add to top of queue:")
-        .set_id ("que_s_track_top")
-        .set_text_style (dpp::text_short);
+    dpp::component input = create_short_text_input ("Input track number to add to top of queue:",
+                                                   "que_s_track_top");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Top");
-    modal.add_component (selmenu);
+    modal.add_component (input);
+    return modal;
+}
+
+dpp::interaction_modal_response
+modal_enqueue_searched_track_slip ()
+{
+    dpp::component input1 = create_short_text_input ("Input track number to add to playback queue:",
+                                                     "que_s_track");
+    dpp::component input2 = create_short_text_input ("Input position to slip into playback queue:",
+                                                    "que_s_track_slip");
+
+    dpp::interaction_modal_response modal ("modal_p", "Add Slip");
+    modal.add_component (input1);
+    modal.add_row();
+    modal.add_component (input2);
     return modal;
 }
 
@@ -110,6 +135,11 @@ slash_run (const dpp::interaction_create_t &event)
                                 .set_id ("modal_p/que_s_track"))
             .add_component (dpp::component ()
                                 .set_emoji (u8"🎵")
+                                .set_label ("Add Slip")
+                                .set_style (dpp::cos_primary)
+                                .set_id ("modal_p/que_s_track_slip"))
+            .add_component (dpp::component ()
+                                .set_emoji (u8"🎵")
                                 .set_label ("Add Top")
                                 .set_style (dpp::cos_danger)
                                 .set_id ("modal_p/que_s_track_top")));
@@ -123,6 +153,6 @@ slash_run (const dpp::interaction_create_t &event)
         m, paginate::get_inter_reply_cb (event, paginate, event.from->creator,
                                          embeds, storage_data));
 }
-}
-}
-}
+} // search
+} // command
+} // musicat

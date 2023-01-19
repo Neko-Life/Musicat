@@ -223,8 +223,12 @@ run (int argc, const char *argv[])
                             param.find ("top") != std::string::npos
                                 ? command::search::
                                     modal_enqueue_searched_track_top ()
-                                : command::search::
-                                    modal_enqueue_searched_track ());
+                                : 
+                                param.find ("slip") != std::string::npos
+                                    ? command::search::
+                                        modal_enqueue_searched_track_slip ()
+                                    : command::search::
+                                        modal_enqueue_searched_track ());
                     }
                 else
                     {
@@ -236,8 +240,7 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_form_submit ([&player_manager] (
-                               const dpp::form_submit_t &event) {
+    client.on_form_submit ([&player_manager] (const dpp::form_submit_t &event) {
         if (get_debug_state ())
             printf ("[FORM] %s %ld\n", event.custom_id.c_str (),
                     event.command.message_id);
@@ -246,19 +249,45 @@ run (int argc, const char *argv[])
                 if (event.components.size ())
                     {
                         auto comp = event.components.at (0).components.at (0);
+                        bool second_input = event.components.size () > 1;
+                        dpp::component comp_2;
+
+                        if (second_input)
+                            comp_2 = event.components.at (1).components.at (0);
+
                         if (comp.custom_id.find ("que_s_track")
                             != std::string::npos)
                             {
-                                if (!comp.value.index ())
-                                    return;
-                                string q = std::get<string> (comp.value);
-                                if (!q.length ())
-                                    return;
-
                                 int64_t pos = 0;
-                                sscanf (q.c_str (), "%ld", &pos);
-                                if (pos < 1)
-                                    return;
+                                {
+                                    if (!comp.value.index ())
+                                        return;
+                                    string q = std::get<string> (comp.value);
+                                    if (!q.length ())
+                                        return;
+
+                                    sscanf (q.c_str (), "%ld", &pos);
+                                    if (pos < 1)
+                                        return;
+                                }
+                                bool top = comp.custom_id.find ("top")
+                                           != std::string::npos;
+
+                                int64_t arg_slip = 0;
+                                if (second_input)
+                                    {
+                                        if (!comp_2.value.index ())
+                                            return;
+                                        string q = std::get<string> (comp_2.value);
+                                        if (!q.length ())
+                                            return;
+
+                                        sscanf (q.c_str (), "%ld", &arg_slip);
+                                        if (arg_slip < 1)
+                                            return;
+                                        if (arg_slip == 1)
+                                            top = true;
+                                    }
 
                                 auto storage
                                     = storage::get (event.command.message_id);
@@ -280,37 +309,49 @@ run (int argc, const char *argv[])
 
                                 auto from = event.from;
                                 auto guild_id = event.command.guild_id;
-                                const string prepend_name
-                                    = string ("<@")
-                                      + std::to_string (event.command.usr.id)
-                                      + string ("> ");
+
+                                string edit_response;
+                                string prepend_name;
+                                {
+                                    string prepend_name
+                                        = string ("<@")
+                                          + std::to_string (event.command.usr.id)
+                                          + string ("> ");
+                                    const string prepend_response
+                                        = top ? " to the top of "
+                                                "the queue"
+                                          : arg_slip
+                                              ? " to position "
+                                                    + std::to_string (arg_slip)
+                                              : "";
+
+                                    edit_response
+                                        = prepend_name + string ("Added: ")
+                                          + result.title () + prepend_response;
+                                }
 
                                 event.thinking ();
                                 string fname = std::regex_replace (
-                                    result.title () + string ("-")
-                                        + result.id () + string (".opus"),
+                                    result.title () + string ("-") + result.id ()
+                                        + string (".opus"),
                                     std::regex ("/"), "",
                                     std::regex_constants::match_any);
                                 bool dling = false;
 
                                 std::ifstream test (
-                                    get_music_folder_path() + fname,
+                                    get_music_folder_path () + fname,
                                     std::ios_base::in | std::ios_base::binary);
                                 if (!test.is_open ())
                                     {
                                         dling = true;
                                         event.edit_response (
-                                            prepend_name
-                                            + string ("Downloading ")
+                                            prepend_name + string ("Downloading ")
                                             + result.title ()
-                                            + string (
-                                                "... Gimme 10 sec ight"));
-                                        if (player_manager
-                                                ->waiting_file_download.find (
-                                                    fname)
+                                            + string ("... Gimme 10 sec ight"));
+                                        if (player_manager->waiting_file_download
+                                                .find (fname)
                                             == player_manager
-                                                   ->waiting_file_download
-                                                   .end ())
+                                                   ->waiting_file_download.end ())
                                             {
                                                 auto url = result.url ();
                                                 player_manager->download (
@@ -320,36 +361,25 @@ run (int argc, const char *argv[])
                                 else
                                     {
                                         test.close ();
-                                        event.edit_response (
-                                            prepend_name + string ("Added: ")
-                                            + result.title ());
+                                        event.edit_response (edit_response);
                                     }
 
                                 std::thread dlt (
                                     [comp, prepend_name, player_manager, dling,
-                                     fname, guild_id, from] (
+                                     fname, guild_id, from, top, arg_slip,
+                                     edit_response] (
                                         const dpp::interaction_create_t event,
                                         yt_search::YTrack result) {
                                         dpp::snowflake user_id
                                             = event.command.usr.id;
-                                        auto p
-                                            = player_manager->create_player (
-                                                guild_id);
-                                        const bool top
-                                            = comp.custom_id.find ("top")
-                                              != std::string::npos;
+                                        auto p = player_manager->create_player (
+                                            guild_id);
                                         if (dling)
                                             {
-                                                player_manager
-                                                    ->wait_for_download (
-                                                        fname);
+                                                player_manager->wait_for_download (
+                                                    fname);
                                                 event.edit_response (
-                                                    prepend_name
-                                                    + string ("Added: ")
-                                                    + result.title ()
-                                                    + (top ? " to the top of "
-                                                             "the queue"
-                                                           : ""));
+                                                    edit_response);
                                             }
                                         if (from)
                                             p->from = from;
@@ -358,7 +388,7 @@ run (int argc, const char *argv[])
                                         t.filename = fname;
                                         t.user_id = user_id;
                                         p->add_track (t, top ? true : false,
-                                                      guild_id, dling);
+                                                      guild_id, dling, arg_slip);
 
                                         if (from)
                                             command::play::decide_play (
