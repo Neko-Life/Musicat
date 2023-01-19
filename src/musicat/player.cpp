@@ -101,7 +101,7 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
                         this->shifted_track++;
                     }
             }
-        else if (arg_slip > 1 && siz >= arg_slip)
+        else if (arg_slip > 1 && siz >= (size_t)arg_slip)
             {
                 this->queue.insert (this->queue.begin () + arg_slip, track);
             }

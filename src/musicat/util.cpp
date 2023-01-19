@@ -35,7 +35,7 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
             printf ("[util::u8_limit_length] need_length buf "
                     "extracted_length max_length: '%d' '%s' "
                     "'%ld' '%d'\n",
-                    v_s, buf, strnlen(buf, std::string::npos), max_length);
+                    v_s, buf, strnlen(buf, max_length), max_length);
         }
 }
 

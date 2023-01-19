@@ -1,3 +1,4 @@
+# !TODO: outdated (doesn't have ICU onwards)
 FROM archlinux:base-devel
 
 RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist
