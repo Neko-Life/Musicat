@@ -7,7 +7,7 @@ Discord Music Bot written in C++
 
 ## Dependencies
 
-* [DPP](https://github.com/brainboxdotcc/DPP) - Library
+* [DPP](https://github.com/brainboxdotcc/DPP) - Library (clone it into the `libs/` folder)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
 * libopus - Library
@@ -27,6 +27,13 @@ Discord Music Bot written in C++
 * Run `run.sh` to start the bot.
 
 ## Compiling
+* Clone the DPP repo into `libs/` first if you haven't
+```sh
+mkdir libs
+cd libs
+git clone 'https://github.com/brainboxdotcc/DPP' -b dev
+cd ..
+```
 * Create a `build/` folder and cd into it
 ```sh
 mkdir build
