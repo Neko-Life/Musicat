@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.15)
 # Project name, version and description
 project(Musicat 
-        VERSION 0.0.1
+        VERSION 0.1.1
         LANGUAGES CXX
         DESCRIPTION "Discord Music Bot written in C++")
  

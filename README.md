@@ -14,17 +14,33 @@ Discord Music Bot written in C++
 * libcurl - Library
 * [curlpp](https://github.com/jpbarrette/curlpp) - Library
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
+* libsodium - Library
+* openssl - Library
+* ICU - Library
 * [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
 * [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included
 * [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included
+* opus - Library
 * [opusfile](https://github.com/xiph/opusfile) - [optional] Currently unused anywhere as it's bloat.
 
-## Docker (outdated)
+## Docker
 
-* `cd` to `docker/[version]/` and run `compose.sh` as root to build the image.
-* Fill out `exe/sha_conf.json`.
-* In the `docker/[version]/` directory, run `./register.sh g` to register Musicat's slash commands to discord globally, or `./register.sh <guild_id>` to register only in one specific guild.
-* Run `run.sh` to start the bot.
+* Build the image
+```sh
+docker compose build
+```
+* Configure `exe/sha_conf.json` (or wherever the config file is, you can configure musicat's volumes in `docker-composer.yml`. See `exe/sha_conf.example.json`).
+  The `MUSIC_FOLDER` config variable should be `/root/musicat/exe/music/` (again you can configure the volumes in `docker-compose.yml`,
+  and other configuration like database username and password should both match between config and postgres)
+* Register the commands
+```sh
+./docker-register.sh g
+```
+* Run
+```sh
+docker compose up
+```
+* One issue using docker that it need some time to connect to the database, maybe I will fix that one day using shorter database connection check interval.
 
 ## Compiling
 * Clone the DPP repo into `libs/` first if you haven't
