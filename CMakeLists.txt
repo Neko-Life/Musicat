@@ -37,6 +37,11 @@ add_executable(Shasha
         src/musicat/musicat.cpp
         src/musicat/pagination.cpp
         src/musicat/player.cpp
+        src/musicat/player_manager.cpp
+        src/musicat/player_manager_embed.cpp
+        src/musicat/player_manager_events.cpp
+        src/musicat/player_manager_stream.cpp
+        src/musicat/player_manager_util.cpp
         src/musicat/run.cpp
         src/musicat/runtime_cli.cpp
         src/musicat/slash.cpp
