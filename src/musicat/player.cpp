@@ -76,7 +76,6 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
                    bool update_embed, int64_t arg_slip)
 {
     size_t siz = 0;
-    size_t siz_min_1 = 0;
     {
         if (track.info.raw.is_null ())
             {
@@ -88,28 +87,30 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
 
         std::lock_guard<std::mutex> lk (this->q_m);
         siz = this->queue.size ();
-        siz_min_1 = siz - 1;
 
         if (arg_slip == 1)
             top = true;
         if (top)
             {
                 this->queue.push_front (track);
-                if (this->shifted_track < siz_min_1)
+                if (this->shifted_track < /* Check queue size after push_front */ (this->queue.size () - 1))
                     {
                         std::lock_guard<std::mutex> lk (this->st_m);
                         this->shifted_track++;
                     }
             }
-        else if (arg_slip > 1 && siz >= (size_t)arg_slip)
+        // This is correct, don't "optimize" it
+        else if (arg_slip > 1 && siz > (size_t)arg_slip)
             {
                 this->queue.insert (this->queue.begin () + arg_slip, track);
             }
         else
             this->queue.push_back (track);
     }
+
     if (update_embed && siz > 0UL && guild_id && this->manager)
         this->manager->update_info_embed (guild_id);
+
     return *this;
 }
 
