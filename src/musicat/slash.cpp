@@ -1,6 +1,5 @@
 #include "musicat/slash.h"
 #include "musicat/cmds.h"
-#include "musicat/player.h"
 
 namespace musicat
 {
@@ -27,8 +26,9 @@ get_all (dpp::snowflake sha_id)
         // interactive_message::get_register_obj(sha_id),
         join::get_register_obj (sha_id),
         leave::get_register_obj (sha_id),
+        download::get_register_obj (sha_id),
     });
     return slash_commands;
 }
-}
-}
+} // command
+} // musicat

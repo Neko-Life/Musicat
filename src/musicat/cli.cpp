@@ -119,7 +119,7 @@ cli (dpp::cluster &client, dpp::snowflake sha_id, int argc, const char *argv[])
     if (cmd < 0)
         {
             PRINT_USAGE_REGISTER_SLASH;
-            return 0;
+            return set_running_state(false);
         }
 
     switch (cmd)

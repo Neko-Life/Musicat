@@ -1,12 +1,9 @@
-libs/curlpp
-libs/DPP
-libs/DPPUtils
-build
+libs/**
+build/**
 exe/music
 exe/Shasha
 exe/sha_conf.json
 ignore
-include/nlohmann
-include/fmt
 *.d
 *.o
+.cache

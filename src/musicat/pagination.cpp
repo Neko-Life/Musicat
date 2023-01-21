@@ -6,6 +6,7 @@
 #include <map>
 #include <stdio.h>
 #include <vector>
+#include <string>
 
 #define ONE_HOUR_SECOND 3600
 
@@ -259,17 +260,17 @@ add_pagination_buttons (dpp::message *msg)
     msg->add_component (
         dpp::component ()
             .add_component (dpp::component ()
-                                .set_emoji (u8 "◀️")
+                                .set_emoji (u8"◀️")
                                 .set_id ("page_queue/p")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
-                                .set_emoji (u8 "🏠")
+                                .set_emoji (u8"🏠")
                                 .set_id ("page_queue/h")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
-                                .set_emoji (u8 "▶️")
+                                .set_emoji (u8"▶️")
                                 .set_id ("page_queue/n")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary)));

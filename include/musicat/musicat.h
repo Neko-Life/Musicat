@@ -9,6 +9,8 @@
 
 namespace musicat
 {
+extern nlohmann::json sha_cfg;
+
 // Main
 int run (int argc, const char *argv[]);
 
@@ -36,6 +38,40 @@ bool get_debug_state ();
  * @return int 0 on success
  */
 int set_debug_state (const bool state);
+
+/**
+ * @brief Get config value of key
+ *
+ * @param key
+ * @param default_value
+ *
+ * @return T
+ */
+template <typename T>
+T
+get_config_value (const std::string &key, const T& default_value)
+{
+    if (sha_cfg.is_null())
+    {
+        fprintf(stderr, "[ERROR] Config isn't populated\n");
+        return default_value;
+    }
+    if (!sha_cfg.is_object())
+    {
+        fprintf(stderr, "[ERROR] Invalid config, config isn't object\n");
+        return default_value;
+    }
+
+    return sha_cfg.value(key, default_value);
+}
+
+/**
+ * @brief Get music folder path
+ *
+ * @return std::string
+ */
+std::string
+get_music_folder_path ();
 
 /**
  * @brief Search _find inside _vec

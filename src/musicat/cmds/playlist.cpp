@@ -13,7 +13,7 @@ namespace command
 {
 template <typename T>
 void
-_get_nested_arg (const dpp::interaction_create_t &event, const int at,
+_get_nested_arg (const dpp::interaction_create_t &event, const size_t at,
                  T *result)
 {
     dpp::command_interaction cmd = event.command.get_command_interaction ();

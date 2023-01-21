@@ -6,6 +6,7 @@
 #include <dpp/dpp.h>
 #include <mutex>
 #include <vector>
+#include <string>
 
 namespace musicat
 {
@@ -49,6 +50,27 @@ dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
 
+std::pair<yt_search::YTrack, int>
+find_track(
+    bool playlist,
+    std::string& arg_query,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_check_history = false);
+
+std::string
+get_filename_from_result (yt_search::YTrack &result);
+
+std::pair<bool, int>
+track_exist(
+    const std::string& fname,
+    const std::string& url,
+    player::player_manager_ptr player_manager,
+    bool from_interaction,
+    dpp::snowflake guild_id,
+    bool no_download = false);
+
 /**
  * @brief Search and add track to guild queue, can be used for interaction and
  * non interaction. Interaction must have already deferred/replied
@@ -75,7 +97,7 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 bool from_interaction, dpp::discord_client *from,
                 const dpp::interaction_create_t event
                 = dpp::interaction_create_t (NULL, "{}"),
-                bool continued = false);
+                bool continued = false, int64_t arg_slip = 0);
 
 /**
  * @brief Decide whether the client need to play or not at its current state
@@ -151,8 +173,11 @@ void slash_run (const dpp::interaction_create_t &event);
 namespace search
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+
 dpp::interaction_modal_response modal_enqueue_searched_track ();
 dpp::interaction_modal_response modal_enqueue_searched_track_top ();
+dpp::interaction_modal_response modal_enqueue_searched_track_slip ();
+
 void slash_run (const dpp::interaction_create_t &event);
 }
 
@@ -228,6 +253,18 @@ namespace leave
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
+}
+
+namespace download
+{
+namespace autocomplete
+{
+void track (const dpp::autocomplete_t &event, std::string param,
+            player::player_manager_ptr player_manager);
+}
+
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr player_manager);
 }
 
 } // command

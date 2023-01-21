@@ -2,13 +2,13 @@ version: '3.9'
 
 services:
   musicat:
-    image: shasha/musicat:0.1.0
+    image: shasha/musicat:0.1.1
     build:
       dockerfile: Dockerfile
     environment:
       - BOT_TOKEN
       - BOT_CLIENT_ID
-      - DB_CONNECTION_STRING=dbname=musicat host=db port=5432 user=musicat password=musicat
+      - DB_CONNECTION_STRING=dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat
     volumes:
       - ./exe/music:/root/musicat/exe/music
       - ./exe/sha_conf.json:/root/musicat/exe/sha_conf.json
