@@ -28,7 +28,7 @@ COPY CMakeLists.txt ./
 RUN mkdir -p include/nlohmann && cp /tmp/json.hpp include/nlohmann/ && \
 #   build DPP
     mkdir -p libs/ && \
-    git clone https://github.com/brainboxdotcc/DPP.git libs/DPP && \
+    git clone https://github.com/brainboxdotcc/DPP.git -b dev libs/DPP && \
     mkdir exe build && cd build && cmake .. &&\
     make -j$(nproc) all && mv Shasha ../exe
 
