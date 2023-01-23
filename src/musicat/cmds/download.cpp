@@ -56,6 +56,8 @@ void
 track (const dpp::autocomplete_t &event, std::string param,
        player::player_manager_ptr player_manager)
 {
+    // simply run the autocomplete of query argument of the play command
+    // it's exactly the same expected result
     play::autocomplete::query(event, param, player_manager);
 }
 } // autocomplete
@@ -76,10 +78,10 @@ slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr pl
     get_inter_param (event, "track", &filename);
     auto guild_id = event.command.guild_id;
 
+    // filename
     std::string fname = "";
+    // path to file
     std::string fullpath = "";
-
-    /* !DONE; ==== // get current playing track instead when no track specified */
 
     if (filename.length ())
         {
@@ -134,38 +136,37 @@ slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr pl
                              download_result.second);
                 }
         }
-    else
+    else // no track argument specified, lets download current playing song if any       
         {
+            auto guild_player = player_manager->get_player (guild_id);
+            if (!guild_player)
+                return e_re_no_track (event);
+
             auto conn = event.from->get_voice (guild_id);
-            auto player = player_manager->get_player (guild_id);
-            if (player)
+            const bool debug = get_debug_state();
+
+            if (debug) printf("[download::slash_run] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            if (guild_player->queue.size ()
+                && conn && conn->voiceclient
+                && conn->voiceclient->is_playing ()) // if there's currently playing track
                 {
-                    std::lock_guard<std::mutex> lk (player->q_m);
-                    if (player->queue.size ()
-                        && conn && conn->voiceclient
-                        && conn->voiceclient->is_playing ()) // if there's currently playing track
-                        {
-                            auto& track = player->queue.front ();
-                            fname = play::get_filename_from_result (track);
-                            fullpath = get_music_folder_path () + fname;
-                        }
-                    else
-                        return e_re_no_track (event);
+                    auto& track = guild_player->queue.front ();
+                    fname = play::get_filename_from_result (track);
+                    fullpath = get_music_folder_path () + fname;
                 }
             else
-                return e_re_no_track (event);
+                {
+                    if (debug) printf("[download::slash_run] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+                    return e_re_no_track (event);
+                }
         }
 
     // by the time it got here, fname and fullpath mustn't be empty
     event.thinking();
 
-    // create a message
     dpp::message msg (event.command.channel_id, "");
-
-    // attach the file to the message
     msg.add_file (fname, dpp::utility::read_file (fullpath));
-
-    // send the message
     event.edit_response (msg);
 }
 } // download

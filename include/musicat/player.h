@@ -132,15 +132,9 @@ class Player
     bool stopped;
 
     /**
-     * @brief Must use this whenever doing the appropriate action.
-     *
-     * q: queue,
-     * ch: channel_id,
-     * st: shifted_track,
-     * h: history,
-     * s: stopped
+     * @brief Thread safety mutex. Must lock this whenever doing the appropriate action.
      */
-    std::mutex skip_mutex, st_m, q_m, ch_m, h_m, s_m;
+    std::mutex t_mutex;
 
     Player ();
     Player (dpp::cluster *_cluster, dpp::snowflake _guild_id);

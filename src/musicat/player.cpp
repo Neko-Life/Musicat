@@ -74,7 +74,6 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
                 track.thumbnails ();
             }
 
-        std::lock_guard<std::mutex> lk (this->q_m);
         siz = this->queue.size ();
 
         if (arg_slip == 1)
@@ -86,7 +85,6 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
                     < /* Check queue size after push_front */ (
                         this->queue.size () - 1))
                     {
-                        std::lock_guard<std::mutex> lk (this->st_m);
                         this->shifted_track++;
                     }
             }
@@ -138,8 +136,6 @@ Player::set_auto_play (bool state)
 bool
 Player::reset_shifted ()
 {
-    std::lock_guard<std::mutex> lk (this->q_m);
-    std::lock_guard<std::mutex> lk2 (this->st_m);
     if (this->queue.size () && this->shifted_track > 0)
         {
             auto i = this->queue.begin () + this->shifted_track;
@@ -149,8 +145,9 @@ Player::reset_shifted ()
             this->shifted_track = 0;
             return true;
         }
-    else
-        return false;
+
+    this->shifted_track = 0;
+    return false;
 }
 
 Player &
@@ -182,7 +179,6 @@ Player::set_loop_mode (int8_t mode)
 Player &
 Player::set_channel (dpp::snowflake channel_id)
 {
-    std::lock_guard<std::mutex> lk (this->ch_m);
     this->channel_id = channel_id;
     return *this;
 }
@@ -195,7 +191,6 @@ Player::remove_track (size_t pos, size_t amount, const size_t to)
 
     this->reset_shifted ();
 
-    std::lock_guard<std::mutex> lk (this->q_m);
     size_t siz = this->queue.size ();
 
     if ((pos + 1) > siz)
@@ -227,7 +222,6 @@ Player::remove_track_by_user (dpp::snowflake user_id)
     if (!user_id)
         return 0;
     size_t ret = 0;
-    std::lock_guard<std::mutex> lk (this->q_m);
     auto i = this->queue.begin ();
     while (i != this->queue.end ())
         {
@@ -272,7 +266,6 @@ Player::shuffle ()
 {
     size_t siz = 0;
     {
-        std::lock_guard<std::mutex> lk (this->q_m);
         siz = this->queue.size ();
         if (siz < 3)
             return false;
@@ -281,7 +274,6 @@ Player::shuffle ()
     std::deque<MCTrack> n_queue = {};
     auto b = shuffle_indexes (siz - 1);
     {
-        std::lock_guard<std::mutex> lk (this->q_m);
         MCTrack os = this->queue.at (0);
         this->queue.erase (this->queue.begin ());
 
@@ -327,14 +319,12 @@ Player::shuffle ()
 void
 Player::set_stopped (const bool &val)
 {
-    std::lock_guard<std::mutex> lk (s_m);
     this->stopped = val;
 }
 
 const bool &
 Player::is_stopped ()
 {
-    std::lock_guard<std::mutex> lk (s_m);
     return this->stopped;
 }
 } // player

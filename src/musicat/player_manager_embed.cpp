@@ -5,162 +5,159 @@ namespace musicat
 {
 namespace player
 {
+// these are the most ridiculous code I have ever wrote....
 using string = std::string;
 
 bool
 Manager::send_info_embed (dpp::snowflake guild_id, bool update,
                           bool force_playing_status)
 {
-    {
-        auto player = this->get_player (guild_id);
-        if (!player)
-            throw exception ("No player");
+    auto player = this->get_player (guild_id);
+    if (!player)
+        throw exception ("No player");
 
-        const bool debug = get_debug_state ();
+    const bool debug = get_debug_state ();
 
-        if (update && !player->info_message)
+    if (update && !player->info_message)
+        {
+            if (debug)
+                printf ("[MANAGER:SEND_INFO_EMBED] No message to update\n");
+            return false;
+        }
+
+    auto channel_id = player->channel_id;
+
+    auto g = dpp::find_guild (guild_id);
+    auto c = dpp::find_channel (channel_id);
+    bool embed_perms = has_permissions (
+        g, &this->cluster->me, c,
+        { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
+    bool view_history_perm = has_permissions (g, &this->cluster->me, c,
+                                              { dpp::p_read_message_history });
+
+    bool delete_original = false;
+    if (update)
+        {
+            if (!view_history_perm
+                || (player->info_message
+                    && player->info_message->is_source_message_deleted ()))
+                {
+                    update = false;
+                    delete_original = true;
+                }
+        }
+    else
+        {
+            if (!embed_perms)
+                throw exception ("No permission");
+        }
+
+    dpp::embed e;
+    try
+        {
+            e = get_playing_info_embed (guild_id, force_playing_status);
+        }
+    catch (const exception &e)
+        {
+            fprintf (stderr,
+                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
+                     "get_playing_info_embed: %s\n",
+                     e.what ());
+            return false;
+        }
+    catch (const dpp::exception &e)
+        {
+            fprintf (stderr,
+                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
+                     "get_playing_info_embed [dpp::exception]: %s\n",
+                     e.what ());
+            return false;
+        }
+    catch (const std::logic_error &e)
+        {
+            fprintf (stderr,
+                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
+                     "get_playing_info_embed [std::logic_error]: %s\n",
+                     e.what ());
+            return false;
+        }
+
+    auto m_cb = [this, player, debug] (dpp::confirmation_callback_t cb) {
+        if (cb.is_error ())
             {
-                if (debug)
-                    printf (
-                        "[MANAGER:SEND_INFO_EMBED] No message to update\n");
-                return false;
+                fprintf (stderr,
+                         "[ERROR MANAGER::SEND_INFO_EMBED] message_create "
+                         "callback error:\nmes: %s\ncode: %d\nerr:\n",
+                         cb.get_error ().message.c_str (),
+                         cb.get_error ().code);
+                for (const auto &i : cb.get_error ().errors)
+                    fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
+                             i.code.c_str (), i.field.c_str (),
+                             i.object.c_str (), i.reason.c_str ());
+                return;
             }
 
-        auto channel_id = player->channel_id;
-
-        auto g = dpp::find_guild (guild_id);
-        auto c = dpp::find_channel (channel_id);
-        bool embed_perms = has_permissions (
-            g, &this->cluster->me, c,
-            { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
-        bool view_history_perm = has_permissions (
-            g, &this->cluster->me, c, { dpp::p_read_message_history });
-
-        bool delete_original = false;
-        if (update)
+        if (cb.value.index ())
             {
-                if (!view_history_perm
-                    || (player->info_message
-                        && player->info_message->is_source_message_deleted ()))
+                if (!player)
                     {
-                        update = false;
-                        delete_original = true;
+                        fprintf (stderr,
+                                 "[ERROR MANAGER::SEND_INFO_EMBED] PLAYER "
+                                 "GONE WTFF\n");
+                        return;
+                    }
+
+                std::lock_guard<std::mutex> lk (this->imc_m);
+                if (player->info_message)
+                    {
+                        auto id = player->info_message->id;
+                        this->info_messages_cache.erase (id);
+                    }
+
+                player->info_message = std::make_shared<dpp::message> (
+                    std::get<dpp::message> (cb.value));
+                if (player->info_message)
+                    {
+                        this->info_messages_cache[player->info_message->id]
+                            = player->info_message;
+                        if (debug)
+                            printf ("[MANAGER::SEND_INFO_EMBED] New "
+                                    "message info: %ld\n",
+                                    player->info_message->id);
                     }
             }
-        else
-            {
-                if (!embed_perms)
-                    throw exception ("No permission");
-            }
+        else if (debug)
+            printf ("[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
+    };
 
-        dpp::embed e;
-        try
-            {
-                e = get_playing_info_embed (guild_id, force_playing_status);
-            }
-        catch (const exception &e)
-            {
-                fprintf (stderr,
-                         "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                         "get_playing_info_embed: %s\n",
-                         e.what ());
-                return false;
-            }
-        catch (const dpp::exception &e)
-            {
-                fprintf (stderr,
-                         "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                         "get_playing_info_embed [dpp::exception]: %s\n",
-                         e.what ());
-                return false;
-            }
-        catch (const std::logic_error &e)
-            {
-                fprintf (stderr,
-                         "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                         "get_playing_info_embed [std::logic_error]: %s\n",
-                         e.what ());
-                return false;
-            }
+    if (delete_original)
+        {
+            this->delete_info_embed (guild_id);
+        }
 
-        auto m_cb = [this, player, debug] (dpp::confirmation_callback_t cb) {
-            if (cb.is_error ())
-                {
-                    fprintf (stderr,
-                             "[ERROR MANAGER::SEND_INFO_EMBED] message_create "
-                             "callback error:\nmes: %s\ncode: %d\nerr:\n",
-                             cb.get_error ().message.c_str (),
-                             cb.get_error ().code);
-                    for (const auto &i : cb.get_error ().errors)
-                        fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
-                                 i.code.c_str (), i.field.c_str (),
-                                 i.object.c_str (), i.reason.c_str ());
-                    return;
-                }
+    // TODO: Refactor this horrendous `update` flag system and check for
+    // existing info_message instead
+    if (!update)
+        {
+            dpp::message m;
+            m.add_embed (e).set_channel_id (channel_id);
 
-            if (cb.value.index ())
-                {
-                    if (!player)
-                        {
-                            fprintf (stderr,
-                                     "[ERROR MANAGER::SEND_INFO_EMBED] PLAYER "
-                                     "GONE WTFF\n");
-                            return;
-                        }
+            this->cluster->message_create (m, m_cb);
+        }
+    else if (player->info_message)
+        {
+            auto mn = *player->info_message;
+            if (!mn.embeds.empty ())
+                mn.embeds.pop_back ();
+            mn.embeds.push_back (e);
 
-                    std::lock_guard<std::mutex> lk (this->imc_m);
-                    if (player->info_message)
-                        {
-                            auto id = player->info_message->id;
-                            this->info_messages_cache.erase (id);
-                        }
-
-                    player->info_message = std::make_shared<dpp::message> (
-                        std::get<dpp::message> (cb.value));
-                    if (player->info_message)
-                        {
-                            this->info_messages_cache[player->info_message->id]
-                                = player->info_message;
-                            if (debug)
-                                printf ("[MANAGER::SEND_INFO_EMBED] New "
-                                        "message info: %ld\n",
-                                        player->info_message->id);
-                        }
-                }
-            else if (debug)
-                printf (
-                    "[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
-        };
-
-        if (delete_original)
-            {
-                this->delete_info_embed (guild_id);
-            }
-
-        // TODO: Refactor this horrendous `update` flag system and check for
-        // existing info_message instead
-        if (!update)
-            {
-                dpp::message m;
-                m.add_embed (e).set_channel_id (channel_id);
-
-                this->cluster->message_create (m, m_cb);
-            }
-        else if (player->info_message)
-            {
-                auto mn = *player->info_message;
-                if (!mn.embeds.empty ())
-                    mn.embeds.pop_back ();
-                mn.embeds.push_back (e);
-
-                if (debug)
-                    printf ("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
-                            "Edit: %ld %ld\n",
-                            mn.channel_id, mn.id);
-                this->cluster->message_edit (mn, m_cb);
-            }
-        return true;
-    }
+            if (debug)
+                printf ("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
+                        "Edit: %ld %ld\n",
+                        mn.channel_id, mn.id);
+            this->cluster->message_edit (mn, m_cb);
+        }
+    return true;
 }
 
 bool
@@ -211,40 +208,47 @@ dpp::embed
 Manager::get_playing_info_embed (dpp::snowflake guild_id,
                                  bool force_playing_status)
 {
-    auto player = this->get_player (guild_id);
-    if (!player)
+    auto guild_player = this->get_player (guild_id);
+    if (!guild_player)
         throw exception ("No player");
 
+    const bool debug = get_debug_state();
+    /* if (debug) printf("[Manager::get_playing_info_embed] Locked player::t_mutex: %ld\n", guild_player->guild_id); */
+    /* std::lock_guard<std::mutex> lk (guild_player->t_mutex); */
+
     // Reset shifted tracks
-    player->reset_shifted ();
+    guild_player->reset_shifted ();
     MCTrack track;
     MCTrack prev_track;
     MCTrack next_track;
     MCTrack skip_track;
 
     {
-        std::lock_guard<std::mutex> lk (player->q_m);
-        auto siz = player->queue.size ();
+        auto siz = guild_player->queue.size ();
         if (!siz)
-            throw exception ("No track");
-        track = player->queue.front ();
+            {
+                /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock player::t_mutex: %ld\n", guild_player->guild_id); */
+                throw exception ("No track");
+            }
 
-        prev_track = player->queue.at (siz - 1UL);
+        track = guild_player->queue.front ();
 
-        auto lm = player->loop_mode;
+        prev_track = guild_player->queue.at (siz - 1UL);
+
+        auto lm = guild_player->loop_mode;
         if (lm == loop_mode_t::l_queue)
-            next_track = (siz == 1UL) ? track : player->queue.at (1);
+            next_track = (siz == 1UL) ? track : guild_player->queue.at (1);
         else if (lm == loop_mode_t::l_none)
             {
                 if (siz > 1UL)
-                    next_track = player->queue.at (1);
+                    next_track = guild_player->queue.at (1);
             }
         else
             {
                 // if (loop mode == one | one/queue)
                 next_track = track;
                 if (siz > 1UL)
-                    skip_track = player->queue.at (1);
+                    skip_track = guild_player->queue.at (1);
             }
     }
 
@@ -305,9 +309,9 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
 
     bool has_p = false;
 
-    if (player->from)
+    if (guild_player->from)
         {
-            auto con = player->from->get_voice (guild_id);
+            auto con = guild_player->from->get_voice (guild_id);
             if (con && con->voiceclient)
                 if (con->voiceclient->get_secs_remaining () > 0.1)
                     {
@@ -327,20 +331,20 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
             ft += p_mode[1];
         }
 
-    if (player->loop_mode)
+    if (guild_player->loop_mode)
         {
             if (ft.length ())
                 ft += " | ";
-            ft += l_mode[player->loop_mode - 1];
+            ft += l_mode[guild_player->loop_mode - 1];
         }
-    if (player->auto_play)
+    if (guild_player->auto_play)
         {
             if (ft.length ())
                 ft += " | ";
             ft += "Autoplay";
-            if (player->max_history_size)
-                ft += string (" (") + std::to_string (player->max_history_size)
-                      + ")";
+            if (guild_player->max_history_size)
+                ft += string (" (")
+                      + std::to_string (guild_player->max_history_size) + ")";
         }
     if (tinfo)
         {
@@ -355,6 +359,8 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
         e.set_color (color);
     if (et.length ())
         e.set_image (et);
+
+    /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock player::t_mutex: %ld\n", guild_player->guild_id); */
     return e;
 }
 

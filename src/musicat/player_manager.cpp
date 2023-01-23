@@ -9,6 +9,7 @@ namespace musicat
 {
 namespace player
 {
+// this section looks so bad
 using string = std::string;
 
 Manager::Manager (dpp::cluster *cluster, dpp::snowflake sha_id)
@@ -91,21 +92,21 @@ Manager::delete_player (dpp::snowflake guild_id)
 std::deque<MCTrack>
 Manager::get_queue (dpp::snowflake guild_id)
 {
-    auto p = get_player (guild_id);
-    if (!p)
+    auto guild_player = get_player (guild_id);
+    if (!guild_player)
         return {};
-    p->reset_shifted ();
-    return p->queue;
+    guild_player->reset_shifted ();
+    return guild_player->queue;
 }
 
 bool
 Manager::pause (dpp::discord_client *from, dpp::snowflake guild_id,
                 dpp::snowflake user_id)
 {
-    auto p = get_player (guild_id);
-    if (!p)
+    auto guild_player = get_player (guild_id);
+    if (!guild_player)
         return false;
-    bool a = p->pause (from, user_id);
+    bool a = guild_player->pause (from, user_id);
     if (a)
         {
             std::lock_guard<std::mutex> lk (mp_m);
@@ -142,9 +143,13 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
 {
     if (!v)
         return -1;
-    auto p = get_player (guild_id);
-    if (!p)
+    auto guild_player = get_player (guild_id);
+    if (!guild_player)
         return -1;
+
+    const bool debug = get_debug_state();
+    if (debug) printf("[Manager::skip] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     try
         {
             auto u = get_voice_from_gid (guild_id, user_id);
@@ -164,8 +169,8 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
                 }
             // if (siz > 1U)
             // {
-            //     std::lock_guard<std::mutex> lk(p->q_m);
-            //     auto& track = p->queue.at(0);
+            //     std::lock_guard<std::mutex> lk(guild_player->q_m);
+            //     auto& track = guild_player->queue.at(0);
             //     if (track.user_id != user_id && track.user_id !=
             //     this->sha_id)
             //     {
@@ -192,7 +197,7 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
             //     else if (amount > 1)
             //     {
             //         int64_t count = 0;
-            //         for (const auto& t : p->queue)
+            //         for (const auto& t : guild_player->queue)
             //         {
             //             if (t.user_id == user_id || t.user_id ==
             //             this->sha_id) count++; else break;
@@ -207,34 +212,34 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
         {
             throw exception ("You're not in a voice channel", 1);
         }
-    auto siz = p->queue.size ();
+    auto siz = guild_player->queue.size ();
     if (amount < (siz || 1))
         amount = siz || 1;
     if (amount > 1000)
         amount = 1000;
-    const bool l_s = p->loop_mode == loop_mode_t::l_song_queue;
-    const bool l_q = p->loop_mode == loop_mode_t::l_queue;
+    const bool l_s = guild_player->loop_mode == loop_mode_t::l_song_queue;
+    const bool l_q = guild_player->loop_mode == loop_mode_t::l_queue;
     {
-        std::lock_guard<std::mutex> lk (p->q_m);
-        for (int64_t i = (p->loop_mode == loop_mode_t::l_song || l_s) ? 0 : 1;
+        for (int64_t i = (guild_player->loop_mode == loop_mode_t::l_song || l_s) ? 0 : 1;
              i < amount; i++)
             {
-                if (p->queue.begin () == p->queue.end ())
+                if (guild_player->queue.begin () == guild_player->queue.end ())
                     break;
-                auto l = p->queue.front ();
-                p->queue.pop_front ();
+                auto l = guild_player->queue.front ();
+                guild_player->queue.pop_front ();
                 if (!remove && (l_s || l_q))
-                    p->queue.push_back (l);
+                    guild_player->queue.push_back (l);
             }
     }
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.1)
         this->stop_stream (guild_id);
 
-    int a = p->skip (v);
+    int a = guild_player->skip (v);
 
     if (v && v->voiceclient && remove)
         v->voiceclient->insert_marker ("rm");
 
+    if (debug) printf("[Manager::skip] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
     return a;
 }
 
@@ -375,19 +380,19 @@ size_t
 Manager::remove_track (dpp::snowflake guild_id, size_t pos,
                        const size_t amount, const size_t to)
 {
-    auto p = this->get_player (guild_id);
-    if (!p)
+    auto guild_player = this->get_player (guild_id);
+    if (!guild_player)
         return 0;
-    return p->remove_track (pos, amount, to);
+    return guild_player->remove_track (pos, amount, to);
 }
 
 bool
 Manager::shuffle_queue (dpp::snowflake guild_id)
 {
-    auto p = this->get_player (guild_id);
-    if (!p)
+    auto guild_player = this->get_player (guild_id);
+    if (!guild_player)
         return false;
-    return p->shuffle ();
+    return guild_player->shuffle ();
 }
 
 } // player
