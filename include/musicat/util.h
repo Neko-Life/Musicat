@@ -2,6 +2,7 @@
 #define MUSICAT_UTIL_H
 
 #include <string>
+#include <vector>
 
 namespace musicat
 {
@@ -14,6 +15,9 @@ std::string join (const bool join, const std::string &str,
                   const std::string &join_str);
 
 void u8_limit_length (const char *unicode_str, char *buf, int32_t max_length = 99);
+
+void print_autocomplete_results (const std::vector<std::pair<std::string, std::string>> &avail,
+                                 const char *debug_fn);
 
 } // util
 } // musicat

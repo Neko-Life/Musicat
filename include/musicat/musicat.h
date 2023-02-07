@@ -2,6 +2,7 @@
 #define MUSICAT_H
 
 #include "musicat/player.h"
+#include "nekos-best++.hpp"
 #include <dpp/dpp.h>
 #include <stdexcept>
 #include <string>
@@ -207,6 +208,9 @@ int join_voice (dpp::discord_client *from,
                 player::player_manager_ptr player_manager,
                 const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
                 const dpp::snowflake &sha_id);
+
+nekos_best::endpoint_map
+get_cached_nekos_best_endpoints ();
 
 }
 

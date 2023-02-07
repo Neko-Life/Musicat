@@ -6,6 +6,7 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/storage.h"
 #include "nlohmann/json.hpp"
+#include "nekos-best++.hpp"
 #include <any>
 #include <chrono>
 #include <cstdlib>
@@ -30,6 +31,14 @@ json sha_cfg;
 bool running = true;
 bool debug = false;
 std::mutex main_mutex;
+
+nekos_best::endpoint_map nekos_best_endpoints = {};
+
+nekos_best::endpoint_map
+get_cached_nekos_best_endpoints ()
+{
+    return nekos_best_endpoints;
+}
 
 int
 load_config ()
@@ -474,6 +483,12 @@ run (int argc, const char *argv[])
                             command::download::autocomplete::track (
                                 event, param, player_manager);
                     }
+                else if (cmd == "image")
+                    {
+                        if (opt == "type")
+                            command::image::autocomplete::type (
+                                event, param);
+                    }
             }
     });
 
@@ -495,7 +510,7 @@ run (int argc, const char *argv[])
         else if (cmd == "support")
             event.reply ("https://www.discord.gg/vpk2KyKHtu");
         else if (cmd == "repo")
-            event.reply ("https://github.com/Neko-Lelse ife/Musicat");
+            event.reply ("https://github.com/Neko-Life/Musicat");
         else if (cmd == "pause")
             command::pause::slash_run (event, player_manager);
         else if (cmd == "skip")
@@ -530,6 +545,8 @@ run (int argc, const char *argv[])
             command::leave::slash_run (event, player_manager);
         else if (cmd == "download")
             command::download::slash_run (event, player_manager);
+        else if (cmd == "image")
+            command::image::slash_run (event);
 
         else
         {
@@ -614,6 +631,7 @@ run (int argc, const char *argv[])
 
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
+    nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);
 
     time_t last_gc;

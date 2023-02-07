@@ -28,6 +28,7 @@ add_executable(Shasha
         include/musicat/yt-search.h
         include/musicat/yt-track-info.h
         include/nlohmann/json.hpp
+        include/nekos-best++.hpp
 
         # impl files
         src/musicat/autocomplete.cpp
@@ -67,6 +68,8 @@ add_executable(Shasha
         src/musicat/cmds/search.cpp
         src/musicat/cmds/skip.cpp
         src/musicat/cmds/stop.cpp
+        src/musicat/cmds/image.cpp
+        src/nekos-bestpp/nekos-best++.cpp
         src/main.cpp)
 
  

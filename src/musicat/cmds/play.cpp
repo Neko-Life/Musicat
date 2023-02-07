@@ -1,5 +1,6 @@
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
+#include "musicat/util.h"
 #include "musicat/musicat.h"
 #include "musicat/yt-playlist.h"
 #include "musicat/yt-search.h"
@@ -35,11 +36,7 @@ query (const dpp::autocomplete_t &event, std::string param,
 
     if (get_debug_state ())
         {
-            printf ("[play::autocomplete::query] results:\n");
-            for (size_t i = 0; i < avail.size (); i++)
-                {
-                    printf ("%ld: %s\n", i, avail.at (i).first.c_str ());
-                }
+            util::print_autocomplete_results(avail, "play::autocomplete::query");
         }
 
     musicat::autocomplete::create_response (avail, event);

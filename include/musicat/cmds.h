@@ -261,6 +261,17 @@ dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr player_manager);
 }
 
+namespace image
+{
+namespace autocomplete
+{
+void type (const dpp::autocomplete_t &event, std::string param);
+}
+
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::interaction_create_t &event);
+}
+
 } // command
 } // musicat
 
