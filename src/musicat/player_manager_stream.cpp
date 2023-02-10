@@ -22,7 +22,24 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
     if (v && !v->terminating && v->is_ready ())
         {
             server_id = v->server_id;
-            OGGZ *track_og = oggz_open (file_path.c_str (), OGGZ_READ);
+            FILE *ofile = fopen (file_path.c_str (), "r");
+
+            if (!ofile)
+                {
+                    std::filesystem::create_directory (music_folder_path);
+                    throw 2;
+                }
+
+            struct stat ofile_stat;
+            if (fstat (fileno (ofile), &ofile_stat) != 0)
+                {
+                    fclose (ofile);
+                    throw 2;
+                }
+            
+            const size_t fsize = ofile_stat.st_size;
+
+            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
             if (track_og)
                 {
@@ -59,11 +76,11 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
                             streamed_bytes += read_bytes;
 
                             if (debug)
-                                printf ("[Manager::stream] [guild_id] [read_bytes] "
-                                        "[streamed_bytes]: %ld %ld %ld\n",
-                                        server_id, read_bytes, streamed_bytes);
+                                printf ("[Manager::stream] [guild_id] [chunk] "
+                                        "[read_bytes] [size]: %ld %ld %ld %ld\n",
+                                        server_id, read_bytes, streamed_bytes, fsize);
 
-                            // player stopped
+                            // eof
                             if (!read_bytes)
                                 break;
 
@@ -78,6 +95,7 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
                 {
                     fprintf (stderr, "[Manager::stream ERROR] Can't open file for reading: %ld %s\n", server_id, file_path.c_str ());
                 }
+
             /* FILE *fd; */
             /* ogg_sync_state oy; */
             /* ogg_stream_state os; */
@@ -374,7 +392,10 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
             /* /1* Cleanup *1/ */
             /* ogg_stream_clear (&os); */
             /* ogg_sync_clear (&oy); */
+
             oggz_close (track_og);
+            fclose (ofile);
+
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
                 end_time - start_time);
