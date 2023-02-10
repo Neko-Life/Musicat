@@ -314,8 +314,8 @@ class Manager
     void download (std::string fname, std::string url,
                    dpp::snowflake guild_id);
     void wait_for_download (std::string file_name);
-    void stream (dpp::discord_voice_client *v, std::string fname);
-    void play (dpp::discord_voice_client *v, std::string fname,
+    void stream (dpp::discord_voice_client *v, player::MCTrack &track);
+    void play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id = 0, bool notify_error = false);
 
     /**

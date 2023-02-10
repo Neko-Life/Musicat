@@ -294,11 +294,11 @@ Manager::download (string fname, string url, dpp::snowflake guild_id)
 }
 
 void
-Manager::play (dpp::discord_voice_client *v, string fname,
+Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id, bool notify_error)
 {
     std::thread tj (
-        [this] (dpp::discord_voice_client *v, string fname,
+        [this] (dpp::discord_voice_client *v, player::MCTrack track,
                 dpp::snowflake channel_id, bool notify_error) {
             const bool debug = get_debug_state ();
 
@@ -309,7 +309,7 @@ Manager::play (dpp::discord_voice_client *v, string fname,
 
             try
                 {
-                    this->stream (v, fname);
+                    this->stream (v, track);
                 }
             catch (int e)
                 {
@@ -373,7 +373,7 @@ Manager::play (dpp::discord_voice_client *v, string fname,
                     // if (v) v->~discord_voice_client();
                 }
         },
-        v, fname, channel_id, notify_error);
+        v, track, channel_id, notify_error);
     tj.detach ();
 }
 

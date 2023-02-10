@@ -302,7 +302,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                     // Send play info embed
                     try
                         {
-                            this->play (v, track.filename, channel_id,
+                            this->play (v, track, channel_id,
                                         embed_perms);
                             if (embed_perms)
                                 {

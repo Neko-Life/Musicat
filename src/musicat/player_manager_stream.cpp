@@ -10,8 +10,10 @@ namespace player
 using string = std::string;
 
 void
-Manager::stream (dpp::discord_voice_client *v, string fname)
+Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
+    const string &fname = track.filename;
+
     dpp::snowflake server_id;
     std::chrono::_V2::system_clock::time_point start_time;
 
