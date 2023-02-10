@@ -84,6 +84,7 @@ target_link_libraries(Shasha
     icuuc
     icudata
     icuio
+    oggz
     # Add any other libs you want to use here
 )
  

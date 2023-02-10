@@ -341,13 +341,14 @@ Manager::play (dpp::discord_voice_client *v, string fname,
                     std::lock_guard<std::mutex> lk (this->sq_m);
 
                     auto sq = vector_find (&this->stop_queue, server_id);
-                    if (sq != this->stop_queue.end ())
+                    while (sq != this->stop_queue.end ())
                         {
                             if (debug)
                                 printf ("[MANAGER::STREAM] Stopped because "
-                                        "stop query, cleaning up query\n");
+                                        "stop query, cleaning up query: %ld\n", server_id);
                             this->stop_queue.erase (sq);
                             this->stop_queue_cv.notify_all ();
+                            sq = vector_find (&this->stop_queue, server_id);
                         }
                 }
 
