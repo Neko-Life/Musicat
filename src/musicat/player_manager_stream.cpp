@@ -394,7 +394,6 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
             /* ogg_sync_clear (&oy); */
 
             oggz_close (track_og);
-            fclose (ofile);
 
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
