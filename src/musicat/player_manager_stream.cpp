@@ -84,7 +84,7 @@ Manager::stream (dpp::discord_voice_client *v, string fname)
                             if (!read_bytes)
                                 break;
 
-                            while (v && (v->is_paused () || v->get_secs_remaining () > 0.5))
+                            while (v && !v->terminating && (v->is_paused () || v->get_secs_remaining () > 0.5))
                                 {
                                     std::this_thread::sleep_for (
                                         std::chrono::milliseconds (200));
