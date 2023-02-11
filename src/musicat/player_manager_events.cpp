@@ -117,9 +117,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             return false;
         }
 
-    guild_player->queue.front ().skip_vote.clear ();
+    MCTrack &play_track = guild_player->queue.front ();
+    play_track.skip_vote.clear ();
+    play_track.seekable = false;
+    play_track.seek_to = 0;
 
-    MCTrack play_track = guild_player->queue.front ();
     guild_player->set_stopped (false);
 
     if (!just_loaded_queue)
@@ -146,9 +148,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
     if (event.voice_client && event.voice_client->get_secs_remaining () < 0.1)
         {
             std::thread tj (
-                [this, shared_manager,
-                 debug] (dpp::discord_voice_client *v, MCTrack track,
+                [this, shared_manager, &play_track,
+                 debug] (dpp::discord_voice_client *v,
                          string meta, std::shared_ptr<Player> guild_player) {
+                    MCTrack &track = play_track;
+
                     bool timed_out = false;
                     auto guild_id = v->server_id;
 
@@ -354,7 +358,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                 "Should unlock player::t_mutex: %ld\n",
                                 guild_player->guild_id);
                 },
-                event.voice_client, play_track, event.track_meta,
+                event.voice_client, event.track_meta,
                 guild_player);
 
             tj.detach ();

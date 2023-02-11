@@ -1,6 +1,7 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
+#include <oggz/oggz_seek.h>
 #include <sys/stat.h>
 
 namespace musicat
@@ -12,6 +13,7 @@ using string = std::string;
 struct mc_oggz_user_data {
     dpp::discord_voice_client *voice_client;
     MCTrack &track;
+    bool &debug;
 };
 
 void
@@ -25,9 +27,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
     const string music_folder_path = get_music_folder_path ();
     const string file_path = music_folder_path + fname;
 
-    const bool debug = get_debug_state ();
     if (v && !v->terminating && v->is_ready ())
         {
+            bool debug = get_debug_state ();
+
             server_id = v->server_id;
             FILE *ofile = fopen (file_path.c_str (), "r");
 
@@ -46,11 +49,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             const size_t fsize = ofile_stat.st_size;
 
-            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
+            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ /*| OGGZ_AUTO*/);
 
             if (track_og)
                 {
-                    mc_oggz_user_data data = { v, track };
+                    mc_oggz_user_data data = { v, track, debug };
                     oggz_set_read_callback (
                         track_og, -1,
                         [] (OGGZ *oggz, oggz_packet *packet, long serialno,
@@ -65,6 +68,15 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     data->track.seekable = true;
                                 }
 
+                            if (data->debug)
+                                {
+                                    printf ("[read_callback Manager::stream]"
+                                            " [guild_id] [serialno] [granulepos]:"
+                                            " %ld %ld %ld\n",
+                                            data->voice_client->server_id, serialno,
+                                            packet->op.granulepos);
+                                }
+
                             return 0;
                         },
                         (void *)&data);
@@ -73,6 +85,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     // stream loop
                     while (v && !v->terminating)
                         {
+                            debug = get_debug_state ();
+
                             static const long READ_CHUNK = 16384;
 
                             {
@@ -92,8 +106,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                             if (debug)
                                 printf ("[Manager::stream] [guild_id] [chunk] "
-                                        "[read_bytes] [size] [current_millisecond]: %ld %ld %ld %ld %ld\n",
-                                        server_id, read_bytes, streamed_bytes, fsize, oggz_tell_units (track_og));
+                                        "[read_bytes] [size] [packet_byte_offset]: %ld %ld %ld %ld %ld\n",
+                                        server_id, read_bytes, streamed_bytes, fsize, oggz_tell (track_og));
 
                             // eof
                             if (!read_bytes)
@@ -102,23 +116,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             while (v && !v->terminating
                                    && (v->is_paused () || v->get_secs_remaining () > 0.5))
                                 {
-                                    {
-                                        std::lock_guard<std::mutex> lk (this->sk_m);
-
-                                        auto iend = this->seek_queue.end ();
-                                        auto i = this->seek_queue.begin ();
-                                        for (; i != iend; i++)
+                                    if (track.seek_to > 0)
                                         {
-                                            if (i->server_id == server_id)
-                                                break;
+                                            oggz_seek (track_og, track.seek_to, SEEK_SET);
+                                            track.seek_to = 0;
                                         }
 
-                                        if (i != iend)
-                                            {
-                                                oggz_seek_units (track_og, i->millisecond, SEEK_SET);
-                                                this->seek_queue.erase (i);
-                                            }
-                                    }
                                     std::this_thread::sleep_for (
                                         std::chrono::milliseconds (100));
                                 }

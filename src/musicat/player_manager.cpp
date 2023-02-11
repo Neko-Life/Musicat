@@ -298,7 +298,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id, bool notify_error)
 {
     std::thread tj (
-        [this] (dpp::discord_voice_client *v, player::MCTrack track,
+        [this, &track] (dpp::discord_voice_client *v,
                 dpp::snowflake channel_id, bool notify_error) {
             const bool debug = get_debug_state ();
 
@@ -373,7 +373,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     // if (v) v->~discord_voice_client();
                 }
         },
-        v, track, channel_id, notify_error);
+        v, channel_id, notify_error);
     tj.detach ();
 }
 
