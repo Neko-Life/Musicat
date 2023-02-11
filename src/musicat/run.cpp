@@ -547,6 +547,8 @@ run (int argc, const char *argv[])
             command::download::slash_run (event, player_manager);
         else if (cmd == "image")
             command::image::slash_run (event);
+        else if (cmd == "seek")
+            command::seek::slash_run (event, player_manager);
 
         else
         {

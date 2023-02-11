@@ -8,9 +8,14 @@ namespace player
 {
 using string = std::string;
 
-MCTrack::MCTrack () {}
+MCTrack::MCTrack () {
+    seekable = false;
+}
 
-MCTrack::MCTrack (YTrack t) { this->raw = t.raw; }
+MCTrack::MCTrack (YTrack t) {
+    seekable = false;
+    this->raw = t.raw;
+}
 
 MCTrack::~MCTrack () = default;
 

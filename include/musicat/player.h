@@ -44,6 +44,8 @@ struct MCTrack : yt_search::YTrack
 
     yt_search::audio_info_t info;
 
+    bool seekable;
+
     MCTrack ();
     MCTrack (yt_search::YTrack t);
     ~MCTrack ();
@@ -198,6 +200,11 @@ class Player
     const bool &is_stopped ();
 };
 
+struct seek_query_t {
+    dpp::snowflake server_id;
+    int64_t millisecond;
+};
+
 class Manager
 {
   public:
@@ -215,9 +222,10 @@ class Manager
     // ps: players
     // mp: manually_paused
     // sq: stop_queue
+    // sk: seek_queue
     // imc: info_messages_cache
     // im: ignore_marker
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m, im_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, sk_m, imc_m, im_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;
@@ -227,6 +235,7 @@ class Manager
     std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
     std::vector<dpp::snowflake> stop_queue;
+    std::vector<seek_query_t> seek_queue;
     std::vector<dpp::snowflake> ignore_marker;
 
     Manager (dpp::cluster *_cluster, dpp::snowflake _sha_id);

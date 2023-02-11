@@ -9,6 +9,11 @@ namespace player
 {
 using string = std::string;
 
+struct mc_oggz_user_data {
+    dpp::discord_voice_client *voice_client;
+    MCTrack &track;
+};
+
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
@@ -38,23 +43,31 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     fclose (ofile);
                     throw 2;
                 }
-            
+
             const size_t fsize = ofile_stat.st_size;
 
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
             if (track_og)
                 {
+                    mc_oggz_user_data data = { v, track };
                     oggz_set_read_callback (
                         track_og, -1,
                         [] (OGGZ *oggz, oggz_packet *packet, long serialno,
                             void *user_data) {
-                            ((dpp::discord_voice_client *)user_data)
-                                ->send_audio_opus (packet->op.packet, packet->op.bytes,
-                                                   20); // samples / 48);
+                            mc_oggz_user_data *data = (mc_oggz_user_data *)user_data;
+                            data->voice_client->send_audio_opus (packet->op.packet,
+                                                                 packet->op.bytes,
+                                                                 20); // samples / 48);
+
+                            if (!data->track.seekable && packet->op.b_o_s == 0)
+                                {
+                                    data->track.seekable = true;
+                                }
+
                             return 0;
                         },
-                        (void *)v);
+                        (void *)&data);
 
                     size_t streamed_bytes = 0;
                     // stream loop
@@ -79,25 +92,45 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                             if (debug)
                                 printf ("[Manager::stream] [guild_id] [chunk] "
-                                        "[read_bytes] [size]: %ld %ld %ld %ld\n",
-                                        server_id, read_bytes, streamed_bytes, fsize);
+                                        "[read_bytes] [size] [current_millisecond]: %ld %ld %ld %ld %ld\n",
+                                        server_id, read_bytes, streamed_bytes, fsize, oggz_tell_units (track_og));
 
                             // eof
                             if (!read_bytes)
                                 break;
 
-                            while (v && !v->terminating && (v->is_paused () || v->get_secs_remaining () > 0.5))
+                            while (v && !v->terminating
+                                   && (v->is_paused () || v->get_secs_remaining () > 0.5))
                                 {
+                                    {
+                                        std::lock_guard<std::mutex> lk (this->sk_m);
+
+                                        auto iend = this->seek_queue.end ();
+                                        auto i = this->seek_queue.begin ();
+                                        for (; i != iend; i++)
+                                        {
+                                            if (i->server_id == server_id)
+                                                break;
+                                        }
+
+                                        if (i != iend)
+                                            {
+                                                oggz_seek_units (track_og, i->millisecond, SEEK_SET);
+                                                this->seek_queue.erase (i);
+                                            }
+                                    }
                                     std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (200));
+                                        std::chrono::milliseconds (100));
                                 }
                         }
                 }
             else
                 {
-                    fprintf (stderr, "[Manager::stream ERROR] Can't open file for reading: %ld %s\n", server_id, file_path.c_str ());
+                    fprintf (
+                        stderr,
+                        "[Manager::stream ERROR] Can't open file for reading: %ld %s\n",
+                        server_id, file_path.c_str ());
                 }
-
             /* FILE *fd; */
             /* ogg_sync_state oy; */
             /* ogg_stream_state os; */
