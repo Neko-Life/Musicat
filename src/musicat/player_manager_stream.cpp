@@ -49,6 +49,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             const size_t fsize = ofile_stat.st_size;
 
+            track.filesize = fsize;
+
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ /*| OGGZ_AUTO*/);
 
             if (track_og)
@@ -68,14 +70,14 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     data->track.seekable = true;
                                 }
 
-                            if (data->debug)
-                                {
-                                    printf ("[read_callback Manager::stream]"
-                                            " [guild_id] [serialno] [granulepos]:"
-                                            " %ld %ld %ld\n",
-                                            data->voice_client->server_id, serialno,
-                                            packet->op.granulepos);
-                                }
+                            // if (data->debug)
+                            //     {
+                            //         printf ("[read_callback Manager::stream]"
+                            //                 " [guild_id] [serialno] [granulepos]:"
+                            //                 " %ld %ld %ld\n",
+                            //                 data->voice_client->server_id, serialno,
+                            //                 packet->op.granulepos);
+                            //     }
 
                             return 0;
                         },
@@ -109,10 +111,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         "[read_bytes] [size] [packet_byte_offset]: %ld %ld %ld %ld %ld\n",
                                         server_id, read_bytes, streamed_bytes, fsize, oggz_tell (track_og));
 
-                            // eof
-                            if (!read_bytes)
-                                break;
-
                             while (v && !v->terminating
                                    && (v->is_paused () || v->get_secs_remaining () > 0.5))
                                 {
@@ -125,13 +123,18 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     std::this_thread::sleep_for (
                                         std::chrono::milliseconds (100));
                                 }
+
+                            // eof
+                            if (!read_bytes)
+                                break;
+
                         }
                 }
             else
                 {
                     fprintf (
                         stderr,
-                        "[Manager::stream ERROR] Can't open file for reading: %ld %s\n",
+                        "[Manager::stream ERROR] Can't open file for reading: %ld '%s'\n",
                         server_id, file_path.c_str ());
                 }
             /* FILE *fd; */

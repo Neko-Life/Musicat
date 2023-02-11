@@ -48,6 +48,7 @@ struct MCTrack : yt_search::YTrack
     // seek query, reset to 0 after seek performed.
     // byte offset
     int64_t seek_to;
+    size_t filesize;
 
     MCTrack ();
     MCTrack (yt_search::YTrack t);
