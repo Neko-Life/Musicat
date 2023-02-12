@@ -62,8 +62,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             void *user_data) {
                             mc_oggz_user_data *data = (mc_oggz_user_data *)user_data;
                             data->voice_client->send_audio_opus (packet->op.packet,
-                                                                 packet->op.bytes,
-                                                                 20); // samples / 48);
+                                                                 packet->op.bytes);
 
                             if (!data->track.seekable && packet->op.b_o_s == 0)
                                 {
@@ -101,7 +100,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     }
                             }
 
-                            const long read_bytes = oggz_read (track_og, BUFSIZ);
+                            static const constexpr long CHUNK_READ = BUFSIZ * 2;
+
+                            const long read_bytes = oggz_read (track_og, CHUNK_READ);
                             streamed_bytes += read_bytes;
 
                             if (debug)
