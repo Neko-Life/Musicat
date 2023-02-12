@@ -21,7 +21,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
     const string &fname = track.filename;
 
-    dpp::snowflake server_id;
+    dpp::snowflake server_id = 0;
     std::chrono::_V2::system_clock::time_point start_time;
 
     const string music_folder_path = get_music_folder_path ();
@@ -89,8 +89,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         {
                             debug = get_debug_state ();
 
-                            static const long READ_CHUNK = 16384;
-
                             {
                                 std::lock_guard<std::mutex> lk (this->sq_m);
                                 auto sq = vector_find (&this->stop_queue, server_id);
@@ -103,16 +101,16 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     }
                             }
 
-                            const long read_bytes = oggz_read (track_og, READ_CHUNK);
+                            const long read_bytes = oggz_read (track_og, BUFSIZ);
                             streamed_bytes += read_bytes;
 
                             if (debug)
-                                printf ("[Manager::stream] [guild_id] [chunk] "
-                                        "[read_bytes] [size] [packet_byte_offset]: %ld %ld %ld %ld %ld\n",
-                                        server_id, read_bytes, streamed_bytes, fsize, oggz_tell (track_og));
+                                printf ("[Manager::stream] [guild_id] [size] "
+                                        "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
+                                        server_id, fsize, read_bytes, streamed_bytes);
 
                             while (v && !v->terminating
-                                   && (v->is_paused () || v->get_secs_remaining () > 0.5))
+                                   && v->get_secs_remaining () > 0.1)
                                 {
                                     if (track.seek_to > 0)
                                         {
@@ -121,7 +119,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         }
 
                                     std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (100));
+                                        std::chrono::milliseconds (30));
                                 }
 
                             // eof
