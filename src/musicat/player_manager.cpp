@@ -171,6 +171,7 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
             // {
             //     std::lock_guard<std::mutex> lk(guild_player->q_m);
             //     auto& track = guild_player->queue.at(0);
+            //     auto& track = guild_player->current_track;
             //     if (track.user_id != user_id && track.user_id !=
             //     this->sha_id)
             //     {
@@ -350,6 +351,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                             this->stop_queue_cv.notify_all ();
                             sq = vector_find (&this->stop_queue, server_id);
                         }
+                    auto guild_player = this->get_player(server_id);
+                    guild_player->current_track = MCTrack();
                 }
 
             if (v && !v->terminating)

@@ -135,6 +135,12 @@ class Player
      */
     std::deque<MCTrack> queue;
 
+    /**
+     * @brief Current track stream
+     *
+     */
+    MCTrack current_track;
+
     bool stopped;
 
     /**

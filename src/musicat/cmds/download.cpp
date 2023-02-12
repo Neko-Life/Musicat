@@ -148,10 +148,11 @@ slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr pl
             if (debug) printf("[download::slash_run] Locked player::t_mutex: %ld\n", guild_player->guild_id);
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (guild_player->queue.size ()
+                && !guild_player->current_track.raw.is_null ()
                 && conn && conn->voiceclient
                 && conn->voiceclient->is_playing ()) // if there's currently playing track
                 {
-                    auto& track = guild_player->queue.front ();
+                    auto& track = guild_player->current_track;
                     fname = play::get_filename_from_result (track);
                     fullpath = get_music_folder_path () + fname;
                 }

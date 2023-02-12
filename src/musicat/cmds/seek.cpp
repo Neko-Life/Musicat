@@ -118,14 +118,14 @@ slash_run (const dpp::interaction_create_t &event,
 
     auto player = player_manager->get_player (event.command.guild_id);
 
-    if (!player || !player->queue.size ())
+    if (!player || player->current_track.raw.is_null () || !player->queue.size ())
         {
             event.reply ("Not playing anything");
             return;
         }
 
     // !TODO: probably add a mutex for safety just in case?
-    player::MCTrack &track = player->queue.front ();
+    player::MCTrack &track = player->current_track;
     const uint64_t duration
         = track.info.raw.is_null () ? 0 : track.info.duration ();
 
