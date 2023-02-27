@@ -1,3 +1,4 @@
+#include "musicat/server.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
@@ -660,6 +661,13 @@ run (int argc, const char *argv[])
 
     nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);
+
+    // start server
+    std::thread server_thread([](){
+        server::run();
+    });
+
+    server_thread.detach();
 
     time_t last_gc;
     time_t last_recon;
