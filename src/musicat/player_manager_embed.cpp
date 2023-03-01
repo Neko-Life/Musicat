@@ -313,7 +313,7 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
         {
             auto con = guild_player->from->get_voice (guild_id);
             if (con && con->voiceclient)
-                if (con->voiceclient->get_secs_remaining () > 0.1)
+                if (con->voiceclient->get_secs_remaining () > 0.05f)
                     {
                         has_p = true;
                         if (ft.length ())

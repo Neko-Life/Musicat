@@ -213,31 +213,15 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
         {
             throw exception ("You're not in a voice channel", 1);
         }
-    auto siz = guild_player->queue.size ();
-    if (amount < (siz || 1))
-        amount = siz || 1;
-    if (amount > 1000)
-        amount = 1000;
-    const bool l_s = guild_player->loop_mode == loop_mode_t::l_song_queue;
-    const bool l_q = guild_player->loop_mode == loop_mode_t::l_queue;
-    {
-        for (int64_t i = (guild_player->loop_mode == loop_mode_t::l_song || l_s) ? 0 : 1;
-             i < amount; i++)
-            {
-                if (guild_player->queue.begin () == guild_player->queue.end ())
-                    break;
-                auto l = guild_player->queue.front ();
-                guild_player->queue.pop_front ();
-                if (!remove && (l_s || l_q))
-                    guild_player->queue.push_back (l);
-            }
-    }
-    if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.1)
+
+    guild_player->skip_queue (amount, remove);
+
+    if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
         this->stop_stream (guild_id);
 
     int a = guild_player->skip (v);
 
-    if (v && v->voiceclient && remove)
+    if (remove && !guild_player->stopped && v && v->voiceclient)
         v->voiceclient->insert_marker ("rm");
 
     if (debug) printf("[Manager::skip] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
@@ -337,26 +321,12 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                         }
                 }
 
-            if (server_id)
-                {
-                    std::lock_guard<std::mutex> lk (this->sq_m);
-
-                    auto sq = vector_find (&this->stop_queue, server_id);
-                    while (sq != this->stop_queue.end ())
-                        {
-                            if (debug)
-                                printf ("[MANAGER::STREAM] Stopped because "
-                                        "stop query, cleaning up query: %ld\n", server_id);
-                            this->stop_queue.erase (sq);
-                            this->stop_queue_cv.notify_all ();
-                            sq = vector_find (&this->stop_queue, server_id);
-                        }
-                    auto guild_player = this->get_player(server_id);
-                    guild_player->current_track = MCTrack();
-                }
+            track.stopping = false;
 
             if (v && !v->terminating)
-                v->insert_marker ("e");
+                {
+                    v->insert_marker ("e");
+                }
             else
                 {
                     try

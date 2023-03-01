@@ -162,7 +162,7 @@ slash_run (const dpp::interaction_create_t &event,
                             "to %ld\n",
                             guild_id, vcuser.first->id);
                     if (v && v->voiceclient
-                        && v->voiceclient->get_secs_remaining () > 0.1)
+                        && v->voiceclient->get_secs_remaining () > 0.05f)
                         {
                             if (!v->voiceclient->terminating)
                                 {
@@ -506,7 +506,7 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 
                 if ((!v->voiceclient->is_paused ()
                      && !v->voiceclient->is_playing ())
-                    || v->voiceclient->get_secs_remaining () < 0.1)
+                    || v->voiceclient->get_secs_remaining () < 0.05f)
 
                     v->voiceclient->insert_marker ("s");
         }

@@ -11,12 +11,14 @@ using string = std::string;
 MCTrack::MCTrack () {
     seekable = false;
     seek_to = 0;
+    stopping = false;
     filesize = 0;
 }
 
 MCTrack::MCTrack (YTrack t) {
     seekable = false;
     seek_to = 0;
+    stopping = false;
     filesize = 0;
     this->raw = t.raw;
 }
@@ -122,16 +124,62 @@ Player::set_max_history_size (size_t siz)
 }
 
 int
-Player::skip (dpp::voiceconn *v) const
+Player::skip (dpp::voiceconn *v)
 {
-    if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.1)
+    if (v && v->voiceclient)
         {
-            v->voiceclient->pause_audio (false);
-            v->voiceclient->skip_to_next_marker ();
-            return 0;
+            /* const bool debug = get_debug_state (); */
+
+            bool skipped = false;
+            if (v->voiceclient->get_secs_remaining () > 0.05f)
+                {
+                    v->voiceclient->pause_audio (false);
+                    v->voiceclient->skip_to_next_marker ();
+
+                    skipped = true;
+                }
+
+            if (this->is_stopped ())
+                {
+                    v->voiceclient->skip_to_next_marker ();
+                    v->voiceclient->pause_audio (false);
+                    this->skip_queue (1, false, true);
+                    skipped = true;
+                }
+
+            if (skipped)
+                return 0;
         }
-    else
-        return -1;
+    
+    return -1;
+}
+
+int64_t
+Player::skip_queue (int64_t amount, bool remove, bool pop_current)
+{
+    auto siz = this->queue.size ();
+    if (amount < (siz || 1))
+        amount = siz || 1;
+    if (amount > 1000)
+        amount = 1000;
+
+    const bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
+    const bool l_q = this->loop_mode == loop_mode_t::l_queue;
+
+    int64_t removed = 0;
+    for (int64_t i = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s)) ? 0 : 1;
+         i < amount; i++)
+        {
+            if (this->queue.begin () == this->queue.end ())
+                break;
+            auto l = this->queue.front ();
+            this->queue.pop_front ();
+            removed++;
+            if (!remove && (l_s || l_q))
+                this->queue.push_back (l);
+        }
+
+    return removed;
 }
 
 Player &

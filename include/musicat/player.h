@@ -48,6 +48,9 @@ struct MCTrack : yt_search::YTrack
     // seek query, reset to 0 after seek performed.
     // byte offset
     int64_t seek_to;
+    // whether this track is in the process to stop
+    // its audio stream
+    bool stopping;
     size_t filesize;
 
     MCTrack ();
@@ -162,7 +165,17 @@ class Player
      * @param v
      * @return int 0 on success, > 0 on vote, -1 on failure
      */
-    int skip (dpp::voiceconn *v) const;
+    int skip (dpp::voiceconn *v);
+
+    /**
+     * @brief Skip track entries in the queue
+     * @param amount the amount of track to skip
+     * @param remove force remove regardless of loop setting
+     * @param pop_current force to include currently playing track
+     *                    (index 0)
+     * @return int64_t amount skipped
+     */
+    int64_t skip_queue (int64_t amount = 1, bool remove = false, bool pop_current = false);
 
     /**
      * @brief Set player auto play mode
@@ -226,10 +239,9 @@ class Manager
     // dc: disconnecting
     // ps: players
     // mp: manually_paused
-    // sq: stop_queue
     // imc: info_messages_cache
     // im: ignore_marker
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m, im_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;

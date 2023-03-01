@@ -78,19 +78,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     // stream loop
                     while (v && !v->terminating)
                         {
-                            debug = get_debug_state ();
+                            // stop
+                            if (track.stopping) break;
 
-                            {
-                                std::lock_guard<std::mutex> lk (this->sq_m);
-                                auto sq = vector_find (&this->stop_queue, server_id);
-                                if (sq != this->stop_queue.end ())
-                                    {
-                                        if (debug)
-                                            printf ("[MANAGER::STREAM] "
-                                                    "Stopping stream\n");
-                                        break;
-                                    }
-                            }
+                            debug = get_debug_state ();
 
                             static const constexpr long CHUNK_READ = BUFSIZ * 2;
 
@@ -103,7 +94,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         server_id, fsize, read_bytes, streamed_bytes);
 
                             while (v && !v->terminating
-                                   && v->get_secs_remaining () > 0.1)
+                                   && v->get_secs_remaining () > 0.05f)
                                 {
                                     if (track.seek_to > 0)
                                         {

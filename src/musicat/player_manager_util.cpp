@@ -149,12 +149,10 @@ Manager::voice_ready (dpp::snowflake guild_id, dpp::discord_client *from,
 void
 Manager::stop_stream (dpp::snowflake guild_id)
 {
-    {
-        std::lock_guard<std::mutex> lk (this->sq_m);
-        if (vector_find (&this->stop_queue, guild_id)
-            == this->stop_queue.end ())
-            this->stop_queue.push_back (guild_id);
-    }
+    auto guild_player = this->get_player (guild_id);
+    if (guild_player)
+        if (guild_player->current_track.filesize)
+            guild_player->current_track.stopping = true;
 }
 
 void

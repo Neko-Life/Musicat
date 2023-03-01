@@ -146,7 +146,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
         {
         }
 
-    if (event.voice_client && event.voice_client->get_secs_remaining () < 0.1)
+    if (event.voice_client && event.voice_client->get_secs_remaining () < 0.05f)
         {
             std::thread tj (
                 [this, shared_manager, &play_track,
@@ -273,7 +273,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                         if (!test.is_open ())
                             {
                                 if (v && !v->terminating)
-                                    v->insert_marker ("e");
+                                    {
+                                        this->remove_ignore_marker (guild_id);
+                                        v->insert_marker ("e");
+                                    }
                                 if (embed_perms)
                                     {
                                         dpp::message m;
@@ -409,7 +412,7 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
     auto l = event.voice_client->get_secs_remaining ();
     if (debug)
         printf ("TO INSERT %d::%f\n", i, l);
-    if (l < 0.1)
+    if (l < 0.05f)
         {
             event.voice_client->insert_marker ("r");
             if (debug)
@@ -432,7 +435,7 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 
             // Pause audio when no user listening in vc
             if (v->channel_id != event.state.channel_id
-                && v->voiceclient->get_secs_remaining () > 0.1
+                && v->voiceclient->get_secs_remaining () > 0.05f
                 && !v->voiceclient->is_paused ())
                 {
                     std::lock_guard<std::mutex> lk (this->mp_m);
@@ -484,7 +487,7 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             else
                 {
                     if (v->channel_id == event.state.channel_id
-                        && v->voiceclient->get_secs_remaining () > 0.1
+                        && v->voiceclient->get_secs_remaining () > 0.05f
                         && v->voiceclient->is_paused ())
                         {
                             std::lock_guard<std::mutex> lk (this->mp_m);
