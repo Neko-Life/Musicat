@@ -142,7 +142,6 @@ Player::skip (dpp::voiceconn *v)
             if (this->is_stopped ())
                 {
                     v->voiceclient->skip_to_next_marker ();
-                    v->voiceclient->pause_audio (false);
                     this->skip_queue (1, false, true);
                     skipped = true;
                 }

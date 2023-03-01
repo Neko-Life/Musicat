@@ -214,7 +214,7 @@ slash_run (const dpp::interaction_create_t &event,
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (v && v->voiceclient && guild_player->queue.size ()
                 && !v->voiceclient->is_paused ()
-                && !v->voiceclient->is_playing ())
+                && v->voiceclient->get_secs_remaining () < 0.05f)
                 {
                     v->voiceclient->insert_marker ("c");
                     continued = true;
