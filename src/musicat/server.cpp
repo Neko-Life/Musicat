@@ -53,14 +53,19 @@ run ()
           [] (auto *ws, std::string_view msg, uWS::OpCode code) {
               const bool debug = get_debug_state ();
 
-              std::string message = std::string ("`") + std::string (msg)
+              std::string message(msg);
+              std::string logmessage = std::string ("`") + message
                                     + "` " + std::to_string (code);
               if (debug)
                   {
                       fprintf (stderr, "[server MESSAGE] %s\n",
-                               message.c_str ());
+                               logmessage.c_str ());
                   }
-              ws->send (message);
+              if (message == "0")
+                {
+                    ws->send("1");
+                }
+              else ws->send (message);
           },
           [] (auto *ws) {
               const bool debug = get_debug_state ();
