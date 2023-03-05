@@ -53,19 +53,40 @@ run ()
           [] (auto *ws, std::string_view msg, uWS::OpCode code) {
               const bool debug = get_debug_state ();
 
-              std::string message(msg);
-              std::string logmessage = std::string ("`") + message
-                                    + "` " + std::to_string (code);
+              /* std::string message(msg); */
+              /* std::string logmessage = std::string ("`") + message */
+              /*                       + "` " + std::to_string (code); */
               if (debug)
                   {
-                      fprintf (stderr, "[server MESSAGE] %s\n",
-                               logmessage.c_str ());
+                      std::cerr << "[server MESSAGE] " << msg << '\n';
                   }
-              if (message == "0")
-                {
-                    ws->send("1");
-                }
-              else ws->send (message);
+              
+              if (!msg.length ()) return;
+
+              if (msg == "0")
+                  {
+                      ws->send ("1");
+                      return;
+                  }
+
+              nlohmann::json json_payload;
+              bool is_json = true;
+
+              try
+                  {
+                      json_payload = nlohmann::json::parse (msg);
+                  }
+              catch (...)
+                  {
+                      is_json = false;
+                  }
+
+              if (is_json)
+                  {
+                      // !TODO: do smt
+                      return;
+                  }
+              /* else ws->send (message); */
           },
           [] (auto *ws) {
               const bool debug = get_debug_state ();
