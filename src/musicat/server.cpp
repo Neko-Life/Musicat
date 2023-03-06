@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/server.h"
+#include <chrono>
 #include <stdio.h>
 #include <uWebSockets/App.h>
 
@@ -9,10 +10,153 @@ namespace musicat
 {
 namespace server
 {
+// SSLApp would be <true, true>
+// update accordingly
+using MCWsApp =  uWS::WebSocket<false, true>;
+
 bool running = false;
 /*
 uWS::App *app_ptr = nullptr;
 */
+
+std::deque<std::string> _nonces = {};
+
+void
+_log_err (MCWsApp *ws, const char *format, ...)
+{
+    fprintf (stderr, "[server ERROR] ws %lu vvvvvvvvvvv\n", (uintptr_t)ws);
+
+    va_list argptr;
+    va_start(argptr, format);
+    vfprintf(stderr, format, argptr);
+    va_end(argptr);
+
+    fprintf (stderr, "[server ERROR] ws %lu ^^^^^^^^^^^\n", (uintptr_t)ws);
+}
+
+size_t
+_remove_nonce (const std::string &nonce);
+
+std::string
+_generate_nonce ()
+{
+    std::string nonce = std::to_string (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now ().time_since_epoch ()).count ());
+    _nonces.push_back (nonce);
+
+    std::thread t([nonce](){
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+        _remove_nonce(nonce);
+    });
+    t.detach();
+
+    return nonce;
+}
+
+size_t
+_remove_nonce (const std::string &nonce)
+{
+    size_t idx = -1;
+    size_t count = 0;
+    for (auto i = _nonces.begin(); i != _nonces.end();)
+        {
+            if (*i == nonce)
+                {
+                    _nonces.erase(i);
+                    idx = count;
+                    break;
+                }
+            else
+                {
+                    i++;
+                    count++;
+                }
+        }
+
+    return idx;
+}
+
+void
+_request (MCWsApp *ws, nlohmann::json &reqd)
+{
+    nlohmann::json request;
+    request["type"] = "req";
+    request["d"] = reqd;
+    request["nonce"] = _generate_nonce();
+    ws->send(request.dump());
+}
+
+void
+_response (MCWsApp *ws, const std::string &nonce, nlohmann::json &resd)
+{
+    nlohmann::json response;
+    response["type"] = "res";
+    response["nonce"] = nonce;
+    response["d"] = resd;
+    ws->send(response.dump());
+}
+
+void
+_handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
+{
+    if (!nonce.length())
+        {
+            _log_err (ws, "[server ERROR] Invalid nonce\n");
+            return;
+        }
+    const bool debug = get_debug_state ();
+
+    if (debug)
+        {
+            fprintf (stderr, "[server _handle_req] d:\n%s\n", d.dump (). c_str ());
+        }
+
+    nlohmann::json resd;
+
+    if (d.is_string ())
+        {
+            const std::string req = d.get<std::string>();
+
+            if (req == "bot_info")
+                {
+                    auto bot = get_client_ptr ();
+                    if (!bot)
+                        {
+                            resd["error"] = true;
+                            resd["message"] = "bot not running";
+                        }
+                    else
+                        {
+                            resd = "here's the data";
+                        }
+
+                }
+        }
+
+    _response(ws, nonce, resd);
+}
+
+void
+_handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
+{
+    if (_remove_nonce(nonce) < 0) {
+      _log_err (ws, "[server ERROR] _handle_res: timed out\n");
+      return;
+    }
+
+    const bool debug = get_debug_state ();
+
+    if (debug)
+        {
+            fprintf (stderr, "[server _handle_res] %s\n", nonce.c_str());
+            fprintf (stderr, "%s\n", d.dump().c_str());
+        }
+
+    /* if (d.is_string ()) */
+        {
+            /* const std::string res */
+        }
+}
+
 bool
 get_running_state ()
 {
@@ -30,7 +174,7 @@ run ()
 {
     if (running)
         {
-            fprintf (stderr, "[server] Instance already running!\n");
+            fprintf (stderr, "[server ERROR] Instance already running!\n");
             return 1;
         }
 
@@ -83,9 +227,44 @@ run ()
 
               if (is_json)
                   {
+                      if (!json_payload.is_object ())
+                          {
+                              _log_err (ws, "[server ERROR] Payload is not an object\n");
+                              return;
+                          }
+
+                      if (json_payload["type"].is_string())
+                          {
+                              nlohmann::json d = json_payload["d"];
+
+                              if (d.is_null ())
+                                  {
+                                      _log_err (ws, "[server ERROR] d is null\n");
+                                      return;
+                                  }
+
+                              const std::string payload_type = json_payload.value("type", "");
+                              const std::string nonce = json_payload.value("nonce", "");
+
+                              // else if train, no return anywere yet vvvvvvvvvvvvvvvvvv
+                              if (payload_type == "req")
+                                  {
+                                      _handle_req (ws, nonce, d);
+                                  }
+                              else if (payload_type == "res")
+                                  {
+                                      _handle_res (ws, nonce, d);
+                                  }
+                              else
+                                  {
+                                      _log_err (ws, "[server ERROR] Unknown payload type: %s\n", payload_type.c_str ());
+                                  }
+                              // else if train, no return anywere yet ^^^^^^^^^^^^^^^^^^
+                          } // if json.type is string
+
                       // !TODO: do smt
                       return;
-                  }
+                  } // if is_json
               /* else ws->send (message); */
           },
           [] (auto *ws) {
