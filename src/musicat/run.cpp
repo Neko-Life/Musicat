@@ -118,6 +118,12 @@ get_music_folder_path ()
     return get_config_value<std::string> ("MUSIC_FOLDER", "");
 }
 
+std::string
+get_bot_description ()
+{
+    return get_config_value<std::string> ("DESCRIPTION", "");
+}
+
 void
 on_sigint (int code)
 {

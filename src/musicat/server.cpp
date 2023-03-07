@@ -6,6 +6,8 @@
 
 #define PORT 9001
 
+#define BOT_AVATAR_SIZE 128
+
 namespace musicat
 {
 namespace server
@@ -100,6 +102,13 @@ _response (MCWsApp *ws, const std::string &nonce, nlohmann::json &resd)
 }
 
 void
+_set_resd_error (nlohmann::json &resd, const std::string &message)
+{
+    resd["error"] = true;
+    resd["message"] = message;
+}
+
+void
 _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
 {
     if (nonce.length () != 16)
@@ -126,12 +135,13 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                     auto bot = get_client_ptr ();
                     if (!bot)
                         {
-                            resd["error"] = true;
-                            resd["message"] = "bot not running";
+                            _set_resd_error (resd, "Bot not running");
                         }
                     else
                         {
-                            resd = "here's the data";
+                            resd["avatarUrl"] = bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp);
+                            resd["username"] = bot->me.username;
+                            resd["description"] = get_bot_description ();
                         }
                 }
         }
