@@ -75,6 +75,14 @@ std::string
 get_music_folder_path ();
 
 /**
+ * @brief Get bot description
+ *
+ * @return std::string
+ */
+std::string
+get_bot_description ();
+
+/**
  * @brief Search _find inside _vec
  *
  * @param _vec

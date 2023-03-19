@@ -30,7 +30,7 @@ handle_option (int64_t &qarg,
                 auto siz = queue.size ();
                 if (siz < 2)
                     {
-                        event.reply ("No track to clear, skip the current "
+                        event.edit_response ("No track to clear, skip the current "
                                      "track to clear the queue completely");
                         break;
                     }
@@ -43,7 +43,7 @@ handle_option (int64_t &qarg,
 
                 player_manager->update_info_embed (event.command.guild_id);
 
-                event.reply ("Cleared");
+                event.edit_response ("Cleared");
 
                 break;
             }
@@ -51,7 +51,7 @@ handle_option (int64_t &qarg,
             {
                 if (player_manager->shuffle_queue (event.command.guild_id))
                     {
-                        event.reply (
+                        event.edit_response (
                             "Shuffled"
                             + std::string (queue.size () < 5
                                                ? ", I suggest the `/move` "
@@ -63,7 +63,7 @@ handle_option (int64_t &qarg,
                     }
                 else
                     {
-                        event.reply ("Doesn't seem like shuffleable");
+                        event.edit_response ("Doesn't seem like shuffleable");
                         break;
                     }
             }
@@ -72,7 +72,7 @@ handle_option (int64_t &qarg,
                 auto siz = queue.size ();
                 if (siz < 3)
                     {
-                        event.reply ("Reversed. Not that you can tell "
+                        event.edit_response ("Reversed. Not that you can tell "
                                      "the difference");
                         break;
                     }
@@ -89,7 +89,7 @@ handle_option (int64_t &qarg,
                 }
                 player_manager->update_info_embed (event.command.guild_id);
 
-                event.reply ("Reversed");
+                event.edit_response ("Reversed");
 
                 break;
             }
@@ -102,7 +102,7 @@ handle_option (int64_t &qarg,
                                                   event.from,
                                                   event.command.usr.id))
                     {
-                        event.reply (
+                        event.edit_response (
                             "Establishing connection. Please wait...");
                         break;
                     }
@@ -156,19 +156,19 @@ handle_option (int64_t &qarg,
                     }
                 catch (...)
                     {
-                        event.reply ("`[ERROR]` Can't get current "
+                        event.edit_response ("`[ERROR]` Can't get current "
                                      "voice connection");
                         break;
                     }
                 size_t usiz = l_user.size ();
                 if (!usiz)
                     {
-                        event.reply ("No user left this session yet");
+                        event.edit_response ("No user left this session yet");
                         break;
                     }
                 player_manager->update_info_embed (event.command.guild_id);
 
-                event.reply (std::to_string (usiz) + " user"
+                event.edit_response (std::to_string (usiz) + " user"
                              + std::string (usiz > 1 ? "s" : "")
                              + " left this session. Removed "
                              + std::to_string (rmed) + " track"
@@ -181,14 +181,14 @@ handle_option (int64_t &qarg,
                 const size_t rmed
                     = guild_player->remove_track_by_user (sha_id);
 
-                event.reply (std::string ("Removed ") + std::to_string (rmed)
+                event.edit_response (std::string ("Removed ") + std::to_string (rmed)
                              + " track" + std::string (rmed > 1 ? "s" : "")
                              + " from queue");
 
                 break;
             }
         default:
-            event.reply ("Option not yet supported and is still in "
+            event.edit_response ("Option not yet supported and is still in "
                          "development");
         }
     if (debug) printf("[queue::handle_option] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
@@ -221,6 +221,9 @@ slash_run (const dpp::interaction_create_t &event,
            player::player_manager_ptr player_manager)
 {
     const dpp::snowflake sha_id = event.from->creator->me.id;
+
+    // avoid getting timed out when loading large queue
+    event.thinking ();
     player_manager->load_guild_current_queue (event.command.guild_id, &sha_id);
 
     std::deque<player::MCTrack> queue
@@ -238,7 +241,7 @@ slash_run (const dpp::interaction_create_t &event,
     if (qarg > -1)
         return handle_option(qarg, event, player_manager, queue, sha_id);
 
-    paginate::reply_paginated_playlist (event, queue);
+    paginate::reply_paginated_playlist (event, queue, "Queue", true);
 }
 } // queue
 } // command
