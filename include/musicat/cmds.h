@@ -16,27 +16,27 @@ namespace hello
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event);
-}
+} // hello
 
 namespace invite
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event);
-}
+} // invite
 
 namespace pause
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // pause
 
 namespace skip
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // skip
 
 namespace play
 {
@@ -107,14 +107,14 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
  */
 void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
                   const bool &continued);
-}
+} // play
 
 namespace loop
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // loop
 
 namespace queue
 {
@@ -135,40 +135,34 @@ enum queue_modify_t : int8_t
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // queue
 
 namespace autoplay
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // autoplay
 
 namespace move
 {
-namespace autocomplete
-{
-void track (const dpp::autocomplete_t &event, std::string param,
-            player::player_manager_ptr player_manager, dpp::cluster &client);
-}
-
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // move
 
 namespace remove
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // remove
 
 namespace bubble_wrap
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event);
-}
+} // bubble_wrap
 
 namespace search
 {
@@ -179,7 +173,7 @@ dpp::interaction_modal_response modal_enqueue_searched_track_top ();
 dpp::interaction_modal_response modal_enqueue_searched_track_slip ();
 
 void slash_run (const dpp::interaction_create_t &event);
-}
+} // search
 
 namespace playlist
 {
@@ -218,7 +212,7 @@ void slash_run (const dpp::interaction_create_t &event);
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // playlist
 
 // OMGGG THEY WON'T STOP ASKING ME TO MAKE THIS OMIGOD, am making this for
 // friends, don't take it the other way around!
@@ -227,7 +221,7 @@ namespace stop
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // stop
 
 namespace interactive_message
 {
@@ -239,21 +233,21 @@ void slash_run (const dpp::interaction_create_t &event);
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event);
-}
+} // interactive_message
 
 namespace join
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // join
 
 namespace leave
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event,
                 player::player_manager_ptr player_manager);
-}
+} // leave
 
 namespace download
 {
@@ -265,7 +259,25 @@ void track (const dpp::autocomplete_t &event, std::string param,
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr player_manager);
+} // download
+
+namespace image
+{
+namespace autocomplete
+{
+void type (const dpp::autocomplete_t &event, std::string param);
 }
+
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::interaction_create_t &event);
+} // image
+
+namespace seek
+{
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::interaction_create_t &event,
+                player::player_manager_ptr player_manager);
+} // seek
 
 } // command
 } // musicat

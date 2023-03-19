@@ -1,5 +1,6 @@
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
+#include "musicat/util.h"
 #include "musicat/musicat.h"
 #include "musicat/yt-playlist.h"
 #include "musicat/yt-search.h"
@@ -35,11 +36,7 @@ query (const dpp::autocomplete_t &event, std::string param,
 
     if (get_debug_state ())
         {
-            printf ("[play::autocomplete::query] results:\n");
-            for (size_t i = 0; i < avail.size (); i++)
-                {
-                    printf ("%ld: %s\n", i, avail.at (i).first.c_str ());
-                }
+            util::print_autocomplete_results(avail, "play::autocomplete::query");
         }
 
     musicat::autocomplete::create_response (avail, event);
@@ -165,7 +162,7 @@ slash_run (const dpp::interaction_create_t &event,
                             "to %ld\n",
                             guild_id, vcuser.first->id);
                     if (v && v->voiceclient
-                        && v->voiceclient->get_secs_remaining () > 0.1)
+                        && v->voiceclient->get_secs_remaining () > 0.05f)
                         {
                             if (!v->voiceclient->terminating)
                                 {
@@ -208,18 +205,21 @@ slash_run (const dpp::interaction_create_t &event,
                 }
         }
 
-    auto op = player_manager->get_player (event.command.guild_id);
+    auto guild_player = player_manager->get_player (event.command.guild_id);
     bool continued = false;
-    if (op)
+    if (guild_player)
         {
-            std::lock_guard<std::mutex> lk (op->q_m);
-            if (v && v->voiceclient && op->queue.size ()
+            const bool debug = get_debug_state();
+            if (debug) printf("[play::slash_run] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            if (v && v->voiceclient && guild_player->queue.size ()
                 && !v->voiceclient->is_paused ()
-                && !v->voiceclient->is_playing ())
+                && v->voiceclient->get_secs_remaining () < 0.05f)
                 {
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
+            if (debug) printf("[play::slash_run] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
         }
 
     if (resumed)
@@ -267,17 +267,25 @@ find_track(
         result = searches.front ();
     else if (!no_check_history)
         {
-            auto p = player_manager->get_player (guild_id);
-            if (!p)
+            auto guild_player = player_manager->get_player (guild_id);
+            if (!guild_player)
                 return {{}, 1};
-            std::lock_guard<std::mutex> lk (p->q_m);
-            if (p->queue.begin () == p->queue.end ())
-                return {{}, 1};
+
+            const bool debug = get_debug_state();
+            if (debug) printf("[play::find_track] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            if (guild_player->queue.begin () == guild_player->queue.end ())
+                {
+                    if (debug) printf("[play::find_track] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+                    return {{}, 1};
+                }
+
             for (auto i : searches)
                 {
                     auto iid = i.id ();
                     bool br = false;
-                    for (auto &a : p->queue)
+                    for (auto &a : guild_player->queue)
                         {
                             if (a.id () == iid)
                                 {
@@ -285,11 +293,11 @@ find_track(
                                     break;
                                 }
                         }
+
                     if (!br)
                         {
-                            std::lock_guard<std::mutex> lk (p->h_m);
-                            if (p->history.size ())
-                                for (const auto &a : p->history)
+                            if (guild_player->history.size ())
+                                for (const auto &a : guild_player->history)
                                     {
                                         if (a == iid)
                                             {
@@ -298,14 +306,18 @@ find_track(
                                             }
                                     }
                         }
+
                     if (br)
                         continue;
                     result = i;
                     break;
                 }
+
+            if (debug) printf("[play::find_track] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
             if (result.raw.is_null ())
                 return {{}, 1};
         }
+
     return {result, 0};
 }
 
@@ -432,8 +444,7 @@ add_track (bool playlist,
 
     std::thread dlt (
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-         guild_id, from, continued, arg_slip] (const dpp::interaction_create_t event,
-                                     yt_search::YTrack result) {
+         guild_id, from, continued, arg_slip, event] (yt_search::YTrack result) {
             dpp::snowflake user_id
                 = from_interaction ? event.command.usr.id : sha_id;
             auto p = player_manager->create_player (guild_id);
@@ -461,7 +472,7 @@ add_track (bool playlist,
 
             decide_play (from, guild_id, continued);
         },
-        event, result);
+        result);
     dlt.detach ();
 }
 
@@ -494,7 +505,7 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 
                 if ((!v->voiceclient->is_paused ()
                      && !v->voiceclient->is_playing ())
-                    || v->voiceclient->get_secs_remaining () < 0.1)
+                    || v->voiceclient->get_secs_remaining () < 0.05f)
 
                     v->voiceclient->insert_marker ("s");
         }

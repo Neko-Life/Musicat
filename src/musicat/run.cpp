@@ -1,3 +1,4 @@
+#include "musicat/server.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
@@ -6,6 +7,7 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/storage.h"
 #include "nlohmann/json.hpp"
+#include "nekos-best++.hpp"
 #include <any>
 #include <chrono>
 #include <cstdlib>
@@ -30,6 +32,37 @@ json sha_cfg;
 bool running = true;
 bool debug = false;
 std::mutex main_mutex;
+
+dpp::cluster *client_ptr = nullptr;
+dpp::snowflake sha_id = 0;
+std::shared_ptr<player::Manager> player_manager = nullptr;
+
+nekos_best::endpoint_map nekos_best_endpoints = {};
+
+dpp::cluster *
+get_client_ptr ()
+{
+    if (!get_running_state ()) return nullptr;
+    return client_ptr;
+}
+
+dpp::snowflake
+get_sha_id ()
+{
+    return sha_id;
+}
+
+player::player_manager_ptr
+get_player_manager_ptr ()
+{
+    return player_manager;
+}
+
+nekos_best::endpoint_map
+get_cached_nekos_best_endpoints ()
+{
+    return nekos_best_endpoints;
+}
 
 int
 load_config ()
@@ -85,6 +118,12 @@ get_music_folder_path ()
     return get_config_value<std::string> ("MUSIC_FOLDER", "");
 }
 
+std::string
+get_bot_description ()
+{
+    return get_config_value<std::string> ("DESCRIPTION", "");
+}
+
 void
 on_sigint (int code)
 {
@@ -119,7 +158,9 @@ run (int argc, const char *argv[])
     dpp::cluster client (sha_token,
                          dpp::i_guild_members | dpp::i_default_intents);
 
-    dpp::snowflake sha_id (get_config_value<int64_t>("SHA_ID", 0));
+    client_ptr = &client;
+
+    dpp::snowflake sha_id = get_config_value<int64_t>("SHA_ID", 0);
     if (!sha_id)
     {
         fprintf(stderr, "[ERROR] No id provided\n");
@@ -158,7 +199,7 @@ run (int argc, const char *argv[])
             }
     }
 
-    std::shared_ptr<player::Manager> player_manager
+    player_manager
         = std::make_shared<player::Manager> (&client, sha_id);
 
     std::function<void (const dpp::log_t &)> dpp_on_log_handler
@@ -240,7 +281,7 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_form_submit ([&player_manager] (const dpp::form_submit_t &event) {
+    client.on_form_submit ([] (const dpp::form_submit_t &event) {
         if (get_debug_state ())
             printf ("[FORM] %s %ld\n", event.custom_id.c_str (),
                     event.command.message_id);
@@ -365,7 +406,7 @@ run (int argc, const char *argv[])
                                     }
 
                                 std::thread dlt (
-                                    [comp, prepend_name, player_manager, dling,
+                                    [comp, prepend_name, dling,
                                      fname, guild_id, from, top, arg_slip,
                                      edit_response] (
                                         const dpp::interaction_create_t event,
@@ -409,7 +450,7 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_autocomplete ([&player_manager] (
+    client.on_autocomplete ([] (
                                 const dpp::autocomplete_t &event) {
         const string cmd = event.name;
         string opt = "";
@@ -474,10 +515,16 @@ run (int argc, const char *argv[])
                             command::download::autocomplete::track (
                                 event, param, player_manager);
                     }
+                else if (cmd == "image")
+                    {
+                        if (opt == "type")
+                            command::image::autocomplete::type (
+                                event, param);
+                    }
             }
     });
 
-    client.on_interaction_create ([&player_manager] (
+    client.on_interaction_create ([] (
                                       const dpp::interaction_create_t &event) {
         if (!event.command.guild_id)
             return;
@@ -495,7 +542,7 @@ run (int argc, const char *argv[])
         else if (cmd == "support")
             event.reply ("https://www.discord.gg/vpk2KyKHtu");
         else if (cmd == "repo")
-            event.reply ("https://github.com/Neko-Lelse ife/Musicat");
+            event.reply ("https://github.com/Neko-Life/Musicat");
         else if (cmd == "pause")
             command::pause::slash_run (event, player_manager);
         else if (cmd == "skip")
@@ -530,6 +577,10 @@ run (int argc, const char *argv[])
             command::leave::slash_run (event, player_manager);
         else if (cmd == "download")
             command::download::slash_run (event, player_manager);
+        else if (cmd == "image")
+            command::image::slash_run (event);
+        else if (cmd == "seek")
+            command::seek::slash_run (event, player_manager);
 
         else
         {
@@ -539,16 +590,16 @@ run (int argc, const char *argv[])
     });
 
     client.on_voice_ready (
-        [&player_manager] (const dpp::voice_ready_t &event) {
+        [] (const dpp::voice_ready_t &event) {
             player_manager->handle_on_voice_ready (event);
         });
 
     client.on_voice_state_update (
-        [&player_manager] (const dpp::voice_state_update_t &event) {
+        [] (const dpp::voice_state_update_t &event) {
             player_manager->handle_on_voice_state_update (event);
         });
 
-    client.on_voice_track_marker ([&player_manager] (
+    client.on_voice_track_marker ([] (
                                       const dpp::voice_track_marker_t &event) {
         if (player_manager->has_ignore_marker (event.voice_client->server_id))
             {
@@ -568,7 +619,7 @@ run (int argc, const char *argv[])
                     event.voice_client->server_id);
             }
 
-        std::thread t ([player_manager, event] () {
+        std::thread t ([event] () {
             if (!event.voice_client)
                 return;
             short int count = 0;
@@ -601,20 +652,28 @@ run (int argc, const char *argv[])
     });
 
     client.on_message_delete (
-        [&player_manager] (const dpp::message_delete_t &event) {
+        [] (const dpp::message_delete_t &event) {
             player_manager->handle_on_message_delete (event);
             paginate::handle_on_message_delete (event);
         });
 
     client.on_message_delete_bulk (
-        [&player_manager] (const dpp::message_delete_bulk_t &event) {
+        [] (const dpp::message_delete_bulk_t &event) {
             player_manager->handle_on_message_delete_bulk (event);
             paginate::handle_on_message_delete_bulk (event);
         });
 
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
+    nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);
+
+    // start server
+    std::thread server_thread([](){
+        server::run();
+    });
+
+    server_thread.detach();
 
     time_t last_gc;
     time_t last_recon;

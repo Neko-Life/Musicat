@@ -7,6 +7,7 @@ namespace musicat
 {
 namespace player
 {
+// this section can't be anymore horrible than this....
 using string = std::string;
 
 bool
@@ -39,97 +40,129 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                 printf ("RETURN DISCONNECTING\n");
             return false;
         }
-    auto p = this->get_player (event.voice_client->server_id);
-    if (!p)
+    auto guild_player = this->get_player (event.voice_client->server_id);
+    if (!guild_player)
         {
             if (debug)
                 printf ("NO PLAYER\n");
             return false;
         }
 
+    if (debug)
+        printf (
+            "[Manager::handle_on_track_marker] Locked player::t_mutex: %ld\n",
+            guild_player->guild_id);
+    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+
     bool just_loaded_queue = false;
-    if (p->saved_queue_loaded != true)
+    if (guild_player->saved_queue_loaded != true)
         {
             this->load_guild_current_queue (event.voice_client->server_id,
                                             &sha_id);
             just_loaded_queue = true;
         }
-    if (p->saved_config_loaded != true)
+    if (guild_player->saved_config_loaded != true)
         this->load_guild_player_config (event.voice_client->server_id);
 
-    MCTrack s;
-    {
+    if (guild_player->queue.size () == 0)
         {
-            std::lock_guard<std::mutex> lk (p->q_m);
-            if (p->queue.size () == 0)
+            if (debug)
                 {
-                    if (debug)
-                        printf ("NO SIZE BEFORE: %d\n", p->loop_mode);
-                    return false;
+                    printf ("NO SIZE BEFORE: %d\n", guild_player->loop_mode);
+                    printf ("[Manager::handle_on_track_marker] Should unlock "
+                            "player::t_mutex: %ld\n",
+                            guild_player->guild_id);
                 }
+            return false;
         }
 
-        // Handle shifted tracks (tracks shifted to the front of the queue)
-        if (debug)
-            printf ("Resetting shifted: %d\n", p->reset_shifted ());
-        std::lock_guard<std::mutex> lk (p->q_m);
+    // Handle shifted tracks (tracks shifted to the front of the queue)
+    if (debug)
+        printf ("Resetting shifted: %d\n", guild_player->reset_shifted ());
 
-        // Do stuff according to loop mode when playback ends
-        if (event.track_meta == "e" && !p->is_stopped ())
-            {
-                if (p->loop_mode == loop_mode_t::l_none)
-                    p->queue.pop_front ();
-                else if (p->loop_mode == loop_mode_t::l_queue)
-                    {
-                        auto l = p->queue.front ();
-                        p->queue.pop_front ();
-                        p->queue.push_back (l);
-                    }
-            }
-        else if (event.track_meta == "rm")
-            {
-                p->queue.pop_front ();
-                return false;
-            }
+    // Do stuff according to loop mode when playback ends
+    if (event.track_meta == "e" && !guild_player->is_stopped ())
+        {
+            if (guild_player->loop_mode == loop_mode_t::l_none)
+                guild_player->queue.pop_front ();
+            else if (guild_player->loop_mode == loop_mode_t::l_queue)
+                {
+                    auto l = guild_player->queue.front ();
+                    guild_player->queue.pop_front ();
+                    guild_player->queue.push_back (l);
+                }
+        }
+    else if (event.track_meta == "rm")
+        {
+            guild_player->queue.pop_front ();
+            if (debug)
+                printf ("[Manager::handle_on_track_marker] Should unlock "
+                        "player::t_mutex: %ld\n",
+                        guild_player->guild_id);
+            return false;
+        }
 
-        if (p->queue.size () == 0)
-            {
-                if (debug)
-                    printf ("NO SIZE AFTER: %d\n", p->loop_mode);
-                if (!just_loaded_queue)
-                    database::delete_guild_current_queue (
-                        event.voice_client->server_id);
-                return false;
-            }
+    if (guild_player->queue.size () == 0)
+        {
+            if (debug)
+                {
+                    printf ("NO SIZE AFTER: %d\n", guild_player->loop_mode);
+                    printf ("[Manager::handle_on_track_marker] Should unlock "
+                            "player::t_mutex: %ld\n",
+                            guild_player->guild_id);
+                }
+            if (!just_loaded_queue)
+                database::delete_guild_current_queue (
+                    event.voice_client->server_id);
+            return false;
+        }
 
-        p->queue.front ().skip_vote.clear ();
-        s = p->queue.front ();
-        p->set_stopped (false);
-        if (!just_loaded_queue)
-            database::update_guild_current_queue (
-                event.voice_client->server_id, p->queue);
-    }
+    guild_player->current_track = guild_player->queue.front ();
+    MCTrack &play_track = guild_player->current_track;
+    play_track.skip_vote.clear ();
+    play_track.seekable = false;
+    play_track.seek_to = 0;
+
+    guild_player->set_stopped (false);
+
+    if (!just_loaded_queue)
+        database::update_guild_current_queue (event.voice_client->server_id,
+                                              guild_player->queue);
 
     try
         {
             auto c = get_voice_from_gid (event.voice_client->server_id,
                                          this->sha_id);
             if (!has_listener (&c.second))
-                return false;
+                {
+                    if (debug)
+                        printf ("[Manager::handle_on_track_marker] Should "
+                                "unlock player::t_mutex: %ld\n",
+                                guild_player->guild_id);
+                    return false;
+                }
         }
     catch (...)
         {
         }
 
-    if (event.voice_client && event.voice_client->get_secs_remaining () < 0.1)
+    if (event.voice_client && event.voice_client->get_secs_remaining () < 0.05f)
         {
             std::thread tj (
-                [this, shared_manager,
-                 debug] (dpp::discord_voice_client *v, MCTrack track,
-                         string meta, std::shared_ptr<Player> player) {
+                [this, shared_manager, &play_track,
+                 debug] (dpp::discord_voice_client *v,
+                         string meta, std::shared_ptr<Player> guild_player) {
+                    MCTrack &track = play_track;
+
                     bool timed_out = false;
                     auto guild_id = v->server_id;
-                    dpp::snowflake channel_id = player->channel_id;
+
+                    if (debug)
+                        printf ("[thread tj Manager::handle_on_track_marker] "
+                                "Locked player::t_mutex: %ld\n",
+                                guild_player->guild_id);
+                    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+                    dpp::snowflake channel_id = guild_player->channel_id;
                     // std::thread tmt([this](bool* _v) {
                     //     int _w = 30;
                     //     while (_v && *_v == false && _w > 0)
@@ -197,31 +230,33 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                     }
 
                     string id = track.id ();
-                    if (player->auto_play)
+                    if (guild_player->auto_play)
                         {
-                            if (debug)
-                                printf ("Getting new autoplay track: %s\n",
-                                        id.c_str ());
-                            command::play::add_track (
-                                true, v->server_id,
-                                string ("https://www.youtube.com/watch?v=")
-                                    + id + "&list=RD" + id,
-                                0, true, NULL, 0, this->sha_id, shared_manager,
-                                false, player->from);
+                            std::thread at_t ([debug, id, this, shared_manager,
+                                               guild_player, v] () {
+                                if (debug)
+                                    printf ("Getting new autoplay track: %s\n",
+                                            id.c_str ());
+
+                                command::play::add_track (
+                                    true, v->server_id,
+                                    string ("https://www.youtube.com/watch?v=")
+                                        + id + "&list=RD" + id,
+                                    0, true, NULL, 0, this->sha_id,
+                                    shared_manager, false, guild_player->from);
+                            });
+                            at_t.detach ();
                         }
 
-                    {
-                        std::lock_guard<std::mutex> lk (player->h_m);
-                        if (player->max_history_size)
-                            {
-                                player->history.push_back (id);
-                                while (player->history.size ()
-                                       > player->max_history_size)
-                                    {
-                                        player->history.pop_front ();
-                                    }
-                            }
-                    }
+                    if (guild_player->max_history_size)
+                        {
+                            guild_player->history.push_back (id);
+                            while (guild_player->history.size ()
+                                   > guild_player->max_history_size)
+                                {
+                                    guild_player->history.pop_front ();
+                                }
+                        }
 
                     auto c = dpp::find_channel (channel_id);
                     auto g = dpp::find_guild (guild_id);
@@ -238,7 +273,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                         if (!test.is_open ())
                             {
                                 if (v && !v->terminating)
-                                    v->insert_marker ("e");
+                                    {
+                                        this->remove_ignore_marker (guild_id);
+                                        v->insert_marker ("e");
+                                    }
                                 if (embed_perms)
                                     {
                                         dpp::message m;
@@ -251,34 +289,42 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                                           + ">)");
                                         this->cluster->message_create (m);
                                     }
+                                if (debug)
+                                    printf (
+                                        "[thread tj "
+                                        "Manager::handle_on_track_marker] "
+                                        "Should unlock player::t_mutex: %ld\n",
+                                        guild_player->guild_id);
                                 return;
                             }
                         else
                             test.close ();
                     }
-                    if (timed_out)
-                        throw exception ("Operation took too long, aborted...",
-                                         0);
+                    /* if (timed_out) */
+                    /*     throw exception ("Operation took too long,
+                     * aborted...", */
+                    /*                      0); */
                     if (meta == "r")
                         v->send_silence (60);
 
                     // Send play info embed
                     try
                         {
-                            this->play (v, track.filename, channel_id,
+                            this->play (v, track, channel_id,
                                         embed_perms);
                             if (embed_perms)
                                 {
-                                    // Update if last message is the info embed
-                                    // message
-                                    if (c && player->info_message
+                                    // Update if last message is the info
+                                    // embed message
+                                    if (c && guild_player->info_message
                                         && c->last_message_id
                                         && c->last_message_id
-                                               == player->info_message->id)
+                                               == guild_player->info_message
+                                                      ->id)
                                         {
-                                            if (player->loop_mode
+                                            if (guild_player->loop_mode
                                                     != loop_mode_t::l_song
-                                                && player->loop_mode
+                                                && guild_player->loop_mode
                                                        != loop_mode_t::
                                                            l_song_queue)
                                                 this->update_info_embed (
@@ -310,13 +356,29 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                         this->cluster->message_create (m);
                                     }
                         }
+
+                    if (debug)
+                        printf ("[thread tj Manager::handle_on_track_marker] "
+                                "Should unlock player::t_mutex: %ld\n",
+                                guild_player->guild_id);
                 },
-                event.voice_client, s, event.track_meta, p);
+                event.voice_client, event.track_meta,
+                guild_player);
+
             tj.detach ();
+            if (debug)
+                printf ("[Manager::handle_on_track_marker] Should unlock "
+                        "player::t_mutex: %ld\n",
+                        guild_player->guild_id);
             return true;
         }
-    else if (debug)
-        printf ("RETURN NO TRACK SIZE\n");
+    if (debug)
+        {
+            printf ("[Manager::handle_on_track_marker] Should unlock "
+                    "player::t_mutex: %ld\n",
+                    guild_player->guild_id);
+            printf ("RETURN NO TRACK SIZE\n");
+        }
     return false;
 }
 
@@ -350,7 +412,7 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
     auto l = event.voice_client->get_secs_remaining ();
     if (debug)
         printf ("TO INSERT %d::%f\n", i, l);
-    if (l < 0.1)
+    if (l < 0.05f)
         {
             event.voice_client->insert_marker ("r");
             if (debug)
@@ -373,7 +435,7 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 
             // Pause audio when no user listening in vc
             if (v->channel_id != event.state.channel_id
-                && v->voiceclient->get_secs_remaining () > 0.1
+                && v->voiceclient->get_secs_remaining () > 0.05f
                 && !v->voiceclient->is_paused ())
                 {
                     std::lock_guard<std::mutex> lk (this->mp_m);
@@ -425,7 +487,7 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             else
                 {
                     if (v->channel_id == event.state.channel_id
-                        && v->voiceclient->get_secs_remaining () > 0.1
+                        && v->voiceclient->get_secs_remaining () > 0.05f
                         && v->voiceclient->is_paused ())
                         {
                             std::lock_guard<std::mutex> lk (this->mp_m);

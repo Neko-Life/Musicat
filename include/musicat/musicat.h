@@ -2,6 +2,7 @@
 #define MUSICAT_H
 
 #include "musicat/player.h"
+#include "nekos-best++.hpp"
 #include <dpp/dpp.h>
 #include <stdexcept>
 #include <string>
@@ -72,6 +73,14 @@ get_config_value (const std::string &key, const T& default_value)
  */
 std::string
 get_music_folder_path ();
+
+/**
+ * @brief Get bot description
+ *
+ * @return std::string
+ */
+std::string
+get_bot_description ();
 
 /**
  * @brief Search _find inside _vec
@@ -207,6 +216,28 @@ int join_voice (dpp::discord_client *from,
                 player::player_manager_ptr player_manager,
                 const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
                 const dpp::snowflake &sha_id);
+
+nekos_best::endpoint_map
+get_cached_nekos_best_endpoints ();
+
+/**
+ * @brief Get client ptr, returns nullptr if program exiting
+ * probably should be careful in thread
+ */
+dpp::cluster *
+get_client_ptr ();
+
+/**
+ * @brief Get client id
+ */
+dpp::snowflake
+get_sha_id ();
+
+/**
+ * @brief Get player manager shared_ptr, won't be available in cli context
+ */
+player::player_manager_ptr
+get_player_manager_ptr ();
 
 }
 

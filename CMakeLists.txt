@@ -27,7 +27,9 @@ add_executable(Shasha
         include/musicat/yt-playlist.h
         include/musicat/yt-search.h
         include/musicat/yt-track-info.h
+        include/musicat/server.h
         include/nlohmann/json.hpp
+        include/nekos-best++.hpp
 
         # impl files
         src/musicat/autocomplete.cpp
@@ -50,6 +52,7 @@ add_executable(Shasha
         src/musicat/yt-playlist.cpp
         src/musicat/yt-search.cpp
         src/musicat/yt-track-info.cpp
+        src/musicat/server.cpp
         src/musicat/cmds/autoplay.cpp
         src/musicat/cmds/bubble_wrap.cpp
         src/musicat/cmds/download.cpp
@@ -67,6 +70,9 @@ add_executable(Shasha
         src/musicat/cmds/search.cpp
         src/musicat/cmds/skip.cpp
         src/musicat/cmds/stop.cpp
+        src/musicat/cmds/image.cpp
+        src/musicat/cmds/seek.cpp
+        src/nekos-bestpp/nekos-best++.cpp
         src/main.cpp)
 
  
@@ -81,6 +87,11 @@ target_link_libraries(Shasha
     icuuc
     icudata
     icuio
+    oggz
+    usockets
+    ssl
+    crypto
+    z
     # Add any other libs you want to use here
 )
  

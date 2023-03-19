@@ -11,6 +11,8 @@ Discord Music Bot written in C++
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
 * libopus - Library
+* liboggz - Library
+* libogg - Library
 * libcurl - Library
 * [curlpp](https://github.com/jpbarrette/curlpp) - Library
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library

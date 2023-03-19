@@ -1,0 +1,1 @@
+c++ oggz-example.cpp ../build/libs/DPP/library/libdpp.so -loggz

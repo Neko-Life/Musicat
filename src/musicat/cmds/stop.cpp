@@ -21,7 +21,7 @@ slash_run (const dpp::interaction_create_t &event,
     dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
 
     if (!p || !v || !v->voiceclient || !v->voiceclient->is_ready ()
-        || (v->voiceclient->get_secs_remaining () < 0.1f && p
+        || (v->voiceclient->get_secs_remaining () < 0.05f && p
             && p->queue.begin () == p->queue.end ()))
         {
             event.reply ("I'm not playing anything");
@@ -69,6 +69,6 @@ slash_run (const dpp::interaction_create_t &event,
 
     event.reply ("Stopped");
 }
-}
-}
-}
+} // stop
+} // command
+} // musicat

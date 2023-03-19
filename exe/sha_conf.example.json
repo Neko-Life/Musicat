@@ -4,5 +4,6 @@
     "SHA_DB": "dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat", // PostgreSQL connect configuration. See https://www.postgresql.org/docs/14/libpq-connect.html#LIBPQ-PARAMKEYWORDS
     "DEBUG": false, // Default debug mode state on boot
     "RUNTIME_CLI": true, // Whether to enable runtime cli, enter `help` in console when the bot is running
-    "MUSIC_FOLDER": "~/music/" // absolute path to music folder (must have trailing slash `/`)
+    "MUSIC_FOLDER": "~/music/", // absolute path to music folder (must have trailing slash `/`)
+    "DESCRIPTION": "My cool bot" // bot description
 }

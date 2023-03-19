@@ -27,6 +27,8 @@ get_all (dpp::snowflake sha_id)
         join::get_register_obj (sha_id),
         leave::get_register_obj (sha_id),
         download::get_register_obj (sha_id),
+        image::get_register_obj (sha_id),
+        seek::get_register_obj (sha_id),
     });
     return slash_commands;
 }

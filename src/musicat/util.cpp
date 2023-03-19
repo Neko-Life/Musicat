@@ -39,5 +39,16 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
         }
 }
 
+void
+print_autocomplete_results (const std::vector<std::pair<std::string, std::string>> &avail,
+                            const char *debug_fn)
+{
+    printf ("[%s] results:\n", debug_fn);
+    for (size_t i = 0; i < avail.size (); i++)
+        {
+            printf ("%ld: %s\n", i, avail.at (i).first.c_str ());
+        }
+}
+
 } // util
 } // musicat

@@ -44,6 +44,15 @@ struct MCTrack : yt_search::YTrack
 
     yt_search::audio_info_t info;
 
+    bool seekable;
+    // seek query, reset to 0 after seek performed.
+    // byte offset
+    int64_t seek_to;
+    // whether this track is in the process to stop
+    // its audio stream
+    bool stopping;
+    size_t filesize;
+
     MCTrack ();
     MCTrack (yt_search::YTrack t);
     ~MCTrack ();
@@ -129,18 +138,18 @@ class Player
      */
     std::deque<MCTrack> queue;
 
+    /**
+     * @brief Current track stream
+     *
+     */
+    MCTrack current_track;
+
     bool stopped;
 
     /**
-     * @brief Must use this whenever doing the appropriate action.
-     *
-     * q: queue,
-     * ch: channel_id,
-     * st: shifted_track,
-     * h: history,
-     * s: stopped
+     * @brief Thread safety mutex. Must lock this whenever doing the appropriate action.
      */
-    std::mutex skip_mutex, st_m, q_m, ch_m, h_m, s_m;
+    std::mutex t_mutex;
 
     Player ();
     Player (dpp::cluster *_cluster, dpp::snowflake _guild_id);
@@ -156,7 +165,17 @@ class Player
      * @param v
      * @return int 0 on success, > 0 on vote, -1 on failure
      */
-    int skip (dpp::voiceconn *v) const;
+    int skip (dpp::voiceconn *v);
+
+    /**
+     * @brief Skip track entries in the queue
+     * @param amount the amount of track to skip
+     * @param remove force remove regardless of loop setting
+     * @param pop_current force to include currently playing track
+     *                    (index 0)
+     * @return int64_t amount skipped
+     */
+    int64_t skip_queue (int64_t amount = 1, bool remove = false, bool pop_current = false);
 
     /**
      * @brief Set player auto play mode
@@ -220,10 +239,9 @@ class Manager
     // dc: disconnecting
     // ps: players
     // mp: manually_paused
-    // sq: stop_queue
     // imc: info_messages_cache
     // im: ignore_marker
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, sq_m, imc_m, im_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;
@@ -320,8 +338,8 @@ class Manager
     void download (std::string fname, std::string url,
                    dpp::snowflake guild_id);
     void wait_for_download (std::string file_name);
-    void stream (dpp::discord_voice_client *v, std::string fname);
-    void play (dpp::discord_voice_client *v, std::string fname,
+    void stream (dpp::discord_voice_client *v, player::MCTrack &track);
+    void play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id = 0, bool notify_error = false);
 
     /**
