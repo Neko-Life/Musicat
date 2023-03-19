@@ -444,8 +444,7 @@ add_track (bool playlist,
 
     std::thread dlt (
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-         guild_id, from, continued, arg_slip] (const dpp::interaction_create_t event,
-                                     yt_search::YTrack result) {
+         guild_id, from, continued, arg_slip, event] (yt_search::YTrack result) {
             dpp::snowflake user_id
                 = from_interaction ? event.command.usr.id : sha_id;
             auto p = player_manager->create_player (guild_id);
@@ -473,7 +472,7 @@ add_track (bool playlist,
 
             decide_play (from, guild_id, continued);
         },
-        event, result);
+        result);
     dlt.detach ();
 }
 
