@@ -52,6 +52,17 @@ cd libs
 git clone 'https://github.com/brainboxdotcc/DPP' -b dev
 cd ..
 ```
+* Clone uWebSockets repo into `libs/`, compile and install it
+```sh
+cd libs
+git clone 'https://github.com/uNetworking/uWebSockets' --recurse-submodules
+cd uWebSockets/uSockets
+git checkout master
+cd ..
+WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make -j$(nproc)
+sudo make prefix=/usr install
+cd ../..
+```
 * Create a `build/` folder and cd into it
 ```sh
 mkdir build

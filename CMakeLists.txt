@@ -30,6 +30,8 @@ add_executable(Shasha
         include/musicat/server.h
         include/nlohmann/json.hpp
         include/nekos-best++.hpp
+        libs/uWebSockets/uSockets/src/libusockets.h
+        libs/uWebSockets/uSockets/src/quic.h
 
         # impl files
         src/musicat/autocomplete.cpp
@@ -79,19 +81,29 @@ add_executable(Shasha
 # Linking libraries
 target_link_libraries(Shasha
     dpp
-    curl
-    curlpp
+    oggz
     ogg
     pq
+    curlpp
+    curl
     icui18n
     icuuc
     icudata
     icuio
-    oggz
-    usockets
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o
+    z
     ssl
     crypto
-    z
     # Add any other libs you want to use here
 )
  
@@ -99,6 +111,7 @@ target_link_libraries(Shasha
 target_include_directories(Shasha PRIVATE
     libs/DPP/include
     include
+    libs/uWebSockets/uSockets/src
     # Remember to add the include directories of any other libraries too
 )
 
