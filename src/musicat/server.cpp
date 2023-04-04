@@ -221,7 +221,8 @@ run ()
               if (debug)
                   {
                       fprintf (stderr, "[server MESSAGE] %lu %d: %s\n",
-                               (uintptr_t)ws, code, msg.data ());
+                               (uintptr_t)ws, code,
+                               std::string (msg).c_str ());
                   }
 
               if (!msg.length ())
@@ -314,7 +315,7 @@ run ()
               if (debug)
                   {
                       fprintf (stderr, "[server PING] %lu: %s\n",
-                               (uintptr_t)ws, msg.data ());
+                               (uintptr_t)ws, std::string (msg).c_str ());
                   }
           },
           // pong
@@ -324,7 +325,7 @@ run ()
               if (debug)
                   {
                       fprintf (stderr, "[server PONG] %lu: %s\n",
-                               (uintptr_t)ws, msg.data ());
+                               (uintptr_t)ws, std::string (msg).c_str ());
                   }
           },
           // subscription
@@ -335,7 +336,8 @@ run ()
                   {
                       fprintf (stderr,
                                "[server SUBSCRIPTION] %lu, %d, %d: %s\n",
-                               (uintptr_t)ws, idk1, idk2, topic.data ());
+                               (uintptr_t)ws, idk1, idk2,
+                               std::string (topic).c_str ());
                   }
           },
           // close
@@ -346,7 +348,8 @@ run ()
               if (debug)
                   {
                       fprintf (stderr, "[server CLOSE] %lu %d: %s\n",
-                               (uintptr_t)ws, code, message.data ());
+                               (uintptr_t)ws, code,
+                               std::string (message).c_str ());
                   }
           } });
 
@@ -392,142 +395,3 @@ publish (const std::string &topic, const std::string &message)
 
 } // server
 } // musicat
-
-/*
-{ uWS::CompressOptions (uWS::DEDICATED_COMPRESSOR_4KB
-                                | uWS::DEDICATED_COMPRESSOR),
-          4 * 1024, 120, 1024 * 1024, false, false, false, 0, nullptr,
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server OPEN] %lu\n", (uintptr_t)ws);
-                  }
-
-              ws->subscribe ("bot_info_update");
-          },
-          [] (auto *ws, std::string_view msg, uWS::OpCode code) {
-              const bool debug = get_debug_state ();
-
-              // std::string message(msg);
-              // std::string logmessage = std::string ("`") + message
-              //                       + "` " + std::to_string (code);
-              if (debug)
-                  {
-                      std::cerr << "[server MESSAGE] " << msg << '\n';
-                  }
-
-              if (!msg.length ())
-                  return;
-
-              if (msg == "0")
-                  {
-                      ws->send ("1");
-                      return;
-                  }
-
-              nlohmann::json json_payload;
-              bool is_json = true;
-
-              try
-                  {
-                      json_payload = nlohmann::json::parse (msg);
-                  }
-              catch (...)
-                  {
-                      is_json = false;
-                  }
-
-              if (is_json)
-                  {
-                      if (!json_payload.is_object ())
-                          {
-                              _log_err (
-                                  ws,
-                                  "[server ERROR] Payload is not an object\n");
-                              return;
-                          }
-
-                      if (json_payload["type"].is_string ())
-                          {
-                              nlohmann::json d = json_payload["d"];
-
-                              if (d.is_null ())
-                                  {
-                                      _log_err (ws,
-                                                "[server ERROR] d is null\n");
-                                      return;
-                                  }
-
-                              const std::string payload_type
-                                  = json_payload.value ("type", "");
-                              const std::string nonce
-                                  = json_payload.value ("nonce", "");
-
-                              // else if train, no return anywere yet
-                              // vvvvvvvvvvvvvvvvvv
-                              if (payload_type == "req")
-                                  {
-                                      _handle_req (ws, nonce, d);
-                                  }
-                              else if (payload_type == "res")
-                                  {
-                                      _handle_res (ws, nonce, d);
-                                  }
-                              else
-                                  {
-                                      _log_err (ws,
-                                                "[server ERROR] Unknown "
-                                                "payload type: %s\n",
-                                                payload_type.c_str ());
-                                  }
-                              // else if train, no return anywere yet
-                              // ^^^^^^^^^^^^^^^^^^
-                          } // if json.type is string
-
-                      // !TODO: do smt
-                      return;
-                  } // if is_json
-              // else ws->send (message);
-          },
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server DRAIN] %lu %u\n",
-                               (uintptr_t)ws, ws->getBufferedAmount ());
-                  }
-          },
-          // ping incompatible type
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server PING] %lu\n", (uintptr_t)ws);
-                  }
-          },
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server PONG] %lu\n", (uintptr_t)ws);
-                  }
-          },
-          // subscription
-          nullptr,
-          [] (auto *ws, int code, std::string_view message) {
-              const bool debug = get_debug_state ();
-              // You may access ws->getUserData() here
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server CLOSE] %lu %d\n",
-                               (uintptr_t)ws, code);
-                      std::cerr << message << '\n';
-                  }
-          } }
-*/
