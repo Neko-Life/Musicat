@@ -7,6 +7,11 @@ namespace musicat
 {
 namespace server
 {
+enum ws_req_t {
+    bot_info = 1,
+    server_list = 2,
+};
+
 struct SocketData
 {
 };

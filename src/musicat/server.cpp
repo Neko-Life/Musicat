@@ -126,22 +126,54 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
 
     nlohmann::json resd;
 
-    if (d.is_string ())
+    if (d.is_number ())
         {
-            const std::string req = d.get<std::string> ();
+            const int64_t req = d.get<int64_t> ();
 
-            if (req == "bot_info")
+            switch (req)
                 {
-                    auto bot = get_client_ptr ();
-                    if (!bot)
+                    case ws_req_t::bot_info:
                         {
-                            _set_resd_error (resd, "Bot not running");
-                        }
-                    else
-                        {
+                            auto bot = get_client_ptr ();
+                            if (!bot)
+                                {
+                                    _set_resd_error (resd, "Bot not running");
+                                    break;
+                                }
+
                             resd["avatarUrl"] = bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp);
                             resd["username"] = bot->me.username;
                             resd["description"] = get_bot_description ();
+
+                            break;
+                        }
+
+                    case ws_req_t::server_list:
+                        {
+                            auto *guild_cache = dpp::get_guild_cache ();
+                            if (!guild_cache)
+                                {
+                                    _set_resd_error (resd, "No guild cached");
+                                    break;
+                                }
+
+                            // lock cache mutex for thread safety
+                            std::shared_mutex &cache_mutex = guild_cache->get_mutex ();
+                            std::lock_guard<std::shared_mutex &> lk (cache_mutex);
+
+                            auto &container = guild_cache->get_container ();
+
+                            for (auto pair : container)
+                                {
+                                    auto *guild = pair.second;
+                                    if (!guild) continue;
+
+                                    nlohmann::json to_push = guild->build_json(true);
+
+                                    resd.push_back(to_push);
+                                }
+
+                            break;
                         }
                 }
         }
