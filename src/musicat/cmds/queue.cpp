@@ -231,7 +231,7 @@ slash_run (const dpp::slashcommand_t &event,
 
     if (queue.empty ())
         {
-            event.reply ("No track");
+            event.edit_response ("No track");
             return;
         }
 
