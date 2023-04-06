@@ -524,8 +524,8 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_interaction_create ([] (
-                                      const dpp::interaction_create_t &event) {
+    client.on_slashcommand ([] (
+                                      const dpp::slashcommand_t &event) {
         if (!event.command.guild_id)
             return;
 

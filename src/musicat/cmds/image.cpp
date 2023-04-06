@@ -48,7 +48,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event)
+slash_run (const dpp::slashcommand_t &event)
 {
     std::string img_type = "";
     get_inter_param (event, "type", &img_type);

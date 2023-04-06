@@ -8,22 +8,24 @@ Discord Music Bot written in C++
 ## Dependencies
 
 * [DPP](https://github.com/brainboxdotcc/DPP) - Library (clone it into the `libs/` folder)
+* [uWebSockets](https://github.com/uNetworking/uWebSockets) - Library (clone and compile it into the `libs/` folder)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
 * libopus - Library
 * liboggz - Library
-* libogg - Library
 * libcurl - Library
 * [curlpp](https://github.com/jpbarrette/curlpp) - Library
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libsodium - Library
 * openssl - Library
-* ICU - Library
+* ICU 72 - Library
 * [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
 * [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included
 * [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included
 * opus - Library
-* [opusfile](https://github.com/xiph/opusfile) - [optional] Currently unused anywhere as it's bloat.
+
+* libogg - Library - [optional/unused]
+* [opusfile](https://github.com/xiph/opusfile) - [optional/unused] Currently unused anywhere as it's bloat.
 
 ## Docker
 
@@ -45,6 +47,7 @@ docker compose up
 * One issue using docker that it need some time to connect to the database, maybe I will fix that one day using shorter database connection check interval.
 
 ## Compiling
+* Make sure to have `pkg-config` installed as cmake need it to be able to detect libsodium and libopus
 * Clone the DPP repo into `libs/` first if you haven't
 ```sh
 mkdir libs
@@ -76,6 +79,22 @@ cmake ..
 ```sh
 make all -j$(nproc)
 ```
+If you got compile error about `libpq-fe.h` not found but you already have `libpq` installed,
+your distro probably installs it in `/usr/include/postgresql/`, you can patch the source files:
+```sh
+# make sure globstar enable
+shopt -s globstar
+sed -i 's/#include <libpq-fe.h>/#include <postgresql\/libpq-fe.h>/g' include/**/*.h src/**/*.cpp
+
+# disable globstar
+# shopt -u globstar
+```
+then run the above `make` command again to compile.
+
+Some distro have `liboggz2` or `liboggz2-dev`, if you got compile error about
+`oggz/oggz.h` not found but you already have `liboggz` installed,
+you might need to install that.
+
 * Move the built binary to `exe/` (or wherever you want along with a config file)
 ```sh
 mv Shasha ../exe

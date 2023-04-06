@@ -72,7 +72,7 @@ modal_enqueue_searched_track_slip ()
 }
 
 void
-slash_run (const dpp::interaction_create_t &event)
+slash_run (const dpp::slashcommand_t &event)
 {
     std::string query = "";
     get_inter_param (event, "query", &query);

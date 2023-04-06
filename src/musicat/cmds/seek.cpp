@@ -108,7 +108,7 @@ _pad0 (std::string str)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     std::string arg_to = "";

@@ -17,7 +17,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     auto p = player_manager->create_player (event.command.guild_id);
@@ -57,7 +57,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > usc,

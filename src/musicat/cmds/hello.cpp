@@ -13,7 +13,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event)
+slash_run (const dpp::slashcommand_t &event)
 {
     event.reply ("Hello there!!");
 }

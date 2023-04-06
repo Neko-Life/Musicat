@@ -99,7 +99,7 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     std::deque<player::MCTrack> q
@@ -158,7 +158,7 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager, const bool view)
 {
     const std::string p_id = _get_id_arg (event);
@@ -334,7 +334,7 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::interaction_create_t &event)
+slash_run (const dpp::slashcommand_t &event)
 {
     load::slash_run (event, {}, true);
 }
@@ -353,7 +353,7 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::interaction_create_t &event)
+slash_run (const dpp::slashcommand_t &event)
 {
     const std::string p_id = _get_id_arg (event);
     event.thinking ();
@@ -383,7 +383,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::interaction_create_t &event,
+slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     auto inter = event.command.get_command_interaction ();

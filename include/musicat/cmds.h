@@ -15,26 +15,26 @@ namespace command
 namespace hello
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // hello
 
 namespace invite
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // invite
 
 namespace pause
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // pause
 
 namespace skip
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // skip
 
@@ -47,7 +47,7 @@ void query (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 
 std::pair<yt_search::YTrack, int>
@@ -112,7 +112,7 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 namespace loop
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // loop
 
@@ -133,35 +133,35 @@ enum queue_modify_t : int8_t
 };
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // queue
 
 namespace autoplay
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // autoplay
 
 namespace move
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // move
 
 namespace remove
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // remove
 
 namespace bubble_wrap
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // bubble_wrap
 
 namespace search
@@ -172,7 +172,7 @@ dpp::interaction_modal_response modal_enqueue_searched_track ();
 dpp::interaction_modal_response modal_enqueue_searched_track_top ();
 dpp::interaction_modal_response modal_enqueue_searched_track_slip ();
 
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // search
 
 namespace playlist
@@ -185,14 +185,14 @@ void id (const dpp::autocomplete_t &event, std::string param);
 namespace save
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 }
 
 namespace load
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager,
                 const bool view = false);
 }
@@ -200,17 +200,17 @@ void slash_run (const dpp::interaction_create_t &event,
 namespace view
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 }
 
 namespace delete_
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // playlist
 
@@ -219,7 +219,7 @@ void slash_run (const dpp::interaction_create_t &event,
 namespace stop
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // stop
 
@@ -228,24 +228,24 @@ namespace interactive_message
 namespace create
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // interactive_message
 
 namespace join
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // join
 
 namespace leave
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // leave
 
@@ -258,7 +258,7 @@ void track (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event, player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_manager);
 } // download
 
 namespace image
@@ -269,13 +269,13 @@ void type (const dpp::autocomplete_t &event, std::string param);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event);
+void slash_run (const dpp::slashcommand_t &event);
 } // image
 
 namespace seek
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::interaction_create_t &event,
+void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // seek
 
