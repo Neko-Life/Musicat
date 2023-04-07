@@ -113,6 +113,7 @@ target_include_directories(Shasha PRIVATE
     libs/DPP/include
     include
     libs/uWebSockets/uSockets/src
+    /usr/include/postgresql
     # Remember to add the include directories of any other libraries too
 )
 
