@@ -79,18 +79,6 @@ cmake ..
 ```sh
 make all -j$(nproc)
 ```
-If you got compile error about `libpq-fe.h` not found but you already have `libpq` installed,
-your distro probably installs it in `/usr/include/postgresql/`, you can patch the source files:
-```sh
-# make sure globstar enable
-shopt -s globstar
-sed -i 's/#include <libpq-fe.h>/#include <postgresql\/libpq-fe.h>/g' include/**/*.h src/**/*.cpp
-
-# disable globstar
-# shopt -u globstar
-```
-then run the above `make` command again to compile.
-
 Some distro have `liboggz2` or `liboggz2-dev`, if you got compile error about
 `oggz/oggz.h` not found but you already have `liboggz` installed,
 you might need to install that.
