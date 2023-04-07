@@ -172,7 +172,7 @@ template <typename T, typename E>
 void
 get_inter_param (const E &event, std::string param_name, T *param)
 {
-    auto &p = event.get_parameter (param_name);
+    auto p = event.get_parameter (param_name);
     if (p.index ())
         *param = std::get<T> (p);
 }
