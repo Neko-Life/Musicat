@@ -32,6 +32,7 @@ add_executable(Shasha
         include/nekos-best++.hpp
         libs/uWebSockets/uSockets/src/libusockets.h
         libs/uWebSockets/uSockets/src/quic.h
+        # !TODO: include/uWebSockets/files
 
         # impl files
         src/musicat/autocomplete.cpp

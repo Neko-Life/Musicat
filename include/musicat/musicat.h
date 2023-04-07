@@ -83,6 +83,22 @@ std::string
 get_bot_description ();
 
 /**
+ * @brief Get webapp dir to serve
+ *
+ * @return std::string
+ */
+std::string
+get_webapp_dir ();
+
+/**
+ * @brief Get server listening port
+ *
+ * @return int
+ */
+int
+get_server_port ();
+
+/**
  * @brief Search _find inside _vec
  *
  * @param _vec

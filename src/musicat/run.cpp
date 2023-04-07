@@ -124,6 +124,18 @@ get_bot_description ()
     return get_config_value<std::string> ("DESCRIPTION", "");
 }
 
+std::string
+get_webapp_dir ()
+{
+    return get_config_value<std::string> ("WEBAPP_DIR", "");
+}
+
+int
+get_server_port ()
+{
+    return get_config_value<int> ("SERVER_PORT", 80);
+}
+
 void
 on_sigint (int code)
 {

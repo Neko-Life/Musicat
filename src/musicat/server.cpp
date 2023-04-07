@@ -3,8 +3,9 @@
 #include <chrono>
 #include <stdio.h>
 #include <uWebSockets/App.h>
-
-#define PORT 9001
+/*#include "uWebSockets/AsyncFileReader.h"
+#include "uWebSockets/AsyncFileStreamer.h"
+#include "uWebSockets/Middleware.h"*/
 
 #define BOT_AVATAR_SIZE 128
 
@@ -132,49 +133,53 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
 
             switch (req)
                 {
-                    case ws_req_t::bot_info:
-                        {
-                            auto bot = get_client_ptr ();
-                            if (!bot)
-                                {
-                                    _set_resd_error (resd, "Bot not running");
-                                    break;
-                                }
+                case ws_req_t::bot_info:
+                    {
+                        auto bot = get_client_ptr ();
+                        if (!bot)
+                            {
+                                _set_resd_error (resd, "Bot not running");
+                                break;
+                            }
 
-                            resd["avatarUrl"] = bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp);
-                            resd["username"] = bot->me.username;
-                            resd["description"] = get_bot_description ();
+                        resd["avatarUrl"] = bot->me.get_avatar_url (
+                            BOT_AVATAR_SIZE, dpp::i_webp);
+                        resd["username"] = bot->me.username;
+                        resd["description"] = get_bot_description ();
 
-                            break;
-                        }
+                        break;
+                    }
 
-                    case ws_req_t::server_list:
-                        {
-                            auto *guild_cache = dpp::get_guild_cache ();
-                            if (!guild_cache)
-                                {
-                                    _set_resd_error (resd, "No guild cached");
-                                    break;
-                                }
+                case ws_req_t::server_list:
+                    {
+                        auto *guild_cache = dpp::get_guild_cache ();
+                        if (!guild_cache)
+                            {
+                                _set_resd_error (resd, "No guild cached");
+                                break;
+                            }
 
-                            // lock cache mutex for thread safety
-                            std::shared_mutex &cache_mutex = guild_cache->get_mutex ();
-                            std::lock_guard<std::shared_mutex &> lk (cache_mutex);
+                        // lock cache mutex for thread safety
+                        std::shared_mutex &cache_mutex
+                            = guild_cache->get_mutex ();
+                        std::lock_guard<std::shared_mutex &> lk (cache_mutex);
 
-                            auto &container = guild_cache->get_container ();
+                        auto &container = guild_cache->get_container ();
 
-                            for (auto pair : container)
-                                {
-                                    auto *guild = pair.second;
-                                    if (!guild) continue;
+                        for (auto pair : container)
+                            {
+                                auto *guild = pair.second;
+                                if (!guild)
+                                    continue;
 
-                                    nlohmann::json to_push = guild->build_json(true);
+                                nlohmann::json to_push
+                                    = guild->build_json (true);
 
-                                    resd.push_back(to_push);
-                                }
+                                resd.push_back (to_push);
+                            }
 
-                            break;
-                        }
+                        break;
+                    }
                 }
         }
 
@@ -198,10 +203,10 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
             fprintf (stderr, "%s\n", d.dump ().c_str ());
         }
 
-    /* if (d.is_string ()) */
+    /* if (d.is_string ())
     {
-        /* const std::string res */
-    }
+        const std::string res
+    } */
 }
 
 bool
@@ -225,12 +230,20 @@ run ()
     _app_ptr = &app;
     _loop = uWS::Loop::get ();
 
+    const int PORT = get_server_port ();
+
+    // define websocket behavior ======================================={
     app.ws<SocketData> (
         "/*",
         { uWS::CompressOptions (uWS::DEDICATED_COMPRESSOR_4KB
                                 | uWS::DEDICATED_COMPRESSOR),
           4 * 1024, 120, 1024 * 1024, false, false, false, 0,
           // upgrade
+          // !TODO: handle upgrade (validate cookie, auth etc)
+          /*[](uWS::HttpResponse<false> * res, uWS::HttpRequest * req){
+            std::string_view header_cookie = req->getHeader("cookie");
+            if (header_cookie.empty()) return;
+          },*/
           nullptr,
           // open
           [] (auto *ws) {
@@ -384,8 +397,37 @@ run ()
                                std::string (message).c_str ());
                   }
           } });
+    // define websocket behavior =======================================}
 
-    app.listen (PORT, [] (auto *listen_socket) {
+    // !TODO
+    // define api routes ======================================={
+    app.post ("/login",
+              [] (uWS::HttpResponse<false> *res, uWS::HttpRequest *req) {
+                  // find user and verify email password
+
+                  // set set-cookie header and end req
+              });
+
+    app.post ("/signup",
+              [] (uWS::HttpResponse<false> *res, uWS::HttpRequest *req) {
+                  // do signup stuff
+              });
+
+    // serve webapp
+    /* !TODO: this is not working, need fix
+    std::string webapp_dir = get_webapp_dir ();
+    if (webapp_dir.length ()) {
+        AsyncFileStreamer asyncFileStreamer(webapp_dir);
+
+        app.get("/*", [&asyncFileStreamer](auto *res, auto *req) {
+                serveFile(res, req);
+                asyncFileStreamer.streamFile(res, req->getUrl());
+            });
+    }
+    */
+    // define http routes =======================================}
+
+    app.listen (PORT, [PORT] (auto *listen_socket) {
         if (listen_socket)
             {
                 fprintf (stderr, "[server] Listening on port %d \n", PORT);
