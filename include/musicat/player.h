@@ -45,12 +45,18 @@ struct MCTrack : yt_search::YTrack
     yt_search::audio_info_t info;
 
     bool seekable;
+
     // seek query, reset to 0 after seek performed.
     // byte offset
     int64_t seek_to;
+
     // whether this track is in the process to stop
     // its audio stream
     bool stopping;
+
+    // current byte position
+    int64_t current_byte;
+
     size_t filesize;
 
     MCTrack ();

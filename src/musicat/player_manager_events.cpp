@@ -117,11 +117,12 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             return false;
         }
 
+    guild_player->queue.front ().skip_vote.clear ();
+    guild_player->queue.front ().seekable = false;
+
     guild_player->current_track = guild_player->queue.front ();
+    guild_player->queue.front ().seek_to = 0;
     MCTrack &play_track = guild_player->current_track;
-    play_track.skip_vote.clear ();
-    play_track.seekable = false;
-    play_track.seek_to = 0;
 
     guild_player->set_stopped (false);
 

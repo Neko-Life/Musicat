@@ -73,8 +73,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         },
                         (void *)&data);
 
-                    size_t streamed_bytes = 0;
-
                     // stream loop
                     while (v && !v->terminating)
                         {
@@ -86,12 +84,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             static const constexpr long CHUNK_READ = BUFSIZ * 2;
 
                             const long read_bytes = oggz_read (track_og, CHUNK_READ);
-                            streamed_bytes += read_bytes;
+                            track.current_byte += read_bytes;
 
                             if (debug)
                                 printf ("[Manager::stream] [guild_id] [size] "
                                         "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
-                                        server_id, fsize, read_bytes, streamed_bytes);
+                                        server_id, fsize, read_bytes, track.current_byte);
 
                             while (v && !v->terminating
                                    && v->get_secs_remaining () > 0.05f)
@@ -99,6 +97,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     if (track.seek_to > 0)
                                         {
                                             oggz_seek (track_og, track.seek_to, SEEK_SET);
+                                            track.current_byte = track.seek_to;
                                             track.seek_to = 0;
                                         }
 

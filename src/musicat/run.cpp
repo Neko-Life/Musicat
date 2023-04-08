@@ -725,11 +725,23 @@ run (int argc, const char *argv[])
                 dpp::channel *cached = vcs_setting_get_cache (event.updated->id);
 
                 if (cached && (cached->rtc_region != event.updated->rtc_region)) {
+                    dpp::snowflake guild_id = event.updated->guild_id;
+
+                    // set to seek to last position in the next playing track
+                    // !TODO: probably add this to player manager for convenience?
+                    auto guild_player = player_manager->get_player(guild_id);
+                    if (guild_player && guild_player->queue.size ())
+                        {
+                            int64_t to_seek = guild_player->current_track.current_byte - (BUFSIZ * 8);
+                            if (to_seek < 0) to_seek = 0;
+
+                            guild_player->queue.front ().seek_to = to_seek;
+                        }
+
                     // rejoin channel
                     if (debug) fprintf (stderr, "[update_rtc_region] %ld\n", cached->id);
 
                     auto *from = event.from;
-                    dpp::snowflake guild_id = event.updated->guild_id;
                     dpp::snowflake channel_id = event.updated->id;
 
                     player_manager->full_reconnect (from, guild_id, channel_id, channel_id);
