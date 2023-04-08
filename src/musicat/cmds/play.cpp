@@ -84,6 +84,7 @@ slash_run (const dpp::slashcommand_t &event,
     std::string arg_query = "";
     int64_t arg_top = 0;
     int64_t arg_slip = 0;
+
     get_inter_param (event, "query", &arg_query);
     get_inter_param (event, "top", &arg_top);
     get_inter_param (event, "slip", &arg_slip);
@@ -172,22 +173,8 @@ slash_run (const dpp::slashcommand_t &event,
                             player_manager->stop_stream (guild_id);
                         }
 
-                    {
-                        std::lock_guard<std::mutex> lk (player_manager->dc_m);
-                        player_manager->disconnecting[guild_id]
-                            = vcclient.first->id;
-                        std::lock_guard<std::mutex> lk2 (player_manager->c_m);
-                        std::lock_guard<std::mutex> lk3 (player_manager->wd_m);
-                        player_manager->connecting.insert_or_assign (
-                            guild_id, vcuser.first->id);
-                        player_manager->waiting_vc_ready[guild_id] = "0";
-                        from->disconnect_voice (guild_id);
-                    }
-
-                    std::thread pjt ([player_manager, from, guild_id] () {
-                        player_manager->reconnect (from, guild_id);
-                    });
-                    pjt.detach ();
+                    // reconnect
+                    player_manager->full_reconnect (from, guild_id, vcclient.first->id, vcuser.first->id);
                 }
         }
 

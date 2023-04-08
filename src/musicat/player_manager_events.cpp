@@ -576,18 +576,25 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 
     // Client user code -----------------------------------
 
+    // left vc
     if (!event.state.channel_id)
         {
-            std::lock_guard<std::mutex> lk (this->dc_m);
-            if (debug)
-                printf ("[EVENT] on_voice_state_leave\n");
-            if (this->disconnecting.find (event.state.guild_id)
-                != this->disconnecting.end ())
-                {
-                    this->disconnecting.erase (event.state.guild_id);
-                    this->dl_cv.notify_all ();
-                }
+            {
+                std::lock_guard<std::mutex> lk (this->dc_m);
+                if (debug)
+                    printf ("[EVENT] on_voice_state_leave\n");
+                if (this->disconnecting.find (event.state.guild_id)
+                    != this->disconnecting.end ())
+                    {
+                        this->disconnecting.erase (event.state.guild_id);
+                        this->dl_cv.notify_all ();
+                    }
+            }
+
+            // update vcs cache
+            vcs_setting_handle_disconnected (dpp::find_channel (event.state.channel_id));
         }
+    // joined vc
     else
         {
             {
@@ -663,6 +670,9 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             catch (...)
                 {
                 }
+
+            // update vcs cache
+            vcs_setting_handle_connected (dpp::find_channel (event.state.channel_id));
         }
     // if (muted) player_manager->pause(event.guild_id);
     // else player_manager->resume(guild_id);

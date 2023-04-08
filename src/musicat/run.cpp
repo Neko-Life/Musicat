@@ -1,13 +1,13 @@
-#include "musicat/server.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
 #include "musicat/runtime_cli.h"
+#include "musicat/server.h"
 #include "musicat/storage.h"
-#include "nlohmann/json.hpp"
 #include "nekos-best++.hpp"
+#include "nlohmann/json.hpp"
 #include <any>
 #include <chrono>
 #include <cstdlib>
@@ -37,12 +37,16 @@ dpp::cluster *client_ptr = nullptr;
 dpp::snowflake sha_id = 0;
 std::shared_ptr<player::Manager> player_manager = nullptr;
 
-nekos_best::endpoint_map nekos_best_endpoints = {};
+nekos_best::endpoint_map _nekos_best_endpoints = {};
+
+std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
+std::mutex _connected_vcs_setting_mutex;
 
 dpp::cluster *
 get_client_ptr ()
 {
-    if (!get_running_state ()) return nullptr;
+    if (!get_running_state ())
+        return nullptr;
     return client_ptr;
 }
 
@@ -61,7 +65,62 @@ get_player_manager_ptr ()
 nekos_best::endpoint_map
 get_cached_nekos_best_endpoints ()
 {
-    return nekos_best_endpoints;
+    return _nekos_best_endpoints;
+}
+
+int
+vcs_setting_handle_connected (const dpp::channel *channel)
+{
+    if (!channel || !is_voice_channel (channel->get_type ())) return -1;
+    std::lock_guard<std::mutex> lk(_connected_vcs_setting_mutex);
+
+    _connected_vcs_setting.insert_or_assign(channel->id, dpp::channel(*channel));
+    return 0;
+}
+
+int
+vcs_setting_handle_updated (const dpp::channel *updated)
+{
+    if (!updated || !is_voice_channel (updated->get_type ())) return -1;
+    std::lock_guard<std::mutex> lk(_connected_vcs_setting_mutex);
+
+    _connected_vcs_setting.insert_or_assign(updated->id, dpp::channel(*updated));
+    return 0;
+}
+
+int
+vcs_setting_handle_disconnected (const dpp::channel *channel)
+{
+    if (!channel || !is_voice_channel (channel->get_type ())) return -1;
+    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+
+    auto i = _connected_vcs_setting.find (channel->id);
+
+    if (i != _connected_vcs_setting.end ())
+        {
+            _connected_vcs_setting.erase (i);
+            return 0;
+        }
+
+    return 1;
+}
+
+dpp::channel *
+vcs_setting_get_cache (dpp::snowflake channel_id)
+{
+    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+    auto i = _connected_vcs_setting.find(channel_id);
+
+    if (i != _connected_vcs_setting.end ())
+        return &i->second;
+
+    return nullptr;
+}
+
+bool
+is_voice_channel (dpp::channel_type channel_type)
+{
+    return channel_type == dpp::channel_type::CHANNEL_VOICE || channel_type == dpp::channel_type::CHANNEL_STAGE;
 }
 
 int
@@ -69,10 +128,10 @@ load_config ()
 {
     std::ifstream scs ("sha_conf.json");
     if (!scs.is_open ())
-    {
-        fprintf (stderr, "[ERROR] No config file exist\n");
-        return -1;
-    }
+        {
+            fprintf (stderr, "[ERROR] No config file exist\n");
+            return -1;
+        }
 
     scs >> sha_cfg;
     scs.close ();
@@ -144,6 +203,156 @@ on_sigint (int code)
     set_running_state (false);
 }
 
+void
+_handle_modal_p_que_s_track (const dpp::form_submit_t &event,
+                             const dpp::component &comp,
+                             dpp::component &comp_2, bool &second_input)
+{
+    int64_t pos = 0;
+    {
+        if (!comp.value.index ())
+            return;
+        string q = std::get<string> (comp.value);
+        if (!q.length ())
+            return;
+
+        sscanf (q.c_str (), "%ld", &pos);
+        if (pos < 1)
+            return;
+    }
+    bool top = comp.custom_id.find ("top") != std::string::npos;
+
+    int64_t arg_slip = 0;
+    if (second_input)
+        {
+            if (!comp_2.value.index ())
+                return;
+            string q = std::get<string> (comp_2.value);
+            if (!q.length ())
+                return;
+
+            sscanf (q.c_str (), "%ld", &arg_slip);
+            if (arg_slip < 1)
+                return;
+            if (arg_slip == 1)
+                top = true;
+        }
+
+    auto storage = storage::get (event.command.message_id);
+    if (!storage.has_value ())
+        {
+            dpp::message m ("It seems like this result is "
+                            "outdated, try make a new search");
+            m.flags |= dpp::m_ephemeral;
+            event.reply (m);
+            return;
+        }
+
+    auto tracks = std::any_cast<std::vector<yt_search::YTrack> > (storage);
+    if (tracks.size () < (size_t)pos)
+        return;
+    auto result = tracks.at (pos - 1);
+
+    auto from = event.from;
+    auto guild_id = event.command.guild_id;
+
+    string edit_response;
+    string prepend_name;
+    {
+        string prepend_name = string ("<@")
+                              + std::to_string (event.command.usr.id)
+                              + string ("> ");
+        const string prepend_response
+            = top        ? " to the top of "
+                           "the queue"
+              : arg_slip ? " to position " + std::to_string (arg_slip)
+                         : "";
+
+        edit_response = prepend_name + string ("Added: ") + result.title ()
+                        + prepend_response;
+    }
+
+    event.thinking ();
+    string fname = std::regex_replace (
+        result.title () + string ("-") + result.id () + string (".opus"),
+        std::regex ("/"), "", std::regex_constants::match_any);
+    bool dling = false;
+
+    std::ifstream test (get_music_folder_path () + fname,
+                        std::ios_base::in | std::ios_base::binary);
+    if (!test.is_open ())
+        {
+            dling = true;
+            event.edit_response (prepend_name + string ("Downloading ")
+                                 + result.title ()
+                                 + string ("... Gimme 10 sec ight"));
+            if (player_manager->waiting_file_download.find (fname)
+                == player_manager->waiting_file_download.end ())
+                {
+                    auto url = result.url ();
+                    player_manager->download (fname, url, guild_id);
+                }
+        }
+    else
+        {
+            test.close ();
+            event.edit_response (edit_response);
+        }
+
+    std::thread dlt (
+        [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
+         edit_response] (const dpp::interaction_create_t event,
+                         yt_search::YTrack result) {
+            dpp::snowflake user_id = event.command.usr.id;
+            auto p = player_manager->create_player (guild_id);
+            if (dling)
+                {
+                    player_manager->wait_for_download (fname);
+                    event.edit_response (edit_response);
+                }
+            if (from)
+                p->from = from;
+
+            player::MCTrack t (result);
+            t.filename = fname;
+            t.user_id = user_id;
+            p->add_track (t, top ? true : false, guild_id, dling, arg_slip);
+
+            if (from)
+                command::play::decide_play (from, guild_id, false);
+            else if (get_debug_state ())
+                printf ("[modal_p] No client to "
+                        "decide play\n");
+        },
+        event, result);
+    dlt.detach ();
+}
+
+void
+_handle_form_modal_p (const dpp::form_submit_t &event)
+{
+    if (event.components.size ())
+        {
+            auto comp = event.components.at (0).components.at (0);
+            bool second_input = event.components.size () > 1;
+            dpp::component comp_2;
+
+            if (second_input)
+                comp_2 = event.components.at (1).components.at (0);
+
+            if (comp.custom_id.find ("que_s_track") != std::string::npos)
+                {
+                    _handle_modal_p_que_s_track (event, comp, comp_2,
+                                                 second_input);
+                }
+        }
+    else
+        {
+            fprintf (stderr, "[WARN] Form modal_p doesn't contain "
+                             "any components row\n");
+        }
+}
+
 int
 run (int argc, const char *argv[])
 {
@@ -154,30 +363,29 @@ run (int argc, const char *argv[])
     if (config_status != 0)
         return config_status;
 
-    set_debug_state (
-            get_config_value<bool> ("DEBUG", false));
+    set_debug_state (get_config_value<bool> ("DEBUG", false));
 
     if (get_config_value<bool> ("RUNTIME_CLI", false))
         runtime_cli::attach_listener ();
 
     const std::string sha_token = get_config_value<string> ("SHA_TKN", "");
     if (!sha_token.length ())
-    {
-        fprintf(stderr, "[ERROR] No token provided\n");
-        return -1;
-    }
+        {
+            fprintf (stderr, "[ERROR] No token provided\n");
+            return -1;
+        }
 
     dpp::cluster client (sha_token,
                          dpp::i_guild_members | dpp::i_default_intents);
 
     client_ptr = &client;
 
-    dpp::snowflake sha_id = get_config_value<int64_t>("SHA_ID", 0);
+    dpp::snowflake sha_id = get_config_value<int64_t> ("SHA_ID", 0);
     if (!sha_id)
-    {
-        fprintf(stderr, "[ERROR] No id provided\n");
-        return -1;
-    }
+        {
+            fprintf (stderr, "[ERROR] No id provided\n");
+            return -1;
+        }
 
     if (argc > 1)
         {
@@ -211,8 +419,7 @@ run (int argc, const char *argv[])
             }
     }
 
-    player_manager
-        = std::make_shared<player::Manager> (&client, sha_id);
+    player_manager = std::make_shared<player::Manager> (&client, sha_id);
 
     std::function<void (const dpp::log_t &)> dpp_on_log_handler
         = dpp::utility::cout_logger ();
@@ -273,15 +480,13 @@ run (int argc, const char *argv[])
                 if (param.find ("que_s_track") != std::string::npos)
                     {
                         event.dialog (
-                            param.find ("top") != std::string::npos
+                            param.find ("top") != std::string::npos ? command::
+                                    search::modal_enqueue_searched_track_top ()
+                            : param.find ("slip") != std::string::npos
                                 ? command::search::
-                                    modal_enqueue_searched_track_top ()
-                                : 
-                                param.find ("slip") != std::string::npos
-                                    ? command::search::
-                                        modal_enqueue_searched_track_slip ()
-                                    : command::search::
-                                        modal_enqueue_searched_track ());
+                                    modal_enqueue_searched_track_slip ()
+                                : command::search::
+                                    modal_enqueue_searched_track ());
                     }
                 else
                     {
@@ -299,171 +504,11 @@ run (int argc, const char *argv[])
                     event.command.message_id);
         if (event.custom_id == "modal_p")
             {
-                if (event.components.size ())
-                    {
-                        auto comp = event.components.at (0).components.at (0);
-                        bool second_input = event.components.size () > 1;
-                        dpp::component comp_2;
-
-                        if (second_input)
-                            comp_2 = event.components.at (1).components.at (0);
-
-                        if (comp.custom_id.find ("que_s_track")
-                            != std::string::npos)
-                            {
-                                int64_t pos = 0;
-                                {
-                                    if (!comp.value.index ())
-                                        return;
-                                    string q = std::get<string> (comp.value);
-                                    if (!q.length ())
-                                        return;
-
-                                    sscanf (q.c_str (), "%ld", &pos);
-                                    if (pos < 1)
-                                        return;
-                                }
-                                bool top = comp.custom_id.find ("top")
-                                           != std::string::npos;
-
-                                int64_t arg_slip = 0;
-                                if (second_input)
-                                    {
-                                        if (!comp_2.value.index ())
-                                            return;
-                                        string q = std::get<string> (comp_2.value);
-                                        if (!q.length ())
-                                            return;
-
-                                        sscanf (q.c_str (), "%ld", &arg_slip);
-                                        if (arg_slip < 1)
-                                            return;
-                                        if (arg_slip == 1)
-                                            top = true;
-                                    }
-
-                                auto storage
-                                    = storage::get (event.command.message_id);
-                                if (!storage.has_value ())
-                                    {
-                                        dpp::message m (
-                                            "It seems like this result is "
-                                            "outdated, try make a new search");
-                                        m.flags |= dpp::m_ephemeral;
-                                        event.reply (m);
-                                        return;
-                                    }
-
-                                auto tracks = std::any_cast<
-                                    std::vector<yt_search::YTrack> > (storage);
-                                if (tracks.size () < (size_t)pos)
-                                    return;
-                                auto result = tracks.at (pos - 1);
-
-                                auto from = event.from;
-                                auto guild_id = event.command.guild_id;
-
-                                string edit_response;
-                                string prepend_name;
-                                {
-                                    string prepend_name
-                                        = string ("<@")
-                                          + std::to_string (event.command.usr.id)
-                                          + string ("> ");
-                                    const string prepend_response
-                                        = top ? " to the top of "
-                                                "the queue"
-                                          : arg_slip
-                                              ? " to position "
-                                                    + std::to_string (arg_slip)
-                                              : "";
-
-                                    edit_response
-                                        = prepend_name + string ("Added: ")
-                                          + result.title () + prepend_response;
-                                }
-
-                                event.thinking ();
-                                string fname = std::regex_replace (
-                                    result.title () + string ("-") + result.id ()
-                                        + string (".opus"),
-                                    std::regex ("/"), "",
-                                    std::regex_constants::match_any);
-                                bool dling = false;
-
-                                std::ifstream test (
-                                    get_music_folder_path () + fname,
-                                    std::ios_base::in | std::ios_base::binary);
-                                if (!test.is_open ())
-                                    {
-                                        dling = true;
-                                        event.edit_response (
-                                            prepend_name + string ("Downloading ")
-                                            + result.title ()
-                                            + string ("... Gimme 10 sec ight"));
-                                        if (player_manager->waiting_file_download
-                                                .find (fname)
-                                            == player_manager
-                                                   ->waiting_file_download.end ())
-                                            {
-                                                auto url = result.url ();
-                                                player_manager->download (
-                                                    fname, url, guild_id);
-                                            }
-                                    }
-                                else
-                                    {
-                                        test.close ();
-                                        event.edit_response (edit_response);
-                                    }
-
-                                std::thread dlt (
-                                    [comp, prepend_name, dling,
-                                     fname, guild_id, from, top, arg_slip,
-                                     edit_response] (
-                                        const dpp::interaction_create_t event,
-                                        yt_search::YTrack result) {
-                                        dpp::snowflake user_id
-                                            = event.command.usr.id;
-                                        auto p = player_manager->create_player (
-                                            guild_id);
-                                        if (dling)
-                                            {
-                                                player_manager->wait_for_download (
-                                                    fname);
-                                                event.edit_response (
-                                                    edit_response);
-                                            }
-                                        if (from)
-                                            p->from = from;
-
-                                        player::MCTrack t (result);
-                                        t.filename = fname;
-                                        t.user_id = user_id;
-                                        p->add_track (t, top ? true : false,
-                                                      guild_id, dling, arg_slip);
-
-                                        if (from)
-                                            command::play::decide_play (
-                                                from, guild_id, false);
-                                        else if (get_debug_state ())
-                                            printf ("[modal_p] No client to "
-                                                    "decide play\n");
-                                    },
-                                    event, result);
-                                dlt.detach ();
-                            }
-                    }
-                else
-                    {
-                        fprintf (stderr, "[WARN] Form modal_p doesn't contain "
-                                         "any components row\n");
-                    }
+                _handle_form_modal_p (event);
             }
     });
 
-    client.on_autocomplete ([] (
-                                const dpp::autocomplete_t &event) {
+    client.on_autocomplete ([] (const dpp::autocomplete_t &event) {
         const string cmd = event.name;
         string opt = "";
         std::vector<string> sub_cmd = {};
@@ -530,14 +575,12 @@ run (int argc, const char *argv[])
                 else if (cmd == "image")
                     {
                         if (opt == "type")
-                            command::image::autocomplete::type (
-                                event, param);
+                            command::image::autocomplete::type (event, param);
                     }
             }
     });
 
-    client.on_slashcommand ([] (
-                                      const dpp::slashcommand_t &event) {
+    client.on_slashcommand ([] (const dpp::slashcommand_t &event) {
         if (!event.command.guild_id)
             return;
 
@@ -595,24 +638,22 @@ run (int argc, const char *argv[])
             command::seek::slash_run (event, player_manager);
 
         else
-        {
-            event.reply ("Seems like somethin's wrong here, I can't find that "
-                         "command anywhere in my database");
-        }
+            {
+                event.reply (
+                    "Seems like somethin's wrong here, I can't find that "
+                    "command anywhere in my database");
+            }
     });
 
-    client.on_voice_ready (
-        [] (const dpp::voice_ready_t &event) {
-            player_manager->handle_on_voice_ready (event);
-        });
+    client.on_voice_ready ([] (const dpp::voice_ready_t &event) {
+        player_manager->handle_on_voice_ready (event);
+    });
 
-    client.on_voice_state_update (
-        [] (const dpp::voice_state_update_t &event) {
-            player_manager->handle_on_voice_state_update (event);
-        });
+    client.on_voice_state_update ([] (const dpp::voice_state_update_t &event) {
+        player_manager->handle_on_voice_state_update (event);
+    });
 
-    client.on_voice_track_marker ([] (
-                                      const dpp::voice_track_marker_t &event) {
+    client.on_voice_track_marker ([] (const dpp::voice_track_marker_t &event) {
         if (player_manager->has_ignore_marker (event.voice_client->server_id))
             {
                 if (get_debug_state ())
@@ -631,6 +672,7 @@ run (int argc, const char *argv[])
                     event.voice_client->server_id);
             }
 
+        // track marker remover
         std::thread t ([event] () {
             if (!event.voice_client)
                 return;
@@ -663,11 +705,10 @@ run (int argc, const char *argv[])
         t.detach ();
     });
 
-    client.on_message_delete (
-        [] (const dpp::message_delete_t &event) {
-            player_manager->handle_on_message_delete (event);
-            paginate::handle_on_message_delete (event);
-        });
+    client.on_message_delete ([] (const dpp::message_delete_t &event) {
+        player_manager->handle_on_message_delete (event);
+        paginate::handle_on_message_delete (event);
+    });
 
     client.on_message_delete_bulk (
         [] (const dpp::message_delete_bulk_t &event) {
@@ -675,17 +716,40 @@ run (int argc, const char *argv[])
             paginate::handle_on_message_delete_bulk (event);
         });
 
+    client.on_channel_update ([] (const dpp::channel_update_t &event) {
+        const bool debug = get_debug_state ();
+
+        // reconnect if has different vc region
+        if (event.updated && is_voice_channel (event.updated->get_type ()))
+            {
+                dpp::channel *cached = vcs_setting_get_cache (event.updated->id);
+
+                if (cached && (cached->rtc_region != event.updated->rtc_region)) {
+                    // rejoin channel
+                    if (debug) fprintf (stderr, "[update_rtc_region] %ld\n", cached->id);
+
+                    auto *from = event.from;
+                    dpp::snowflake guild_id = event.updated->guild_id;
+                    dpp::snowflake channel_id = event.updated->id;
+
+                    player_manager->full_reconnect (from, guild_id, channel_id, channel_id);
+                }
+                // !TODO: check for updated voice region
+            }
+
+        // update vc cache
+        vcs_setting_handle_updated (event.updated);
+    });
+
     // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
 
-    nekos_best_endpoints = nekos_best::get_available_endpoints ();
+    _nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);
 
     // start server
-    std::thread server_thread([](){
-        server::run();
-    });
+    std::thread server_thread ([] () { server::run (); });
 
-    server_thread.detach();
+    server_thread.detach ();
 
     time_t last_gc;
     time_t last_recon;

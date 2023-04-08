@@ -438,6 +438,20 @@ class Manager
      * @return int 1 if everything is default value, 0 if something loaded.
      */
     int load_guild_player_config (const dpp::snowflake &guild_id);
+
+    /**
+     * @brief Prepare for reconnect by setting necessary state,
+     *        must call dpp::discord_client::disconnect_voice (dpp::snowflake guild_id)
+     *        after calling this method, and then create a thread to call
+     *        player_manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id)
+     *        for the reconnect to succeed
+     */
+    void set_reconnect (dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id);
+
+    /**
+     * @brief Perform full voice channel reconnect/rejoin
+     */
+    void full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id);
 };
 } // player
 } // musicat

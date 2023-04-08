@@ -369,5 +369,31 @@ Manager::shuffle_queue (dpp::snowflake guild_id)
     return guild_player->shuffle ();
 }
 
+void
+Manager::set_reconnect (dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id)
+{
+    std::lock_guard<std::mutex> lk (this->dc_m);
+    this->disconnecting[guild_id]
+        = disconnect_channel_id;
+    std::lock_guard<std::mutex> lk2 (this->c_m);
+    std::lock_guard<std::mutex> lk3 (this->wd_m);
+    this->connecting.insert_or_assign (
+        guild_id, connect_channel_id);
+    this->waiting_vc_ready[guild_id] = "0";
+}
+
+void
+Manager::full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id)
+{
+    this->set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
+
+    from->disconnect_voice (guild_id);
+
+    std::thread pjt ([this, from, guild_id] () {
+        this->reconnect (from, guild_id);
+    });
+    pjt.detach ();
+}
+
 } // player
 } // musicat
