@@ -2,7 +2,7 @@
 
 Discord Music Bot written in C++
 
-- Just install dependencies, compile and fill out `exe/sha_cfg.json`, config file should be in one directory as the binary unless using docker, docker scripts available to use in `docker/`.
+- Just install dependencies, compile and fill out `exe/sha_cfg.json`, config file should be in one directory as the binary.
 - Musicat is fully slash command and need to register the commands to discord, run `./Shasha reg g` or `./Shasha reg <guild_id>` to register slash commands.
 
 ## Dependencies
@@ -22,12 +22,13 @@ Discord Music Bot written in C++
 * [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
 * [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included
 * [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included
+* [nekos-bestpp](https://github.com/Neko-Life/nekos-bestpp) - Included
 * opus - Library
 
 * libogg - Library - [optional/unused]
 * [opusfile](https://github.com/xiph/opusfile) - [optional/unused] Currently unused anywhere as it's bloat.
 
-## Docker
+## Docker (outdated)
 
 * Build the image
 ```sh
