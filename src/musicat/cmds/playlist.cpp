@@ -211,13 +211,17 @@ slash_run (const dpp::slashcommand_t &event,
     if (retnow)
         return;
 
-    std::shared_ptr<player::Player> p;
+    std::shared_ptr<player::Player> guild_player;
     size_t count = 0;
 
     std::deque<player::MCTrack> q = {};
 
     if (view != true)
-        p = player_manager->create_player (event.command.guild_id);
+        {
+            guild_player
+                = player_manager->create_player (event.command.guild_id);
+            guild_player->from = event.from;
+        }
 
     const bool add_to_top = arg_top ? true : false;
     const bool debug = get_debug_state ();
@@ -249,8 +253,8 @@ slash_run (const dpp::slashcommand_t &event,
                 q.push_back (t);
             else
                 {
-                    p->add_track (t, add_to_top, event.command.guild_id,
-                                  false);
+                    guild_player->add_track (t, add_to_top,
+                                             event.command.guild_id, false);
                     count++;
                 }
         }
@@ -300,7 +304,7 @@ slash_run (const dpp::slashcommand_t &event,
             //                                                           dpp::p_view_channel,dpp::p_connect
             //                                                           }))
             // {
-            //     p->set_channel(event.command.channel_id);
+            //     guild_player->set_channel(event.command.channel_id);
 
             //     {
             //         std::lock_guard<std::mutex> lk(player_manager->c_m);

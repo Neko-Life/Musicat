@@ -75,6 +75,22 @@ std::string
 get_music_folder_path ();
 
 /**
+ * @brief Get bot invite link
+ *
+ * @return std::string
+ */
+std::string
+get_invite_link ();
+
+/**
+ * @brief Get bot oauth link
+ *
+ * @return std::string
+ */
+std::string
+get_oauth_link ();
+
+/**
  * @brief Get bot description
  *
  * @return std::string

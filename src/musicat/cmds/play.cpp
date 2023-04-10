@@ -434,10 +434,10 @@ add_track (bool playlist,
          guild_id, from, continued, arg_slip, event] (yt_search::YTrack result) {
             dpp::snowflake user_id
                 = from_interaction ? event.command.usr.id : sha_id;
-            auto p = player_manager->create_player (guild_id);
+            auto guild_player = player_manager->create_player (guild_id);
 
             const dpp::snowflake channel_id
-                = from_interaction ? event.command.channel_id : p->channel_id;
+                = from_interaction ? event.command.channel_id : guild_player->channel_id;
 
             if (dling)
                 {
@@ -447,15 +447,15 @@ add_track (bool playlist,
                                              + result.title ());
                 }
             if (from)
-                p->from = from;
+                guild_player->from = from;
 
             player::MCTrack t (result);
             t.filename = fname;
             t.user_id = user_id;
-            p->add_track (t, arg_top ? true : false, guild_id,
+            guild_player->add_track (t, arg_top ? true : false, guild_id,
                           from_interaction || dling, arg_slip);
             if (from_interaction)
-                p->set_channel (channel_id);
+                guild_player->set_channel (channel_id);
 
             decide_play (from, guild_id, continued);
         },

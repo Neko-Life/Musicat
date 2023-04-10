@@ -69,18 +69,18 @@ slash_run (const dpp::slashcommand_t &event,
             return;
         }
 
-    auto player = player_manager->create_player (event.command.guild_id);
-    player->from = event.from;
-    if (player->saved_config_loaded != true)
+    auto guild_player = player_manager->create_player (event.command.guild_id);
+    guild_player->from = event.from;
+    if (guild_player->saved_config_loaded != true)
         player_manager->load_guild_player_config (event.command.guild_id);
 
-    if (player->loop_mode == a_l)
+    if (guild_player->loop_mode == a_l)
         {
             event.reply ("Already set to that mode");
             return;
         }
 
-    player->set_loop_mode (a_l);
+    guild_player->set_loop_mode (a_l);
     event.reply (loop_message[a_l]);
     try
         {
@@ -91,6 +91,6 @@ slash_run (const dpp::slashcommand_t &event,
             // Meh
         }
 }
-}
-}
-}
+} // loop
+} // command
+} // musicat

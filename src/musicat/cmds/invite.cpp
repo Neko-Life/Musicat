@@ -1,4 +1,5 @@
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 
 namespace musicat
 {
@@ -15,11 +16,12 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    event.reply ("** [ ❤️ "
-                 "](https://discord.com/api/oauth2/"
-                 "authorize?client_id=960168583969767424&permissions="
-                 "412353875008&scope=bot%20applications.commands) **");
+    std::string invite = get_invite_link ();
+    event.reply (invite.length () ? "** [ ❤️ "
+                                    "](" + invite
+                                        + ") **"
+                                  : "I don't have invite link configured");
 }
-}
-}
-}
+} // invite
+} // command
+} // musicat

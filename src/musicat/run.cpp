@@ -71,27 +71,32 @@ get_cached_nekos_best_endpoints ()
 int
 vcs_setting_handle_connected (const dpp::channel *channel)
 {
-    if (!channel || !is_voice_channel (channel->get_type ())) return -1;
-    std::lock_guard<std::mutex> lk(_connected_vcs_setting_mutex);
+    if (!channel || !is_voice_channel (channel->get_type ()))
+        return -1;
+    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
-    _connected_vcs_setting.insert_or_assign(channel->id, dpp::channel(*channel));
+    _connected_vcs_setting.insert_or_assign (channel->id,
+                                             dpp::channel (*channel));
     return 0;
 }
 
 int
 vcs_setting_handle_updated (const dpp::channel *updated)
 {
-    if (!updated || !is_voice_channel (updated->get_type ())) return -1;
-    std::lock_guard<std::mutex> lk(_connected_vcs_setting_mutex);
+    if (!updated || !is_voice_channel (updated->get_type ()))
+        return -1;
+    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
-    _connected_vcs_setting.insert_or_assign(updated->id, dpp::channel(*updated));
+    _connected_vcs_setting.insert_or_assign (updated->id,
+                                             dpp::channel (*updated));
     return 0;
 }
 
 int
 vcs_setting_handle_disconnected (const dpp::channel *channel)
 {
-    if (!channel || !is_voice_channel (channel->get_type ())) return -1;
+    if (!channel || !is_voice_channel (channel->get_type ()))
+        return -1;
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
     auto i = _connected_vcs_setting.find (channel->id);
@@ -109,7 +114,7 @@ dpp::channel *
 vcs_setting_get_cache (dpp::snowflake channel_id)
 {
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
-    auto i = _connected_vcs_setting.find(channel_id);
+    auto i = _connected_vcs_setting.find (channel_id);
 
     if (i != _connected_vcs_setting.end ())
         return &i->second;
@@ -120,7 +125,8 @@ vcs_setting_get_cache (dpp::snowflake channel_id)
 bool
 is_voice_channel (dpp::channel_type channel_type)
 {
-    return channel_type == dpp::channel_type::CHANNEL_VOICE || channel_type == dpp::channel_type::CHANNEL_STAGE;
+    return channel_type == dpp::channel_type::CHANNEL_VOICE
+           || channel_type == dpp::channel_type::CHANNEL_STAGE;
 }
 
 int
@@ -175,6 +181,18 @@ std::string
 get_music_folder_path ()
 {
     return get_config_value<std::string> ("MUSIC_FOLDER", "");
+}
+
+std::string
+get_invite_link ()
+{
+    return get_config_value<std::string> ("INVITE_LINK", "");
+}
+
+std::string
+get_oauth_link ()
+{
+    return get_config_value<std::string> ("OAUTH_LINK", "");
 }
 
 std::string
@@ -304,19 +322,20 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
          edit_response] (const dpp::interaction_create_t event,
                          yt_search::YTrack result) {
             dpp::snowflake user_id = event.command.usr.id;
-            auto p = player_manager->create_player (guild_id);
+            auto guild_player = player_manager->create_player (guild_id);
             if (dling)
                 {
                     player_manager->wait_for_download (fname);
                     event.edit_response (edit_response);
                 }
             if (from)
-                p->from = from;
+                guild_player->from = from;
 
             player::MCTrack t (result);
             t.filename = fname;
             t.user_id = user_id;
-            p->add_track (t, top ? true : false, guild_id, dling, arg_slip);
+            guild_player->add_track (t, top ? true : false, guild_id, dling,
+                                     arg_slip);
 
             if (from)
                 command::play::decide_play (from, guild_id, false);
@@ -722,30 +741,41 @@ run (int argc, const char *argv[])
         // reconnect if has different vc region
         if (event.updated && is_voice_channel (event.updated->get_type ()))
             {
-                dpp::channel *cached = vcs_setting_get_cache (event.updated->id);
+                dpp::channel *cached
+                    = vcs_setting_get_cache (event.updated->id);
 
-                if (cached && (cached->rtc_region != event.updated->rtc_region)) {
-                    dpp::snowflake guild_id = event.updated->guild_id;
+                if (cached
+                    && (cached->rtc_region != event.updated->rtc_region))
+                    {
+                        dpp::snowflake guild_id = event.updated->guild_id;
 
-                    // set to seek to last position in the next playing track
-                    // !TODO: probably add this to player manager for convenience?
-                    auto guild_player = player_manager->get_player(guild_id);
-                    if (guild_player && guild_player->queue.size ())
-                        {
-                            int64_t to_seek = guild_player->current_track.current_byte - (BUFSIZ * 8);
-                            if (to_seek < 0) to_seek = 0;
+                        // set to seek to last position in the next playing
+                        // track !TODO: probably add this to player manager for
+                        // convenience?
+                        auto guild_player
+                            = player_manager->get_player (guild_id);
+                        if (guild_player && guild_player->queue.size ())
+                            {
+                                int64_t to_seek
+                                    = guild_player->current_track.current_byte
+                                      - (BUFSIZ * 8);
+                                if (to_seek < 0)
+                                    to_seek = 0;
 
-                            guild_player->queue.front ().seek_to = to_seek;
-                        }
+                                guild_player->queue.front ().seek_to = to_seek;
+                            }
 
-                    // rejoin channel
-                    if (debug) fprintf (stderr, "[update_rtc_region] %ld\n", cached->id);
+                        // rejoin channel
+                        if (debug)
+                            fprintf (stderr, "[update_rtc_region] %ld\n",
+                                     cached->id);
 
-                    auto *from = event.from;
-                    dpp::snowflake channel_id = event.updated->id;
+                        auto *from = event.from;
+                        dpp::snowflake channel_id = event.updated->id;
 
-                    player_manager->full_reconnect (from, guild_id, channel_id, channel_id);
-                }
+                        player_manager->full_reconnect (
+                            from, guild_id, channel_id, channel_id);
+                    }
                 // !TODO: check for updated voice region
             }
 

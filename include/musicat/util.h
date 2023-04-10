@@ -19,6 +19,12 @@ void u8_limit_length (const char *unicode_str, char *buf, int32_t max_length = 9
 void print_autocomplete_results (const std::vector<std::pair<std::string, std::string>> &avail,
                                  const char *debug_fn);
 
+/**
+ * @brief Convert unix timestamp to ISO8601 string
+ */
+std::string
+time_t_to_ISO8601 (time_t &timer);
+
 } // util
 } // musicat
 

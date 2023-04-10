@@ -1,3 +1,4 @@
+#include "channel.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
@@ -204,6 +205,43 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                             }
                     }
 
+                    // channel
+                    auto *c = dpp::find_channel (channel_id);
+                    // guild
+                    auto *g = dpp::find_guild (guild_id);
+
+                    // !TODO: move this to its own method
+                    if (c && g && v && v->creator && c->get_type () == dpp::CHANNEL_STAGE)
+                        {
+                            auto i = g->voice_members.find(this->sha_id);
+
+                            if (i != g->voice_members.end ())
+                                {
+                                    // stage channel
+                                    auto *vc = dpp::find_channel (i->second.channel_id);
+
+                                    // don't even try if you don't even have the permission to request_to_speak
+                                    if (has_permissions (g, &v->creator->me, vc, { dpp::p_request_to_speak }))
+                                        {
+                                            // try not suppress if has MUTE_MEMBERS permission
+                                            const bool should_suppress =
+                                                has_permissions (g, &v->creator->me, vc, { dpp::p_mute_members })
+                                                    ? false
+                                                    : i->second.is_suppressed ();
+
+                                            // set request_to_speak
+                                            time_t request_ts;
+                                            time (&request_ts);
+                                            v->creator->current_user_set_voice_state (
+                                                guild_id, i->second.channel_id, should_suppress, request_ts);
+                                        }
+                                    else if (debug)
+                                        {
+                                            fprintf (stderr, "[request_to_speak] No request_to_speak in %ld\n", i->second.channel_id);
+                                        }
+                                }
+                        }
+
                     {
                         std::unique_lock<std::mutex> lk (this->dl_m);
                         auto a = this->waiting_file_download.find (
@@ -259,8 +297,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                 }
                         }
 
-                    auto c = dpp::find_channel (channel_id);
-                    auto g = dpp::find_guild (guild_id);
                     bool embed_perms = has_permissions (
                         g, &this->cluster->me, c,
                         { dpp::p_view_channel, dpp::p_send_messages,

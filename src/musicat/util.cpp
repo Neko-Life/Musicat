@@ -50,5 +50,19 @@ print_autocomplete_results (const std::vector<std::pair<std::string, std::string
         }
 }
 
+std::string
+time_t_to_ISO8601 (time_t &timer)
+{
+  struct tm * timeinfo;
+  char buffer [128];
+
+  timeinfo = localtime (&timer);
+
+  strftime (buffer,127,"%FT%T%z",timeinfo);
+  buffer[127] = '\0';
+
+  return std::string(buffer);
+}
+
 } // util
 } // musicat
