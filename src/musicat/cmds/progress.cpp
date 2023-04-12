@@ -122,8 +122,9 @@ update_progress (const dpp::button_click_t &event,
             reply.msg = reply_embed;
 
             event.from->creator->interaction_response_create(event.command.id, event.command.token, reply,
-                [reply_embed] (const dpp::confirmation_callback_t &ccb) {
-                    delete reply_embed;
+                [&reply_embed] (const dpp::confirmation_callback_t &ccb) {
+                    /* !TODO: delete reply_embed; */
+                    reply_embed = nullptr;
                     auto cb = dpp::utility::log_error();
                     cb (ccb);
                 });
