@@ -115,19 +115,8 @@ update_progress (const dpp::button_click_t &event,
             if (value.error)
                 return event.reply (value.error_msg);
 
-            dpp::message *reply_embed = new dpp::message (_reply_embed (value.current_track, value.current_ms, value.duration));
-            dpp::interaction_response reply;
-
-            reply.type = dpp::ir_update_message;
-            reply.msg = reply_embed;
-
-            event.from->creator->interaction_response_create(event.command.id, event.command.token, reply,
-                [&reply_embed] (const dpp::confirmation_callback_t &ccb) {
-                    /* !TODO: delete reply_embed; */
-                    reply_embed = nullptr;
-                    auto cb = dpp::utility::log_error();
-                    cb (ccb);
-                });
+            dpp::interaction_response reply(dpp::ir_update_message, _reply_embed (value.current_track, value.current_ms, value.duration));
+            event.from->creator->interaction_response_create(event.command.id, event.command.token, reply);
         }
     catch (const exception &e)
         {
