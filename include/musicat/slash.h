@@ -16,7 +16,7 @@ namespace command
  * @return std::vector<dpp::slashcommand>
  */
 std::vector<dpp::slashcommand> get_all (dpp::snowflake sha_id);
-}
-}
+} // command
+} // musicat
 
 #endif

@@ -279,6 +279,17 @@ void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 } // seek
 
+namespace progress
+{
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::slashcommand_t &event,
+                player::player_manager_ptr player_manager);
+
+void
+update_progress (const dpp::button_click_t &event,
+           player::player_manager_ptr player_manager);
+} // progress
+
 } // command
 } // musicat
 

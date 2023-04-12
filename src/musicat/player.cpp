@@ -386,6 +386,19 @@ Player::is_stopped ()
     return this->stopped;
 }
 } // player
+
+namespace util
+{
+
+bool
+player_has_current_track (std::shared_ptr<player::Player> guild_player)
+{
+    if (!guild_player || guild_player->current_track.raw.is_null () || !guild_player->queue.size ())
+        return false;
+    return true;
+}
+
+} // util
 } // musicat
 
 // vim: et ts=8 sw=4

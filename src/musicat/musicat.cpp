@@ -124,7 +124,7 @@ has_listener_fetch (dpp::cluster *client,
             for (auto r : *vstate_map)
                 {
                     auto u = dpp::find_user (r.second.user_id);
-                    if (!u)
+                    /* if (!u)
                         {
                             try
                                 {
@@ -148,7 +148,7 @@ has_listener_fetch (dpp::cluster *client,
                                     continue;
                                 }
                         }
-                    else if (u->is_bot ())
+                    else */ if (u->is_bot ())
                         continue;
                     return true;
                 }

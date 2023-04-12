@@ -75,6 +75,7 @@ add_executable(Shasha
         src/musicat/cmds/stop.cpp
         src/musicat/cmds/image.cpp
         src/musicat/cmds/seek.cpp
+        src/musicat/cmds/progress.cpp
         src/nekos-bestpp/nekos-best++.cpp
         src/main.cpp)
 

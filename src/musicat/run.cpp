@@ -515,6 +515,29 @@ run (int argc, const char *argv[])
                             param.c_str ());
                     }
             }
+        else if (cmd == "progress")
+            {
+                const string param
+                    = event.custom_id.substr (fsub + 1, string::npos);
+                if (!param.length ())
+                    {
+                        fprintf (stderr,
+                                 "[WARN] command \"progress\" have no param\n");
+                        return;
+                    }
+
+                if (param.find ("u") != std::string::npos)
+                    {
+                        command::progress::update_progress (event, player_manager);
+                    }
+                else
+                    {
+                        fprintf (
+                            stderr,
+                            "[WARN] progress param isn't handled: \"%s\"\n",
+                            param.c_str ());
+                    }
+            }
     });
 
     client.on_form_submit ([] (const dpp::form_submit_t &event) {
@@ -655,6 +678,9 @@ run (int argc, const char *argv[])
             command::image::slash_run (event);
         else if (cmd == "seek")
             command::seek::slash_run (event, player_manager);
+        else if (cmd == "progress")
+            command::progress::slash_run (event, player_manager);
+
 
         else
             {

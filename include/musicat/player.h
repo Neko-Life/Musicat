@@ -460,6 +460,17 @@ class Manager
     void full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id);
 };
 } // player
+
+namespace util
+{
+
+/**
+ * @brief Check if guild player has current track loaded
+ */
+bool
+player_has_current_track (std::shared_ptr<player::Player> guild_player);
+
+} // util
 } // musicat
 
 #endif // SHA_PLAYER_H
