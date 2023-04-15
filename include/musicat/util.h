@@ -31,6 +31,9 @@ time_t_to_ISO8601 (time_t &timer);
 bool
 fuzzy_match (std::string search, std::string str, const bool case_insensitive = false);
 
+int
+get_random_number ();
+
 } // util
 } // musicat
 

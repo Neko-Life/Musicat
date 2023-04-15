@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/server.h"
+#include "musicat/util.h"
 #include <chrono>
 #include <stdio.h>
 #include <uWebSockets/App.h>
@@ -25,6 +26,7 @@ uWS::App *_app_ptr = nullptr;
 uWS::Loop *_loop = nullptr;
 
 std::deque<std::string> _nonces = {};
+std::deque<std::string> _oauth_states = {};
 
 void
 _log_err (MCWsApp *ws, const char *format, ...)
@@ -39,36 +41,29 @@ _log_err (MCWsApp *ws, const char *format, ...)
     fprintf (stderr, "[server ERROR] ws %lu ^^^^^^^^^^^\n", (uintptr_t)ws);
 }
 
-size_t _remove_nonce (const std::string &nonce);
-
-std::string
-_generate_nonce ()
+template <typename T>
+typename std::deque<T>::iterator
+_util_deque_find (std::deque<T> *_deq, T _find)
 {
-    std::string nonce = std::to_string (
-        std::chrono::duration_cast<std::chrono::milliseconds> (
-            std::chrono::high_resolution_clock::now ().time_since_epoch ())
-            .count ());
-    _nonces.push_back (nonce);
-
-    std::thread t ([nonce] () {
-        std::this_thread::sleep_for (std::chrono::seconds (3));
-        _remove_nonce (nonce);
-    });
-    t.detach ();
-
-    return nonce;
+    auto i = _deq->begin ();
+    for (; i != _deq->end (); i++)
+        {
+            if (*i == _find)
+                return i;
+        }
+    return i;
 }
 
 size_t
-_remove_nonce (const std::string &nonce)
+_util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
 {
     size_t idx = -1;
     size_t count = 0;
-    for (auto i = _nonces.begin (); i != _nonces.end ();)
+    for (auto i = deq.begin (); i != deq.end ();)
         {
-            if (*i == nonce)
+            if (*i == val)
                 {
-                    _nonces.erase (i);
+                    deq.erase (i);
                     idx = count;
                     break;
                 }
@@ -80,6 +75,76 @@ _remove_nonce (const std::string &nonce)
         }
 
     return idx;
+}
+
+size_t _remove_nonce (const std::string &nonce);
+size_t _remove_oauth_state (const std::string &state);
+
+void
+_util_create_remove_thread (
+    const int &second_sleep, const std::string &val,
+    std::function<size_t (const std::string &)> remove_fn)
+{
+    std::thread t ([val, second_sleep, remove_fn] () {
+        std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
+        remove_fn (val);
+    });
+    t.detach ();
+}
+
+std::string
+_generate_nonce ()
+{
+    std::string nonce = std::to_string (
+        std::chrono::duration_cast<std::chrono::milliseconds> (
+            std::chrono::high_resolution_clock::now ().time_since_epoch ())
+            .count ());
+
+    _nonces.push_back (nonce);
+
+    _util_create_remove_thread (3, nonce, _remove_nonce);
+
+    return nonce;
+}
+
+size_t
+_remove_nonce (const std::string &nonce)
+{
+    return _util_remove_string_deq (nonce, _nonces);
+}
+
+std::string
+_generate_oauth_state ()
+{
+    static constexpr char token[]
+        = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static constexpr int token_size = sizeof (token) - 1;
+
+    std::string state = "";
+
+    do
+        {
+            state = "";
+
+            for (int i = 0; i < 50; i++)
+                {
+                    state += token[util::get_random_number () % token_size];
+                }
+        }
+    while (_util_deque_find<std::string> (&_oauth_states, state)
+           != _oauth_states.end ());
+
+    _oauth_states.push_back (state);
+
+    _util_create_remove_thread (300, state, _remove_oauth_state);
+
+    return state;
+}
+
+size_t
+_remove_oauth_state (const std::string &state)
+{
+    return _util_remove_string_deq (state, _oauth_states);
 }
 
 void
@@ -172,12 +237,39 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                                 if (!guild)
                                     continue;
 
-                                nlohmann::json to_push
-                                    = guild->build_json (true);
+                                nlohmann::json to_push;
+
+                                try
+                                    {
+                                        to_push = nlohmann::json::parse (
+                                            guild->build_json (true));
+                                    }
+                                catch (...)
+                                    {
+                                        fprintf (
+                                            stderr,
+                                            "[server::_handle_req ERROR] "
+                                            "Error building guild json\n");
+                                        continue;
+                                    }
 
                                 resd.push_back (to_push);
                             }
 
+                        break;
+                    }
+
+                case ws_req_t::oauth_state:
+                    {
+                        std::string oauth_state = get_oauth_link ();
+                        if (!oauth_state.length ())
+                            {
+                                _set_resd_error (resd, "No OAuth configured");
+                                break;
+                            }
+
+                        resd = oauth_state
+                               + "&state=" + _generate_oauth_state ();
                         break;
                     }
                 }
@@ -207,6 +299,106 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
     {
         const std::string res
     } */
+}
+
+void
+_handle_event (MCWsApp *ws, nlohmann::json &d)
+{
+    const bool debug = get_debug_state ();
+
+    if (debug)
+        {
+            fprintf (stderr, "[server _handle_event] d:\n%s\n",
+                     d.dump ().c_str ());
+        }
+
+    nlohmann::json resd;
+
+    if (d["e"].is_number ())
+        {
+            const int64_t event = d["e"].get<int64_t> ();
+
+            switch (event)
+                {
+                // ws_event_t::smt: _handle_event(d["d"]);
+                // case ws_req_t::bot_info:
+                //     {
+                //         auto bot = get_client_ptr ();
+                //         if (!bot)
+                //             {
+                //                 _set_resd_error (resd, "Bot not running");
+                //                 break;
+                //             }
+
+                //         resd["avatarUrl"] = bot->me.get_avatar_url (
+                //             BOT_AVATAR_SIZE, dpp::i_webp);
+                //         resd["username"] = bot->me.username;
+                //         resd["description"] = get_bot_description ();
+
+                //         break;
+                //     }
+
+                // case ws_req_t::server_list:
+                //     {
+                //         auto *guild_cache = dpp::get_guild_cache ();
+                //         if (!guild_cache)
+                //             {
+                //                 _set_resd_error (resd, "No guild cached");
+                //                 break;
+                //             }
+
+                //         // lock cache mutex for thread safety
+                //         std::shared_mutex &cache_mutex
+                //             = guild_cache->get_mutex ();
+                //         std::lock_guard<std::shared_mutex &> lk (cache_mutex);
+
+                //         auto &container = guild_cache->get_container ();
+
+                //         for (auto pair : container)
+                //             {
+                //                 auto *guild = pair.second;
+                //                 if (!guild)
+                //                     continue;
+
+                //                 nlohmann::json to_push;
+
+                //                 try
+                //                     {
+                //                         to_push = nlohmann::json::parse (
+                //                             guild->build_json (true));
+                //                     }
+                //                 catch (...)
+                //                     {
+                //                         fprintf (
+                //                             stderr,
+                //                             "[server::_handle_req ERROR] "
+                //                             "Error building guild json\n");
+                //                         continue;
+                //                     }
+
+                //                 resd.push_back (to_push);
+                //             }
+
+                //         break;
+                //     }
+
+                // case ws_req_t::oauth_state:
+                //     {
+                //         std::string oauth_state = get_oauth_link ();
+                //         if (!oauth_state.length ())
+                //             {
+                //                 _set_resd_error (resd, "No OAuth configured");
+                //                 break;
+                //             }
+
+                //         resd = oauth_state
+                //                + "&state=" + _generate_oauth_state ();
+                //         break;
+                //     }
+                }
+        }
+
+    /* _emit_event (ws, event_name, resd); */
 }
 
 bool
@@ -326,6 +518,10 @@ run ()
                               else if (payload_type == "res")
                                   {
                                       _handle_res (ws, nonce, d);
+                                  }
+                              else if (payload_type == "e")
+                                  {
+                                      /* _handle_event (ws, d); */
                                   }
                               else
                                   {

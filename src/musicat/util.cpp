@@ -98,5 +98,15 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
     return match;
 }
 
+int
+get_random_number ()
+{
+    srand (std::chrono::high_resolution_clock::now ()
+            .time_since_epoch ()
+            .count ());
+
+    return rand ();
+}
+
 } // util
 } // musicat
