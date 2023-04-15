@@ -1,14 +1,14 @@
-#include "musicat/util.h"
 #include "musicat/musicat.h"
+#include "musicat/util.h"
 #include <stdint.h>
 #include <string>
 
-#include <unicode/utypes.h>
-#include <unicode/uchar.h>
 #include <unicode/locid.h>
-#include <unicode/ustring.h>
+#include <unicode/uchar.h>
 #include <unicode/ucnv.h>
 #include <unicode/unistr.h>
+#include <unicode/ustring.h>
+#include <unicode/utypes.h>
 
 namespace musicat
 {
@@ -35,13 +35,14 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
             printf ("[util::u8_limit_length] need_length buf "
                     "extracted_length max_length: '%d' '%s' "
                     "'%ld' '%d'\n",
-                    v_s, buf, strnlen(buf, max_length * 4), max_length);
+                    v_s, buf, strnlen (buf, max_length * 4), max_length);
         }
 }
 
 void
-print_autocomplete_results (const std::vector<std::pair<std::string, std::string>> &avail,
-                            const char *debug_fn)
+print_autocomplete_results (
+    const std::vector<std::pair<std::string, std::string> > &avail,
+    const char *debug_fn)
 {
     printf ("[%s] results:\n", debug_fn);
     for (size_t i = 0; i < avail.size (); i++)
@@ -53,15 +54,48 @@ print_autocomplete_results (const std::vector<std::pair<std::string, std::string
 std::string
 time_t_to_ISO8601 (time_t &timer)
 {
-  struct tm * timeinfo;
-  char buffer [128];
+    struct tm *timeinfo;
+    char buffer[128];
 
-  timeinfo = localtime (&timer);
+    timeinfo = localtime (&timer);
 
-  strftime (buffer,127,"%FT%T%z",timeinfo);
-  buffer[127] = '\0';
+    strftime (buffer, 127, "%FT%T%z", timeinfo);
+    buffer[127] = '\0';
 
-  return std::string(buffer);
+    return std::string (buffer);
+}
+
+bool
+fuzzy_match (std::string search, std::string str, const bool case_insensitive)
+{
+    bool match = true;
+
+    auto i = str.begin ();
+    for (const char &sc : search)
+        {
+            bool found = false;
+
+            while (i != str.end ())
+                {
+                    if (case_insensitive
+                            ? std::tolower (*i) == std::tolower (sc)
+                            : *i == sc)
+                        found = true;
+
+                    i++;
+
+                    if (found)
+                        break;
+                }
+
+            if (!found)
+                {
+                    match = false;
+                    break;
+                }
+        }
+
+    return match;
 }
 
 } // util

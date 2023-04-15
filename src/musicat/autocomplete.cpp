@@ -10,7 +10,7 @@ namespace autocomplete
 std::vector<std::pair<std::string, std::string> >
 filter_candidates (
     const std::vector<std::pair<std::string, std::string> > &candidates,
-    std::string param)
+    std::string param, const bool fuzzy)
 {
     std::vector<std::pair<std::string, std::string> > avail = {};
     avail.reserve (25U);
@@ -18,12 +18,29 @@ filter_candidates (
     for (const std::pair<std::string, std::string> &i : candidates)
         {
             const std::string ori = i.first;
-            std::string i2 = i.first;
-            for (char &j : i2)
-                j = std::tolower (j);
-            for (char &j : param)
-                j = std::tolower (j);
-            if (i2.find (param) != std::string::npos)
+            // whether this candidate is a match
+            bool is_match = false;
+
+            if (fuzzy)
+                // use fuzzy search algorithm
+                {
+                    if (util::fuzzy_match (param, i.first, true)) 
+                        is_match = true;
+                }
+            // default algorithm
+            else
+                {
+                    // !TODO: move this to util::basic_match (search, str, case_insensitive)
+                    std::string i2 = i.first;
+                    for (char &j : i2)
+                        j = std::tolower (j);
+                    for (char &j : param)
+                        j = std::tolower (j);
+                    if (i2.find (param) != std::string::npos)
+                        is_match = true;
+                }
+
+            if (is_match)
                 avail.push_back (std::make_pair (ori, i.second));
             if (avail.size () == 25U)
                 break;

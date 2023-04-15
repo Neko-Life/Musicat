@@ -25,6 +25,12 @@ void print_autocomplete_results (const std::vector<std::pair<std::string, std::s
 std::string
 time_t_to_ISO8601 (time_t &timer);
 
+/**
+ * @brief Fuzzy find `search` in `str`
+ */
+bool
+fuzzy_match (std::string search, std::string str, const bool case_insensitive = false);
+
 } // util
 } // musicat
 

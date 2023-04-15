@@ -14,11 +14,12 @@ namespace autocomplete
  *
  * @param candidates
  * @param param
+ * @param fuzzy use fuzzy search algorithm
  * @return std::vector<std::pair<std::string, std::string>>
  */
 std::vector<std::pair<std::string, std::string> > filter_candidates (
     const std::vector<std::pair<std::string, std::string> > &candidates,
-    std::string param);
+    std::string param, const bool fuzzy = true);
 
 /**
  * @brief Create autocomplete response
@@ -29,7 +30,7 @@ std::vector<std::pair<std::string, std::string> > filter_candidates (
 void create_response (
     const std::vector<std::pair<std::string, std::string> > &avail,
     const dpp::autocomplete_t &event);
-}
-}
+} // autocomplete
+} // musicat
 
 #endif // MUSICAT_AUTOCOMPLETE_H
