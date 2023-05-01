@@ -124,9 +124,10 @@ _generate_oauth_state ()
 
     do
         {
+            const int len = (util::get_random_number() % 30) + 50;
             state = "";
 
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < len; i++)
                 {
                     state += token[util::get_random_number () % token_size];
                 }
