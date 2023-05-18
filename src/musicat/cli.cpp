@@ -14,6 +14,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
     if (argc == 2)
         {
             printf ("Provide guild_id or \"g\" to register globally\n");
+            set_running_state (false);
             return 0;
         }
     std::string a2 = std::string (argv[2]);
@@ -31,6 +32,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
                                     auto e = res.get_error ();
                                     fprintf (stderr, "ERROR %d: %s\n", e.code,
                                              e.message.c_str ());
+                                    set_running_state (false);
                                     return;
                                 }
                             auto val
@@ -56,6 +58,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
                                    std::regex_constants::match_any))
                 {
                     printf ("Provide valid guild_id\n");
+                    set_running_state (false);
                     return 0;
                 }
             int64_t gid;
@@ -64,6 +67,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
             if (gid < 0)
                 {
                     printf ("Invalid integer, too large\n");
+                    set_running_state (false);
                     return 0;
                 }
             printf ((std::string (rm ? "Deleting" : "Registering")
@@ -81,6 +85,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
                                     auto e = res.get_error ();
                                     fprintf (stderr, "ERROR %d: %s\n", e.code,
                                              e.message.c_str ());
+                                    set_running_state (false);
                                     return;
                                 }
                             auto val
@@ -119,7 +124,7 @@ cli (dpp::cluster &client, dpp::snowflake sha_id, int argc, const char *argv[])
     if (cmd < 0)
         {
             PRINT_USAGE_REGISTER_SLASH;
-            return set_running_state(false);
+            return set_running_state (false);
         }
 
     switch (cmd)
