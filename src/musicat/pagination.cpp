@@ -1,12 +1,12 @@
-#include "musicat/pagination.h"
 #include "musicat/musicat.h"
+#include "musicat/pagination.h"
 #include "musicat/player.h"
 #include "musicat/storage.h"
 #include <dpp/dpp.h>
 #include <map>
 #include <stdio.h>
-#include <vector>
 #include <string>
+#include <vector>
 
 #define ONE_HOUR_SECOND 3600
 
@@ -55,6 +55,7 @@ pages_t::~pages_t () = default;
 void
 pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 {
+    std::lock_guard<std::mutex> lk(this->s_mutex);
     if (cb.is_error ())
         {
             fprintf (stderr,
@@ -82,8 +83,9 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 }
 
 void
-pages_t::edit (size_t c)
+pages_t::edit (size_t c, const dpp::interaction_create_t &event)
 {
+    std::lock_guard<std::mutex> lk(this->s_mutex);
     const bool debug = get_debug_state ();
 
     if (this->current == c)
@@ -123,14 +125,20 @@ pages_t::edit (size_t c)
                     a.set_disabled (true);
         }
 
-    this->client->message_edit (
-        *this->message, [this, c] (const dpp::confirmation_callback_t &cb) {
+    dpp::interaction_response reply (dpp::ir_update_message, *this->message);
+    event.from->creator->interaction_response_create (
+        event.command.id, event.command.token, reply,
+        [this, c] (const dpp::confirmation_callback_t &cb) {
             this->edit_cb (cb, c);
         });
+    // this->client->message_edit (
+    //     *this->message, [this, c] (const dpp::confirmation_callback_t &cb) {
+    //         this->edit_cb (cb, c);
+    //     });
 }
 
 void
-pages_t::next ()
+pages_t::next (const dpp::interaction_create_t &event)
 {
     size_t c = this->current;
     if (c == (this->pages.size () - 1))
@@ -139,11 +147,11 @@ pages_t::next ()
         }
     else
         c++;
-    this->edit (c);
+    this->edit (c, event);
 }
 
 void
-pages_t::previous ()
+pages_t::previous (const dpp::interaction_create_t &event)
 {
     size_t c = this->current;
     if (c == 0)
@@ -152,19 +160,20 @@ pages_t::previous ()
         }
     else
         c--;
-    this->edit (c);
+    this->edit (c, event);
 }
 
 void
-pages_t::home ()
+pages_t::home (const dpp::interaction_create_t &event)
 {
     if (this->current == 0)
         return;
-    this->edit (0);
+    this->edit (0, event);
 }
 
 void
-update_page (dpp::snowflake msg_id, std::string param)
+update_page (dpp::snowflake msg_id, std::string param,
+             const dpp::interaction_create_t &event)
 { //, dpp::message* msg)
     auto a = paginated_messages.find (msg_id);
     if (a == paginated_messages.end ())
@@ -189,15 +198,15 @@ update_page (dpp::snowflake msg_id, std::string param)
     auto &b = a->second;
     if (param == "n")
         {
-            b.next ();
+            b.next (event);
         }
     else if (param == "p")
         {
-            b.previous ();
+            b.previous (event);
         }
     else if (param == "h")
         {
-            b.home ();
+            b.home (event);
         }
 }
 
@@ -233,8 +242,12 @@ get_inter_reply_cb (const dpp::interaction_create_t &event, bool paginate,
                     std::shared_ptr<dpp::message> m
                         = std::make_shared<dpp::message> (
                             std::get<dpp::message> (cb2.value));
-                    paginated_messages[m->id]
-                        = pages_t (client, m, embeds, 0, has_v);
+
+                    paginated_messages[m->id].client = client;
+                    paginated_messages[m->id].message = m;
+                    paginated_messages[m->id].pages = embeds;
+                    paginated_messages[m->id].current = 0;
+                    paginated_messages[m->id].has_storage_data = has_v;
 
                     const bool debug = get_debug_state ();
                     if (debug)

@@ -482,9 +482,9 @@ run (int argc, const char *argv[])
                             "[WARN] command \"page_queue\" have no param\n");
                         return;
                     }
-                event.reply (dpp::ir_deferred_update_message, "");
+                // event.reply (dpp::ir_deferred_update_message, "");
                 // dpp::message* m = new dpp::message(event.command.msg);
-                paginate::update_page (event.command.msg.id, param);
+                paginate::update_page (event.command.msg.id, param, event);
             }
         else if (cmd == "modal_p")
             {
@@ -521,14 +521,16 @@ run (int argc, const char *argv[])
                     = event.custom_id.substr (fsub + 1, string::npos);
                 if (!param.length ())
                     {
-                        fprintf (stderr,
-                                 "[WARN] command \"progress\" have no param\n");
+                        fprintf (
+                            stderr,
+                            "[WARN] command \"progress\" have no param\n");
                         return;
                     }
 
                 if (param.find ("u") != std::string::npos)
                     {
-                        command::progress::update_progress (event, player_manager);
+                        command::progress::update_progress (event,
+                                                            player_manager);
                     }
                 else
                     {
@@ -680,7 +682,6 @@ run (int argc, const char *argv[])
             command::seek::slash_run (event, player_manager);
         else if (cmd == "progress")
             command::progress::slash_run (event, player_manager);
-
 
         else
             {

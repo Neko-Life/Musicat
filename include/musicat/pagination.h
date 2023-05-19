@@ -17,6 +17,8 @@ struct pages_t
     size_t current;
     bool has_storage_data;
 
+    std::mutex s_mutex;
+
     pages_t ();
     pages_t (dpp::cluster *client, std::shared_ptr<dpp::message> message,
              std::vector<dpp::embed> pages = {}, size_t current = 0,
@@ -36,17 +38,17 @@ struct pages_t
      *
      * @param c
      */
-    void edit (size_t c);
+    void edit (size_t c, const dpp::interaction_create_t &event);
 
-    void next ();
-    void previous ();
-    void home ();
+    void next (const dpp::interaction_create_t &event);
+    void previous (const dpp::interaction_create_t &event);
+    void home (const dpp::interaction_create_t &event);
 };
 
 extern std::map<dpp::snowflake, pages_t> paginated_messages;
 
-void update_page (dpp::snowflake msg_id,
-                  std::string param); //, dpp::message* msg = NULL);
+void update_page (dpp::snowflake msg_id, std::string param,
+                  const dpp::interaction_create_t &event);
 void delete_page (dpp::snowflake msg_id);
 
 dpp::command_completion_event_t
