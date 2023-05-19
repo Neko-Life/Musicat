@@ -6,6 +6,7 @@
 #include <map>
 #include <stdio.h>
 #include <string>
+#include <variant>
 #include <vector>
 
 #define ONE_HOUR_SECOND 3600
@@ -72,14 +73,15 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
             delete_page (this->message->id);
             return;
         }
-    if (cb.value.index ())
+    if (cb.value.index () && std::holds_alternative<dpp::message> (cb.value))
         {
             this->message = std::make_shared<dpp::message> (
                 std::get<dpp::message> (cb.value));
-            this->current = new_current;
         }
     else if (get_debug_state ())
         printf ("[PAGES_T EDIT_CB] No edit_cb size\n");
+
+    this->current = new_current;
 }
 
 void
