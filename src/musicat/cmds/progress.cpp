@@ -40,7 +40,8 @@ dpp::message _reply_embed (player::MCTrack &current_track, const int64_t &curren
     return msg;
 }
 
-struct _processed_t {
+struct _processed_t
+{
     player::MCTrack current_track;
     int64_t current_ms;
     int64_t duration;
@@ -56,28 +57,24 @@ _create_processed_t (std::string error_msg = "")
 
 _processed_t
 _process_command (const dpp::interaction_create_t &event,
-           player::player_manager_ptr player_manager)
+                  player::player_manager_ptr player_manager)
 {
-    auto guild_player = player_manager->get_player(event.command.guild_id);
-    if (!guild_player) return _create_processed_t ("I'm not playing anything");
+    auto guild_player = player_manager->get_player (event.command.guild_id);
+    if (!guild_player)
+        return _create_processed_t ("I'm not playing anything");
 
     if (!util::player_has_current_track (guild_player))
-    {
-        return _create_processed_t ("Not playing anything");
-    }
+        {
+            return _create_processed_t ("Not playing anything");
+        }
 
     player::MCTrack current_track = guild_player->current_track;
-    const int64_t duration = current_track.info.duration ();
+    player::track_progress prog = util::get_track_progress (current_track);
 
-    if (!duration) return _create_processed_t ("`[ERROR]` Missing metadata");
+    if (prog.status)
+        return _create_processed_t ("`[ERROR]` Missing metadata");
 
-    float byte_per_ms = (float)current_track.filesize / (float)duration;
-
-    const int64_t current_ms = current_track.current_byte && byte_per_ms
-        ? (float)current_track.current_byte / byte_per_ms
-        : 0;
-
-    return { current_track, current_ms, duration, false, "" };
+    return { current_track, prog.current_ms, prog.duration, false, "" };
 }
 
 void

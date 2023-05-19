@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include <variant>
 
 namespace musicat
 {
@@ -10,7 +11,8 @@ using string = std::string;
 
 bool
 Manager::send_info_embed (dpp::snowflake guild_id, bool update,
-                          bool force_playing_status)
+                          bool force_playing_status,
+                          const dpp::interaction_create_t *event)
 {
     auto player = this->get_player (guild_id);
     if (!player)
@@ -107,23 +109,29 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
                         return;
                     }
 
-                std::lock_guard<std::mutex> lk (this->imc_m);
-                if (player->info_message)
+                if (std::holds_alternative<dpp::message> (cb.value))
                     {
-                        auto id = player->info_message->id;
-                        this->info_messages_cache.erase (id);
-                    }
+                        std::lock_guard<std::mutex> lk (this->imc_m);
 
-                player->info_message = std::make_shared<dpp::message> (
-                    std::get<dpp::message> (cb.value));
-                if (player->info_message)
-                    {
-                        this->info_messages_cache[player->info_message->id]
-                            = player->info_message;
-                        if (debug)
-                            printf ("[MANAGER::SEND_INFO_EMBED] New "
-                                    "message info: %ld\n",
-                                    player->info_message->id);
+                        if (player->info_message)
+                            {
+                                auto id = player->info_message->id;
+                                this->info_messages_cache.erase (id);
+                            }
+
+                        player->info_message = std::make_shared<dpp::message> (
+                            std::get<dpp::message> (cb.value));
+
+                        if (player->info_message)
+                            {
+                                this->info_messages_cache[player->info_message
+                                                              ->id]
+                                    = player->info_message;
+                                if (debug)
+                                    printf ("[MANAGER::SEND_INFO_EMBED] New "
+                                            "message info: %ld\n",
+                                            player->info_message->id);
+                            }
                     }
             }
         else if (debug)
@@ -142,7 +150,17 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
             dpp::message m;
             m.add_embed (e).set_channel_id (channel_id);
 
-            this->cluster->message_create (m, m_cb);
+            m.add_component (dpp::component ().add_component (
+                dpp::component ()
+                    .set_label ("Update")
+                    .set_id ("playnow/u")
+                    .set_type (dpp::cot_button)
+                    .set_style (dpp::cos_primary)));
+
+            if (event)
+                event->reply (m, m_cb);
+            else
+                this->cluster->message_create (m, m_cb);
         }
     else if (player->info_message)
         {
@@ -155,17 +173,26 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
                 printf ("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
                         "Edit: %ld %ld\n",
                         mn.channel_id, mn.id);
-            this->cluster->message_edit (mn, m_cb);
+
+            if (event)
+                {
+                    dpp::interaction_response reply (dpp::ir_update_message,
+                                                     mn);
+                    event->from->creator->interaction_response_create (
+                        event->command.id, event->command.token, reply, m_cb);
+                }
+            else
+                this->cluster->message_edit (mn, m_cb);
         }
     return true;
 }
 
 bool
-Manager::update_info_embed (dpp::snowflake guild_id, bool force_playing_status)
+Manager::update_info_embed (dpp::snowflake guild_id, bool force_playing_status, const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
         printf ("[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
-    return this->send_info_embed (guild_id, true, force_playing_status);
+    return this->send_info_embed (guild_id, true, force_playing_status, event);
 }
 
 bool
@@ -212,7 +239,7 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
     if (!guild_player)
         throw exception ("No player");
 
-    const bool debug = get_debug_state();
+    // const bool debug = get_debug_state();
     /* if (debug) printf("[Manager::get_playing_info_embed] Locked player::t_mutex: %ld\n", guild_player->guild_id); */
     /* std::lock_guard<std::mutex> lk (guild_player->t_mutex); */
 
@@ -231,7 +258,10 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
                 throw exception ("No track");
             }
 
-        track = guild_player->queue.front ();
+        if (util::player_has_current_track (guild_player))
+            track = guild_player->current_track;
+
+        else track = guild_player->queue.front ();
 
         prev_track = guild_player->queue.at (siz - 1UL);
 
@@ -304,7 +334,8 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
     bool tinfo = !track.info.raw.is_null ();
     if (tinfo)
         {
-            ft += format_duration (track.info.duration ());
+            track_progress prog = util::get_track_progress(track);
+            ft += "[" + format_duration (prog.current_ms) + "/" + format_duration (prog.duration) + "]";
         }
 
     bool has_p = false;

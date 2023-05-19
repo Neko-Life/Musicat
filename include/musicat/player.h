@@ -64,6 +64,13 @@ struct MCTrack : yt_search::YTrack
     ~MCTrack ();
 };
 
+struct track_progress
+{
+    int64_t current_ms;
+    int64_t duration;
+    int status;
+};
+
 class Manager;
 using player_manager_ptr = std::shared_ptr<Manager>;
 
@@ -355,12 +362,13 @@ class Manager
      * @param update Whether to update last info embed instead of sending new
      * one, return false if no info embed exist
      * @param force_playing_status
+     * @param event event to reply/update to
      * @return true
      * @return false
      * @throw musicat::exception
      */
     bool send_info_embed (dpp::snowflake guild_id, bool update = false,
-                          bool force_playing_status = false);
+                          bool force_playing_status = false, const dpp::interaction_create_t *event = nullptr);
 
     /**
      * @brief Update currently playing song info embed, return false if no info
@@ -368,12 +376,13 @@ class Manager
      *
      * @param guild_id
      * @param force_playing_status
+     * @param event event to reply/update to
      * @return true
      * @return false
      * @throw musicat::exception
      */
     bool update_info_embed (dpp::snowflake guild_id,
-                            bool force_playing_status = false);
+                            bool force_playing_status = false, const dpp::interaction_create_t *event = nullptr);
 
     /**
      * @brief Delete currently playing song info embed, return false if no info
@@ -469,6 +478,12 @@ namespace util
  */
 bool
 player_has_current_track (std::shared_ptr<player::Player> guild_player);
+
+/**
+ * @brief Get track current progress in ms
+ */
+player::track_progress
+get_track_progress (player::MCTrack &track);
 
 } // util
 } // musicat

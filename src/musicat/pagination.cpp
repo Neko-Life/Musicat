@@ -335,11 +335,78 @@ gc (bool clear)
 }
 
 void
+_construct_desc (std::deque<player::MCTrack> &queue,
+                 std::deque<player::MCTrack>::iterator i, std::string &desc,
+                 size_t &id, size_t &count, size_t &qs, dpp::embed &embed,
+                 const std::string &title, std::vector<dpp::embed> &embeds,
+                 uint64_t &totald, std::shared_ptr<player::Player> guild_player)
+{
+    if (i == queue.begin ())
+        {
+            player::track_progress prog = { 0, 0, -1 };
+            if (util::player_has_current_track(guild_player) && !guild_player->current_track.info.raw.is_null ())
+                prog = util::get_track_progress (guild_player->current_track);
+            else if (!i->info.raw.is_null ())
+                prog = util::get_track_progress (*i);
+
+            desc += "Current track: [" + i->title () + "](" + i->url () + ")"
+                    + std::string (
+                        !prog.status
+                            ? std::string (" [")
+                                  + format_duration (prog.current_ms) + "/"
+                                  + format_duration (prog.duration) + "]"
+                            : "")
+                    + " - <@" + std::to_string (i->user_id) + ">\n\n";
+        }
+    else
+        {
+            uint64_t dur = 0;
+            if (!i->info.raw.is_null ())
+                dur = i->info.duration ();
+
+            desc += std::to_string (id) + ": [" + i->title () + "]("
+                    + i->url () + ")"
+                    + std::string (dur ? std::string (" [")
+                                             + format_duration (dur) + "]"
+                                       : "")
+                    + " - <@" + std::to_string (i->user_id) + ">\n";
+            id++;
+            count++;
+        }
+    if ((count && !(count % 10)) || id == qs)
+        {
+            embed.set_title (title).set_description (
+                desc.length () > 2048
+                    ? "Description too long, pagination is on the way!"
+                    : desc);
+
+            std::string fot = "";
+
+            if (totald)
+                fot += format_duration (totald);
+            if (qs)
+                {
+                    if (fot.length ())
+                        fot += " | ";
+                    fot += std::to_string (qs) + " track"
+                           + (qs > 1 ? "s" : "");
+                }
+            if (fot.length ())
+                embed.set_footer (fot, "");
+            embeds.emplace_back (embed);
+            embed = dpp::embed ();
+            desc = "";
+            count = 0;
+        }
+}
+
+void
 reply_paginated_playlist (const dpp::interaction_create_t &event,
                           std::deque<player::MCTrack> queue,
                           const std::string &title, const bool edit_response)
 {
-    const bool debug = get_debug_state ();
+    // unused var
+    // const bool debug = get_debug_state ();
 
     std::vector<dpp::embed> embeds = {};
 
@@ -356,58 +423,12 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
         if (!i->info.raw.is_null ())
             totald += i->info.duration ();
 
+    auto guild_player = get_player_manager_ptr ()->get_player (event.command.guild_id);
+
     for (auto i = queue.begin (); i != queue.end (); i++)
         {
-            uint64_t dur = 0;
-            if (!i->info.raw.is_null ())
-                dur = i->info.duration ();
-            if (i == queue.begin ())
-                {
-                    desc += "Current track: [" + i->title () + "](" + i->url ()
-                            + ")"
-                            + std::string (dur ? std::string (" [")
-                                                     + format_duration (dur)
-                                                     + "]"
-                                               : "")
-                            + " - <@" + std::to_string (i->user_id) + ">\n\n";
-                }
-            else
-                {
-                    desc += std::to_string (id) + ": [" + i->title () + "]("
-                            + i->url () + ")"
-                            + std::string (dur ? std::string (" [")
-                                                     + format_duration (dur)
-                                                     + "]"
-                                               : "")
-                            + " - <@" + std::to_string (i->user_id) + ">\n";
-                    id++;
-                    count++;
-                }
-            if ((count && !(count % 10)) || id == qs)
-                {
-                    embed.set_title (title).set_description (
-                        desc.length () > 2048
-                            ? "Description too long, pagination is on the way!"
-                            : desc);
-
-                    std::string fot = "";
-
-                    if (totald)
-                        fot += format_duration (totald);
-                    if (qs)
-                        {
-                            if (fot.length ())
-                                fot += " | ";
-                            fot += std::to_string (qs) + " track"
-                                   + (qs > 1 ? "s" : "");
-                        }
-                    if (fot.length ())
-                        embed.set_footer (fot, "");
-                    embeds.emplace_back (embed);
-                    embed = dpp::embed ();
-                    desc = "";
-                    count = 0;
-                }
+            _construct_desc (queue, i, desc, id, count, qs, embed, title,
+                             embeds, totald, guild_player);
         }
 
     dpp::message msg;

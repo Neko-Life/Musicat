@@ -398,6 +398,23 @@ player_has_current_track (std::shared_ptr<player::Player> guild_player)
     return true;
 }
 
+player::track_progress
+get_track_progress (player::MCTrack &track)
+{
+    const int64_t duration = track.info.duration ();
+
+    if (!duration)
+        return { 0, 0, 1 };
+
+    float byte_per_ms = (float)track.filesize / (float)duration;
+
+    const int64_t current_ms = track.current_byte && byte_per_ms
+                                   ? (float)track.current_byte / byte_per_ms
+                                   : 0;
+
+    return { current_ms, duration, 0 };
+}
+
 } // util
 } // musicat
 
