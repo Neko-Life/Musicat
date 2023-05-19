@@ -44,7 +44,7 @@ slash_run (const dpp::slashcommand_t &event,
             reply += std::string ("Autoplay ")
                      + (guild_player->set_auto_play (arg_state ? true : false)
                                 .auto_play
-                            ? "enabled, add arg_state track to initialize "
+                            ? "enabled, add a track to initialize "
                               "autoplay "
                               "playlist"
                             : "disabled")
