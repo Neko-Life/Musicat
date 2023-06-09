@@ -19,7 +19,7 @@ namespace autocomplete
  */
 std::vector<std::pair<std::string, std::string> > filter_candidates (
     const std::vector<std::pair<std::string, std::string> > &candidates,
-    std::string param, const bool fuzzy = true);
+    std::string param, const bool fuzzy = false);
 
 /**
  * @brief Create autocomplete response
