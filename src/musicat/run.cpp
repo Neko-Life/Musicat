@@ -56,6 +56,12 @@ get_sha_id ()
     return sha_id;
 }
 
+string
+get_sha_secret ()
+{
+    return get_config_value<std::string> ("SHA_SECRET", "");
+}
+
 player::player_manager_ptr
 get_player_manager_ptr ()
 {

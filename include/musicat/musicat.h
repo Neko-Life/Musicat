@@ -266,6 +266,12 @@ dpp::snowflake
 get_sha_id ();
 
 /**
+ * @brief Get client secret
+ */
+std::string
+get_sha_secret ();
+
+/**
  * @brief Get player manager shared_ptr, won't be available in cli context
  */
 player::player_manager_ptr

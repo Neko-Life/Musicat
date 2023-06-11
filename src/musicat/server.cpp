@@ -1,5 +1,5 @@
-#include "musicat/musicat.h"
 #include "musicat/server.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <chrono>
 #include <stdio.h>
@@ -124,7 +124,7 @@ _generate_oauth_state ()
 
     do
         {
-            const int len = (util::get_random_number() % 30) + 50;
+            const int len = (util::get_random_number () % 30) + 50;
             state = "";
 
             for (int i = 0; i < len; i++)
@@ -137,7 +137,7 @@ _generate_oauth_state ()
 
     _oauth_states.push_back (state);
 
-    _util_create_remove_thread (300, state, _remove_oauth_state);
+    _util_create_remove_thread (600, state, _remove_oauth_state);
 
     return state;
 }
@@ -303,7 +303,7 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
 }
 
 void
-_handle_event (MCWsApp *ws, nlohmann::json &d)
+_handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 {
     const bool debug = get_debug_state ();
 
@@ -315,91 +315,120 @@ _handle_event (MCWsApp *ws, nlohmann::json &d)
 
     nlohmann::json resd;
 
-    if (d["e"].is_number ())
+    switch (event)
         {
-            const int64_t event = d["e"].get<int64_t> ();
-
-            switch (event)
+        case ws_event_t::oauth:
+            auto state_prop = d["state"];
+            if (state_prop.is_null () || !state_prop.is_string ())
                 {
-                // ws_event_t::smt: _handle_event(d["d"]);
-                // case ws_req_t::bot_info:
-                //     {
-                //         auto bot = get_client_ptr ();
-                //         if (!bot)
-                //             {
-                //                 _set_resd_error (resd, "Bot not running");
-                //                 break;
-                //             }
-
-                //         resd["avatarUrl"] = bot->me.get_avatar_url (
-                //             BOT_AVATAR_SIZE, dpp::i_webp);
-                //         resd["username"] = bot->me.username;
-                //         resd["description"] = get_bot_description ();
-
-                //         break;
-                //     }
-
-                // case ws_req_t::server_list:
-                //     {
-                //         auto *guild_cache = dpp::get_guild_cache ();
-                //         if (!guild_cache)
-                //             {
-                //                 _set_resd_error (resd, "No guild cached");
-                //                 break;
-                //             }
-
-                //         // lock cache mutex for thread safety
-                //         std::shared_mutex &cache_mutex
-                //             = guild_cache->get_mutex ();
-                //         std::lock_guard<std::shared_mutex &> lk (cache_mutex);
-
-                //         auto &container = guild_cache->get_container ();
-
-                //         for (auto pair : container)
-                //             {
-                //                 auto *guild = pair.second;
-                //                 if (!guild)
-                //                     continue;
-
-                //                 nlohmann::json to_push;
-
-                //                 try
-                //                     {
-                //                         to_push = nlohmann::json::parse (
-                //                             guild->build_json (true));
-                //                     }
-                //                 catch (...)
-                //                     {
-                //                         fprintf (
-                //                             stderr,
-                //                             "[server::_handle_req ERROR] "
-                //                             "Error building guild json\n");
-                //                         continue;
-                //                     }
-
-                //                 resd.push_back (to_push);
-                //             }
-
-                //         break;
-                //     }
-
-                // case ws_req_t::oauth_state:
-                //     {
-                //         std::string oauth_state = get_oauth_link ();
-                //         if (!oauth_state.length ())
-                //             {
-                //                 _set_resd_error (resd, "No OAuth configured");
-                //                 break;
-                //             }
-
-                //         resd = oauth_state
-                //                + "&state=" + _generate_oauth_state ();
-                //         break;
-                //     }
+                    _set_resd_error (resd, "Invalid operation");
                 }
+            else
+                {
+                    const std::string state = d["state"].get<std::string> ();
+
+                    if (_remove_oauth_state (state) < 0)
+                        {
+                            _set_resd_error (resd, "Unauthorized");
+                        }
+                    else
+                        {
+                            std::string secret = get_sha_secret();
+
+                            if (!secret.length()) {
+                            }
+
+                            resd["code"] = d["code"];
+                            resd["client_id"] = std::to_string(get_sha_id());
+                            resd["client_secret"] = secret;
+                            resd["grant_type"] = "authorization_code";
+                            resd["redirect_uri"] = 'e';
+
+                            // !TODO: make request here
+                            // const subscribe_id
+                            // ws.subscribe
+                            // std::thread
+                        }
+                }
+            break;
+            // ws_event_t::smt: _handle_event(d["d"]);
+            // case ws_req_t::bot_info:
+            //     {
+            //         auto bot = get_client_ptr ();
+            //         if (!bot)
+            //             {
+            //                 _set_resd_error (resd, "Bot not running");
+            //                 break;
+            //             }
+
+            //         resd["avatarUrl"] = bot->me.get_avatar_url (
+            //             BOT_AVATAR_SIZE, dpp::i_webp);
+            //         resd["username"] = bot->me.username;
+            //         resd["description"] = get_bot_description ();
+
+            //         break;
+            //     }
+
+            // case ws_req_t::server_list:
+            //     {
+            //         auto *guild_cache = dpp::get_guild_cache ();
+            //         if (!guild_cache)
+            //             {
+            //                 _set_resd_error (resd, "No guild cached");
+            //                 break;
+            //             }
+
+            //         // lock cache mutex for thread safety
+            //         std::shared_mutex &cache_mutex
+            //             = guild_cache->get_mutex ();
+            //         std::lock_guard<std::shared_mutex &> lk (cache_mutex);
+
+            //         auto &container = guild_cache->get_container ();
+
+            //         for (auto pair : container)
+            //             {
+            //                 auto *guild = pair.second;
+            //                 if (!guild)
+            //                     continue;
+
+            //                 nlohmann::json to_push;
+
+            //                 try
+            //                     {
+            //                         to_push = nlohmann::json::parse (
+            //                             guild->build_json (true));
+            //                     }
+            //                 catch (...)
+            //                     {
+            //                         fprintf (
+            //                             stderr,
+            //                             "[server::_handle_req ERROR] "
+            //                             "Error building guild json\n");
+            //                         continue;
+            //                     }
+
+            //                 resd.push_back (to_push);
+            //             }
+
+            //         break;
+            //     }
+
+            // case ws_req_t::oauth_state:
+            //     {
+            //         std::string oauth_state = get_oauth_link ();
+            //         if (!oauth_state.length ())
+            //             {
+            //                 _set_resd_error (resd, "No OAuth configured");
+            //                 break;
+            //             }
+
+            //         resd = oauth_state
+            //                + "&state=" + _generate_oauth_state ();
+            //         break;
+            //     }
         }
 
-    /* _emit_event (ws, event_name, resd); */
+    /* if (emit) _emit_event (ws, event_name, resd); */
 }
 
 bool
@@ -522,7 +551,20 @@ run ()
                                   }
                               else if (payload_type == "e")
                                   {
-                                      /* _handle_event (ws, d); */
+                                      auto event_prop = d["event"];
+                                      if (event_prop.is_null ()
+                                          || !event_prop.is_number ())
+                                          {
+                                              _log_err (
+                                                  ws, "[server ERROR] Invalid "
+                                                      "event\n");
+                                          }
+                                      else
+                                          {
+                                              const int64_t e
+                                                  = event_prop.get<int64_t> ();
+                                              _handle_event (ws, e, d);
+                                          }
                                   }
                               else
                                   {
