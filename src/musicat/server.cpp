@@ -254,6 +254,11 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                                         continue;
                                     }
 
+                                to_push["icon_url"] = guild->get_icon_url(512, dpp::i_webp);
+                                to_push["banner_url"] = guild->get_banner_url(1024, dpp::i_webp);
+                                to_push["splash_url"] = guild->get_splash_url(1024, dpp::i_webp);
+                                to_push["discovery_splash_url"] = guild->get_discovery_splash_url(1024, dpp::i_webp);
+
                                 resd.push_back (to_push);
                             }
 
