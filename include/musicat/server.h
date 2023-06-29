@@ -2,6 +2,7 @@
 #define MUSICAT_SERVER_H
 
 #include <mutex>
+#include <string>
 
 namespace musicat
 {
