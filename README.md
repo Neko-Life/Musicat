@@ -18,7 +18,7 @@ Discord Music Bot written in C++
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libsodium - Library
 * openssl - Library
-* ICU 72 - Library
+* ICU 73 - Library
 * [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
 * [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included
 * [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included
