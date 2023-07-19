@@ -6,6 +6,7 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/storage.h"
+#include "musicat/util.h"
 #include "nekos-best++.hpp"
 #include "nlohmann/json.hpp"
 #include <any>
@@ -280,36 +281,31 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     auto from = event.from;
     auto guild_id = event.command.guild_id;
 
-    string edit_response;
-    string prepend_name;
-    {
-        string prepend_name = string ("<@")
-                              + std::to_string (event.command.usr.id)
-                              + string ("> ");
-        const string prepend_response
-            = top        ? " to the top of "
-                           "the queue"
-              : arg_slip ? " to position " + std::to_string (arg_slip)
-                         : "";
+    const string prepend_name
+        = util::response::str_mention_user (event.command.usr.id);
 
-        edit_response = prepend_name + string ("Added: ") + result.title ()
-                        + prepend_response;
-    }
+    string edit_response = prepend_name
+                           + util::response::reply_added_track (
+                               result.title (), top ? 1 : arg_slip);
 
     event.thinking ();
+
     string fname = std::regex_replace (
         result.title () + string ("-") + result.id () + string (".opus"),
         std::regex ("/"), "", std::regex_constants::match_any);
+
     bool dling = false;
 
     std::ifstream test (get_music_folder_path () + fname,
                         std::ios_base::in | std::ios_base::binary);
+
     if (!test.is_open ())
         {
             dling = true;
-            event.edit_response (prepend_name + string ("Downloading ")
-                                 + result.title ()
-                                 + string ("... Gimme 10 sec ight"));
+            event.edit_response (
+                prepend_name
+                + util::response::reply_downloading_track (result.title ()));
+
             if (player_manager->waiting_file_download.find (fname)
                 == player_manager->waiting_file_download.end ())
                 {
@@ -483,8 +479,9 @@ run (int argc, const char *argv[])
                 const string param = event.custom_id.substr (fsub + 1, 1);
                 if (!param.length ())
                     {
-                        fprintf (stderr,
-                                 "[WARN] command \"page_queue\" have no param\n");
+                        fprintf (
+                            stderr,
+                            "[WARN] command \"page_queue\" have no param\n");
                         return;
                     }
                 // event.reply (dpp::ir_deferred_update_message, "");
@@ -503,20 +500,21 @@ run (int argc, const char *argv[])
                     }
                 if (param.find ("que_s_track") != std::string::npos)
                     {
-                        event.dialog (param.find ("top") != std::string::npos
-                                          ? command::search::
-                                              modal_enqueue_searched_track_top ()
-                                      : param.find ("slip") != std::string::npos
-                                          ? command::search::
-                                              modal_enqueue_searched_track_slip ()
-                                          : command::search::
-                                              modal_enqueue_searched_track ());
+                        event.dialog (
+                            param.find ("top") != std::string::npos ? command::
+                                    search::modal_enqueue_searched_track_top ()
+                            : param.find ("slip") != std::string::npos
+                                ? command::search::
+                                    modal_enqueue_searched_track_slip ()
+                                : command::search::
+                                    modal_enqueue_searched_track ());
                     }
                 else
                     {
-                        fprintf (stderr,
-                                 "[WARN] modal_p param isn't handled: \"%s\"\n",
-                                 param.c_str ());
+                        fprintf (
+                            stderr,
+                            "[WARN] modal_p param isn't handled: \"%s\"\n",
+                            param.c_str ());
                     }
             }
         else if (cmd == "progress")
@@ -525,20 +523,23 @@ run (int argc, const char *argv[])
                     = event.custom_id.substr (fsub + 1, string::npos);
                 if (!param.length ())
                     {
-                        fprintf (stderr,
-                                 "[WARN] command \"progress\" have no param\n");
+                        fprintf (
+                            stderr,
+                            "[WARN] command \"progress\" have no param\n");
                         return;
                     }
 
                 if (param.find ("u") != std::string::npos)
                     {
-                        command::progress::update_progress (event, player_manager);
+                        command::progress::update_progress (event,
+                                                            player_manager);
                     }
                 else
                     {
-                        fprintf (stderr,
-                                 "[WARN] progress param isn't handled: \"%s\"\n",
-                                 param.c_str ());
+                        fprintf (
+                            stderr,
+                            "[WARN] progress param isn't handled: \"%s\"\n",
+                            param.c_str ());
                     }
             }
         else if (cmd == "playnow")
@@ -556,15 +557,20 @@ run (int argc, const char *argv[])
                     {
                         try
                             {
-                                // if (debug) fprintf (stderr, "[playnow u cmd id, token: %ld %s\n]", event.command.id, event.command.token.c_str ());
+                                // if (debug) fprintf (stderr, "[playnow u cmd
+                                // id, token: %ld %s\n]", event.command.id,
+                                // event.command.token.c_str ());
 
-                                dpp::interaction_create_t new_event (event.from, event.raw_event);
+                                dpp::interaction_create_t new_event (
+                                    event.from, event.raw_event);
                                 new_event.command = event.command;
 
-                                // if (debug) fprintf (stderr, "[playnow u new_cmd id, token: %ld %s\n]", new_event.command.id, new_event.command.token.c_str ());
+                                // if (debug) fprintf (stderr, "[playnow u
+                                // new_cmd id, token: %ld %s\n]",
+                                // new_event.command.id,
+                                // new_event.command.token.c_str ());
                                 player_manager->update_info_embed (
-                                    event.command.guild_id, false,
-                                    &new_event);
+                                    event.command.guild_id, false, &new_event);
                             }
                         catch (exception e)
                             {
@@ -576,9 +582,10 @@ run (int argc, const char *argv[])
                     }
                 else
                     {
-                        fprintf (stderr,
-                                 "[WARN] playnow param isn't handled: \"%s\"\n",
-                                 param.c_str ());
+                        fprintf (
+                            stderr,
+                            "[WARN] playnow param isn't handled: \"%s\"\n",
+                            param.c_str ());
                     }
             }
     });

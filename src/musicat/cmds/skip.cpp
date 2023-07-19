@@ -36,20 +36,22 @@ slash_run (const dpp::slashcommand_t &event,
             int64_t rm = 0;
             get_inter_param (event, "amount", &am);
             get_inter_param (event, "remove", &rm);
-            int res = player_manager->skip (v, event.command.guild_id,
-                                            event.command.usr.id, am,
-                                            rm ? true : false);
-            switch (res)
+
+            auto res = player_manager->skip (v, event.command.guild_id,
+                                             event.command.usr.id, am,
+                                             rm ? true : false);
+            switch (res.second)
                 {
                 case 0:
-                    event.reply ("Skipped");
+                    event.reply (
+                        util::response::reply_skipped_track (res.first));
                     break;
                 case -1:
                     event.reply ("I'm not playing anything");
                     break;
                 default:
-                    event.reply (std::to_string (res)
-                                 + util::join (res > 1, " member", "s")
+                    event.reply (std::to_string (res.second)
+                                 + util::join (res.second > 1, " member", "s")
                                  + " voted to skip, add more vote to skip "
                                    "current track");
                 }

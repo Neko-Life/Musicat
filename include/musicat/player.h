@@ -160,7 +160,8 @@ class Player
     bool stopped;
 
     /**
-     * @brief Thread safety mutex. Must lock this whenever doing the appropriate action.
+     * @brief Thread safety mutex. Must lock this whenever doing the
+     * appropriate action.
      */
     std::mutex t_mutex;
 
@@ -176,9 +177,12 @@ class Player
      * @brief Resume paused playback and empty playback buffer
      *
      * @param v
-     * @return int 0 on success, > 0 on vote, -1 on failure
+     * @return std::pair<std::deque<MCTrack>, int> a list of removed track and
+     *                                             a status of int 0 on
+     *                                             success, > 0 on vote, -1 on
+     *                                             failure
      */
-    int skip (dpp::voiceconn *v);
+    std::pair<std::deque<MCTrack>, int> skip (dpp::voiceconn *v);
 
     /**
      * @brief Skip track entries in the queue
@@ -186,9 +190,11 @@ class Player
      * @param remove force remove regardless of loop setting
      * @param pop_current force to include currently playing track
      *                    (index 0)
-     * @return int64_t amount skipped
+     *
+     * @return std::deque<MCTrack> list of removed track
      */
-    int64_t skip_queue (int64_t amount = 1, bool remove = false, bool pop_current = false);
+    std::deque<MCTrack> skip_queue (int64_t amount = 1, bool remove = false,
+                                    bool pop_current = false);
 
     /**
      * @brief Set player auto play mode
@@ -254,7 +260,8 @@ class Manager
     // mp: manually_paused
     // imc: info_messages_cache
     // im: ignore_marker
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m;
+    // sq: stop_queue
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, sq_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv;
@@ -263,7 +270,7 @@ class Manager
     std::map<std::string, dpp::snowflake> waiting_file_download;
     std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
-    std::vector<dpp::snowflake> stop_queue;
+    std::map<dpp::snowflake, bool> stop_queue;
     std::vector<dpp::snowflake> ignore_marker;
 
     Manager (dpp::cluster *_cluster, dpp::snowflake _sha_id);
@@ -343,11 +350,17 @@ class Manager
      * @param guild_id
      * @param user_id
      * @param remove
-     * @return int 0 on success, > 0 on vote, -1 on failure
+     *
+     * @return std::pair<std::deque<MCTrack>, int> a list of removed track and
+     *                                             a status of int 0 on
+     *                                             success, > 0 on vote, -1 on
+     *                                             failure
+     *
      * @throw musicat::exception
      */
-    int skip (dpp::voiceconn *v, dpp::snowflake guild_id,
-              dpp::snowflake user_id, int64_t amount = 1, bool remove = false);
+    std::pair<std::deque<MCTrack>, int>
+    skip (dpp::voiceconn *v, dpp::snowflake guild_id, dpp::snowflake user_id,
+          int64_t amount = 1, bool remove = false);
     void download (std::string fname, std::string url,
                    dpp::snowflake guild_id);
     void wait_for_download (std::string file_name);
@@ -368,7 +381,8 @@ class Manager
      * @throw musicat::exception
      */
     bool send_info_embed (dpp::snowflake guild_id, bool update = false,
-                          bool force_playing_status = false, const dpp::interaction_create_t *event = nullptr);
+                          bool force_playing_status = false,
+                          const dpp::interaction_create_t *event = nullptr);
 
     /**
      * @brief Update currently playing song info embed, return false if no info
@@ -382,7 +396,8 @@ class Manager
      * @throw musicat::exception
      */
     bool update_info_embed (dpp::snowflake guild_id,
-                            bool force_playing_status = false, const dpp::interaction_create_t *event = nullptr);
+                            bool force_playing_status = false,
+                            const dpp::interaction_create_t *event = nullptr);
 
     /**
      * @brief Delete currently playing song info embed, return false if no info
@@ -456,17 +471,21 @@ class Manager
 
     /**
      * @brief Prepare for reconnect by setting necessary state,
-     *        must call dpp::discord_client::disconnect_voice (dpp::snowflake guild_id)
-     *        after calling this method, and then create a thread to call
-     *        player_manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id)
-     *        for the reconnect to succeed
+     *        must call dpp::discord_client::disconnect_voice (dpp::snowflake
+     * guild_id) after calling this method, and then create a thread to call
+     *        player_manager::reconnect (dpp::discord_client *from,
+     * dpp::snowflake guild_id) for the reconnect to succeed
      */
-    void set_reconnect (dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id);
+    void set_reconnect (dpp::snowflake guild_id,
+                        dpp::snowflake disconnect_channel_id,
+                        dpp::snowflake connect_channel_id);
 
     /**
      * @brief Perform full voice channel reconnect/rejoin
      */
-    void full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id);
+    void full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id,
+                         dpp::snowflake disconnect_channel_id,
+                         dpp::snowflake connect_channel_id);
 };
 } // player
 
@@ -476,14 +495,12 @@ namespace util
 /**
  * @brief Check if guild player has current track loaded
  */
-bool
-player_has_current_track (std::shared_ptr<player::Player> guild_player);
+bool player_has_current_track (std::shared_ptr<player::Player> guild_player);
 
 /**
  * @brief Get track current progress in ms
  */
-player::track_progress
-get_track_progress (player::MCTrack &track);
+player::track_progress get_track_progress (player::MCTrack &track);
 
 } // util
 } // musicat

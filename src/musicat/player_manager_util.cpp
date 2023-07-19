@@ -152,7 +152,12 @@ Manager::stop_stream (dpp::snowflake guild_id)
     auto guild_player = this->get_player (guild_id);
     if (guild_player)
         if (guild_player->current_track.filesize)
-            guild_player->current_track.stopping = true;
+            {
+                guild_player->current_track.stopping = true;
+
+                std::lock_guard<std::mutex> lk (sq_m);
+                stop_queue[guild_id] = true;
+            }
 }
 
 void

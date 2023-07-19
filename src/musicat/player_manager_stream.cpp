@@ -76,9 +76,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     // stream loop
                     while (v && !v->terminating)
                         {
-                            // stop
-                            if (track.stopping) break;
-
                             debug = get_debug_state ();
 
                             static const constexpr long CHUNK_READ = BUFSIZ * 2;
@@ -105,8 +102,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         std::chrono::milliseconds (30));
                                 }
 
+                            std::lock_guard<std::mutex> lk(sq_m);
+
                             // eof
-                            if (!read_bytes)
+                            if (!read_bytes || (server_id && stop_queue[server_id]))
                                 break;
 
                         }
@@ -124,6 +123,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
                 end_time - start_time);
+
+            if (server_id) {
+                std::lock_guard<std::mutex> lk(sq_m);
+                stop_queue.erase(server_id);
+            }
+
             if (debug)
                 printf ("Done streaming for %ld milliseconds\n",
                         done.count ());

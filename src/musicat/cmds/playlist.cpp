@@ -4,6 +4,7 @@
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
+#include "musicat/util.h"
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
 
@@ -274,9 +275,7 @@ slash_run (const dpp::slashcommand_t &event,
                     }
 
             event.edit_response (
-                std::string ("Added ") + std::to_string (count) + " track"
-                + (count > 1 ? "s" : "") + " from playlist " + p_id
-                + (arg_top ? " to the top of the queue" : ""));
+                util::response::reply_added_playlist (p_id, arg_top, count));
 
             // std::pair<dpp::channel*, std::map<dpp::snowflake,
             // dpp::voicestate>> c; bool has_c = false; bool no_vc = false; try

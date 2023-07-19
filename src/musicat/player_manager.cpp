@@ -137,18 +137,22 @@ Manager::unpause (dpp::discord_voice_client *voiceclient,
     return ret;
 }
 
-int
+std::pair<std::deque<MCTrack>, int>
 Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
                dpp::snowflake user_id, int64_t amount, bool remove)
 {
     if (!v)
-        return -1;
+        return { {}, -1 };
+
     auto guild_player = get_player (guild_id);
     if (!guild_player)
-        return -1;
+        return { {}, -1 };
 
-    const bool debug = get_debug_state();
-    if (debug) printf("[Manager::skip] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+    const bool debug = get_debug_state ();
+    if (debug)
+        printf ("[Manager::skip] Locked player::t_mutex: %ld\n",
+                guild_player->guild_id);
+
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     try
         {
@@ -156,17 +160,22 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
             if (u.first->id != v->channel_id)
                 throw exception ("You're not in my voice channel", 0);
 
-            unsigned siz = 0;
-            for (auto &i : u.second)
-                {
-                    auto &a = i.second;
-                    if (a.is_deaf () || a.is_self_deaf ())
-                        continue;
-                    auto user = dpp::find_user (a.user_id);
-                    if (user->is_bot ())
-                        continue;
-                    siz++;
-                }
+            // some vote logic here but decided to disable it
+            // cuz i remember someone told me it's incovenient
+            // also some logic is not handled properly
+
+            // unsigned siz = 0;
+            // for (auto &i : u.second)
+            //     {
+            //         auto &a = i.second;
+            //         if (a.is_deaf () || a.is_self_deaf ())
+            //             continue;
+            //         auto user = dpp::find_user (a.user_id);
+            //         if (user->is_bot ())
+            //             continue;
+            //         siz++;
+            //     }
+
             // if (siz > 1U)
             // {
             //     std::lock_guard<std::mutex> lk(guild_player->q_m);
@@ -214,18 +223,26 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
             throw exception ("You're not in a voice channel", 1);
         }
 
-    guild_player->skip_queue (amount, remove);
+    auto removed_tracks = guild_player->skip_queue (amount, remove);
 
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
         this->stop_stream (guild_id);
 
-    int a = guild_player->skip (v);
+    auto a = guild_player->skip (v);
+    if (a.first.size ())
+        {
+            for (auto &e : a.first)
+                removed_tracks.push_back (e);
+        }
 
     if (remove && !guild_player->stopped && v && v->voiceclient)
         v->voiceclient->insert_marker ("rm");
 
-    if (debug) printf("[Manager::skip] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
-    return a;
+    if (debug)
+        printf ("[Manager::skip] Should unlock player::t_mutex: %ld\n",
+                guild_player->guild_id);
+
+    return { removed_tracks, a.second };
 }
 
 void
@@ -284,7 +301,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 {
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
-                dpp::snowflake channel_id, bool notify_error) {
+                        dpp::snowflake channel_id, bool notify_error) {
             const bool debug = get_debug_state ();
 
             if (debug)
@@ -370,28 +387,29 @@ Manager::shuffle_queue (dpp::snowflake guild_id)
 }
 
 void
-Manager::set_reconnect (dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id)
+Manager::set_reconnect (dpp::snowflake guild_id,
+                        dpp::snowflake disconnect_channel_id,
+                        dpp::snowflake connect_channel_id)
 {
     std::lock_guard<std::mutex> lk (this->dc_m);
-    this->disconnecting[guild_id]
-        = disconnect_channel_id;
+    this->disconnecting[guild_id] = disconnect_channel_id;
     std::lock_guard<std::mutex> lk2 (this->c_m);
     std::lock_guard<std::mutex> lk3 (this->wd_m);
-    this->connecting.insert_or_assign (
-        guild_id, connect_channel_id);
+    this->connecting.insert_or_assign (guild_id, connect_channel_id);
     this->waiting_vc_ready[guild_id] = "0";
 }
 
 void
-Manager::full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id, dpp::snowflake disconnect_channel_id, dpp::snowflake connect_channel_id)
+Manager::full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id,
+                         dpp::snowflake disconnect_channel_id,
+                         dpp::snowflake connect_channel_id)
 {
     this->set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
 
     from->disconnect_voice (guild_id);
 
-    std::thread pjt ([this, from, guild_id] () {
-        this->reconnect (from, guild_id);
-    });
+    std::thread pjt (
+        [this, from, guild_id] () { this->reconnect (from, guild_id); });
     pjt.detach ();
 }
 

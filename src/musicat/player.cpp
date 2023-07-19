@@ -8,7 +8,8 @@ namespace player
 {
 using string = std::string;
 
-MCTrack::MCTrack () {
+MCTrack::MCTrack ()
+{
     seekable = false;
     seek_to = 0;
     stopping = false;
@@ -16,7 +17,8 @@ MCTrack::MCTrack () {
     filesize = 0;
 }
 
-MCTrack::MCTrack (YTrack t) {
+MCTrack::MCTrack (YTrack t)
+{
     seekable = false;
     seek_to = 0;
     stopping = false;
@@ -125,16 +127,24 @@ Player::set_max_history_size (size_t siz)
     return *this;
 }
 
-int
+std::pair<std::deque<MCTrack>, int>
 Player::skip (dpp::voiceconn *v)
 {
     if (v && v->voiceclient)
         {
             /* const bool debug = get_debug_state (); */
 
+            std::deque<MCTrack> removed_tracks = {};
             bool skipped = false;
             if (v->voiceclient->get_secs_remaining () > 0.05f)
                 {
+                    if (this->queue.size()) {
+                        removed_tracks.push_back (MCTrack (this->queue.front()));
+                        if (get_debug_state ())
+                            fprintf (stderr, "PUSHED FROM PLAYER SKIP: '%s'\n",
+                                    this->queue.front().title ().c_str ());
+                    }
+
                     v->voiceclient->pause_audio (false);
                     v->voiceclient->skip_to_next_marker ();
 
@@ -144,18 +154,18 @@ Player::skip (dpp::voiceconn *v)
             if (this->is_stopped ())
                 {
                     v->voiceclient->skip_to_next_marker ();
-                    this->skip_queue (1, false, true);
+                    removed_tracks = this->skip_queue (1, false, true);
                     skipped = true;
                 }
 
             if (skipped)
-                return 0;
+                return { removed_tracks, 0 };
         }
-    
-    return -1;
+
+    return { {}, -1 };
 }
 
-int64_t
+std::deque<MCTrack>
 Player::skip_queue (int64_t amount, bool remove, bool pop_current)
 {
     auto siz = this->queue.size ();
@@ -167,20 +177,30 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current)
     const bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
     const bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
-    int64_t removed = 0;
-    for (int64_t i = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s)) ? 0 : 1;
+    std::deque<MCTrack> removed_tracks = {};
+    for (int64_t i
+         = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s))
+               ? 0
+               : 1;
          i < amount; i++)
         {
             if (this->queue.begin () == this->queue.end ())
                 break;
-            auto l = this->queue.front ();
+
+            MCTrack l = this->queue.front ();
+
             this->queue.pop_front ();
-            removed++;
+            if (get_debug_state ())
+                fprintf (stderr, "POPPED FROM QUEUE: '%s'\n",
+                         l.title ().c_str ());
+
+            removed_tracks.push_back (l);
+
             if (!remove && (l_s || l_q))
                 this->queue.push_back (l);
         }
 
-    return removed;
+    return removed_tracks;
 }
 
 Player &
@@ -393,7 +413,8 @@ namespace util
 bool
 player_has_current_track (std::shared_ptr<player::Player> guild_player)
 {
-    if (!guild_player || guild_player->current_track.raw.is_null () || !guild_player->queue.size ())
+    if (!guild_player || guild_player->current_track.raw.is_null ()
+        || !guild_player->queue.size ())
         return false;
     return true;
 }

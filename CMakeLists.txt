@@ -51,6 +51,7 @@ add_executable(Shasha
         src/musicat/runtime_cli.cpp
         src/musicat/slash.cpp
         src/musicat/storage.cpp
+        src/musicat/util-response.cpp
         src/musicat/util.cpp
         src/musicat/yt-playlist.cpp
         src/musicat/yt-search.cpp
