@@ -138,12 +138,12 @@ Player::skip (dpp::voiceconn *v)
             bool skipped = false;
             if (v->voiceclient->get_secs_remaining () > 0.05f)
                 {
-                    if (this->queue.size()) {
-                        removed_tracks.push_back (MCTrack (this->queue.front()));
-                        if (get_debug_state ())
-                            fprintf (stderr, "PUSHED FROM PLAYER SKIP: '%s'\n",
-                                    this->queue.front().title ().c_str ());
-                    }
+                    // if (this->queue.size()) {
+                    //     removed_tracks.push_back (MCTrack (this->queue.front()));
+                    //     if (get_debug_state ())
+                    //         fprintf (stderr, "PUSHED FROM PLAYER SKIP: '%s'\n",
+                    //                 this->queue.front().title ().c_str ());
+                    // }
 
                     v->voiceclient->pause_audio (false);
                     v->voiceclient->skip_to_next_marker ();
