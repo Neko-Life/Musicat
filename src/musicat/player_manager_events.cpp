@@ -211,60 +211,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                     }
 
                     // channel
-                    auto *c = dpp::find_channel (channel_id);
+                    dpp::channel *c = dpp::find_channel (channel_id);
                     // guild
-                    auto *g = dpp::find_guild (guild_id);
+                    dpp::guild *g = dpp::find_guild (guild_id);
 
-                    // !TODO: move this to its own method
-                    if (c && g && v && v->creator
-                        && c->get_type () == dpp::CHANNEL_STAGE)
-                        {
-                            auto i = g->voice_members.find (this->sha_id);
-
-                            if (i != g->voice_members.end ())
-                                {
-                                    // stage channel
-                                    auto *vc = dpp::find_channel (
-                                        i->second.channel_id);
-
-                                    // don't even try if you don't even have
-                                    // the permission to request_to_speak
-                                    if (has_permissions (
-                                            g, &v->creator->me, vc,
-                                            { dpp::p_request_to_speak }))
-                                        {
-                                            // try not suppress if has
-                                            // MUTE_MEMBERS permission
-                                            const bool should_suppress
-                                                = has_permissions (
-                                                      g, &v->creator->me, vc,
-                                                      { dpp::p_mute_members })
-                                                      ? false
-                                                      : i->second
-                                                            .is_suppressed ();
-
-                                            // set request_to_speak
-                                            time_t request_ts = 0;
-                                            if (should_suppress)
-                                                time (&request_ts);
-
-                                            v->creator
-                                                ->current_user_set_voice_state (
-                                                    guild_id,
-                                                    i->second.channel_id,
-                                                    should_suppress,
-                                                    request_ts);
-                                        }
-                                    else if (debug)
-                                        {
-                                            fprintf (
-                                                stderr,
-                                                "[request_to_speak] No "
-                                                "request_to_speak in %ld\n",
-                                                i->second.channel_id);
-                                        }
-                                }
-                        }
+                    prepare_play_stage_channel_routine (v, c, g);
 
                     {
                         std::unique_lock<std::mutex> lk (this->dl_m);
@@ -751,6 +702,69 @@ Manager::handle_on_message_delete_bulk (
 {
     for (auto i : event.deleted)
         this->set_info_message_as_deleted (i);
+}
+
+void
+Manager::prepare_play_stage_channel_routine (
+    dpp::discord_voice_client *voice_client, dpp::channel *voice_channel,
+    dpp::guild *guild)
+{
+
+    if (voice_channel && guild && voice_client && voice_client->creator
+        && voice_channel->get_type () == dpp::CHANNEL_STAGE)
+        {
+            const bool debug = get_debug_state ();
+
+            auto i = guild->voice_members.find (this->sha_id);
+
+            if (i != guild->voice_members.end ())
+                {
+                    const bool is_currently_suppressed
+                        = i->second.is_suppressed ();
+
+                    // return if not suppressed
+                    if (!is_currently_suppressed)
+                        return;
+
+                    // stage channel
+                    auto *vc = dpp::find_channel (i->second.channel_id);
+
+                    // don't even try if you don't even
+                    // have the permission to
+                    // request_to_speak
+                    if (has_permissions (guild, &voice_client->creator->me, vc,
+                                         { dpp::p_request_to_speak }))
+                        {
+                            // try not suppress if has
+                            // MUTE_MEMBERS permission
+                            const bool should_suppress
+                                = has_permissions (guild,
+                                                   &voice_client->creator->me,
+                                                   vc, { dpp::p_mute_members })
+                                      ? false
+                                      : is_currently_suppressed;
+
+                            // set request_to_speak
+                            time_t request_ts = 0;
+                            if (should_suppress)
+                                time (&request_ts);
+
+                            voice_client->creator
+                                ->current_user_set_voice_state (
+                                    guild->id, i->second.channel_id,
+                                    should_suppress, request_ts);
+                        }
+                    else if (debug)
+                        {
+                            fprintf (stderr,
+                                     "[request_to_speak] "
+                                     "No "
+                                     "request_to_speak in "
+                                     "%ld\n",
+                                     i->second.channel_id);
+                        }
+                }
+        }
 }
 
 } // player
