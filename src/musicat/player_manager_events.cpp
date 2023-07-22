@@ -16,6 +16,12 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                  std::shared_ptr<Manager> shared_manager)
 {
     const bool debug = get_debug_state ();
+    if (!event.voice_client)
+        {
+            printf ("NO CLIENT\n");
+            return false;
+        }
+
     if (debug)
         printf ("Handling voice marker: \"%s\" in guild %ld\n",
                 event.track_meta.c_str (), event.voice_client->server_id);
@@ -30,11 +36,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             }
     }
 
-    if (!event.voice_client)
-        {
-            printf ("NO CLIENT\n");
-            return false;
-        }
     if (this->is_disconnecting (event.voice_client->server_id))
         {
             if (debug)
@@ -49,10 +50,13 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             return false;
         }
 
+    clear_stream_stopping (event.voice_client->server_id);
+
     if (debug)
         printf (
             "[Manager::handle_on_track_marker] Locked player::t_mutex: %ld\n",
             guild_player->guild_id);
+
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
     bool just_loaded_queue = false;
@@ -148,12 +152,13 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
         {
         }
 
-    if (event.voice_client && event.voice_client->get_secs_remaining () < 0.05f)
+    if (event.voice_client
+        && event.voice_client->get_secs_remaining () < 0.05f)
         {
             std::thread tj (
                 [this, shared_manager, &play_track,
-                 debug] (dpp::discord_voice_client *v,
-                         string meta, std::shared_ptr<Player> guild_player) {
+                 debug] (dpp::discord_voice_client *v, string meta,
+                         std::shared_ptr<Player> guild_player) {
                     MCTrack &track = play_track;
 
                     bool timed_out = false;
@@ -211,33 +216,50 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                     auto *g = dpp::find_guild (guild_id);
 
                     // !TODO: move this to its own method
-                    if (c && g && v && v->creator && c->get_type () == dpp::CHANNEL_STAGE)
+                    if (c && g && v && v->creator
+                        && c->get_type () == dpp::CHANNEL_STAGE)
                         {
-                            auto i = g->voice_members.find(this->sha_id);
+                            auto i = g->voice_members.find (this->sha_id);
 
                             if (i != g->voice_members.end ())
                                 {
                                     // stage channel
-                                    auto *vc = dpp::find_channel (i->second.channel_id);
+                                    auto *vc = dpp::find_channel (
+                                        i->second.channel_id);
 
-                                    // don't even try if you don't even have the permission to request_to_speak
-                                    if (has_permissions (g, &v->creator->me, vc, { dpp::p_request_to_speak }))
+                                    // don't even try if you don't even have
+                                    // the permission to request_to_speak
+                                    if (has_permissions (
+                                            g, &v->creator->me, vc,
+                                            { dpp::p_request_to_speak }))
                                         {
-                                            // try not suppress if has MUTE_MEMBERS permission
-                                            const bool should_suppress =
-                                                has_permissions (g, &v->creator->me, vc, { dpp::p_mute_members })
-                                                    ? false
-                                                    : i->second.is_suppressed ();
+                                            // try not suppress if has
+                                            // MUTE_MEMBERS permission
+                                            const bool should_suppress
+                                                = has_permissions (
+                                                      g, &v->creator->me, vc,
+                                                      { dpp::p_mute_members })
+                                                      ? false
+                                                      : i->second
+                                                            .is_suppressed ();
 
                                             // set request_to_speak
                                             time_t request_ts;
                                             time (&request_ts);
-                                            v->creator->current_user_set_voice_state (
-                                                guild_id, i->second.channel_id, should_suppress, request_ts);
+                                            v->creator
+                                                ->current_user_set_voice_state (
+                                                    guild_id,
+                                                    i->second.channel_id,
+                                                    should_suppress,
+                                                    request_ts);
                                         }
                                     else if (debug)
                                         {
-                                            fprintf (stderr, "[request_to_speak] No request_to_speak in %ld\n", i->second.channel_id);
+                                            fprintf (
+                                                stderr,
+                                                "[request_to_speak] No "
+                                                "request_to_speak in %ld\n",
+                                                i->second.channel_id);
                                         }
                                 }
                         }
@@ -347,8 +369,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                     // Send play info embed
                     try
                         {
-                            this->play (v, track, channel_id,
-                                        embed_perms);
+                            this->play (v, track, channel_id, embed_perms);
                             if (embed_perms)
                                 {
                                     // Update if last message is the info
@@ -399,8 +420,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                 "Should unlock player::t_mutex: %ld\n",
                                 guild_player->guild_id);
                 },
-                event.voice_client, event.track_meta,
-                guild_player);
+                event.voice_client, event.track_meta, guild_player);
 
             tj.detach ();
             if (debug)
@@ -629,7 +649,8 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             }
 
             // update vcs cache
-            vcs_setting_handle_disconnected (dpp::find_channel (event.state.channel_id));
+            vcs_setting_handle_disconnected (
+                dpp::find_channel (event.state.channel_id));
         }
     // joined vc
     else
@@ -709,7 +730,8 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
                 }
 
             // update vcs cache
-            vcs_setting_handle_connected (dpp::find_channel (event.state.channel_id));
+            vcs_setting_handle_connected (
+                dpp::find_channel (event.state.channel_id));
         }
     // if (muted) player_manager->pause(event.guild_id);
     // else player_manager->resume(guild_id);

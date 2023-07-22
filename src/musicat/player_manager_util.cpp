@@ -155,8 +155,7 @@ Manager::stop_stream (dpp::snowflake guild_id)
             {
                 guild_player->current_track.stopping = true;
 
-                std::lock_guard<std::mutex> lk (sq_m);
-                stop_queue[guild_id] = true;
+                set_stream_stopping (guild_id);
             }
 }
 

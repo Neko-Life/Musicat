@@ -3,7 +3,6 @@
 
 #include "musicat/yt-search.h"
 #include "musicat/yt-track-info.h"
-#include "nlohmann/json.hpp"
 #include <deque>
 #include <dpp/dpp.h>
 #include <map>
@@ -364,7 +363,12 @@ class Manager
     void download (std::string fname, std::string url,
                    dpp::snowflake guild_id);
     void wait_for_download (std::string file_name);
+
     void stream (dpp::discord_voice_client *v, player::MCTrack &track);
+    bool is_stream_stopping (const dpp::snowflake &guild_id);
+    int set_stream_stopping (const dpp::snowflake &guild_id);
+    int clear_stream_stopping (const dpp::snowflake &guild_id);
+
     void play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id = 0, bool notify_error = false);
 

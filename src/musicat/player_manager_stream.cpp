@@ -10,7 +10,8 @@ namespace player
 {
 using string = std::string;
 
-struct mc_oggz_user_data {
+struct mc_oggz_user_data
+{
     dpp::discord_voice_client *voice_client;
     MCTrack &track;
     bool &debug;
@@ -60,9 +61,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         track_og, -1,
                         [] (OGGZ *oggz, oggz_packet *packet, long serialno,
                             void *user_data) {
-                            mc_oggz_user_data *data = (mc_oggz_user_data *)user_data;
-                            data->voice_client->send_audio_opus (packet->op.packet,
-                                                                 packet->op.bytes);
+                            mc_oggz_user_data *data
+                                = (mc_oggz_user_data *)user_data;
+                            data->voice_client->send_audio_opus (
+                                packet->op.packet, packet->op.bytes);
 
                             if (!data->track.seekable && packet->op.b_o_s == 0)
                                 {
@@ -76,24 +78,32 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     // stream loop
                     while (v && !v->terminating)
                         {
+                            if (is_stream_stopping (server_id))
+                                break;
+
                             debug = get_debug_state ();
 
-                            static const constexpr long CHUNK_READ = BUFSIZ * 2;
+                            static const constexpr long CHUNK_READ
+                                = BUFSIZ * 2;
 
-                            const long read_bytes = oggz_read (track_og, CHUNK_READ);
+                            const long read_bytes
+                                = oggz_read (track_og, CHUNK_READ);
                             track.current_byte += read_bytes;
 
                             if (debug)
-                                printf ("[Manager::stream] [guild_id] [size] "
-                                        "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
-                                        server_id, fsize, read_bytes, track.current_byte);
+                                printf (
+                                    "[Manager::stream] [guild_id] [size] "
+                                    "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
+                                    server_id, fsize, read_bytes,
+                                    track.current_byte);
 
                             while (v && !v->terminating
                                    && v->get_secs_remaining () > 0.05f)
                                 {
                                     if (track.seek_to > 0)
                                         {
-                                            oggz_seek (track_og, track.seek_to, SEEK_SET);
+                                            oggz_seek (track_og, track.seek_to,
+                                                       SEEK_SET);
                                             track.current_byte = track.seek_to;
                                             track.seek_to = 0;
                                         }
@@ -102,20 +112,17 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         std::chrono::milliseconds (30));
                                 }
 
-                            std::lock_guard<std::mutex> lk(sq_m);
-
                             // eof
-                            if (!read_bytes || (server_id && stop_queue[server_id]))
+                            if (!read_bytes)
                                 break;
-
                         }
                 }
             else
                 {
-                    fprintf (
-                        stderr,
-                        "[Manager::stream ERROR] Can't open file for reading: %ld '%s'\n",
-                        server_id, file_path.c_str ());
+                    fprintf (stderr,
+                             "[Manager::stream ERROR] Can't open file for "
+                             "reading: %ld '%s'\n",
+                             server_id, file_path.c_str ());
                 }
 
             oggz_close (track_og);
@@ -124,17 +131,51 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
                 end_time - start_time);
 
-            if (server_id) {
-                std::lock_guard<std::mutex> lk(sq_m);
-                stop_queue.erase(server_id);
-            }
-
             if (debug)
                 printf ("Done streaming for %ld milliseconds\n",
                         done.count ());
         }
     else
         throw 1;
+}
+
+bool
+Manager::is_stream_stopping (const dpp::snowflake &guild_id)
+{
+    std::lock_guard<std::mutex> lk (sq_m);
+
+    if (guild_id && stop_queue[guild_id])
+        return true;
+
+    return false;
+}
+
+int
+Manager::set_stream_stopping (const dpp::snowflake &guild_id)
+{
+    std::lock_guard<std::mutex> lk (sq_m);
+
+    if (guild_id)
+        {
+            stop_queue[guild_id] = true;
+            return 0;
+        }
+
+    return 1;
+}
+
+int
+Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
+{
+    if (guild_id)
+        {
+            std::lock_guard<std::mutex> lk (sq_m);
+            stop_queue.erase (guild_id);
+
+            return 0;
+        }
+
+    return 1;
 }
 
 } // player
