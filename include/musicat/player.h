@@ -370,8 +370,7 @@ class Manager
     int clear_stream_stopping (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (
-        dpp::discord_voice_client *voice_client, dpp::channel *voice_channel,
-        dpp::guild *guild);
+        dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
     void play (dpp::discord_voice_client *v, player::MCTrack &track,
                dpp::snowflake channel_id = 0, bool notify_error = false);

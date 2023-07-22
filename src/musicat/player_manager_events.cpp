@@ -210,12 +210,12 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                             }
                     }
 
-                    // channel
+                    // channel for sending message
                     dpp::channel *c = dpp::find_channel (channel_id);
                     // guild
                     dpp::guild *g = dpp::find_guild (guild_id);
 
-                    prepare_play_stage_channel_routine (v, c, g);
+                    prepare_play_stage_channel_routine (v, g);
 
                     {
                         std::unique_lock<std::mutex> lk (this->dl_m);
@@ -706,64 +706,70 @@ Manager::handle_on_message_delete_bulk (
 
 void
 Manager::prepare_play_stage_channel_routine (
-    dpp::discord_voice_client *voice_client, dpp::channel *voice_channel,
-    dpp::guild *guild)
+    dpp::discord_voice_client *voice_client, dpp::guild *guild)
 {
+    if (!guild || !voice_client || !voice_client->creator)
+        return;
 
-    if (voice_channel && guild && voice_client && voice_client->creator
-        && voice_channel->get_type () == dpp::CHANNEL_STAGE)
+    // stage channel
+    dpp::channel *voice_channel = dpp::find_channel (voice_client->channel_id);
+
+    if (!voice_channel || voice_channel->get_type () != dpp::CHANNEL_STAGE)
+        return;
+
+    const bool debug = get_debug_state ();
+
+    auto i = guild->voice_members.find (this->sha_id);
+
+    if (i == guild->voice_members.end ())
+        return;
+    // this will be true if you need to attempt to request speak
+    const bool is_currently_suppressed = i->second.is_suppressed ();
+
+    // return if not suppressed
+    if (!is_currently_suppressed)
+        return;
+
+    // try not suppress if has
+    // MUTE_MEMBERS permission
+    const bool stay_suppress
+        = has_permissions (guild, &voice_client->creator->me, voice_channel,
+                           { dpp::p_mute_members })
+              ? false
+              : is_currently_suppressed;
+
+    // set request_to_speak
+    time_t request_ts = 0;
+    if (stay_suppress
+        && has_permissions (guild, &voice_client->creator->me, voice_channel,
+                            { dpp::p_request_to_speak }))
+        time (&request_ts);
+
+    const bool update_voice_state
+        = request_ts || (stay_suppress != is_currently_suppressed);
+
+    if (update_voice_state)
         {
-            const bool debug = get_debug_state ();
-
-            auto i = guild->voice_members.find (this->sha_id);
-
-            if (i != guild->voice_members.end ())
+            if (debug)
                 {
-                    const bool is_currently_suppressed
-                        = i->second.is_suppressed ();
-
-                    // return if not suppressed
-                    if (!is_currently_suppressed)
-                        return;
-
-                    // stage channel
-                    auto *vc = dpp::find_channel (i->second.channel_id);
-
-                    // don't even try if you don't even
-                    // have the permission to
-                    // request_to_speak
-                    if (has_permissions (guild, &voice_client->creator->me, vc,
-                                         { dpp::p_request_to_speak }))
-                        {
-                            // try not suppress if has
-                            // MUTE_MEMBERS permission
-                            const bool should_suppress
-                                = has_permissions (guild,
-                                                   &voice_client->creator->me,
-                                                   vc, { dpp::p_mute_members })
-                                      ? false
-                                      : is_currently_suppressed;
-
-                            // set request_to_speak
-                            time_t request_ts = 0;
-                            if (should_suppress)
-                                time (&request_ts);
-
-                            voice_client->creator
-                                ->current_user_set_voice_state (
-                                    guild->id, i->second.channel_id,
-                                    should_suppress, request_ts);
-                        }
-                    else if (debug)
-                        {
-                            fprintf (stderr,
-                                     "[request_to_speak] "
-                                     "No "
-                                     "request_to_speak in "
-                                     "%ld\n",
-                                     i->second.channel_id);
-                        }
+                    fprintf (stderr,
+                             "[request_to_speak] "
+                             "Requesting speak in "
+                             "%ld\n",
+                             i->second.channel_id);
                 }
+
+            voice_client->creator->current_user_set_voice_state (
+                guild->id, i->second.channel_id, stay_suppress, request_ts);
+        }
+    else if (debug)
+        {
+            fprintf (stderr,
+                     "[request_to_speak] "
+                     "No "
+                     "request_to_speak in "
+                     "%ld\n",
+                     i->second.channel_id);
         }
 }
 
