@@ -244,8 +244,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                                             .is_suppressed ();
 
                                             // set request_to_speak
-                                            time_t request_ts;
-                                            time (&request_ts);
+                                            time_t request_ts = 0;
+                                            if (should_suppress)
+                                                time (&request_ts);
+
                                             v->creator
                                                 ->current_user_set_voice_state (
                                                     guild_id,
