@@ -1,5 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
+#include "musicat/encode.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
@@ -22,6 +23,9 @@
 #include <vector>
 
 #define ONE_HOUR_SECOND 3600
+
+static const std::string OAUTH_BASE_URL
+    = "https://discord.com/api/oauth2/authorize";
 
 namespace musicat
 {
@@ -191,15 +195,101 @@ get_music_folder_path ()
 }
 
 std::string
+get_invite_oauth_base_url ()
+{
+    const std::string sha_id = std::to_string (get_sha_id ());
+
+    if (!sha_id.length())
+        return "";
+
+    return OAUTH_BASE_URL + "?client_id=" + sha_id;
+}
+
+std::string
+get_invite_permissions ()
+{
+    return get_config_value<std::string> ("INVITE_PERMISSIONS", "");
+}
+
+std::string
+get_invite_scopes ()
+{
+    return get_config_value<std::string> ("INVITE_SCOPES", "");
+}
+
+std::string
+get_oauth_scopes ()
+{
+    return get_config_value<std::string> ("OAUTH_SCOPES", "");
+}
+
+std::string
+get_default_oauth_params ()
+{
+    return "&prompt=none&response_type=code";
+}
+
+std::string
+construct_permissions_param (const std::string permissions)
+{
+    if (!permissions.length ())
+        return "";
+
+    return "&permissions=" + permissions;
+}
+
+std::string
+construct_scopes_param (const std::string scopes)
+{
+    if (!scopes.length ())
+        return "";
+
+    return "&scope=" + encodeURIComponent (scopes);
+}
+
+std::string
 get_invite_link ()
 {
-    return get_config_value<std::string> ("INVITE_LINK", "");
+    const std::string append_str
+        = construct_permissions_param (get_invite_permissions ())
+          + construct_scopes_param (get_invite_scopes ());
+
+    if (!append_str.length ())
+        return "";
+
+    return get_invite_oauth_base_url () + append_str;
 }
 
 std::string
 get_oauth_link ()
 {
-    return get_config_value<std::string> ("OAUTH_LINK", "");
+    const std::string append_str
+        = construct_scopes_param (get_oauth_scopes ());
+
+    if (!append_str.length ())
+        return "";
+
+    return get_invite_oauth_base_url () + get_default_oauth_params ()
+           + append_str;
+}
+
+std::string
+get_oauth_invite ()
+{
+    const std::string invite_scopes = get_invite_scopes ();
+    const std::string oauth_scopes = get_oauth_scopes ();
+
+    const std::string append_str
+        = construct_permissions_param (get_invite_permissions ())
+          + ((invite_scopes.length () && oauth_scopes.length ())
+                 ? construct_scopes_param (invite_scopes + " " + oauth_scopes)
+                 : "");
+
+    if (!append_str.length ())
+        return "";
+
+    return get_invite_oauth_base_url () + get_default_oauth_params ()
+           + append_str;
 }
 
 std::string
@@ -401,10 +491,10 @@ run (int argc, const char *argv[])
 
     client_ptr = &client;
 
-    dpp::snowflake sha_id = get_config_value<int64_t> ("SHA_ID", 0);
+    sha_id = get_config_value<int64_t> ("SHA_ID", 0);
     if (!sha_id)
         {
-            fprintf (stderr, "[ERROR] No id provided\n");
+            fprintf (stderr, "[ERROR] No bot user id provided\n");
             return -1;
         }
 

@@ -50,20 +50,20 @@ int set_debug_state (const bool state);
  */
 template <typename T>
 T
-get_config_value (const std::string &key, const T& default_value)
+get_config_value (const std::string &key, const T &default_value)
 {
-    if (sha_cfg.is_null())
-    {
-        fprintf(stderr, "[ERROR] Config isn't populated\n");
-        return default_value;
-    }
-    if (!sha_cfg.is_object())
-    {
-        fprintf(stderr, "[ERROR] Invalid config, config isn't object\n");
-        return default_value;
-    }
+    if (sha_cfg.is_null ())
+        {
+            fprintf (stderr, "[ERROR] Config isn't populated\n");
+            return default_value;
+        }
+    if (!sha_cfg.is_object ())
+        {
+            fprintf (stderr, "[ERROR] Invalid config, config isn't object\n");
+            return default_value;
+        }
 
-    return sha_cfg.value(key, default_value);
+    return sha_cfg.value (key, default_value);
 }
 
 /**
@@ -71,48 +71,53 @@ get_config_value (const std::string &key, const T& default_value)
  *
  * @return std::string
  */
-std::string
-get_music_folder_path ();
+std::string get_music_folder_path ();
+
+std::string get_invite_oauth_base_url ();
+
+std::string get_invite_permissions ();
+
+std::string get_invite_scopes ();
+
+std::string get_oauth_scopes ();
+
+std::string get_default_oauth_params ();
+
+std::string construct_permissions_param (const std::string permissions);
+
+std::string construct_scopes_param (const std::string scopes);
 
 /**
  * @brief Get bot invite link
  *
  * @return std::string
  */
-std::string
-get_invite_link ();
+std::string get_invite_link ();
 
-/**
- * @brief Get bot oauth link
- *
- * @return std::string
- */
-std::string
-get_oauth_link ();
+std::string get_oauth_link ();
+
+std::string get_oauth_invite ();
 
 /**
  * @brief Get bot description
  *
  * @return std::string
  */
-std::string
-get_bot_description ();
+std::string get_bot_description ();
 
 /**
  * @brief Get webapp dir to serve
  *
  * @return std::string
  */
-std::string
-get_webapp_dir ();
+std::string get_webapp_dir ();
 
 /**
  * @brief Get server listening port
  *
  * @return int
  */
-int
-get_server_port ();
+int get_server_port ();
 
 /**
  * @brief Search _find inside _vec
@@ -249,60 +254,52 @@ int join_voice (dpp::discord_client *from,
                 const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
                 const dpp::snowflake &sha_id);
 
-nekos_best::endpoint_map
-get_cached_nekos_best_endpoints ();
+nekos_best::endpoint_map get_cached_nekos_best_endpoints ();
 
 /**
  * @brief Get client ptr, returns nullptr if program exiting
  * probably should be careful in thread
  */
-dpp::cluster *
-get_client_ptr ();
+dpp::cluster *get_client_ptr ();
 
 /**
  * @brief Get client id
  */
-dpp::snowflake
-get_sha_id ();
+dpp::snowflake get_sha_id ();
 
 /**
  * @brief Get client secret
  */
-std::string
-get_sha_secret ();
+std::string get_sha_secret ();
 
 /**
  * @brief Get player manager shared_ptr, won't be available in cli context
  */
-player::player_manager_ptr
-get_player_manager_ptr ();
+player::player_manager_ptr get_player_manager_ptr ();
 
 /**
- * @brief Handle bot connected to new vc event, updating _connected_vcs_setting cache
+ * @brief Handle bot connected to new vc event, updating _connected_vcs_setting
+ * cache
  */
-int
-vcs_setting_handle_connected (const dpp::channel *channel);
+int vcs_setting_handle_connected (const dpp::channel *channel);
 
 /**
  * @brief Handle vc updated event, updating _connected_vcs_setting cache
  */
-int
-vcs_setting_handle_updated (const dpp::channel *updated);
+int vcs_setting_handle_updated (const dpp::channel *updated);
 
 /**
- * @brief Handle bot disconnected from vc event, updating _connected_vcs_setting cache
+ * @brief Handle bot disconnected from vc event, updating
+ * _connected_vcs_setting cache
  */
-int
-vcs_setting_handle_disconnected (const dpp::channel *channel);
+int vcs_setting_handle_disconnected (const dpp::channel *channel);
 
 /**
  * @brief Get cached vc state from _connected_vcs_setting
  */
-dpp::channel *
-vcs_setting_get_cache (dpp::snowflake channel_id);
+dpp::channel *vcs_setting_get_cache (dpp::snowflake channel_id);
 
-bool
-is_voice_channel (dpp::channel_type channel_type);
+bool is_voice_channel (dpp::channel_type channel_type);
 
 } // musicat
 

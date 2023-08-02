@@ -1,4 +1,5 @@
 #include "musicat/server.h"
+#include "musicat/encode.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <chrono>
@@ -193,9 +194,17 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
 
     nlohmann::json resd;
 
-    if (d.is_number ())
+    nlohmann::json d_type;
+    const bool is_d_type_number
+        = d.is_object () && (d_type = d["type"]).is_number ();
+
+    nlohmann::json type = is_d_type_number ? d_type : d;
+    nlohmann::json data = is_d_type_number ? d.value ("d", nlohmann::json ())
+                                           : nlohmann::json ();
+
+    if (type.is_number ())
         {
-            const int64_t req = d.get<int64_t> ();
+            const int64_t req = type.get<int64_t> ();
 
             switch (req)
                 {
@@ -230,11 +239,9 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                             = guild_cache->get_mutex ();
                         std::lock_guard<std::shared_mutex &> lk (cache_mutex);
 
-                        auto &container = guild_cache->get_container ();
-
-                        for (auto pair : container)
+                        for (auto &pair : guild_cache->get_container ())
                             {
-                                auto *guild = pair.second;
+                                dpp::guild *guild = pair.second;
                                 if (!guild)
                                     continue;
 
@@ -254,10 +261,15 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                                         continue;
                                     }
 
-                                to_push["icon_url"] = guild->get_icon_url(512, dpp::i_webp);
-                                to_push["banner_url"] = guild->get_banner_url(1024, dpp::i_webp);
-                                to_push["splash_url"] = guild->get_splash_url(1024, dpp::i_webp);
-                                to_push["discovery_splash_url"] = guild->get_discovery_splash_url(1024, dpp::i_webp);
+                                to_push["icon_url"]
+                                    = guild->get_icon_url (512, dpp::i_webp);
+                                to_push["banner_url"] = guild->get_banner_url (
+                                    1024, dpp::i_webp);
+                                to_push["splash_url"] = guild->get_splash_url (
+                                    1024, dpp::i_webp);
+                                to_push["discovery_splash_url"]
+                                    = guild->get_discovery_splash_url (
+                                        1024, dpp::i_webp);
 
                                 resd.push_back (to_push);
                             }
@@ -265,17 +277,56 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                         break;
                     }
 
-                case ws_req_t::oauth_state:
+                case ws_req_t::oauth_req:
                     {
-                        std::string oauth_state = get_oauth_link ();
-                        if (!oauth_state.length ())
+                        if (!data.is_string ())
+                            {
+                                _set_resd_error (resd, "Bad request");
+                                break;
+                            }
+
+                        std::string redirect = data.get<std::string> ();
+                        if (!redirect.length ())
+                            {
+                                _set_resd_error (resd, "Bad request");
+                                break;
+                            }
+
+                        std::string oauth = get_oauth_link ();
+                        if (!oauth.length ())
                             {
                                 _set_resd_error (resd, "No OAuth configured");
                                 break;
                             }
 
-                        resd = oauth_state
-                               + "&state=" + _generate_oauth_state ();
+                        resd = oauth +  + "&state=" + _generate_oauth_state ()
+                               + "&redirect_uri=" + redirect;
+                        break;
+                    }
+                case ws_req_t::invite_req:
+                    {
+                        if (!data.is_string ())
+                            {
+                                _set_resd_error (resd, "Bad request");
+                                break;
+                            }
+
+                        std::string redirect = data.get<std::string> ();
+                        if (!redirect.length ())
+                            {
+                                _set_resd_error (resd, "Bad request");
+                                break;
+                            }
+
+                        std::string oauth = get_oauth_invite ();
+                        if (!oauth.length ())
+                            {
+                                _set_resd_error (resd, "No OAuth configured");
+                                break;
+                            }
+
+                        resd = oauth +  + "&state=" + _generate_oauth_state ()
+                               + "&redirect_uri=" + redirect;
                         break;
                     }
                 }
@@ -307,6 +358,9 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
     } */
 }
 
+/**
+ * @brief `d` is guaranteed object
+ */
 void
 _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 {
@@ -324,37 +378,43 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
         {
         case ws_event_t::oauth:
             auto state_prop = d["state"];
-            if (state_prop.is_null () || !state_prop.is_string ())
+            auto redirect_uri_prop = d["redirect_uri"];
+
+            if (!state_prop.is_string () || !redirect_uri_prop.is_string ())
                 {
                     _set_resd_error (resd, "Invalid operation");
+                    break;
                 }
-            else
+
+            const std::string state = state_prop.get<std::string> ();
+
+            if (_remove_oauth_state (state) < 0)
                 {
-                    const std::string state = d["state"].get<std::string> ();
-
-                    if (_remove_oauth_state (state) < 0)
-                        {
-                            _set_resd_error (resd, "Unauthorized");
-                        }
-                    else
-                        {
-                            std::string secret = get_sha_secret();
-
-                            if (!secret.length()) {
-                            }
-
-                            resd["code"] = d["code"];
-                            resd["client_id"] = std::to_string(get_sha_id());
-                            resd["client_secret"] = secret;
-                            resd["grant_type"] = "authorization_code";
-                            resd["redirect_uri"] = 'e';
-
-                            // !TODO: make request here
-                            // const subscribe_id
-                            // ws.subscribe
-                            // std::thread
-                        }
+                    _set_resd_error (resd, "Unauthorized");
+                    break;
                 }
+
+            std::string secret = get_sha_secret ();
+
+            if (!secret.length ())
+                {
+                    _set_resd_error (resd, "No OAuth configured");
+                    break;
+                }
+
+            resd["code"] = d["code"];
+            resd["client_id"] = std::to_string (get_sha_id ());
+            resd["client_secret"] = secret;
+            resd["grant_type"] = "authorization_code";
+            resd["redirect_uri"]
+                = encodeURIComponent (redirect_uri_prop.get<std::string> ());
+
+            fprintf (stderr, "%s\n", resd.dump (2).c_str ());
+
+            // !TODO: make request here
+            // const subscribe_id
+            // ws.subscribe
+            // std::thread
             break;
             // ws_event_t::smt: _handle_event(d["d"]);
             // case ws_req_t::bot_info:

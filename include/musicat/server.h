@@ -12,7 +12,8 @@ enum ws_req_t
 {
     bot_info = 1,
     server_list = 2,
-    oauth_state = 3,
+    oauth_req = 3,
+    invite_req = 4,
 };
 
 enum ws_event_t

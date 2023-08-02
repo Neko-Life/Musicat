@@ -6,8 +6,12 @@
     "DEBUG": false, // Default debug mode state on boot
     "RUNTIME_CLI": true, // Whether to enable runtime cli, enter `help` in console when the bot is running
     "MUSIC_FOLDER": "~/music/", // absolute path to music folder (must have trailing slash `/`)
-    "INVITE_LINK": "https://discord.com/api/oauth2/authorize?client_id=960168583969767424&permissions=416653036608&scope=bot%20applications.commands", // bot invite link
-    "OAUTH_LINK": "", // dashboard oauth link used for login, without redirect_uri
+
+    // used to construct invite link, oauth login and oauth invite
+    "INVITE_PERMISSIONS": "416653036608",
+    "INVITE_SCOPES": "bot applications.commands",
+    "OAUTH_SCOPES":"identify guilds",
+
     "DESCRIPTION": "My cool bot", // bot description
     "SERVER_PORT": 3000, // server port, default to 80
     "WEBAPP_DIR": "/home/musicat-dashboard/dist" // dashboard dist dir, leave this empty if you don't need dashboard
