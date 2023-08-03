@@ -2,8 +2,8 @@
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
-#include "musicat/yt-playlist.h"
-#include "musicat/yt-search.h"
+#include "yt-search/yt-playlist.h"
+#include "yt-search/yt-search.h"
 #include <regex>
 #include <vector>
 

@@ -16,7 +16,6 @@ add_executable(Shasha
         include/musicat/autocomplete.h
         include/musicat/cmds.h
         include/musicat/db.h
-        include/musicat/encode.h
         include/musicat/musicat.h
         include/musicat/pagination.h
         include/musicat/player.h
@@ -24,10 +23,11 @@ add_executable(Shasha
         include/musicat/slash.h
         include/musicat/storage.h
         include/musicat/util.h
-        include/musicat/yt-playlist.h
-        include/musicat/yt-search.h
-        include/musicat/yt-track-info.h
         include/musicat/server.h
+        include/yt-search/encode.h
+        include/yt-search/yt-playlist.h
+        include/yt-search/yt-search.h
+        include/yt-search/yt-track-info.h
         include/nlohmann/json.hpp
         include/nekos-best++.hpp
         libs/uWebSockets/uSockets/src/libusockets.h
@@ -38,7 +38,6 @@ add_executable(Shasha
         src/musicat/autocomplete.cpp
         src/musicat/cli.cpp
         src/musicat/db.cpp
-        src/musicat/encode.cpp
         src/musicat/musicat.cpp
         src/musicat/pagination.cpp
         src/musicat/player.cpp
@@ -53,9 +52,6 @@ add_executable(Shasha
         src/musicat/storage.cpp
         src/musicat/util-response.cpp
         src/musicat/util.cpp
-        src/musicat/yt-playlist.cpp
-        src/musicat/yt-search.cpp
-        src/musicat/yt-track-info.cpp
         src/musicat/server.cpp
         src/musicat/cmds/autoplay.cpp
         src/musicat/cmds/bubble_wrap.cpp
@@ -77,6 +73,10 @@ add_executable(Shasha
         src/musicat/cmds/image.cpp
         src/musicat/cmds/seek.cpp
         src/musicat/cmds/progress.cpp
+        src/yt-search/encode.cpp
+        src/yt-search/yt-playlist.cpp
+        src/yt-search/yt-search.cpp
+        src/yt-search/yt-track-info.cpp
         src/nekos-bestpp/nekos-best++.cpp
         src/main.cpp)
 

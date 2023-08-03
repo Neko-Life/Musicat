@@ -1,8 +1,8 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
-#include "musicat/yt-search.h"
-#include "musicat/yt-track-info.h"
+#include "yt-search/yt-search.h"
+#include "yt-search/yt-track-info.h"
 #include <deque>
 #include <dpp/dpp.h>
 #include <map>

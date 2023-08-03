@@ -1,6 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
-#include "musicat/yt-search.h"
+#include "yt-search/yt-search.h"
 #include "musicat/util.h"
 #include <dpp/message.h>
 #include <string>

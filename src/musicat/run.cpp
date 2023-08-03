@@ -1,6 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
-#include "musicat/encode.h"
+#include "yt-search/encode.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
