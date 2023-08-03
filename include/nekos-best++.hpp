@@ -187,7 +187,10 @@ QueryResult fetch (const std::string &category = "", const int amount = 1);
  * @param format will pick one randomly if omitted
  * @param download_stream pointer to response buffer to store both header and
  *                      raw response
+ *
+ * @deprecated Use `download(const std::string &, std::ostringstream *)` instead to download image.
  */
+[[deprecated("MIN-MAX metadata no longer valid, replaced with random UUID. Use `download(const std::string &, std::ostringstream *)` instead.")]]
 Meta fetch_single (const std::string &category = "",
                    const std::string &filename = "",
                    const image_format format = if_none,
@@ -203,6 +206,15 @@ Meta fetch_single (const std::string &category = "",
 QueryResult search (const std::string &query,
                     const image_format format = if_none,
                     const std::string &category = "", const int amount = 1);
+
+/**
+ * @brief Download image from API
+ * @param url image url to download, generally you get this by searching
+ * @param download_stream pointer to response buffer to store both header and
+ *                      raw response
+ */
+Meta download (const std::string &url, std::ostringstream *download_stream = nullptr);
+
 } // nekos_best
 
 #endif // NEKOS_BEST_H

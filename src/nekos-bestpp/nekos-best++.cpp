@@ -183,6 +183,32 @@ _fill_meta (Meta &meta, nlohmann::json &json)
         meta.anime_name = json.value ("anime_name", "");
 }
 
+void
+_populate_download_meta (Meta &data, Response &response)
+{
+        const auto not_found = response.headers.end ();
+
+        const auto res_artist_href = response.headers.find ("artist_href");
+        data.artist_href = res_artist_href != not_found
+                               ? curlpp::unescape (res_artist_href->second)
+                               : "";
+
+        const auto res_artist_name = response.headers.find ("artist_name");
+        data.artist_name = res_artist_name != not_found
+                               ? curlpp::unescape (res_artist_name->second)
+                               : "";
+
+        const auto res_source_url = response.headers.find ("source_url");
+        data.source_url = res_source_url != not_found
+                              ? curlpp::unescape (res_source_url->second)
+                              : "";
+
+        const auto res_anime_name = response.headers.find ("anime_name");
+        data.anime_name = res_anime_name != not_found
+                              ? curlpp::unescape (res_anime_name->second)
+                              : "";
+}
+
 // internal use, returns Response object
 Response
 _request (const std::string &req_url, const std::string &endpoint = "",
@@ -205,7 +231,6 @@ _request (const std::string &req_url, const std::string &endpoint = "",
         using namespace curlpp;
 
         std::ostringstream result_stream;
-        Cleanup clean_up;
 
         Easy request;
 
@@ -601,27 +626,8 @@ fetch_single (const std::string &category, const std::string &filename,
         Response response
             = _request (req_url, using_category, download ? NONE : NOBODY,
                         download_stream);
-        const auto not_found = response.headers.end ();
-
-        const auto res_artist_href = response.headers.find ("artist_href");
-        data.artist_href = res_artist_href != not_found
-                               ? curlpp::unescape (res_artist_href->second)
-                               : "";
-
-        const auto res_artist_name = response.headers.find ("artist_name");
-        data.artist_name = res_artist_name != not_found
-                               ? curlpp::unescape (res_artist_name->second)
-                               : "";
-
-        const auto res_source_url = response.headers.find ("source_url");
-        data.source_url = res_source_url != not_found
-                              ? curlpp::unescape (res_source_url->second)
-                              : "";
-
-        const auto res_anime_name = response.headers.find ("anime_name");
-        data.anime_name = res_anime_name != not_found
-                              ? curlpp::unescape (res_anime_name->second)
-                              : "";
+        
+        _populate_download_meta (data, response);
 
         return data;
 }
@@ -734,5 +740,25 @@ search (const std::string &query, const image_format format,
         Response response = _request (req_url, category);
 
         return _parse_query_result (response);
+}
+
+Meta
+download (const std::string &url, std::ostringstream *download_stream)
+{
+        Meta data;
+
+        static const size_t endpoint_index = (get_base_url () + "/").length();
+        std::string using_category = url.substr(endpoint_index, url.find_last_of('/') - endpoint_index);
+
+        const bool download = download_stream != nullptr;
+
+        data.url = url;
+        Response response
+            = _request (url, using_category, download ? NONE : NOBODY,
+                        download_stream);
+        
+        _populate_download_meta (data, response);
+
+        return data;
 }
 } // nekos_best
