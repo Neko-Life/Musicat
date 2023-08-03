@@ -39,7 +39,6 @@ bool debug = false;
 std::mutex main_mutex;
 
 dpp::cluster *client_ptr = nullptr;
-dpp::snowflake sha_id = 0;
 std::shared_ptr<player::Manager> player_manager = nullptr;
 
 nekos_best::endpoint_map _nekos_best_endpoints = {};
@@ -58,7 +57,7 @@ get_client_ptr ()
 dpp::snowflake
 get_sha_id ()
 {
-    return sha_id;
+    return get_config_value<int64_t> ("SHA_ID", 0);
 }
 
 string
@@ -199,7 +198,7 @@ get_invite_oauth_base_url ()
 {
     const std::string sha_id = std::to_string (get_sha_id ());
 
-    if (!sha_id.length())
+    if (!sha_id.length ())
         return "";
 
     return OAUTH_BASE_URL + "?client_id=" + sha_id;
@@ -491,7 +490,8 @@ run (int argc, const char *argv[])
 
     client_ptr = &client;
 
-    sha_id = get_config_value<int64_t> ("SHA_ID", 0);
+    dpp::snowflake sha_id = get_sha_id ();
+
     if (!sha_id)
         {
             fprintf (stderr, "[ERROR] No bot user id provided\n");

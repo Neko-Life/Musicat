@@ -299,7 +299,7 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                                 break;
                             }
 
-                        resd = oauth +  + "&state=" + _generate_oauth_state ()
+                        resd = oauth + +"&state=" + _generate_oauth_state ()
                                + "&redirect_uri=" + redirect;
                         break;
                     }
@@ -325,7 +325,7 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                                 break;
                             }
 
-                        resd = oauth +  + "&state=" + _generate_oauth_state ()
+                        resd = oauth + +"&state=" + _generate_oauth_state ()
                                + "&redirect_uri=" + redirect;
                         break;
                     }
@@ -409,13 +409,12 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
             resd["redirect_uri"]
                 = encodeURIComponent (redirect_uri_prop.get<std::string> ());
 
-            fprintf (stderr, "%s\n", resd.dump (2).c_str ());
-
             // !TODO: make request here
             // const subscribe_id
             // ws.subscribe
             // std::thread
             break;
+
             // ws_event_t::smt: _handle_event(d["d"]);
             // case ws_req_t::bot_info:
             //     {
@@ -493,6 +492,7 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
             //     }
         }
 
+    fprintf (stderr, "%s\n", resd.dump (2).c_str ());
     /* if (emit) _emit_event (ws, event_name, resd); */
 }
 
@@ -580,6 +580,7 @@ run ()
 
               if (is_json)
                   {
+                      // guarantee payload is object
                       if (!json_payload.is_object ())
                           {
                               _log_err (
@@ -588,7 +589,10 @@ run ()
                               return;
                           }
 
-                      if (json_payload["type"].is_string ())
+                      const std::string payload_type
+                          = json_payload.value ("type", "");
+
+                      if (payload_type.length ())
                           {
                               nlohmann::json d = json_payload["d"];
 
@@ -599,8 +603,6 @@ run ()
                                       return;
                                   }
 
-                              const std::string payload_type
-                                  = json_payload.value ("type", "");
                               const std::string nonce
                                   = json_payload.value ("nonce", "");
 
@@ -616,9 +618,10 @@ run ()
                                   }
                               else if (payload_type == "e")
                                   {
-                                      auto event_prop = d["event"];
-                                      if (event_prop.is_null ()
-                                          || !event_prop.is_number ())
+                                      const int64_t event_type
+                                          = json_payload.value ("event", -1);
+
+                                      if (event_type == -1)
                                           {
                                               _log_err (
                                                   ws, "[server ERROR] Invalid "
@@ -626,9 +629,8 @@ run ()
                                           }
                                       else
                                           {
-                                              const int64_t e
-                                                  = event_prop.get<int64_t> ();
-                                              _handle_event (ws, e, d);
+                                              _handle_event (ws, event_type,
+                                                             d);
                                           }
                                   }
                               else
