@@ -119,7 +119,7 @@ target_include_directories(Shasha PRIVATE
 )
 
 add_custom_command(TARGET Shasha
-                   PRE_LINK
+                   PRE_BUILD
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
                    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
 
