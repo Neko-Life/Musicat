@@ -87,6 +87,10 @@ set(USOCKETS_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
+
+add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
+                   COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
  
 # Linking libraries
 target_link_libraries(Shasha
@@ -119,10 +123,6 @@ target_include_directories(Shasha PRIVATE
     /usr/include/postgresql
     # Remember to add the include directories of any other libraries too
 )
-
-add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
-                   COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
  
