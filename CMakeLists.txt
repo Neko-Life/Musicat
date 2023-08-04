@@ -75,6 +75,18 @@ add_executable(Shasha
         libs/nekos-bestpp/src/nekos-best++.cpp
         src/main.cpp)
 
+set(USOCKETS_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
  
 # Linking libraries
 target_link_libraries(Shasha
@@ -88,17 +100,7 @@ target_link_libraries(Shasha
     icuuc
     icudata
     icuio
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o
+    ${USOCKETS_OBJECT_FILES}
     z
     ssl
     crypto
@@ -118,10 +120,9 @@ target_include_directories(Shasha PRIVATE
     # Remember to add the include directories of any other libraries too
 )
 
-add_custom_command(TARGET Shasha
-                   PRE_BUILD
+add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
-                   ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
  
