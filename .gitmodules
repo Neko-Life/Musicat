@@ -1,0 +1,16 @@
+[submodule "libs/DPP"]
+	path = libs/DPP
+	url = https://github.com/brainboxdotcc/DPP.git
+	branch = dev
+[submodule "libs/yt-dlp"]
+	path = libs/yt-dlp
+	url = https://github.com/yt-dlp/yt-dlp.git
+[submodule "libs/uWebSockets"]
+	path = libs/uWebSockets
+	url = https://github.com/uNetworking/uWebSockets.git
+[submodule "libs/yt-search.h"]
+	path = libs/yt-search.h
+	url = https://github.com/Neko-Life/yt-search.h.git
+[submodule "libs/nekos-bestpp"]
+	path = libs/nekos-bestpp
+	url = https://github.com/Neko-Life/nekos-bestpp.git
