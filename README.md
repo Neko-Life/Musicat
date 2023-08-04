@@ -59,22 +59,14 @@ git clone https://github.com/Neko-Life/Musicat.git --recurse-submodules
 cd Musicat
 ```
 
-* Create a `build/` folder and cd into it
+* Compile
 
 ```sh
 mkdir build
 cd build
-```
 
-* Run cmake
-
-```sh
 cmake ..
-```
 
-* Compile
-
-```sh
 # configure the `-j` flag according to your available RAM as needed
 make all -j$(nproc)
 ```
