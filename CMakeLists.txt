@@ -101,13 +101,12 @@ set(USOCKETS_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.c
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.c)
 
-add_custom_target(uWebSockets 
+  add_custom_target(uWebSockets ALL 
                   DEPENDS ${USOCKETS_OBJECT_FILES})
 
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets
-                   DEPENDS ${USOCKETS_SOURCE_FILES})
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
  
 # Linking libraries
 target_link_libraries(Shasha
