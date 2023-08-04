@@ -88,9 +88,26 @@ set(USOCKETS_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
 
+set(USOCKETS_SOURCE_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.c)
+
+add_custom_target(uWebSockets 
+                  DEPENDS ${USOCKETS_OBJECT_FILES})
+
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets
+                   DEPENDS ${USOCKETS_SOURCE_FILES})
  
 # Linking libraries
 target_link_libraries(Shasha
