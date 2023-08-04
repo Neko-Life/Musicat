@@ -4,7 +4,7 @@
 #include "musicat/util.h"
 #include <chrono>
 #include <stdio.h>
-#include <uWebSockets/App.h>
+#include <uWebSockets/src/App.h>
 /*#include "uWebSockets/AsyncFileReader.h"
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/

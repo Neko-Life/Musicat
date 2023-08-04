@@ -24,12 +24,7 @@ add_executable(Shasha
         include/musicat/storage.h
         include/musicat/util.h
         include/musicat/server.h
-        include/yt-search/encode.h
-        include/yt-search/yt-playlist.h
-        include/yt-search/yt-search.h
-        include/yt-search/yt-track-info.h
         include/nlohmann/json.hpp
-        include/nekos-best++.hpp
         libs/uWebSockets/uSockets/src/libusockets.h
         libs/uWebSockets/uSockets/src/quic.h
         # !TODO: include/uWebSockets/files
@@ -73,11 +68,11 @@ add_executable(Shasha
         src/musicat/cmds/image.cpp
         src/musicat/cmds/seek.cpp
         src/musicat/cmds/progress.cpp
-        src/yt-search/encode.cpp
-        src/yt-search/yt-playlist.cpp
-        src/yt-search/yt-search.cpp
-        src/yt-search/yt-track-info.cpp
-        src/nekos-bestpp/nekos-best++.cpp
+        libs/yt-search.h/src/yt-search/encode.cpp
+        libs/yt-search.h/src/yt-search/yt-playlist.cpp
+        libs/yt-search.h/src/yt-search/yt-search.cpp
+        libs/yt-search.h/src/yt-search/yt-track-info.cpp
+        libs/nekos-bestpp/src/nekos-best++.cpp
         src/main.cpp)
 
  
@@ -112,12 +107,21 @@ target_link_libraries(Shasha
  
 # Specify includes
 target_include_directories(Shasha PRIVATE
-    libs/DPP/include
     include
+    # uWebSockets
+    libs/
+    libs/DPP/include
+    libs/yt-search.h/include
+    libs/nekos-bestpp/include
     libs/uWebSockets/uSockets/src
     /usr/include/postgresql
     # Remember to add the include directories of any other libraries too
 )
+
+add_custom_command(TARGET Shasha
+                   PRE_LINK
+                   COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
+                   ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets)
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
  
