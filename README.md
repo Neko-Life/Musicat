@@ -48,47 +48,49 @@ docker compose up
 * One issue using docker that it need some time to connect to the database, maybe I will fix that one day using shorter database connection check interval.
 
 ## Compiling
+
 * Make sure to have `pkg-config` installed as cmake need it to be able to detect libsodium and libopus
-* Clone the DPP repo into `libs/` first if you haven't
+
+* Clone the repo and cd into it
+
 ```sh
-mkdir libs
-cd libs
-git clone 'https://github.com/brainboxdotcc/DPP' -b dev
-cd ..
+git clone https://github.com/Neko-Life/Musicat.git --recurse-submodules
+
+cd Musicat
 ```
-* Clone uWebSockets repo into `libs/`, compile and install it
-```sh
-cd libs
-git clone 'https://github.com/uNetworking/uWebSockets' --recurse-submodules
-cd uWebSockets/uSockets
-git checkout master
-cd ..
-WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make -j$(nproc)
-sudo make prefix=/usr install
-cd ../..
-```
+
 * Create a `build/` folder and cd into it
+
 ```sh
 mkdir build
 cd build
 ```
+
 * Run cmake
+
 ```sh
 cmake ..
 ```
+
 * Compile
+
 ```sh
+# configure the `-j` flag according to your available RAM as needed
 make all -j$(nproc)
 ```
+
 Some distro have `liboggz2` or `liboggz2-dev`, if you got compile error about
 `oggz/oggz.h` not found but you already have `liboggz` installed,
 you might need to install that.
 
 * Move the built binary to `exe/` (or wherever you want along with a config file)
+
 ```sh
 mv Shasha ../exe
 ```
+
 * Create and fill the config file (config file must be named `sha_conf.json`, see `exe/sha_conf.example.json`) and run the binary
+
 ```sh
 # register the commands
 ./Shasha reg g
