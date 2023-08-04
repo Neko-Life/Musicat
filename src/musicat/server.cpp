@@ -1,7 +1,7 @@
 #include "musicat/server.h"
-#include "yt-search/encode.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
+#include "yt-search/encode.h"
 #include <chrono>
 #include <stdio.h>
 #include <uWebSockets/src/App.h>
@@ -379,8 +379,10 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
         case ws_event_t::oauth:
             auto state_prop = d["state"];
             auto redirect_uri_prop = d["redirect_uri"];
+            const std::string code = d.value ("code", "");
 
-            if (!state_prop.is_string () || !redirect_uri_prop.is_string ())
+            if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
+                || !code.length ())
                 {
                     _set_resd_error (resd, "Invalid operation");
                     break;
@@ -402,12 +404,11 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
                     break;
                 }
 
-            resd["code"] = d["code"];
-            resd["client_id"] = std::to_string (get_sha_id ());
-            resd["client_secret"] = secret;
-            resd["grant_type"] = "authorization_code";
-            resd["redirect_uri"]
-                = encodeURIComponent (redirect_uri_prop.get<std::string> ());
+            const std::string data
+                = "code=" + code + "&client_id="
+                  + std::to_string (get_sha_id ()) + "&client_secret=" + secret
+                  + "&grant_type=" + "authorization_code"
+                  + "&redirect_uri=" + redirect_uri_prop.get<std::string> ();
 
             std::thread t (
                 [] (const std::string creds) {
@@ -440,8 +441,11 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
                     // MAGIC INIT
                     const std::string rawhttp = os.str ();
+
+                    fprintf (stderr, "%s\n", creds.c_str ());
+                    fprintf (stderr, "%s\n", rawhttp.c_str ());
                 },
-                resd.dump ());
+                data);
 
             t.detach ();
 
