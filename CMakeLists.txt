@@ -91,7 +91,7 @@ set(USOCKETS_OBJECT_FILES
 file(GLOB_RECURSE USOCKETS_SOURCE_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/src/*.c)
 
-add_custom_target(uWebSockets ALL 
+add_custom_target(uWebSockets
                   DEPENDS ${USOCKETS_OBJECT_FILES})
 
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
@@ -99,12 +99,14 @@ add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
                    DEPENDS ${USOCKETS_SOURCE_FILES})
 
-add_custom_target(deps ALL 
+add_custom_target(deps
                   DEPENDS ShashaDeps)
 
 add_custom_command(OUTPUT ShashaDeps
                    COMMAND make
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+
+add_dependencies(Shasha deps uWebSockets)
  
 # Linking libraries
 target_link_libraries(Shasha
