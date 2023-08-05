@@ -1,3 +1,5 @@
+LIBOGGZ_BUILD_DIR=$(PWD)/liboggz/build/
+
 all: liboggz icu curlpp
 
 icu: icu/usr/local/lib/libicudata.so
@@ -11,9 +13,9 @@ icu.tgz:
 curlpp: curlpp/build/libcurlpp.so
 
 curlpp/build/libcurlpp.so:
-	cd curlpp && mkdir build && cd build &&	cmake .. && make -j$(nproc)
+	cd curlpp && mkdir build && cd build &&	cmake .. && make
 
 liboggz: liboggz/build/lib/liboggz.so
 
 liboggz/build/lib/liboggz.so:
-	cd liboggz && ./autogen.sh && ./configure --prefix="$(pwd)/build" && make install -j$(nproc)
+	cd liboggz && ./autogen.sh && ./configure --prefix=$(LIBOGGZ_BUILD_DIR) && make install
