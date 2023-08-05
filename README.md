@@ -10,11 +10,10 @@ Discord Music Bot written in C++
 Need to install:
 
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
-* [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
+* [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libopus - Library
 * libogg - Library
 * libcurl - Library
-* [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libsodium - Library
 * openssl - Library
 * opus - Library
@@ -22,6 +21,7 @@ Need to install:
 Included:
 
 * [DPP](https://github.com/brainboxdotcc/DPP) - Library (included as submodule)
+* [yt-dlp](https://github.com/yt-dlp/yt-dlp) - CLI App (included as submodule)
 * [uWebSockets](https://github.com/uNetworking/uWebSockets) - Library (included as submodule)
 * [curlpp](https://github.com/jpbarrette/curlpp) - Library (included as submodule)
 * [liboggz](https://github.com/kfish/liboggz.git) - Library (included as submodule)
