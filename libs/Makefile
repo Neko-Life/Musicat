@@ -13,7 +13,7 @@ icu.tgz:
 curlpp: curlpp/build/libcurlpp.so
 
 curlpp/build/libcurlpp.so:
-	cd curlpp && mkdir build && cd build &&	cmake .. && make
+	cd curlpp && mkdir -p build && cd build &&	cmake .. && make
 
 liboggz: liboggz/build/lib/liboggz.so
 
