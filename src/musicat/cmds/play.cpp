@@ -396,11 +396,8 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
 
     if (from_interaction && (vcclient_cont == false || !v))
         {
-            std::lock_guard<std::mutex> lk2 (player_manager->c_m);
-            std::lock_guard<std::mutex> lk3 (player_manager->wd_m);
-            player_manager->connecting[guild_id] = channel_id;
-            printf ("INSERTING WAIT FOR VC READY\n");
-            player_manager->waiting_vc_ready[guild_id] = fname;
+            player_manager->set_connecting (guild_id, channel_id);
+            player_manager->set_waiting_vc_ready (guild_id, fname);
         }
 
     auto download_result = track_exist (fname, result.url (), player_manager,

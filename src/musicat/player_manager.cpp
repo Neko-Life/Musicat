@@ -1,8 +1,10 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include <chrono>
 #include <dirent.h>
 #include <regex>
 #include <sys/stat.h>
+#include <thread>
 // #include <opus/opusfile.h>
 
 namespace musicat
@@ -246,7 +248,8 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
 }
 
 void
-Manager::download (string fname, string url, dpp::snowflake guild_id)
+Manager::download (const string &fname, const string &url,
+                   const dpp::snowflake &guild_id)
 {
     const string yt_dlp = get_ytdlp_exe ();
     if (!yt_dlp.length ())
@@ -394,33 +397,6 @@ Manager::shuffle_queue (dpp::snowflake guild_id)
     if (!guild_player)
         return false;
     return guild_player->shuffle ();
-}
-
-void
-Manager::set_reconnect (dpp::snowflake guild_id,
-                        dpp::snowflake disconnect_channel_id,
-                        dpp::snowflake connect_channel_id)
-{
-    std::lock_guard<std::mutex> lk (this->dc_m);
-    this->disconnecting[guild_id] = disconnect_channel_id;
-    std::lock_guard<std::mutex> lk2 (this->c_m);
-    std::lock_guard<std::mutex> lk3 (this->wd_m);
-    this->connecting.insert_or_assign (guild_id, connect_channel_id);
-    this->waiting_vc_ready[guild_id] = "0";
-}
-
-void
-Manager::full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id,
-                         dpp::snowflake disconnect_channel_id,
-                         dpp::snowflake connect_channel_id)
-{
-    this->set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
-
-    from->disconnect_voice (guild_id);
-
-    std::thread pjt (
-        [this, from, guild_id] () { this->reconnect (from, guild_id); });
-    pjt.detach ();
 }
 
 } // player

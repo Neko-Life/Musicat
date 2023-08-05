@@ -321,12 +321,36 @@ class Manager
      */
     bool pause (dpp::discord_client *from, dpp::snowflake guild_id,
                 dpp::snowflake user_id);
+
     bool unpause (dpp::discord_voice_client *voiceclient,
                   dpp::snowflake guild_id);
 
-    bool is_disconnecting (dpp::snowflake guild_id);
-    bool is_connecting (dpp::snowflake guild_id);
-    bool is_waiting_vc_ready (dpp::snowflake guild_id);
+    bool is_disconnecting (const dpp::snowflake &guild_id);
+
+    void set_disconnecting (const dpp::snowflake &guild_id,
+                            const dpp::snowflake &voice_channel_id);
+
+    void clear_disconnecting (const dpp::snowflake &guild_id);
+
+    bool is_connecting (const dpp::snowflake &guild_id);
+
+    void set_connecting (const dpp::snowflake &guild_id,
+                         const dpp::snowflake &voice_channel_id);
+
+    void clear_connecting (const dpp::snowflake &guild_id);
+
+    bool is_waiting_vc_ready (const dpp::snowflake &guild_id);
+
+    void set_waiting_vc_ready (const dpp::snowflake &guild_id,
+                               const std::string &second = "0");
+
+    void set_vc_ready_timeout (const dpp::snowflake &guild_id,
+                               const unsigned long &timer = 10000);
+
+    void wait_for_vc_ready (const dpp::snowflake &guild_id);
+
+    void clear_wait_vc_ready (const dpp::snowflake &guild_id);
+
     /**
      * @brief Check whether client is ready to stream in vc and make changes to
      * playback and player queue, will auto reconnect if `from` provided
@@ -360,9 +384,13 @@ class Manager
     std::pair<std::deque<MCTrack>, int>
     skip (dpp::voiceconn *v, dpp::snowflake guild_id, dpp::snowflake user_id,
           int64_t amount = 1, bool remove = false);
-    void download (std::string fname, std::string url,
-                   dpp::snowflake guild_id);
-    void wait_for_download (std::string file_name);
+
+    void download (const std::string &fname, const std::string &url,
+                   const dpp::snowflake &guild_id);
+
+    void wait_for_download (const std::string &file_name);
+
+    bool is_waiting_file_download (const std::string &file_name);
 
     void stream (dpp::discord_voice_client *v, player::MCTrack &track);
     bool is_stream_stopping (const dpp::snowflake &guild_id);
@@ -482,17 +510,21 @@ class Manager
      * guild_id) after calling this method, and then create a thread to call
      *        player_manager::reconnect (dpp::discord_client *from,
      * dpp::snowflake guild_id) for the reconnect to succeed
+     *
+     * @return int 0 if success, -1 guild_id is 0, 1 connect_channel_id is 0
      */
-    void set_reconnect (dpp::snowflake guild_id,
-                        dpp::snowflake disconnect_channel_id,
-                        dpp::snowflake connect_channel_id);
+    int set_reconnect (const dpp::snowflake &guild_id,
+                       const dpp::snowflake &disconnect_channel_id,
+                       const dpp::snowflake &connect_channel_id);
 
     /**
      * @brief Perform full voice channel reconnect/rejoin
      */
-    void full_reconnect (dpp::discord_client *from, dpp::snowflake guild_id,
-                         dpp::snowflake disconnect_channel_id,
-                         dpp::snowflake connect_channel_id);
+    int full_reconnect (dpp::discord_client *from,
+                        const dpp::snowflake &guild_id,
+                        const dpp::snowflake &disconnect_channel_id,
+                        const dpp::snowflake &connect_channel_id,
+                        const bool &for_listener = false);
 };
 } // player
 

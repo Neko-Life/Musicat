@@ -150,7 +150,8 @@ has_listener_fetch (dpp::cluster *client,
                                     continue;
                                 }
                         }
-                    else */ if (u->is_bot ())
+                    else */
+                    if (u->is_bot ())
                         continue;
                     return true;
                 }
@@ -257,6 +258,7 @@ join_voice (dpp::discord_client *from,
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > c,
         c2;
+
     // client is connected to a voice channel
     bool has_c2 = false;
 
@@ -277,9 +279,11 @@ join_voice (dpp::discord_client *from,
     try
         {
             c2 = get_voice_from_gid (guild_id, sha_id);
+
             // client already in a guild session
             if (has_listener (&c2.second))
                 return 2;
+
             has_c2 = true;
         }
     catch (...)
@@ -289,31 +293,16 @@ join_voice (dpp::discord_client *from,
     if (has_permissions_from_ids (guild_id, sha_id, c.first->id,
                                   { dpp::p_view_channel, dpp::p_connect }))
         {
-            {
-                std::lock_guard<std::mutex> lk (player_manager->c_m);
-                std::lock_guard<std::mutex> lk2 (player_manager->wd_m);
-                if (has_c2 && c2.first && c2.first->id)
-                    {
-                        std::lock_guard<std::mutex> lk (player_manager->dc_m);
-                        player_manager->disconnecting.insert_or_assign (
-                            guild_id, c2.first->id);
-                        from->disconnect_voice (guild_id);
-                    }
-                player_manager->connecting.insert_or_assign (guild_id,
-                                                             c.first->id);
-                player_manager->waiting_vc_ready.insert_or_assign (guild_id,
-                                                                   "2");
-            }
+            player_manager->full_reconnect (
+                from, guild_id,
+                (has_c2 && c2.first && c2.first->id) ? c2.first->id
+                                                     : (dpp::snowflake)0,
+                c.first->id);
 
-            std::thread t ([player_manager, from, guild_id] () {
-                player_manager->reconnect (from, guild_id);
-            });
-            t.detach ();
-            // thread spawned
+            // success dispatching join voice channel
             return 0;
-
-            // no permission
         }
+    // no permission
     else
         return 4;
 }
