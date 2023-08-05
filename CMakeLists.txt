@@ -142,8 +142,9 @@ target_include_directories(Shasha PRIVATE
 )
 
 target_link_directories(Shasha PRIVATE
-  libs/curlpp/build/
+  libs/curlpp/build
   libs/icu/usr/local/lib
+  libs/liboggz/build/lib
 )
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
