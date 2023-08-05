@@ -1,6 +1,5 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
-#include "yt-search/encode.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
@@ -10,6 +9,7 @@
 #include "musicat/util.h"
 #include "nekos-best++.hpp"
 #include "nlohmann/json.hpp"
+#include "yt-search/encode.h"
 #include <any>
 #include <chrono>
 #include <cstdlib>
@@ -95,6 +95,7 @@ vcs_setting_handle_updated (const dpp::channel *updated)
 {
     if (!updated || !is_voice_channel (updated->get_type ()))
         return -1;
+
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
     _connected_vcs_setting.insert_or_assign (updated->id,
@@ -907,10 +908,15 @@ run (int argc, const char *argv[])
         });
 
     client.on_channel_update ([] (const dpp::channel_update_t &event) {
+        if (!event.updated)
+            return;
+
         const bool debug = get_debug_state ();
 
+        dpp::voiceconn *v = event.from->get_voice (event.updated->guild_id);
+
         // reconnect if has different vc region
-        if (event.updated && is_voice_channel (event.updated->get_type ()))
+        if (v && v->channel_id && (event.updated->id == v->channel_id))
             {
                 dpp::channel *cached
                     = vcs_setting_get_cache (event.updated->id);
