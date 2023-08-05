@@ -33,6 +33,14 @@ Included:
 
 ## Docker
 
+* Clone the repo
+
+```sh
+git clone https://github.com/Neko-Life/Musicat.git --recurse-submodules
+
+cd Musicat
+```
+
 * Build the image
 
 ```sh
