@@ -17,3 +17,6 @@
 [submodule "libs/curlpp"]
 	path = libs/curlpp
 	url = https://github.com/jpbarrette/curlpp.git
+[submodule "libs/liboggz"]
+	path = libs/liboggz
+	url = https://github.com/kfish/liboggz.git
