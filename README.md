@@ -31,30 +31,33 @@ Included:
 * [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
 * [ICU 73](https://icu.unicode.org/download/73) - Library (downloaded at compile time)
 
-## Docker (outdated)
+## Docker
 
 * Build the image
+
 ```sh
-docker compose build
+docker build . -t shasha/musicat:latest
 ```
-* Configure `exe/sha_conf.json` (or wherever the config file is, you can configure musicat's volumes in `docker-composer.yml`. See `exe/sha_conf.example.json`).
-  The `MUSIC_FOLDER` config variable should be `/root/musicat/exe/music/` (again you can configure the volumes in `docker-compose.yml`,
-  and other configuration like database username and password should both match between config and postgres)
-* Register the commands
+
+* Register the commands. Can be as simple as
+
 ```sh
-./docker-register.sh g
+docker run -it --rm -v ./exe/sha_conf-docker.json:/root/Musicat/exe/sha_conf.json --name Musicat-Register shasha/musicat:latest ./Shasha reg g
 ```
-* Run
+
+* Running
+
 ```sh
-docker compose up
+docker run -it --rm -p 3000:3000 -v ./exe/sha_conf-docker.json:/root/Musicat/exe/sha_conf.json -v ./exe/music:/root/music --name Musicat shasha/musicat:latest
 ```
-* One issue using docker that it need some time to connect to the database, maybe I will fix that one day using shorter database connection check interval.
+
+You can create a docker-compose.yml file to integrate with postgresql, configure however you want.
 
 ## Installing Dependencies
 
 Ubuntu 22.04.2 LTS:
 
-* Upgrade your package database and upgrading is recommended
+* Upgrade first is recommended
 
 ```sh
 apt update
