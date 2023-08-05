@@ -7,4 +7,4 @@ exe/sha_conf.json
 ignore
 *.d
 *.o
-.cache
+.cache/

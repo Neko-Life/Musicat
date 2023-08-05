@@ -98,6 +98,13 @@ add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
                    DEPENDS ${USOCKETS_SOURCE_FILES})
+
+add_custom_target(deps ALL 
+                  DEPENDS ShashaDeps)
+
+add_custom_command(OUTPUT ShashaDeps
+                   COMMAND make
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
  
 # Linking libraries
 target_link_libraries(Shasha
@@ -120,15 +127,22 @@ target_link_libraries(Shasha
  
 # Specify includes
 target_include_directories(Shasha PRIVATE
-    include
-    # uWebSockets
-    libs/
-    libs/DPP/include
-    libs/yt-search.h/include
-    libs/nekos-bestpp/include
-    libs/uWebSockets/uSockets/src
-    /usr/include/postgresql
-    # Remember to add the include directories of any other libraries too
+  include
+  # uWebSockets
+  libs/
+  libs/DPP/include
+  libs/yt-search.h/include
+  libs/nekos-bestpp/include
+  libs/uWebSockets/uSockets/src
+  libs/icu/usr/local/include
+  libs/curlpp/include/
+  /usr/include/postgresql
+  # Remember to add the include directories of any other libraries too
+)
+
+target_link_directories(Shasha PRIVATE
+  libs/curlpp/build/
+  libs/icu/usr/local/lib
 )
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
