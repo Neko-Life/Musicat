@@ -309,6 +309,12 @@ get_server_port ()
     return get_config_value<int> ("SERVER_PORT", 80);
 }
 
+std::string
+get_ytdlp_exe ()
+{
+    return get_config_value<std::string> ("YTDLP_EXE", "");
+}
+
 void
 on_sigint (int code)
 {

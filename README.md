@@ -7,26 +7,29 @@ Discord Music Bot written in C++
 
 ## Dependencies
 
-* [DPP](https://github.com/brainboxdotcc/DPP) - Library (clone it into the `libs/` folder)
-* [uWebSockets](https://github.com/uNetworking/uWebSockets) - Library (clone and compile it into the `libs/` folder)
-* [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
+Need to install:
+
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
+* [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Should be installed on your machine
 * libopus - Library
-* liboggz - Library
+* libogg - Library
 * libcurl - Library
-* [curlpp](https://github.com/jpbarrette/curlpp) - Library
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libsodium - Library
 * openssl - Library
-* ICU 73 - Library
-* [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
-* [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included
-* [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included
-* [nekos-bestpp](https://github.com/Neko-Life/nekos-bestpp) - Included
 * opus - Library
 
-* libogg - Library - [optional/unused]
-* [opusfile](https://github.com/xiph/opusfile) - [optional/unused] Currently unused anywhere as it's bloat.
+Included:
+
+* [DPP](https://github.com/brainboxdotcc/DPP) - Library (included as submodule)
+* [uWebSockets](https://github.com/uNetworking/uWebSockets) - Library (included as submodule)
+* [curlpp](https://github.com/jpbarrette/curlpp) - Library (included as submodule)
+* [liboggz](https://github.com/kfish/liboggz.git) - Library (included as submodule)
+* [yt-search.h](https://github.com/Neko-Life/yt-search.h) - Included (included as submodule)
+* [nekos-bestpp](https://github.com/Neko-Life/nekos-bestpp) - Included (included as submodule)
+* [encode.h](https://gist.github.com/arthurafarias/56fec2cd49a32f374c02d1df2b6c350f) - Included (included as submodule)
+* [nlohmann/json](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann) - Headers only, included
+* [ICU 73](https://icu.unicode.org/download/73) - Library (downloaded at compile time)
 
 ## Docker (outdated)
 
@@ -46,6 +49,23 @@ docker compose build
 docker compose up
 ```
 * One issue using docker that it need some time to connect to the database, maybe I will fix that one day using shorter database connection check interval.
+
+## Installing Dependencies
+
+Ubuntu 22.04.2 LTS:
+
+* Upgrade your package database and upgrading is recommended
+
+```sh
+apt update
+apt upgrade
+```
+
+* Install
+
+```sh
+apt install build-essential pkg-config cmake make zlib1g-dev libssl-dev libsodium-dev libopus-dev libogg-dev ffmpeg postgresql
+```
 
 ## Compiling
 

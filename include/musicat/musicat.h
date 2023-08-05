@@ -121,6 +121,8 @@ std::string get_webapp_dir ();
  */
 int get_server_port ();
 
+std::string get_ytdlp_exe ();
+
 /**
  * @brief Search _find inside _vec
  *

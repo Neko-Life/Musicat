@@ -248,8 +248,18 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
 void
 Manager::download (string fname, string url, dpp::snowflake guild_id)
 {
+    const string yt_dlp = get_ytdlp_exe ();
+    if (!yt_dlp.length ())
+        {
+            fprintf (stderr,
+                     "[ERROR Manager::download] yt-dlp executable isn't "
+                     "configured, unable to download track '%s'\n",
+                     fname.c_str ());
+            return;
+        }
+
     std::thread tj (
-        [this] (string fname, string url, dpp::snowflake guild_id) {
+        [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id) {
             {
                 std::lock_guard<std::mutex> lk (this->dl_m);
                 this->waiting_file_download[fname] = guild_id;
@@ -264,7 +274,7 @@ Manager::download (string fname, string url, dpp::snowflake guild_id)
             }
 
             string cmd
-                = string ("yt-dlp -f 251 --http-chunk-size 2M '") + url
+                = string (yt_dlp + " -f 251 --http-chunk-size 2M '") + url
                   + string ("' -x --audio-format opus --audio-quality 0 -o '")
                   + music_folder_path
                   + std::regex_replace (fname, std::regex ("(')"), "'\\''",
