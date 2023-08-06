@@ -188,7 +188,8 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
 }
 
 bool
-Manager::update_info_embed (dpp::snowflake guild_id, bool force_playing_status, const dpp::interaction_create_t *event)
+Manager::update_info_embed (dpp::snowflake guild_id, bool force_playing_status,
+                            const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
         printf ("[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
@@ -217,6 +218,7 @@ Manager::delete_info_embed (dpp::snowflake guild_id,
 
     if (!player->info_message)
         return false;
+
     if (player->info_message->is_source_message_deleted ())
         return retdel ();
 
@@ -227,7 +229,19 @@ Manager::delete_info_embed (dpp::snowflake guild_id,
         printf (
             "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: %ld\n",
             cid);
-    this->cluster->message_delete (mid, cid, callback);
+
+    this->cluster->message_delete (
+        mid, cid,
+        [this, guild_id, callback] (const dpp::confirmation_callback_t &res) {
+            if (!res.is_error ())
+                {
+                    auto player = this->get_player (guild_id);
+                    if (player)
+                        player->info_message = nullptr;
+                }
+
+            callback (res);
+        });
     return retdel ();
 }
 
@@ -240,7 +254,8 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
         throw exception ("No player");
 
     // const bool debug = get_debug_state();
-    /* if (debug) printf("[Manager::get_playing_info_embed] Locked player::t_mutex: %ld\n", guild_player->guild_id); */
+    /* if (debug) printf("[Manager::get_playing_info_embed] Locked
+     * player::t_mutex: %ld\n", guild_player->guild_id); */
     /* std::lock_guard<std::mutex> lk (guild_player->t_mutex); */
 
     // Reset shifted tracks
@@ -254,14 +269,16 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
         auto siz = guild_player->queue.size ();
         if (!siz)
             {
-                /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock player::t_mutex: %ld\n", guild_player->guild_id); */
+                /* if (debug) printf("[Manager::get_playing_info_embed] Should
+                 * unlock player::t_mutex: %ld\n", guild_player->guild_id); */
                 throw exception ("No track");
             }
 
         if (util::player_has_current_track (guild_player))
             track = guild_player->current_track;
 
-        else track = guild_player->queue.front ();
+        else
+            track = guild_player->queue.front ();
 
         prev_track = guild_player->queue.at (siz - 1UL);
 
@@ -334,8 +351,9 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
     bool tinfo = !track.info.raw.is_null ();
     if (tinfo)
         {
-            track_progress prog = util::get_track_progress(track);
-            ft += "[" + format_duration (prog.current_ms) + "/" + format_duration (prog.duration) + "]";
+            track_progress prog = util::get_track_progress (track);
+            ft += "[" + format_duration (prog.current_ms) + "/"
+                  + format_duration (prog.duration) + "]";
         }
 
     bool has_p = false;
@@ -391,7 +409,8 @@ Manager::get_playing_info_embed (dpp::snowflake guild_id,
     if (et.length ())
         e.set_image (et);
 
-    /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock player::t_mutex: %ld\n", guild_player->guild_id); */
+    /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock
+     * player::t_mutex: %ld\n", guild_player->guild_id); */
     return e;
 }
 
