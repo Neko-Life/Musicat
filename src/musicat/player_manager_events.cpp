@@ -181,9 +181,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
         && event.voice_client->get_secs_remaining () < 0.05f)
         {
             std::thread tj (
-                [this, shared_manager, debug] (
-                    dpp::discord_voice_client *v, string meta,
-                    std::shared_ptr<Player> guild_player, MCTrack &track) {
+                [this, shared_manager,
+                 debug] (dpp::discord_voice_client *v, string meta,
+                         std::shared_ptr<Player> guild_player) {
+                    MCTrack &track = guild_player->current_track;
                     auto guild_id = v->server_id;
 
                     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
@@ -360,8 +361,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                             this->cluster->message_create (m);
                         }
                 },
-                event.voice_client, event.track_meta, guild_player,
-                play_track);
+                event.voice_client, event.track_meta, guild_player);
 
             tj.detach ();
 
