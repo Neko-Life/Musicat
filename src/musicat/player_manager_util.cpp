@@ -33,9 +33,11 @@ Manager::clear_disconnecting (const dpp::snowflake &guild_id)
 
     std::lock_guard<std::mutex> lk (this->dc_m);
 
-    if (this->disconnecting.find (guild_id) != this->disconnecting.end ())
+    auto i = this->disconnecting.find (guild_id);
+
+    if (i != this->disconnecting.end ())
         {
-            this->disconnecting.erase (guild_id);
+            this->disconnecting.erase (i);
             this->dl_cv.notify_all ();
         }
 }
@@ -113,10 +115,11 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 
     std::lock_guard<std::mutex> lk (this->wd_m);
 
-    if (this->waiting_vc_ready.find (guild_id)
-        != this->waiting_vc_ready.end ())
+    auto i = this->waiting_vc_ready.find (guild_id);
+
+    if (i != this->waiting_vc_ready.end ())
         {
-            this->waiting_vc_ready.erase (guild_id);
+            this->waiting_vc_ready.erase (i);
             this->dl_cv.notify_all ();
         }
 }
@@ -126,10 +129,46 @@ Manager::clear_connecting (const dpp::snowflake &guild_id)
 {
     std::lock_guard<std::mutex> lk (this->c_m);
 
-    if (this->connecting.find (guild_id) != this->connecting.end ())
+    auto i = this->connecting.find (guild_id);
+
+    if (i != this->connecting.end ())
         {
-            this->connecting.erase (guild_id);
+            this->connecting.erase (i);
             this->dl_cv.notify_all ();
+        }
+}
+
+bool
+Manager::is_manually_paused (const dpp::snowflake &guild_id)
+{
+    std::lock_guard<std::mutex> lk (this->mp_m);
+
+    return vector_find (&this->manually_paused, guild_id)
+           != this->manually_paused.end ();
+}
+
+void
+Manager::set_manually_paused (const dpp::snowflake &guild_id)
+{
+    std::lock_guard<std::mutex> lk (this->mp_m);
+
+    if (vector_find (&this->manually_paused, guild_id)
+        == this->manually_paused.end ())
+        {
+            this->manually_paused.push_back (guild_id);
+        }
+}
+
+void
+Manager::clear_manually_paused (const dpp::snowflake &guild_id)
+{
+    std::lock_guard<std::mutex> lk (this->mp_m);
+
+    auto i = vector_find (&this->manually_paused, guild_id);
+
+    if (i != this->manually_paused.end ())
+        {
+            this->manually_paused.erase (i);
         }
 }
 
@@ -331,10 +370,12 @@ void
 Manager::remove_ignore_marker (const dpp::snowflake &guild_id)
 {
     std::lock_guard<std::mutex> lk (this->im_m);
-    auto l = vector_find (&this->ignore_marker, guild_id);
-    if (l != this->ignore_marker.end ())
+
+    auto i = vector_find (&this->ignore_marker, guild_id);
+
+    if (i != this->ignore_marker.end ())
         {
-            this->ignore_marker.erase (l);
+            this->ignore_marker.erase (i);
         }
 }
 
@@ -354,8 +395,10 @@ Manager::load_guild_current_queue (const dpp::snowflake &guild_id,
                                    const dpp::snowflake *user_id)
 {
     auto player = this->create_player (guild_id);
+
     if (player->saved_queue_loaded == true)
         return 0;
+
     player->saved_queue_loaded = true;
 
     std::pair<PGresult *, ExecStatusType> res
@@ -374,6 +417,7 @@ Manager::load_guild_current_queue (const dpp::snowflake &guild_id,
         {
             if (user_id)
                 t.user_id = *user_id;
+
             player->add_track (t);
         }
 

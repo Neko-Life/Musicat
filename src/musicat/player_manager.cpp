@@ -120,23 +120,13 @@ Manager::pause (dpp::discord_client *from, dpp::snowflake guild_id,
     return a;
 }
 
-bool
+void
 Manager::unpause (dpp::discord_voice_client *voiceclient,
-                  dpp::snowflake guild_id)
+                  const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->mp_m);
-    auto l = vector_find (&this->manually_paused, guild_id);
-    bool ret;
-    if (l != this->manually_paused.end ())
-        {
-            this->manually_paused.erase (l);
-            ret = true;
-        }
-    else
-        ret = false;
+    this->clear_manually_paused(guild_id);
     voiceclient->pause_audio (false);
     this->update_info_embed (guild_id);
-    return ret;
 }
 
 std::pair<std::deque<MCTrack>, int>
@@ -310,17 +300,19 @@ Manager::download (const string &fname, const string &url,
 
 void
 Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
-               dpp::snowflake channel_id, bool notify_error)
+               dpp::snowflake channel_id)
 {
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
-                        dpp::snowflake channel_id, bool notify_error) {
+                        dpp::snowflake channel_id) {
             const bool debug = get_debug_state ();
 
-            if (debug)
-                printf ("Attempt to stream\n");
             auto server_id = v->server_id;
             auto voice_channel_id = v->channel_id;
+
+            if (debug)
+                printf ("[Manager::play] Attempt to stream: %ld %ld\n",
+                        server_id, voice_channel_id);
 
             try
                 {
@@ -329,11 +321,17 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
             catch (int e)
                 {
                     fprintf (stderr,
-                             "[ERROR MANAGER::PLAY] Stream thrown error with "
+                             "[ERROR Manager::play] Stream thrown error with "
                              "code: %d\n",
                              e);
 
-                    if (notify_error)
+                    const bool has_send_msg_perm
+                        = server_id && voice_channel_id
+                          && has_permissions_from_ids (
+                              server_id, this->cluster->me.id, channel_id,
+                              { dpp::p_view_channel, dpp::p_send_messages });
+
+                    if (has_send_msg_perm)
                         {
                             string msg = "";
 
@@ -356,27 +354,26 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
             if (v && !v->terminating)
                 {
                     v->insert_marker ("e");
+                    return;
                 }
-            else
-                {
-                    try
-                        {
-                            get_voice_from_gid (server_id, this->sha_id);
-                            return;
-                        }
-                    catch (...)
-                        {
-                        }
 
-                    if (server_id && voice_channel_id)
-                        {
-                            std::lock_guard<std::mutex> lk (this->c_m);
-                            this->connecting[server_id] = voice_channel_id;
-                        }
-                    // if (v) v->~discord_voice_client();
+            try
+                {
+                    get_voice_from_gid (server_id, this->sha_id);
+                    return;
                 }
+            catch (...)
+                {
+                }
+
+            if (server_id && voice_channel_id)
+                {
+                    this->set_connecting (server_id, voice_channel_id);
+                }
+            // if (v) v->~discord_voice_client();
         },
-        v, channel_id, notify_error);
+        v, channel_id);
+
     tj.detach ();
 }
 

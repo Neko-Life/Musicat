@@ -75,6 +75,7 @@ get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id)
     dpp::guild *g = dpp::find_guild (guild_id);
     if (g)
         return get_voice (g, user_id);
+
     throw "Unknown guild";
 }
 
@@ -90,6 +91,7 @@ exec (string cmd)
 {
     if (!cmd.length ())
         throw "LEN";
+
     std::array<char, 128> buffer;
     string res;
     std::unique_ptr<FILE, decltype (&pclose)> pipe (popen (cmd.c_str (), "r"),
@@ -104,16 +106,24 @@ exec (string cmd)
 bool
 has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 {
-    if (vstate_map->size () > 1)
+    if (!vstate_map || vstate_map->size () <= 1)
+        return false;
+
+    for (const std::pair<const dpp::snowflake, dpp::voicestate> &r :
+         *vstate_map)
         {
-            for (auto r : *vstate_map)
-                {
-                    auto u = dpp::find_user (r.second.user_id);
-                    if (!u || u->is_bot ())
-                        continue;
-                    return true;
-                }
+            const dpp::snowflake uid = r.second.user_id;
+            if (!uid)
+                continue;
+
+            dpp::user *u = dpp::find_user (uid);
+
+            if (!u || u->is_bot ())
+                continue;
+
+            return true;
         }
+
     return false;
 }
 
@@ -179,23 +189,29 @@ exception::code () const noexcept
 
 bool
 has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel,
-                 std::vector<uint64_t> permissions)
+                 const std::vector<uint64_t> &permissions)
 {
     if (!guild || !user || !channel)
         return false;
+
     uint64_t p = guild->permission_overwrites (guild->base_permissions (user),
                                                user, channel);
     for (uint64_t i : permissions)
         if (!(p & i))
             return false;
+
     return true;
 }
 
 bool
-has_permissions_from_ids (dpp::snowflake guild_id, dpp::snowflake user_id,
-                          dpp::snowflake channel_id,
-                          std::vector<uint64_t> permissions)
+has_permissions_from_ids (const dpp::snowflake &guild_id,
+                          const dpp::snowflake &user_id,
+                          const dpp::snowflake &channel_id,
+                          const std::vector<uint64_t> &permissions)
 {
+    if (!guild_id || !user_id || !channel_id)
+        return false;
+
     return has_permissions (dpp::find_guild (guild_id),
                             dpp::find_user (user_id),
                             dpp::find_channel (channel_id), permissions);
@@ -306,4 +322,4 @@ join_voice (dpp::discord_client *from,
     else
         return 4;
 }
-}
+} // musicat

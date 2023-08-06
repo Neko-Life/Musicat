@@ -36,6 +36,10 @@ bool fuzzy_match (std::string search, std::string str,
 
 int get_random_number ();
 
+bool
+is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
+                       dpp::voiceconn *voiceconn);
+
 namespace response
 {
 

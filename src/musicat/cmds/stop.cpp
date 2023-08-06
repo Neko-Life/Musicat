@@ -1,4 +1,5 @@
 #include "musicat/cmds.h"
+#include "musicat/util.h"
 
 namespace musicat
 {
@@ -20,9 +21,7 @@ slash_run (const dpp::slashcommand_t &event,
     auto p = player_manager->get_player (event.command.guild_id);
     dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
 
-    if (!p || !v || !v->voiceclient || !v->voiceclient->is_ready ()
-        || (v->voiceclient->get_secs_remaining () < 0.05f && p
-            && p->queue.begin () == p->queue.end ()))
+    if (util::is_player_not_playing(p, v))
         {
             event.reply ("I'm not playing anything");
             return;
@@ -52,20 +51,12 @@ slash_run (const dpp::slashcommand_t &event,
         }
 
     player_manager->stop_stream (event.command.guild_id);
+
     p->skip (v);
     p->set_stopped (true);
-
     v->voiceclient->pause_audio (true);
-    {
-        std::lock_guard<std::mutex> lk (player_manager->mp_m);
-        auto l = vector_find (&player_manager->manually_paused,
-                              event.command.guild_id);
-        if (l == player_manager->manually_paused.end ())
-            {
-                player_manager->manually_paused.push_back (
-                    event.command.guild_id);
-            }
-    }
+
+    player_manager->set_manually_paused(event.command.guild_id);
 
     event.reply ("Stopped");
 }

@@ -322,8 +322,8 @@ class Manager
     bool pause (dpp::discord_client *from, dpp::snowflake guild_id,
                 dpp::snowflake user_id);
 
-    bool unpause (dpp::discord_voice_client *voiceclient,
-                  dpp::snowflake guild_id);
+    void unpause (dpp::discord_voice_client *voiceclient,
+                  const dpp::snowflake &guild_id);
 
     bool is_disconnecting (const dpp::snowflake &guild_id);
 
@@ -350,6 +350,12 @@ class Manager
     void wait_for_vc_ready (const dpp::snowflake &guild_id);
 
     void clear_wait_vc_ready (const dpp::snowflake &guild_id);
+
+    bool is_manually_paused (const dpp::snowflake &guild_id);
+
+    void set_manually_paused (const dpp::snowflake &guild_id);
+
+    void clear_manually_paused (const dpp::snowflake &guild_id);
 
     /**
      * @brief Check whether client is ready to stream in vc and make changes to
@@ -401,7 +407,7 @@ class Manager
         dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
     void play (dpp::discord_voice_client *v, player::MCTrack &track,
-               dpp::snowflake channel_id = 0, bool notify_error = false);
+               dpp::snowflake channel_id = 0);
 
     /**
      * @brief Try to send currently playing song info to player channel

@@ -1,5 +1,5 @@
-#include "musicat/musicat.h"
 #include "musicat/util.h"
+#include "musicat/musicat.h"
 #include <stdint.h>
 #include <string>
 
@@ -102,10 +102,21 @@ int
 get_random_number ()
 {
     srand (std::chrono::high_resolution_clock::now ()
-            .time_since_epoch ()
-            .count ());
+               .time_since_epoch ()
+               .count ());
 
     return rand ();
+}
+
+bool
+is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
+                       dpp::voiceconn *voiceconn)
+{
+    return !guild_player || !voiceconn || !voiceconn->voiceclient
+           || !voiceconn->voiceclient->is_ready ()
+           || (voiceconn->voiceclient->get_secs_remaining () < 0.05f
+               && guild_player
+               && guild_player->queue.begin () == guild_player->queue.end ());
 }
 
 } // util
