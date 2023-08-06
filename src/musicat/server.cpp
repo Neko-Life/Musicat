@@ -1,5 +1,6 @@
 #include "musicat/server.h"
 #include "musicat/musicat.h"
+#include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "yt-search/encode.h"
 #include <chrono>
@@ -87,10 +88,21 @@ _util_create_remove_thread (
     std::function<size_t (const std::string &)> remove_fn)
 {
     std::thread t ([val, second_sleep, remove_fn] () {
-        std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
-        remove_fn (val);
+        try
+            {
+                std::this_thread::sleep_for (
+                    std::chrono::seconds (second_sleep));
+
+                remove_fn (val);
+            }
+        catch (...)
+            {
+            }
+
+        thread_manager::set_done ();
     });
-    t.detach ();
+
+    thread_manager::dispatch (t);
 }
 
 std::string
@@ -412,42 +424,54 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
             std::thread t (
                 [] (const std::string creds) {
-                    std::ostringstream os;
-
-                    curlpp::Easy req;
-
-                    req.setOpt (curlpp::options::Url (DISCORD_API_URL
-                                                      "/oauth2/token"));
-                    req.setOpt (curlpp::options::Header (
-                        "Content-Type: application/x-www-form-urlencoded"));
-
-                    req.setOpt (curlpp::options::PostFields (creds));
-                    req.setOpt (
-                        curlpp::options::PostFieldSize (creds.length ()));
-
-                    req.setOpt (curlpp::options::WriteStream (&os));
-
                     try
                         {
-                            req.perform ();
+                            std::ostringstream os;
+
+                            curlpp::Easy req;
+
+                            req.setOpt (curlpp::options::Url (
+                                DISCORD_API_URL "/oauth2/token"));
+
+                            req.setOpt (curlpp::options::Header (
+                                "Content-Type: "
+                                "application/x-www-form-urlencoded"));
+
+                            req.setOpt (curlpp::options::PostFields (creds));
+                            req.setOpt (curlpp::options::PostFieldSize (
+                                creds.length ()));
+
+                            req.setOpt (curlpp::options::WriteStream (&os));
+
+                            try
+                                {
+                                    req.perform ();
+                                }
+                            catch (const curlpp::LibcurlRuntimeError &e)
+                                {
+                                    fprintf (stderr,
+                                             "[ERROR] "
+                                             "LibcurlRuntimeError(%d): %s\n",
+                                             e.whatCode (), e.what ());
+                                    thread_manager::set_done ();
+                                    return;
+                                }
+
+                            // MAGIC INIT
+                            const std::string rawhttp = os.str ();
+
+                            fprintf (stderr, "%s\n", creds.c_str ());
+                            fprintf (stderr, "%s\n", rawhttp.c_str ());
                         }
-                    catch (const curlpp::LibcurlRuntimeError &e)
+                    catch (...)
                         {
-                            fprintf (stderr,
-                                     "[ERROR] LibcurlRuntimeError(%d): %s\n",
-                                     e.whatCode (), e.what ());
-                            return;
                         }
 
-                    // MAGIC INIT
-                    const std::string rawhttp = os.str ();
-
-                    fprintf (stderr, "%s\n", creds.c_str ());
-                    fprintf (stderr, "%s\n", rawhttp.c_str ());
+                    thread_manager::set_done ();
                 },
                 data);
 
-            t.detach ();
+            thread_manager::dispatch (t);
 
             break;
 

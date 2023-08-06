@@ -24,6 +24,7 @@ add_executable(Shasha
         include/musicat/storage.h
         include/musicat/util.h
         include/musicat/server.h
+        include/musicat/thread_manager.h
         include/nlohmann/json.hpp
         libs/uWebSockets/uSockets/src/libusockets.h
         libs/uWebSockets/uSockets/src/quic.h
@@ -48,6 +49,7 @@ add_executable(Shasha
         src/musicat/util-response.cpp
         src/musicat/util.cpp
         src/musicat/server.cpp
+        src/musicat/thread_manager.cpp
         src/musicat/cmds/autoplay.cpp
         src/musicat/cmds/bubble_wrap.cpp
         src/musicat/cmds/download.cpp
