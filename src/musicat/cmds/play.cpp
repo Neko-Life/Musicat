@@ -1,6 +1,7 @@
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
+#include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "yt-search/yt-playlist.h"
 #include "yt-search/yt-search.h"
@@ -433,9 +434,18 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         }
 
     std::thread pjt ([player_manager, from, guild_id] () {
-        player_manager->reconnect (from, guild_id);
+        try
+            {
+                player_manager->reconnect (from, guild_id);
+            }
+        catch (...)
+            {
+            }
+
+        thread_manager::set_done ();
     });
-    pjt.detach ();
+
+    thread_manager::dispatch (pjt);
 
     std::thread dlt (
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,

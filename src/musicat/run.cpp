@@ -6,6 +6,7 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/storage.h"
+#include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "nekos-best++.hpp"
 #include "nlohmann/json.hpp"
@@ -322,20 +323,34 @@ int _sigint_count = 0;
 void
 on_sigint (int code)
 {
+    _sigint_count++;
+
     static const char exit_msg[] = "Received SIGINT, exiting...\n";
 
     // printf isn't signal safe, use write
     write (STDERR_FILENO, exit_msg, sizeof (exit_msg) - 1);
 
-    if (_sigint_count > 0) {
-        static const char stuck_help[] = "If the program seems stuck try type something into your terminal and then press ENTER\n";
+    if (_sigint_count > 1)
+        {
+            static const char stuck_help[]
+                = "If the program seems stuck try type something into your "
+                  "terminal and then press ENTER\n";
 
-        write (STDERR_FILENO, stuck_help, sizeof (stuck_help) - 1);
-    }
+            write (STDERR_FILENO, stuck_help, sizeof (stuck_help) - 1);
+        }
 
-    if (running) running = false;
+    if (_sigint_count >= 5)
+        {
+            static const char force_exit_msg[]
+                = "Understood, force exiting...\n";
 
-    _sigint_count++;
+            write (STDERR_FILENO, force_exit_msg, sizeof (force_exit_msg) - 1);
+
+            exit (255);
+        }
+
+    if (running)
+        running = false;
 }
 
 void
@@ -433,30 +448,40 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
          edit_response] (const dpp::interaction_create_t event,
                          yt_search::YTrack result) {
-            dpp::snowflake user_id = event.command.usr.id;
-            auto guild_player = player_manager->create_player (guild_id);
-            if (dling)
+            try
                 {
-                    player_manager->wait_for_download (fname);
-                    event.edit_response (edit_response);
+                    dpp::snowflake user_id = event.command.usr.id;
+                    auto guild_player
+                        = player_manager->create_player (guild_id);
+                    if (dling)
+                        {
+                            player_manager->wait_for_download (fname);
+                            event.edit_response (edit_response);
+                        }
+                    if (from)
+                        guild_player->from = from;
+
+                    player::MCTrack t (result);
+                    t.filename = fname;
+                    t.user_id = user_id;
+                    guild_player->add_track (t, top ? true : false, guild_id,
+                                             dling, arg_slip);
+
+                    if (from)
+                        command::play::decide_play (from, guild_id, false);
+                    else if (get_debug_state ())
+                        printf ("[modal_p] No client to "
+                                "decide play\n");
                 }
-            if (from)
-                guild_player->from = from;
+            catch (...)
+                {
+                }
 
-            player::MCTrack t (result);
-            t.filename = fname;
-            t.user_id = user_id;
-            guild_player->add_track (t, top ? true : false, guild_id, dling,
-                                     arg_slip);
-
-            if (from)
-                command::play::decide_play (from, guild_id, false);
-            else if (get_debug_state ())
-                printf ("[modal_p] No client to "
-                        "decide play\n");
+            thread_manager::set_done ();
         },
         event, result);
-    dlt.detach ();
+
+    thread_manager::dispatch (dlt);
 }
 
 void
@@ -488,7 +513,7 @@ int
 run (int argc, const char *argv[])
 {
     signal (SIGINT, on_sigint);
-    set_running_state(true);
+    set_running_state (true);
 
     // load config file
     const int config_status = load_config ();
@@ -880,35 +905,50 @@ run (int argc, const char *argv[])
 
         // track marker remover
         std::thread t ([event] () {
-            if (!event.voice_client)
-                return;
-            short int count = 0;
-            const bool d_s = get_debug_state ();
-
-            while (!event.voice_client->terminating
-                   && !event.voice_client->is_playing ()
-                   && !event.voice_client->is_paused ())
+            try
                 {
-                    std::this_thread::sleep_for (
-                        std::chrono::milliseconds (500));
-                    count++;
-                    if (count == 10)
-                        break;
+                    if (!event.voice_client)
+                        {
+                            thread_manager::set_done ();
+                            return;
+                        }
+
+                    short int count = 0;
+                    const bool d_s = get_debug_state ();
+
+                    while (!event.voice_client->terminating
+                           && !event.voice_client->is_playing ()
+                           && !event.voice_client->is_paused ())
+                        {
+                            std::this_thread::sleep_for (
+                                std::chrono::milliseconds (500));
+                            count++;
+                            if (count == 10)
+                                break;
+                        }
+
+                    player_manager->remove_ignore_marker (
+                        event.voice_client->server_id);
+                    if (!d_s)
+                        {
+                            thread_manager::set_done ();
+                            return;
+                        }
+
+                    printf ("Removed ignore marker for meta '%s'",
+                            event.track_meta.c_str ());
+                    if (event.voice_client)
+                        printf (" in %ld", event.voice_client->server_id);
+                    printf ("\n");
+                }
+            catch (...)
+                {
                 }
 
-            player_manager->remove_ignore_marker (
-                event.voice_client->server_id);
-            if (!d_s)
-                return;
-
-            printf ("Removed ignore marker for meta '%s'",
-                    event.track_meta.c_str ());
-            if (event.voice_client)
-                printf (" in %ld", event.voice_client->server_id);
-            printf ("\n");
+            thread_manager::set_done ();
         });
 
-        t.detach ();
+        thread_manager::dispatch (t);
     });
 
     client.on_message_delete ([] (const dpp::message_delete_t &event) {
@@ -981,9 +1021,20 @@ run (int argc, const char *argv[])
     client.start (true);
 
     // start server
-    std::thread server_thread ([] () { server::run (); });
+    std::thread server_thread ([] () {
+        try
+            {
+                server::run ();
+            }
+        catch (...)
+            {
+            }
+
+        /* thread_manager::set_done (); */
+    });
 
     server_thread.detach ();
+    /* thread_manager::dispatch (server_thread); */
 
     time_t last_gc;
     time_t last_recon;
@@ -1027,9 +1078,13 @@ run (int argc, const char *argv[])
                                  "[ERROR DB_RECONNECT] Status code: %d\n",
                                  status);
                 }
+
+            thread_manager::join_done ();
         }
 
+    client.shutdown ();
     database::shutdown ();
+    thread_manager::join_all ();
 
     return 0;
 }

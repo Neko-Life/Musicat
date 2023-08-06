@@ -1,6 +1,7 @@
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/thread_manager.h"
 #include <dirent.h>
 
 namespace musicat
@@ -82,12 +83,21 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
                                const unsigned long &timer)
 {
     std::thread t ([this, guild_id, timer] () {
-        std::this_thread::sleep_for (std::chrono::milliseconds (timer));
+        try
+            {
+                std::this_thread::sleep_for (
+                    std::chrono::milliseconds (timer));
 
-        this->clear_wait_vc_ready (guild_id);
+                this->clear_wait_vc_ready (guild_id);
+            }
+        catch (...)
+            {
+            }
+
+        thread_manager::set_done ();
     });
 
-    t.detach ();
+    thread_manager::dispatch (t);
 }
 
 void
@@ -186,93 +196,110 @@ Manager::voice_ready (dpp::snowflake guild_id, dpp::discord_client *from,
 
     std::thread t (
         [this, user_id, guild_id] (dpp::discord_client *from) {
-            bool user_vc = true;
-
-            std::pair<dpp::channel *,
-                      std::map<dpp::snowflake, dpp::voicestate> >
-                uservc;
-
             try
                 {
-                    uservc = get_voice_from_gid (guild_id, user_id);
+                    bool user_vc = true;
+
+                    std::pair<dpp::channel *,
+                              std::map<dpp::snowflake, dpp::voicestate> >
+                        uservc;
+
+                    try
+                        {
+                            uservc = get_voice_from_gid (guild_id, user_id);
+                        }
+                    catch (...)
+                        {
+                            user_vc = false;
+                        }
+
+                    try
+                        {
+                            auto f = from->connecting_voice_channels.find (
+                                guild_id);
+                            auto c = get_voice_from_gid (guild_id,
+                                                         from->creator->me.id);
+
+                            if (f == from->connecting_voice_channels.end ()
+                                || !f->second)
+                                {
+                                    this->set_disconnecting (guild_id, 1);
+
+                                    from->disconnect_voice (guild_id);
+                                }
+                            else if (user_vc
+                                     && uservc.first->id != c.first->id)
+                                {
+                                    if (get_debug_state ())
+                                        printf ("Disconnecting as it "
+                                                "seems I just got moved "
+                                                "to different vc and "
+                                                "connection not updated "
+                                                "yet: %ld\n",
+                                                guild_id);
+
+                                    this->set_disconnecting (
+                                        guild_id, f->second->channel_id);
+
+                                    this->set_connecting (guild_id,
+                                                          uservc.first->id);
+
+                                    from->disconnect_voice (guild_id);
+                                }
+                        }
+                    catch (...)
+                        {
+                            reset_voice_channel (from, guild_id);
+
+                            switch ((user_id && user_vc) ? 1 : 0)
+                                {
+                                case 0:
+                                    break;
+                                case 1:
+                                    try
+                                        {
+                                            std::lock_guard<std::mutex> lk (
+                                                this->c_m);
+                                            auto p = this->connecting.find (
+                                                guild_id);
+
+                                            std::map<dpp::snowflake,
+                                                     dpp::voicestate>
+                                                vm = {};
+
+                                            if (p == this->connecting.end ())
+                                                break;
+
+                                            auto gc = dpp::find_channel (
+                                                p->second);
+                                            if (gc)
+                                                vm = gc->get_voice_members ();
+
+                                            auto l = has_listener (&vm);
+                                            if (!l
+                                                && p->second
+                                                       != uservc.first->id)
+                                                p->second = uservc.first->id;
+                                        }
+                                    catch (...)
+                                        {
+                                        }
+
+                                    break;
+                                }
+                        }
+
+                    this->reconnect (from, guild_id);
                 }
             catch (...)
                 {
-                    user_vc = false;
                 }
 
-            try
-                {
-                    auto f = from->connecting_voice_channels.find (guild_id);
-                    auto c
-                        = get_voice_from_gid (guild_id, from->creator->me.id);
-
-                    if (f == from->connecting_voice_channels.end ()
-                        || !f->second)
-                        {
-                            this->set_disconnecting (guild_id, 1);
-
-                            from->disconnect_voice (guild_id);
-                        }
-                    else if (user_vc && uservc.first->id != c.first->id)
-                        {
-                            if (get_debug_state ())
-                                printf ("Disconnecting as it "
-                                        "seems I just got moved "
-                                        "to different vc and "
-                                        "connection not updated "
-                                        "yet: %ld\n",
-                                        guild_id);
-
-                            this->set_disconnecting (guild_id,
-                                                     f->second->channel_id);
-
-                            this->set_connecting (guild_id, uservc.first->id);
-
-                            from->disconnect_voice (guild_id);
-                        }
-                }
-            catch (...)
-                {
-                    reset_voice_channel (from, guild_id);
-
-                    switch ((user_id && user_vc) ? 1 : 0)
-                        {
-                        case 0:
-                            break;
-                        case 1:
-                            try
-                                {
-                                    std::lock_guard<std::mutex> lk (this->c_m);
-                                    auto p = this->connecting.find (guild_id);
-
-                                    std::map<dpp::snowflake, dpp::voicestate>
-                                        vm = {};
-
-                                    if (p == this->connecting.end ())
-                                        break;
-
-                                    auto gc = dpp::find_channel (p->second);
-                                    if (gc)
-                                        vm = gc->get_voice_members ();
-
-                                    auto l = has_listener (&vm);
-                                    if (!l && p->second != uservc.first->id)
-                                        p->second = uservc.first->id;
-                                }
-                            catch (...)
-                                {
-                                }
-
-                            break;
-                        }
-                }
-
-            this->reconnect (from, guild_id);
+            thread_manager::set_done ();
         },
         from);
 
-    t.detach ();
+    thread_manager::dispatch (t);
 
     return true;
 }
@@ -496,10 +523,19 @@ Manager::full_reconnect (dpp::discord_client *from,
 
     from->disconnect_voice (guild_id);
 
-    std::thread pjt (
-        [this, from, guild_id] () { this->reconnect (from, guild_id); });
+    std::thread pjt ([this, from, guild_id] () {
+        try
+            {
+                this->reconnect (from, guild_id);
+            }
+        catch (...)
+            {
+            }
 
-    pjt.detach ();
+        thread_manager::set_done ();
+    });
+
+    thread_manager::dispatch (pjt);
 
     return status;
 }

@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/thread_manager.h"
 #include <chrono>
 #include <dirent.h>
 #include <regex>
@@ -124,7 +125,7 @@ void
 Manager::unpause (dpp::discord_voice_client *voiceclient,
                   const dpp::snowflake &guild_id)
 {
-    this->clear_manually_paused(guild_id);
+    this->clear_manually_paused (guild_id);
     voiceclient->pause_audio (false);
     this->update_info_embed (guild_id);
 }
@@ -253,49 +254,63 @@ Manager::download (const string &fname, const string &url,
 
     std::thread tj (
         [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id) {
-            {
-                std::lock_guard<std::mutex> lk (this->dl_m);
-                this->waiting_file_download[fname] = guild_id;
-            }
-
-            const std::string music_folder_path = get_music_folder_path ();
-
-            {
-                struct stat buf;
-                if (stat (music_folder_path.c_str (), &buf) != 0)
-                    std::filesystem::create_directory (music_folder_path);
-            }
-
-            string cmd
-                = string (yt_dlp + " -f 251 --http-chunk-size 2M '") + url
-                  + string ("' -x --audio-format opus --audio-quality 0 -o '")
-                  + music_folder_path
-                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
-                                        std::regex_constants::match_any)
-                  + string ("'");
-
-            const bool debug = get_debug_state ();
-
-            if (debug)
+            try
                 {
-                    printf ("DOWNLOAD: \"%s\" \"%s\"\n", fname.c_str (),
-                            url.c_str ());
-                    printf ("CMD: %s\n", cmd.c_str ());
+                    {
+                        std::lock_guard<std::mutex> lk (this->dl_m);
+                        this->waiting_file_download[fname] = guild_id;
+                    }
+
+                    const std::string music_folder_path
+                        = get_music_folder_path ();
+
+                    {
+                        struct stat buf;
+                        if (stat (music_folder_path.c_str (), &buf) != 0)
+                            std::filesystem::create_directory (
+                                music_folder_path);
+                    }
+
+                    string cmd
+                        = string (yt_dlp + " -f 251 --http-chunk-size 2M '")
+                          + url
+                          + string ("' -x --audio-format opus --audio-quality "
+                                    "0 -o '")
+                          + music_folder_path
+                          + std::regex_replace (
+                              fname, std::regex ("(')"), "'\\''",
+                              std::regex_constants::match_any)
+                          + string ("'");
+
+                    const bool debug = get_debug_state ();
+
+                    if (debug)
+                        {
+                            printf ("DOWNLOAD: \"%s\" \"%s\"\n",
+                                    fname.c_str (), url.c_str ());
+                            printf ("CMD: %s\n", cmd.c_str ());
+                        }
+                    else
+                        cmd += " 1>/dev/null";
+
+                    system (cmd.c_str ());
+
+                    {
+                        std::lock_guard<std::mutex> lk (this->dl_m);
+                        this->waiting_file_download.erase (fname);
+                    }
+
+                    this->dl_cv.notify_all ();
                 }
-            else
-                cmd += " 1>/dev/null";
+            catch (...)
+                {
+                }
 
-            system (cmd.c_str ());
-
-            {
-                std::lock_guard<std::mutex> lk (this->dl_m);
-                this->waiting_file_download.erase (fname);
-            }
-
-            this->dl_cv.notify_all ();
+            thread_manager::set_done ();
         },
         fname, url, guild_id);
-    tj.detach ();
+
+    thread_manager::dispatch (tj);
 }
 
 void
@@ -305,76 +320,90 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
                         dpp::snowflake channel_id) {
-            const bool debug = get_debug_state ();
-
-            auto server_id = v->server_id;
-            auto voice_channel_id = v->channel_id;
-
-            if (debug)
-                printf ("[Manager::play] Attempt to stream: %ld %ld\n",
-                        server_id, voice_channel_id);
-
             try
                 {
-                    this->stream (v, track);
-                }
-            catch (int e)
-                {
-                    fprintf (stderr,
-                             "[ERROR Manager::play] Stream thrown error with "
-                             "code: %d\n",
-                             e);
+                    const bool debug = get_debug_state ();
 
-                    const bool has_send_msg_perm
-                        = server_id && voice_channel_id
-                          && has_permissions_from_ids (
-                              server_id, this->cluster->me.id, channel_id,
-                              { dpp::p_view_channel, dpp::p_send_messages });
+                    auto server_id = v->server_id;
+                    auto voice_channel_id = v->channel_id;
 
-                    if (has_send_msg_perm)
+                    if (debug)
+                        printf ("[Manager::play] Attempt to stream: %ld %ld\n",
+                                server_id, voice_channel_id);
+
+                    try
                         {
-                            string msg = "";
-
-                            // Maybe connect/reconnect here if there's
-                            // connection error
-                            if (e == 2)
-                                msg = "Can't start playback";
-                            else if (e == 1)
-                                msg = "No connection";
-
-                            dpp::message m;
-                            m.set_channel_id (channel_id).set_content (msg);
-
-                            this->cluster->message_create (m);
+                            this->stream (v, track);
                         }
-                }
+                    catch (int e)
+                        {
+                            fprintf (stderr,
+                                     "[ERROR Manager::play] Stream thrown "
+                                     "error with "
+                                     "code: %d\n",
+                                     e);
 
-            track.stopping = false;
+                            const bool has_send_msg_perm
+                                = server_id && voice_channel_id
+                                  && has_permissions_from_ids (
+                                      server_id, this->cluster->me.id,
+                                      channel_id,
+                                      { dpp::p_view_channel,
+                                        dpp::p_send_messages });
 
-            if (v && !v->terminating)
-                {
-                    v->insert_marker ("e");
-                    return;
-                }
+                            if (has_send_msg_perm)
+                                {
+                                    string msg = "";
 
-            try
-                {
-                    get_voice_from_gid (server_id, this->sha_id);
-                    return;
+                                    // Maybe connect/reconnect here if there's
+                                    // connection error
+                                    if (e == 2)
+                                        msg = "Can't start playback";
+                                    else if (e == 1)
+                                        msg = "No connection";
+
+                                    dpp::message m;
+                                    m.set_channel_id (channel_id)
+                                        .set_content (msg);
+
+                                    this->cluster->message_create (m);
+                                }
+                        }
+
+                    track.stopping = false;
+
+                    if (v && !v->terminating)
+                        {
+                            v->insert_marker ("e");
+                            thread_manager::set_done ();
+                            return;
+                        }
+
+                    try
+                        {
+                            get_voice_from_gid (server_id, this->sha_id);
+                            thread_manager::set_done ();
+                            return;
+                        }
+                    catch (...)
+                        {
+                        }
+
+                    if (server_id && voice_channel_id)
+                        {
+                            this->set_connecting (server_id, voice_channel_id);
+                        }
+                    // if (v) v->~discord_voice_client();
                 }
             catch (...)
                 {
                 }
 
-            if (server_id && voice_channel_id)
-                {
-                    this->set_connecting (server_id, voice_channel_id);
-                }
-            // if (v) v->~discord_voice_client();
+            thread_manager::set_done ();
         },
         v, channel_id);
 
-    tj.detach ();
+    thread_manager::dispatch (tj);
 }
 
 size_t
