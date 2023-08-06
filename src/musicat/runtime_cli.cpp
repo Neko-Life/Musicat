@@ -32,6 +32,7 @@ attach_listener ()
                      "[ERROR RUNTIME_CLI] stdin listener already attached!\n");
             return 1;
         }
+
     printf ("[INFO] Enter `-d` to toggle debug mode\n");
 
     std::thread stdin_listener ([] () {
@@ -53,8 +54,10 @@ attach_listener ()
             {
                 const size_t len_command = strlen (desc.first.first) + 1U;
                 const size_t len_alias = strlen (desc.first.second) + 2U;
+
                 if (len_command > padding_command)
                     padding_command = len_command;
+
                 if (len_alias > padding_alias)
                     padding_alias = len_alias;
             }
@@ -63,6 +66,7 @@ attach_listener ()
             {
                 char cmd[128];
                 memset (cmd, '\0', sizeof (cmd));
+
                 scanf ("%s", cmd);
 
                 if (strcmp (cmd, "help") == 0 || strcmp (cmd, "-h") == 0)
@@ -97,6 +101,7 @@ attach_listener ()
                     }
             }
     });
+
     stdin_listener.detach ();
 
     return 0;

@@ -20,6 +20,7 @@
 #include <regex>
 #include <stdio.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #define ONE_HOUR_SECOND 3600
@@ -34,7 +35,7 @@ using string = std::string;
 
 json sha_cfg;
 
-bool running = true;
+bool running = false;
 bool debug = false;
 std::mutex main_mutex;
 
@@ -316,12 +317,25 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+int _sigint_count = 0;
+
 void
 on_sigint (int code)
 {
-    if (get_debug_state ())
-        printf ("RECEIVED SIGINT\nCODE: %d\n", code);
-    set_running_state (false);
+    static const char exit_msg[] = "Received SIGINT, exiting...\n";
+
+    // printf isn't signal safe, use write
+    write (STDERR_FILENO, exit_msg, sizeof (exit_msg) - 1);
+
+    if (_sigint_count > 0) {
+        static const char stuck_help[] = "If the program seems stuck try type something into your terminal and then press ENTER\n";
+
+        write (STDERR_FILENO, stuck_help, sizeof (stuck_help) - 1);
+    }
+
+    if (running) running = false;
+
+    _sigint_count++;
 }
 
 void
@@ -474,6 +488,7 @@ int
 run (int argc, const char *argv[])
 {
     signal (SIGINT, on_sigint);
+    set_running_state(true);
 
     // load config file
     const int config_status = load_config ();
