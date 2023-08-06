@@ -14,6 +14,12 @@ std::mutex _ns_mutex;
 std::deque<thread_data> _threads = {};
 
 void
+_print_total_thread ()
+{
+    fprintf (stderr, "[INFO] Total active thread: %ld\n", _threads.size ());
+}
+
+void
 dispatch (std::thread &t)
 {
     std::lock_guard lk (_ns_mutex);
@@ -25,8 +31,7 @@ dispatch (std::thread &t)
     if (get_debug_state ())
         {
             fprintf (stderr, "[INFO] New thread spawned: %ld\n", t.get_id ());
-            fprintf (stderr, "[INFO] Total active thread: %ld\n",
-                     _threads.size ());
+            _print_total_thread ();
         }
 }
 
@@ -58,6 +63,7 @@ set_done ()
     if (get_debug_state ())
         {
             fprintf (stderr, "[INFO] Thread done: %ld\n", id);
+            _print_total_thread ();
         }
 }
 
@@ -93,6 +99,7 @@ join_done ()
             fprintf (stderr, "[INFO] Total thread done: %ld\n", done);
             fprintf (stderr, "[INFO] Total thread done and joined: %ld\n",
                      joined);
+            _print_total_thread ();
         }
 }
 
@@ -120,6 +127,7 @@ join_all ()
     if (debug)
         {
             fprintf (stderr, "[INFO] Total joined thread: %ld\n", joined);
+            _print_total_thread ();
         }
 }
 
