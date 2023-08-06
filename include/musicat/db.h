@@ -109,12 +109,11 @@ convert_playlist_to_json (const std::deque<player::MCTrack> &playlist);
 // -----------------------------------------------------------------------
 
 /**
- * @brief Create new playlist table for new user
+ * @brief Create table playlists
  *
- * @param user_id
  * @return ExecStatusType PGRES_COMMAND_OK on success, -1 if user_id is 0
  */
-ExecStatusType create_table_playlist (const dpp::snowflake &user_id);
+ExecStatusType create_table_playlists ();
 
 /**
  * @brief Create guild_current_queue table

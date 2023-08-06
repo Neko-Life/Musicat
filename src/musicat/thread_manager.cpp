@@ -24,15 +24,15 @@ dispatch (std::thread &t)
 {
     std::lock_guard lk (_ns_mutex);
 
-    thread_data td = { std::move (t), false };
-
-    _threads.push_back (std::move (td));
-
     if (get_debug_state ())
         {
             fprintf (stderr, "[INFO] New thread spawned: %ld\n", t.get_id ());
             _print_total_thread ();
         }
+
+    thread_data td = { std::move (t), false };
+
+    _threads.push_back (std::move (td));
 }
 
 void
@@ -99,6 +99,7 @@ join_done ()
             fprintf (stderr, "[INFO] Total thread done: %ld\n", done);
             fprintf (stderr, "[INFO] Total thread done and joined: %ld\n",
                      joined);
+
             _print_total_thread ();
         }
 }

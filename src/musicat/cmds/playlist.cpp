@@ -122,8 +122,7 @@ slash_run (const dpp::slashcommand_t &event,
 
     event.thinking ();
 
-    if (database::create_table_playlist (event.command.usr.id)
-        == PGRES_FATAL_ERROR)
+    if (database::create_table_playlists () == PGRES_FATAL_ERROR)
         {
             event.edit_response ("`[FATAL]` INTERNAL MUSICAT ERROR!");
             return;
