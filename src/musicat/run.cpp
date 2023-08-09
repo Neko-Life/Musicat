@@ -757,13 +757,13 @@ run (int argc, const char *argv[])
                     }
             }
 
-        int cur_sub = 0;
+        // int cur_sub = 0;
         std::vector<dpp::command_data_option> eopts
             = event.command.get_autocomplete_interaction ().options;
 
         while (sub_level && eopts.begin () != eopts.end ())
             {
-                cur_sub++;
+                // cur_sub++;
                 auto sub = eopts.at (0);
                 sub_cmd.push_back (sub.name);
                 for (const auto &i : sub.options)
