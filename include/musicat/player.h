@@ -337,7 +337,7 @@ class Manager
     void set_connecting (const dpp::snowflake &guild_id,
                          const dpp::snowflake &voice_channel_id);
 
-    void clear_connecting (const dpp::snowflake &guild_id);
+    int clear_connecting (const dpp::snowflake &guild_id);
 
     bool is_waiting_vc_ready (const dpp::snowflake &guild_id);
 
@@ -349,7 +349,7 @@ class Manager
 
     void wait_for_vc_ready (const dpp::snowflake &guild_id);
 
-    void clear_wait_vc_ready (const dpp::snowflake &guild_id);
+    int clear_wait_vc_ready (const dpp::snowflake &guild_id);
 
     bool is_manually_paused (const dpp::snowflake &guild_id);
 

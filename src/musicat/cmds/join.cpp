@@ -89,9 +89,9 @@ slash_run (const dpp::slashcommand_t &event,
                             return;
                         }
 
-                    std::lock_guard<std::mutex> lk (player_manager->dc_m);
-                    player_manager->disconnecting.insert_or_assign (
+                    player_manager->set_disconnecting (
                         event.command.guild_id, usc.first->id);
+
                     event.from->disconnect_voice (event.command.guild_id);
                     event.reply ("Leaving...");
                     return;

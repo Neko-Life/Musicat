@@ -88,7 +88,70 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
                 std::this_thread::sleep_for (
                     std::chrono::milliseconds (timer));
 
-                this->clear_wait_vc_ready (guild_id);
+                const int status = this->clear_wait_vc_ready (guild_id);
+
+                auto player_manager = get_player_manager_ptr ();
+                auto guild_player = player_manager
+                                        ? player_manager->get_player (guild_id)
+                                        : nullptr;
+
+                dpp::snowflake channel_id = guild_player
+                                                ? guild_player->channel_id
+                                                : (dpp::snowflake)0;
+
+                if (status != 0)
+                    {
+                        fprintf (stderr, "[Manager::set_vc_ready_timeout "
+                                         "WARN] Connection timeout\n");
+                        if (player_manager && guild_player
+                            && guild_player->from)
+                            try
+                                {
+                                    auto vcs = get_voice_from_gid (
+                                        guild_id, this->sha_id);
+
+                                    if (vcs.first && vcs.first->id)
+                                        {
+                                            player_manager->set_disconnecting (
+                                                guild_id, vcs.first->id);
+
+                                            guild_player->from
+                                                ->disconnect_voice (guild_id);
+                                        }
+                                }
+                            catch (...)
+                                {
+                                }
+
+                        if (!channel_id)
+                            {
+                                thread_manager::set_done ();
+                                return;
+                            }
+
+                        auto server_id = guild_player->guild_id;
+
+                        const bool has_send_msg_perm
+                            = server_id && channel_id
+                              && has_permissions_from_ids (
+                                  server_id, this->cluster->me.id, channel_id,
+                                  { dpp::p_view_channel,
+                                    dpp::p_send_messages });
+
+                        if (has_send_msg_perm)
+                            {
+                                dpp::message m;
+                                m.set_channel_id (channel_id)
+                                    .set_content ("Seems like the voice "
+                                                  "server isn't "
+                                                  "responding, try "
+                                                  "changing your voice "
+                                                  "region in the voice "
+                                                  "channel setting");
+
+                                this->cluster->message_create (m);
+                            }
+                    }
             }
         catch (...)
             {
@@ -117,11 +180,13 @@ Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
     });
 }
 
-void
+int
 Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        printf ("[EVENT] on_voice_ready: %ld\n", guild_id);
+        printf ("[Manager::clear_wait_vc_ready]: %ld\n", guild_id);
+
+    const int err = this->clear_connecting (guild_id);
 
     std::lock_guard<std::mutex> lk (this->wd_m);
 
@@ -131,12 +196,18 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
         {
             this->waiting_vc_ready.erase (i);
             this->dl_cv.notify_all ();
+            return 2;
         }
+
+    return err;
 }
 
-void
+int
 Manager::clear_connecting (const dpp::snowflake &guild_id)
 {
+    if (get_debug_state ())
+        printf ("[Manager::clear_connecting]: %ld\n", guild_id);
+
     std::lock_guard<std::mutex> lk (this->c_m);
 
     auto i = this->connecting.find (guild_id);
@@ -145,7 +216,10 @@ Manager::clear_connecting (const dpp::snowflake &guild_id)
         {
             this->connecting.erase (i);
             this->dl_cv.notify_all ();
+            return 1;
         }
+
+    return 0;
 }
 
 bool

@@ -149,8 +149,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
     guild_player->current_track = guild_player->queue.front ();
     guild_player->queue.front ().seek_to = 0;
 
-    MCTrack &play_track = guild_player->current_track;
-
     guild_player->set_stopped (false);
 
     if (!just_loaded_queue)
@@ -415,6 +413,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
 
             return true;
         }
+    else
+        fprintf (stderr, "[Manager::handle_on_track_marker WARN] Voice "
+                         "client not present or already playing: %ld\n",
+                         guild_player->guild_id);
 
     if (debug)
         {
@@ -433,8 +435,6 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
 {
     const bool debug = get_debug_state ();
     this->clear_wait_vc_ready (event.voice_client->server_id);
-
-    this->clear_connecting (event.voice_client->server_id);
 
     auto i = event.voice_client->get_tracks_remaining ();
     auto l = event.voice_client->get_secs_remaining ();

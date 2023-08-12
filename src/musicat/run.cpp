@@ -1082,6 +1082,7 @@ run (int argc, const char *argv[])
             thread_manager::join_done ();
         }
 
+    player_manager = nullptr;
     client.shutdown ();
     database::shutdown ();
     thread_manager::join_all ();
