@@ -22,17 +22,22 @@ _print_total_thread ()
 void
 dispatch (std::thread &t)
 {
+    const bool debug = get_debug_state ();
     std::lock_guard lk (_ns_mutex);
 
-    if (get_debug_state ())
+    if (debug)
         {
             fprintf (stderr, "[INFO] New thread spawned: %ld\n", t.get_id ());
-            _print_total_thread ();
         }
 
     thread_data td = { std::move (t), false };
 
     _threads.push_back (std::move (td));
+
+    if (debug)
+        {
+            _print_total_thread ();
+        }
 }
 
 void
@@ -118,12 +123,19 @@ join_all ()
         }
 
     size_t joined = 0;
-    for (auto &td : _threads)
-        if (td.t.joinable ())
-            {
-                td.t.join ();
-                joined++;
-            }
+    auto i = _threads.begin ();
+    while (i != _threads.end ())
+        {
+            if (i->t.joinable ())
+                {
+                    i->t.join ();
+                    joined++;
+
+                    i = _threads.erase (i);
+                }
+            else
+                i++;
+        }
 
     if (debug)
         {

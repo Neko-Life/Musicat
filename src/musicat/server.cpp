@@ -10,6 +10,7 @@
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/
 
+#define APP_WITH_SSL false
 #define BOT_AVATAR_SIZE 128
 
 namespace musicat
@@ -18,14 +19,15 @@ namespace server
 {
 // SSLApp would be <true, true, SocketData>
 // update accordingly
-using MCWsApp = uWS::WebSocket<false, true, SocketData>;
+using MCWsApp = uWS::WebSocket<APP_WITH_SSL, true, SocketData>;
 
 std::mutex ns_mutex;
 bool running = false;
 
 // assign null to these pointer on exit!
 uWS::App *_app_ptr = nullptr;
-uWS::Loop *_loop = nullptr;
+uWS::Loop *_loop_ptr = nullptr;
+us_listen_socket_t *_listen_socket_ptr = nullptr;
 
 std::deque<std::string> _nonces = {};
 std::deque<std::string> _oauth_states = {};
@@ -575,7 +577,7 @@ run ()
 
     // initialize global pointers, assign null to these pointer on exit!
     _app_ptr = &app;
-    _loop = uWS::Loop::get ();
+    _loop_ptr = uWS::Loop::get ();
 
     const int PORT = get_server_port ();
 
@@ -793,19 +795,26 @@ run ()
     */
     // define http routes =======================================}
 
-    app.listen (PORT, [PORT] (auto *listen_socket) {
+    app.listen (PORT, [PORT] (us_listen_socket_t *listen_socket) {
         if (listen_socket)
             {
+                _listen_socket_ptr = listen_socket;
                 fprintf (stderr, "[server] Listening on port %d \n", PORT);
             }
+        else
+            fprintf (stderr, "[server ERROR] Listening socket is null\n");
     });
 
     running = true;
+
     app.run ();
 
+    running = false;
+
     // socket exiting, assigning null to these pointer
+    _listen_socket_ptr = nullptr;
+    _loop_ptr = nullptr;
     _app_ptr = nullptr;
-    _loop = nullptr;
 
     return 0;
 }
@@ -818,17 +827,68 @@ publish (const std::string &topic, const std::string &message)
             return 1;
         }
 
-    if (!_loop)
+    if (!_loop_ptr)
         {
             return 2;
         }
 
-    _loop->defer ([topic, message] () {
+    _loop_ptr->defer ([topic, message] () {
         if (!_app_ptr)
-            return;
+            {
+                fprintf (
+                    stderr,
+                    "[server::publish ERROR] _app_ptr is null on callback\n");
+                fprintf (stderr, "Topic:\n%s\n\n", topic.c_str ());
+                fprintf (stderr, "Message:\n%s\n\n", message.c_str ());
+                return;
+            }
 
         _app_ptr->publish (topic, message, uWS::OpCode::BINARY);
     });
+
+    return 0;
+}
+
+int
+shutdown ()
+{
+    if (!_app_ptr)
+        {
+            return 1;
+        }
+
+    if (!_loop_ptr)
+        {
+            return 2;
+        }
+
+    if (!running)
+        {
+            return 3;
+        }
+
+    _loop_ptr->defer ([] () {
+        if (!running)
+            {
+                fprintf (stderr, "[server::shutdown ERROR] server "
+                                 "already not running on callback\n");
+                return;
+            }
+
+        if (!_app_ptr)
+            {
+                fprintf (stderr, "[server::shutdown ERROR] _app_ptr "
+                                 "is null on callback\n");
+                return;
+            }
+
+        fprintf (stderr, "[server] Shutting down...\n");
+
+        us_listen_socket_close (APP_WITH_SSL, _listen_socket_ptr);
+        _listen_socket_ptr = nullptr;
+    });
+
+    fprintf (stderr, "[server] Shutting down callback dispatched\n");
 
     return 0;
 }

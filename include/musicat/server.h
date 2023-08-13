@@ -35,6 +35,9 @@ bool get_running_state ();
 // whatever data you want to send
 int publish (const std::string &topic, const std::string &message);
 
+// shutdown server, returns 0 on success, else 1
+int shutdown ();
+
 int run ();
 
 } // server

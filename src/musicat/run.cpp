@@ -1030,11 +1030,10 @@ run (int argc, const char *argv[])
             {
             }
 
-        /* thread_manager::set_done (); */
+        thread_manager::set_done ();
     });
 
-    server_thread.detach ();
-    /* thread_manager::dispatch (server_thread); */
+    thread_manager::dispatch (server_thread);
 
     time_t last_gc;
     time_t last_recon;
@@ -1082,7 +1081,10 @@ run (int argc, const char *argv[])
             thread_manager::join_done ();
         }
 
+    client_ptr = nullptr;
     player_manager = nullptr;
+
+    server::shutdown ();
     client.shutdown ();
     database::shutdown ();
     thread_manager::join_all ();
