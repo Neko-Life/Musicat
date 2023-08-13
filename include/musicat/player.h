@@ -45,7 +45,7 @@ struct MCTrack : yt_search::YTrack
 
     bool seekable;
 
-    // seek query, reset to 0 after seek performed.
+    // seek query, reset to -1 after seek performed.
     // byte offset
     int64_t seek_to;
 

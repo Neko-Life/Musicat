@@ -986,11 +986,13 @@ run (int argc, const char *argv[])
                         // convenience?
                         auto guild_player
                             = player_manager->get_player (guild_id);
+
                         if (guild_player && guild_player->queue.size ())
                             {
                                 int64_t to_seek
                                     = guild_player->current_track.current_byte
                                       - (BUFSIZ * 8);
+
                                 if (to_seek < 0)
                                     to_seek = 0;
 

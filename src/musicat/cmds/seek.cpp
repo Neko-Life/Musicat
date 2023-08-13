@@ -1,5 +1,5 @@
-#include <string.h>
 #include <musicat/cmds.h>
+#include <string.h>
 #include <string>
 
 namespace musicat
@@ -11,12 +11,11 @@ namespace seek
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("seek",
-                              "Seek [currently playing] track",
-                              sha_id)
+    return dpp::slashcommand ("seek", "Seek [currently playing] track", sha_id)
         .add_option (
             dpp::command_option (dpp::co_string, "to",
-                                 "Timestamp [to seek to]. Format: Absolute `<[hour:][minute:]second>`. Example: 4:20",
+                                 "Timestamp [to seek to]. Format: Absolute "
+                                 "`<[hour:][minute:]second>`. Example: 4:20",
                                  true));
 }
 
@@ -31,7 +30,7 @@ _valid_number (std::string &numstr)
     for (const char c : numstr)
         {
             bool valid = false;
-            for (size_t i = 0; i < strlen(numbers); i++)
+            for (size_t i = 0; i < strlen (numbers); i++)
                 {
                     const char n = numbers[i];
                     if (c == n)
@@ -64,11 +63,13 @@ _reply_invalid_number (const dpp::interaction_create_t &event, char rechar)
 }
 
 bool
-_reply_invalid_60 (const dpp::interaction_create_t &event, int &num, const char *name)
+_reply_invalid_60 (const dpp::interaction_create_t &event, int &num,
+                   const char *name)
 {
     if (num > 59 || num < 0)
         {
-            event.reply (std::string ("Invalid ") + name + ": `" + std::to_string (num) + '`');
+            event.reply (std::string ("Invalid ") + name + ": `"
+                         + std::to_string (num) + '`');
             return true;
         }
 
@@ -92,7 +93,8 @@ _reply_invalid_hour (const dpp::interaction_create_t &event, int &hour)
 {
     if (hour > 23 || hour < 0)
         {
-            event.reply (std::string ("Invalid hour: `") + std::to_string (hour) + '`');
+            event.reply (std::string ("Invalid hour: `")
+                         + std::to_string (hour) + '`');
             return true;
         }
 
@@ -114,7 +116,7 @@ slash_run (const dpp::slashcommand_t &event,
     std::string arg_to = "";
     get_inter_param (event, "to", &arg_to);
 
-    int64_t seek_byte = 0;
+    int64_t seek_byte = -1;
 
     auto player = player_manager->get_player (event.command.guild_id);
 
@@ -237,20 +239,23 @@ slash_run (const dpp::slashcommand_t &event,
         }
 
     if (hour == 0 && minute == 0 && second == 0)
-        seek_byte = 1;
+        seek_byte = 0;
     else
         {
             static const constexpr uint64_t second_ms = 1000;
             static const constexpr uint64_t minute_ms = second_ms * 60;
             static const constexpr uint64_t hour_ms = 60 * minute_ms;
 
-            const uint64_t total_ms = (hour * hour_ms) + (minute * minute_ms) + (second * second_ms);
+            const uint64_t total_ms = (hour * hour_ms) + (minute * minute_ms)
+                                      + (second * second_ms);
             if (debug)
-                printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n", total_ms, duration);
+                printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n",
+                        total_ms, duration);
 
             if (total_ms > duration)
                 {
-                    event.reply ("Can't seek, seek target exceeding track duration");
+                    event.reply (
+                        "Can't seek, seek target exceeding track duration");
                     return;
                 }
 
@@ -260,10 +265,11 @@ slash_run (const dpp::slashcommand_t &event,
 
             if (debug)
                 {
-                    printf ("[seek::slash_run] [filesize] [duration] [byte_per_ms] [seek_byte]: "
-                    "%f %f %f %ld\n",
-                    (float)track.filesize, (float)duration,
-                    byte_per_ms, seek_byte);
+                    printf ("[seek::slash_run] [filesize] [duration] "
+                            "[byte_per_ms] [seek_byte]: "
+                            "%f %f %f %ld\n",
+                            (float)track.filesize, (float)duration,
+                            byte_per_ms, seek_byte);
                 }
         }
 
@@ -274,7 +280,7 @@ slash_run (const dpp::slashcommand_t &event,
                          + _pad0 (std::to_string (minute)) + ':'
                          + _pad0 (std::to_string (second));
 
-    if (seek_byte < 1)
+    if (seek_byte < 0)
         {
             event.reply ("Invalid timestamp: `" + ts_str + '`');
             return;

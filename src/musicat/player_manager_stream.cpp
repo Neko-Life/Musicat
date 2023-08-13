@@ -88,7 +88,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             static const constexpr long CHUNK_READ
                                 = BUFSIZ * 2;
 
-                            if (track.seek_to > 0 && track.seekable)
+                            if (track.seek_to > -1 && track.seekable)
                                 {
                                     oggz_off_t offset = oggz_seek (
                                         track_og, track.seek_to, SEEK_SET);
@@ -103,7 +103,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                             offset);
 
                                     track.current_byte = offset;
-                                    track.seek_to = 0;
+                                    track.seek_to = -1;
                                 }
 
                             const long read_bytes
