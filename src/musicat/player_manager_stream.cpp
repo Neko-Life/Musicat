@@ -57,12 +57,14 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (track_og)
                 {
                     mc_oggz_user_data data = { v, track, debug };
+
                     oggz_set_read_callback (
                         track_og, -1,
                         [] (OGGZ *oggz, oggz_packet *packet, long serialno,
                             void *user_data) {
                             mc_oggz_user_data *data
                                 = (mc_oggz_user_data *)user_data;
+
                             data->voice_client->send_audio_opus (
                                 packet->op.packet, packet->op.bytes);
 
@@ -86,8 +88,18 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             static const constexpr long CHUNK_READ
                                 = BUFSIZ * 2;
 
+                            if (track.seek_to > 0 && track.seekable)
+                                {
+                                    oggz_off_t offset = oggz_seek (
+                                        track_og, track.seek_to, SEEK_SET);
+
+                                    track.current_byte = offset;
+                                    track.seek_to = 0;
+                                }
+
                             const long read_bytes
                                 = oggz_read (track_og, CHUNK_READ);
+
                             track.current_byte += read_bytes;
 
                             if (debug)
@@ -100,16 +112,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             while (v && !v->terminating
                                    && v->get_secs_remaining () > 0.05f)
                                 {
-                                    if (track.seek_to > 0)
-                                        {
-                                            oggz_seek (track_og, track.seek_to,
-                                                       SEEK_SET);
-                                            track.current_byte = track.seek_to;
-                                            track.seek_to = 0;
-                                        }
-
                                     std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (30));
+                                        std::chrono::milliseconds (10));
                                 }
 
                             // eof
