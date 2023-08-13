@@ -93,6 +93,15 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     oggz_off_t offset = oggz_seek (
                                         track_og, track.seek_to, SEEK_SET);
 
+                                    if (debug)
+                                        fprintf (
+                                            stderr,
+                                            "[Manager::stream] Seeking from: "
+                                            "%ld\nTarget: %ld\nResult offset: "
+                                            "%ld\n",
+                                            track.current_byte, track.seek_to,
+                                            offset);
+
                                     track.current_byte = offset;
                                     track.seek_to = 0;
                                 }
