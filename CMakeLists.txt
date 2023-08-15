@@ -93,13 +93,16 @@ set(USOCKETS_OBJECT_FILES
 file(GLOB_RECURSE USOCKETS_SOURCE_FILES
      ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/src/*.c)
 
+file(GLOB_RECURSE UWEBSOCKETS_HEADER_FILES
+     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/src/*.h)
+
 add_custom_target(uWebSockets
                   DEPENDS ${USOCKETS_OBJECT_FILES})
 
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
                    COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
-                   DEPENDS ${USOCKETS_SOURCE_FILES})
+                   DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
 
 add_custom_target(deps
                   DEPENDS ShashaDeps)

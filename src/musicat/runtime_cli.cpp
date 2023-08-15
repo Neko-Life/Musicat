@@ -42,7 +42,7 @@ attach_listener ()
                 attached = true;
 
                 static const std::map<std::pair<const char *, const char *>,
-                               const char *>
+                                      const char *>
                     commands = {
                         { { "command", "alias" }, "description" },
                         { { "help", "-h" }, "Print this message" },
@@ -71,13 +71,11 @@ attach_listener ()
 
                 while (get_running_state ())
                     {
-                        char cmd[128];
-                        memset (cmd, '\0', sizeof (cmd));
+                        std::string cmd;
 
-                        scanf ("%s", cmd);
+                        std::cin >> cmd;
 
-                        if (strcmp (cmd, "help") == 0
-                            || strcmp (cmd, "-h") == 0)
+                        if (cmd == "help" || cmd == "-h")
                             {
                                 printf ("Usage: [command] [args] <ENTER>\n\n");
 
@@ -101,13 +99,11 @@ attach_listener ()
                                         printf (": %s\n", desc.second);
                                     }
                             }
-                        else if (strcmp (cmd, "debug") == 0
-                                 || strcmp (cmd, "-d") == 0)
+                        else if (cmd == "debug" || cmd == "-d")
                             {
                                 set_debug_state (!get_debug_state ());
                             }
-                        else if (strcmp (cmd, "clear") == 0
-                                 || strcmp (cmd, "-c") == 0)
+                        else if (cmd == "clear" || cmd == "-c")
                             {
                                 system ("clear");
                             }
