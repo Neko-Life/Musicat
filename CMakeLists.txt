@@ -77,6 +77,9 @@ add_executable(Shasha
         libs/nekos-bestpp/src/nekos-best++.cpp
         src/main.cpp)
 
+add_executable(exsox
+        src/sox-experiment/src/main.cpp)
+
 set(USOCKETS_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
@@ -112,6 +115,8 @@ add_custom_command(OUTPUT ShashaDeps
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 add_dependencies(Shasha deps uWebSockets)
+
+add_dependencies(exsox deps)
  
 # Linking libraries
 target_link_libraries(Shasha
@@ -132,6 +137,10 @@ target_link_libraries(Shasha
     crypto
     # Add any other libs you want to use here
 )
+
+target_link_libraries(exsox
+    sox
+)
  
 # Specify includes
 target_include_directories(Shasha PRIVATE
@@ -150,6 +159,10 @@ target_include_directories(Shasha PRIVATE
   # Remember to add the include directories of any other libraries too
 )
 
+target_include_directories(exsox PRIVATE
+  libs/sox/include
+)
+
 target_link_directories(Shasha PRIVATE
   libs/curlpp/build
   libs/icu/usr/local/lib
@@ -157,10 +170,22 @@ target_link_directories(Shasha PRIVATE
   libs/sox/build/lib
 )
 
+target_link_directories(exsox PRIVATE
+  libs/sox/build/lib
+)
+
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
+
+target_compile_options(exsox PRIVATE -g -Wall -Wextra -Wpedantic)
  
 # Set C++ version
 set_target_properties(Shasha PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    EXPORT_COMPILE_COMMANDS ON
+)
+
+set_target_properties(exsox PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     EXPORT_COMPILE_COMMANDS ON
