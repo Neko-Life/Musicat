@@ -1,6 +1,7 @@
 LIBOGGZ_BUILD_DIR=$(PWD)/liboggz/build/
+LIBSOX_BUILD_DIR=$(PWD)/sox/build/
 
-all: liboggz icu curlpp
+all: liboggz icu curlpp libsox
 
 icu: icu/usr/local/lib/libicudata.so
 
@@ -19,3 +20,8 @@ liboggz: liboggz/build/lib/liboggz.so
 
 liboggz/build/lib/liboggz.so:
 	cd liboggz && ./autogen.sh && ./configure --prefix=$(LIBOGGZ_BUILD_DIR) && make install
+
+libsox: sox/build/lib/libsox.so
+
+sox/build/lib/libsox.so:
+	cd sox && autoreconf -i && ./configure --prefix=$(LIBSOX_BUILD_DIR) && make install

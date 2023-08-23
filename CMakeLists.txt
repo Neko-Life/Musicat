@@ -116,6 +116,7 @@ add_dependencies(Shasha deps uWebSockets)
 # Linking libraries
 target_link_libraries(Shasha
     dpp
+    sox
     oggz
     ogg
     pq
@@ -144,6 +145,7 @@ target_include_directories(Shasha PRIVATE
   libs/icu/usr/local/include
   libs/curlpp/include/
   libs/liboggz/include
+  libs/sox/include
   /usr/include/postgresql
   # Remember to add the include directories of any other libraries too
 )
@@ -152,6 +154,7 @@ target_link_directories(Shasha PRIVATE
   libs/curlpp/build
   libs/icu/usr/local/lib
   libs/liboggz/build/lib
+  libs/sox/build/lib
 )
 
 target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
