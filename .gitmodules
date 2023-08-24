@@ -20,6 +20,3 @@
 [submodule "libs/liboggz"]
 	path = libs/liboggz
 	url = https://github.com/kfish/liboggz.git
-[submodule "libs/sox"]
-	path = libs/sox
-	url = git://git.code.sf.net/p/sox/code
