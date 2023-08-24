@@ -1,9 +1,6 @@
 libs/**
 build/**
-exe/music
-exe/musicat-music-database
-exe/Shasha
-exe/sha_conf.json
+exe/*
 ignore
 *.d
 *.o

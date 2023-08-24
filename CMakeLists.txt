@@ -146,21 +146,20 @@ target_link_libraries(exsox
 target_include_directories(Shasha PRIVATE
   include
   # uWebSockets
-  libs/
   libs/DPP/include
   libs/yt-search.h/include
   libs/nekos-bestpp/include
   libs/uWebSockets/uSockets/src
   libs/icu/usr/local/include
-  libs/curlpp/include/
+  libs/curlpp/include
   libs/liboggz/include
-  libs/sox/include
+  libs/sox/build/include
   /usr/include/postgresql
   # Remember to add the include directories of any other libraries too
 )
 
 target_include_directories(exsox PRIVATE
-  libs/sox/include
+  libs/sox/build/include
 )
 
 target_link_directories(Shasha PRIVATE
