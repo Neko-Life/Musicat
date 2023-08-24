@@ -146,6 +146,7 @@ target_link_libraries(exsox
 target_include_directories(Shasha PRIVATE
   include
   # uWebSockets
+  libs
   libs/DPP/include
   libs/yt-search.h/include
   libs/nekos-bestpp/include
