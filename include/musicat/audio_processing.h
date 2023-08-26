@@ -31,8 +31,12 @@ enum run_processor_error_t
 struct track_data_t
 {
     player::MCTrack *track;
+    std::string file_path;
     std::shared_ptr<player::Player> player;
 };
+
+run_processor_error_t
+run_processor (track_data_t *p_track, parent_child_ic_t *p_info);
 
 } // audio_processing
 } // musicat

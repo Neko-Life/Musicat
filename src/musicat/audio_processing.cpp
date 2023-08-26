@@ -84,11 +84,15 @@ run_processor_error_t
 run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 {
     const bool debug = get_debug_state ();
+
+    char fname[256];
+
+    /* snprintf(fname, 255, "%q", p_track->file_path.c_str()); */
     // decode opus track
-    FILE *input = popen ((std::string ("opusdec ") + p_track->track->filename
-                          + " - 2>/dev/null")
-                             .c_str (),
-                         "r");
+    FILE *input = popen (
+        (std::string ("ffmpeg -i ") +  + " - 2>/dev/null")
+            .c_str (),
+        "r");
 
     if (!input)
         {
@@ -188,7 +192,7 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                         (read_size = fread (buffer, 1, BUFFER_SIZE, preadfile))
                         > 0)
                         {
-                            fwrite (buffer, 1, read_size, stdout);
+                            v->send();
 
                             // check if this might be the last data we can read
                             if (read_size < BUFFER_SIZE)
