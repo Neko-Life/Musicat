@@ -15,7 +15,9 @@ struct parent_child_ic_t
 {
     int ppipefd[2];
     int cpipefd[2];
+    int rpipefd[2];
     pid_t cpid;
+    pid_t rpid;
 };
 
 enum run_processor_error_t
@@ -33,10 +35,11 @@ struct track_data_t
     player::MCTrack *track;
     std::string file_path;
     std::shared_ptr<player::Player> player;
+    dpp::discord_voice_client *vclient;
 };
 
-run_processor_error_t
-run_processor (track_data_t *p_track, parent_child_ic_t *p_info);
+run_processor_error_t run_processor (track_data_t *p_track,
+                                     parent_child_ic_t *p_info);
 
 } // audio_processing
 } // musicat

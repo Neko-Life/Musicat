@@ -21,6 +21,41 @@ namespace musicat
 namespace audio_processing
 {
 
+static int
+run_reader (std::string &file_path, parent_child_ic_t *p_info)
+{
+    // request kernel to kill little self when parent dies
+    if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+        {
+            perror ("child reader");
+            _exit (EXIT_FAILURE);
+        }
+    int prreadfd = p_info->rpipefd[0];
+    int crwritefd = p_info->rpipefd[1];
+
+    close (prreadfd); /* Close unused read end */
+
+    int status;
+    status = dup2 (crwritefd, STDOUT_FILENO);
+    close (crwritefd);
+    if (status == -1)
+        {
+            perror ("reader dout");
+            _exit (EXIT_FAILURE);
+        }
+
+    // redirect ffmpeg stderr to /dev/null
+    int dnull = open ("/dev/null", O_WRONLY);
+    dup2 (dnull, STDERR_FILENO);
+    close (dnull);
+
+    execlp ("ffmpeg", "ffmpeg", "-i", file_path.c_str (), "-f", "s16le",
+            /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
+
+    perror ("reader");
+    _exit (EXIT_FAILURE);
+}
+
 // p*fd = fd for parent
 // c*fd = fd for child
 static int
@@ -29,7 +64,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
-            perror ("child");
+            perror ("child ffmpeg");
             _exit (EXIT_FAILURE);
         }
 
@@ -49,7 +84,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     close (creadfd);
     if (status == -1)
         {
-            perror ("din");
+            perror ("ffmpeg din");
             _exit (EXIT_FAILURE);
         }
 
@@ -57,7 +92,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     close (cwritefd);
     if (status == -1)
         {
-            perror ("dout");
+            perror ("ffmpeg dout");
             _exit (EXIT_FAILURE);
         }
 
@@ -73,7 +108,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
             (std::string ("volume=")
              + std::to_string ((float)p_track->player->volume / (float)100))
                 .c_str (),
-            "-f", "s16le",
+            "-f", "opus",
             /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
 
     perror ("ffmpeg");
@@ -85,21 +120,32 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 {
     const bool debug = get_debug_state ();
 
-    char fname[256];
+    dpp::discord_voice_client *vclient = p_track->vclient;
 
-    /* snprintf(fname, 255, "%q", p_track->file_path.c_str()); */
     // decode opus track
-    FILE *input = popen (
-        (std::string ("ffmpeg -i ") +  + " - 2>/dev/null")
-            .c_str (),
-        "r");
-
-    if (!input)
+    if (pipe (p_info->rpipefd) == -1)
         {
-            if (debug)
-                fprintf (stderr, "popen\n");
+            perror ("rpipe");
             return ERR_INPUT;
         }
+    int prreadfd = p_info->rpipefd[0];
+    int crwritefd = p_info->rpipefd[1];
+
+    p_info->rpid = fork ();
+    if (p_info->rpid == -1)
+        {
+            perror ("rfork");
+            return ERR_INPUT;
+        }
+
+    if (p_info->rpid == 0)
+        { /* Child reads from pipe */
+            run_reader (p_track->file_path, p_info);
+        }
+
+    close (crwritefd);
+
+    FILE *input = fdopen (prreadfd, "r");
 
     // prepare required pipes for bidirectional interprocess communication
     if (pipe (p_info->ppipefd) == -1)
@@ -153,8 +199,16 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
     size_t minimum_write = 0;
     char buffer[BUFFER_SIZE];
 
-    while ((read_size = fread (buffer, 1, BUFFER_SIZE, input)) > 0)
+    while (vclient && !vclient->terminating
+           && ((read_size = fread (buffer, 1, BUFFER_SIZE, input)) > 0))
         {
+            while (vclient && !vclient->terminating
+                   && vclient->get_secs_remaining () > 0.05f)
+                {
+                    std::this_thread::sleep_for (
+                        std::chrono::milliseconds (10));
+                }
+
             if (debug)
                 fprintf (stderr, "attempt to write: %d\n", ++write_attempt);
             size_t written_size = 0;
@@ -183,6 +237,8 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     pwritefile = NULL;
                 }
 
+            bool panic_break = false;
+
             // if minimum_write was hit, meaning the fd was ready before
             // the call to poll, poll is reporting for event, not reporting
             // if data is waiting to read or not
@@ -192,7 +248,14 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                         (read_size = fread (buffer, 1, BUFFER_SIZE, preadfile))
                         > 0)
                         {
-                            v->send();
+                            if (!vclient || vclient->terminating)
+                                {
+                                    panic_break = true;
+                                    break;
+                                }
+
+                            vclient->send_audio_opus ((uint8_t *)buffer,
+                                                      read_size);
 
                             // check if this might be the last data we can read
                             if (read_size < BUFFER_SIZE)
@@ -210,6 +273,9 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     write_attempt = 0;
                     minimum_write = 0;
                 }
+
+            if (panic_break)
+                break;
 
             // recreate ffmpeg process to update filter chain
             if (p_track->player->volume != (int)current_volume)
@@ -288,7 +354,8 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
         }
 
     // no more data to read from input, clean up
-    pclose (input);
+    fclose (input);
+    input = NULL;
     if (debug)
         fprintf (stderr, "input closed\n");
 
@@ -300,14 +367,19 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
     // kill child
     kill (p_info->cpid, SIGTERM);
+    kill (p_info->rpid, SIGTERM);
 
     int status;
     if (debug)
         fprintf (stderr, "waiting for child\n");
     waitpid (p_info->cpid, &status, 0); /* Wait for child */
     if (debug)
-        fprintf (stderr, "killed child status: %d\n", status);
+        fprintf (stderr, "killed cchild status: %d\n", status);
+    waitpid (p_info->rpid, &status, 0); /* Wait for child */
+    if (debug)
+        fprintf (stderr, "killed rchild status: %d\n", status);
     assert (waitpid (p_info->cpid, &status, 0) == -1);
+    assert (waitpid (p_info->rpid, &status, 0) == -1);
 
     return error_status;
 } // run_processor
