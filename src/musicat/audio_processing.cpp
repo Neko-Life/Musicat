@@ -71,7 +71,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     execlp ("ffmpeg", "ffmpeg", "-f", "s16le", "-i", "pipe:0", "-blocksize",
             block_size_str.c_str (), "-af",
             (std::string ("volume=")
-             + std::to_string (p_track->player->volume / (float)100))
+             + std::to_string ((float)p_track->player->volume / (float)100))
                 .c_str (),
             "-f", "s16le",
             /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
@@ -144,7 +144,7 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
     // main loop
     int write_attempt = 0;
-    float current_volume = p_track->player->volume;
+    float current_volume = (float)p_track->player->volume;
     size_t read_size = 0;
     size_t minimum_write = 0;
     char buffer[BUFFER_SIZE];
@@ -208,7 +208,7 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                 }
 
             // recreate ffmpeg process to update filter chain
-            if (p_track->player->volume != current_volume)
+            if (p_track->player->volume != (int)current_volume)
                 {
                     // close opened files
                     fclose (pwritefile);
@@ -279,7 +279,7 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     preadfile = fdopen (preadfd, "r");
 
                     // mark changes done
-                    current_volume = p_track->player->volume;
+                    current_volume = (float)p_track->player->volume;
                 }
         }
 
