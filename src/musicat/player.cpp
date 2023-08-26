@@ -43,6 +43,7 @@ Player::Player ()
     this->channel_id = 0;
     this->saved_queue_loaded = false;
     this->saved_config_loaded = false;
+    this->volume = 100;
 }
 
 Player::Player (dpp::cluster *_cluster, dpp::snowflake _guild_id)
@@ -59,6 +60,7 @@ Player::Player (dpp::cluster *_cluster, dpp::snowflake _guild_id)
     this->channel_id = 0;
     this->saved_queue_loaded = false;
     this->saved_config_loaded = false;
+    this->volume = 100;
 }
 
 Player::~Player ()
@@ -139,9 +141,10 @@ Player::skip (dpp::voiceconn *v)
             if (v->voiceclient->get_secs_remaining () > 0.05f)
                 {
                     // if (this->queue.size()) {
-                    //     removed_tracks.push_back (MCTrack (this->queue.front()));
-                    //     if (get_debug_state ())
-                    //         fprintf (stderr, "PUSHED FROM PLAYER SKIP: '%s'\n",
+                    //     removed_tracks.push_back (MCTrack
+                    //     (this->queue.front())); if (get_debug_state ())
+                    //         fprintf (stderr, "PUSHED FROM PLAYER SKIP:
+                    //         '%s'\n",
                     //                 this->queue.front().title ().c_str ());
                     // }
 
@@ -168,9 +171,12 @@ Player::skip (dpp::voiceconn *v)
 std::deque<MCTrack>
 Player::skip_queue (int64_t amount, bool remove, bool pop_current)
 {
-    auto siz = this->queue.size ();
-    if (amount < (siz || 1))
-        amount = siz || 1;
+    long siz = (long)this->queue.size ();
+    if (siz < 1)
+        siz = 1;
+
+    if (amount < siz)
+        amount = siz;
     if (amount > 1000)
         amount = 1000;
 
@@ -365,34 +371,6 @@ Player::shuffle ()
     this->manager->update_info_embed (this->guild_id);
     return true;
 }
-
-// int Player::seek(int pos, bool abs) {
-//     return 0;
-// }
-
-// int Player::stop() {
-//     return 0;
-// }
-
-// int Player::resume() {
-//     return 0;
-// }
-
-// int Player::search(string query) {
-//     return 0;
-// }
-
-// int Player::join() {
-//     return 0;
-// }
-
-// int Player::leave() {
-//     return 0;
-// }
-
-// int Player::rejoin() {
-//     return 0;
-// }
 
 void
 Player::set_stopped (const bool &val)

@@ -158,6 +158,8 @@ class Player
 
     bool stopped;
 
+    int volume;
+
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
