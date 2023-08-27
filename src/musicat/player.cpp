@@ -171,12 +171,8 @@ Player::skip (dpp::voiceconn *v)
 std::deque<MCTrack>
 Player::skip_queue (int64_t amount, bool remove, bool pop_current)
 {
-    long siz = (long)this->queue.size ();
-    if (siz < 1)
-        siz = 1;
-
-    if (amount < siz)
-        amount = siz;
+    if (amount < 1)
+        amount = 1;
     if (amount > 1000)
         amount = 1000;
 
