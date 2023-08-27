@@ -9,7 +9,7 @@ namespace musicat
 {
 namespace audio_processing
 {
-static const size_t processing_buffer_size = BUFSIZ * 5;
+static const size_t processing_buffer_size = BUFSIZ * 8;
 
 struct parent_child_ic_t
 {
