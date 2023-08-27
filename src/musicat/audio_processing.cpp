@@ -148,7 +148,9 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 {
     const bool debug = get_debug_state ();
 
+    p_track->player->current_track.seekable = true;
     dpp::discord_voice_client *vclient = p_track->vclient;
+    auto player_manager = get_player_manager_ptr ();
 
     run_processor_error_t init_error = SUCCESS;
     run_processor_error_t error_status = SUCCESS;
@@ -244,7 +246,8 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
     pwfds[0].fd = pwritefd;
 
     // main loop
-    while (true)
+    while (vclient && player_manager
+           && !player_manager->is_stream_stopping (vclient->server_id))
         {
             if (read_input)
                 {
@@ -252,6 +255,8 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     if (!(read_size > 0))
                         break;
                 }
+
+            p_track->player->current_track.current_byte += read_size;
 
             // we don't know how much the resulting buffer is, so the best
             // reliable way with no optimization is to keep polling and

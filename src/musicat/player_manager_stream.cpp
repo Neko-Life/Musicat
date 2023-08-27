@@ -58,7 +58,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 throw 2;
 
             audio_processing::track_data_t p_track
-                = { &track, file_path, guild_player, v };
+                = { file_path, guild_player, v };
 
             audio_processing::parent_child_ic_t p_info;
             audio_processing::run_processor_error_t status
