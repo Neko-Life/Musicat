@@ -22,6 +22,30 @@ namespace audio_processing
 {
 
 static int
+send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
+                    size_t *send_buffer_length, bool no_wait = false)
+{
+    // wait for old pending audio buffer to be sent to discord
+    if (!no_wait)
+        while (vclient && !vclient->terminating
+               && vclient->get_secs_remaining () > 0.05f)
+            {
+                std::this_thread::sleep_for (std::chrono::milliseconds (10));
+            }
+
+    if (!vclient || vclient->terminating)
+        {
+            return 1;
+        }
+
+    vclient->send_audio_raw (send_buffer, *send_buffer_length);
+
+    *send_buffer_length = 0;
+
+    return 0;
+}
+
+static int
 run_reader (std::string &file_path, parent_child_ic_t *p_info)
 {
     // request kernel to kill little self when parent dies
@@ -222,14 +246,6 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
     // main loop
     while (true)
         {
-            // wait for old pending audio buffer to be sent to discord
-            while (vclient && !vclient->terminating
-                   && vclient->get_secs_remaining () > 0.05f)
-                {
-                    std::this_thread::sleep_for (
-                        std::chrono::milliseconds (10));
-                }
-
             if (read_input)
                 {
                     read_size = fread (buffer, 1, BUFFER_SIZE, input);
@@ -289,16 +305,15 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
                             if (send_buffer_length == SEND_BUFFER_SIZE)
                                 {
-                                    if (!vclient || vclient->terminating)
+                                    int send_status = send_audio_routine (
+                                        vclient, (uint16_t *)send_buffer,
+                                        &send_buffer_length);
+
+                                    if (send_status)
                                         {
                                             panic_break = true;
                                             break;
                                         }
-                                    vclient->send_audio_raw (
-                                        (uint16_t *)send_buffer,
-                                        send_buffer_length);
-
-                                    send_buffer_length = 0;
                                 }
 
                             read_has_event = poll (prfds, 1, 0);
@@ -327,24 +342,23 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
                             if (send_buffer_length == SEND_BUFFER_SIZE)
                                 {
-                                    if (!vclient || vclient->terminating)
+                                    int send_status = send_audio_routine (
+                                        vclient, (uint16_t *)send_buffer,
+                                        &send_buffer_length);
+
+                                    if (send_status)
                                         {
                                             panic_break = true;
                                             break;
                                         }
-
-                                    vclient->send_audio_raw (
-                                        (uint16_t *)send_buffer,
-                                        send_buffer_length);
-                                    send_buffer_length = 0;
                                 }
                         }
 
-                    if (send_buffer_length > 0 && vclient
-                        && !vclient->terminating)
+                    if (send_buffer_length > 0)
                         {
-                            vclient->send_audio_raw ((uint16_t *)send_buffer,
-                                                     send_buffer_length);
+                            send_audio_routine (vclient,
+                                                (uint16_t *)send_buffer,
+                                                &send_buffer_length, true);
                         }
 
                     // close read fd
@@ -418,11 +432,10 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                 }
         }
 
-    if (send_buffer_length > 0 && vclient && !vclient->terminating)
+    if (send_buffer_length > 0)
         {
-            vclient->send_audio_raw ((uint16_t *)send_buffer,
-                                     send_buffer_length);
-            send_buffer_length = 0;
+            send_audio_routine (vclient, (uint16_t *)send_buffer,
+                                &send_buffer_length, true);
         }
 
     // exiting, clean up
