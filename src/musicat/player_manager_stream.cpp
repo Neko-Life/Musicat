@@ -1,4 +1,4 @@
-#include "musicat/audio_processing.h"
+/* #include "musicat/audio_processing.h" */
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
@@ -53,113 +53,104 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             track.filesize = fsize;
 
-            auto guild_player = get_player (v->server_id);
-            if (!guild_player)
-                throw 2;
+            // auto guild_player = get_player (v->server_id);
+            // if (!guild_player)
+            //     throw 2;
 
-            audio_processing::track_data_t p_track
-                = { file_path, guild_player, v };
+            // audio_processing::track_data_t p_track
+            //     = { file_path, guild_player, v };
 
-            audio_processing::parent_child_ic_t p_info;
-            audio_processing::run_processor_error_t status
-                = audio_processing::run_processor (&p_track, &p_info);
+            // audio_processing::parent_child_ic_t p_info;
+            // audio_processing::run_processor_error_t status
+            //     = audio_processing::run_processor (&p_track, &p_info);
 
-            /* OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ); */
+            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
-            /* if (track_og) */
-            /*     { */
-            /*         mc_oggz_user_data data = { v, track, debug }; */
+            if (track_og)
+                {
+                    mc_oggz_user_data data = { v, track, debug };
 
-            /*         oggz_set_read_callback ( */
-            /*             track_og, -1, */
-            /*             [] (OGGZ *oggz, oggz_packet *packet, long serialno,
-             */
-            /*                 void *user_data) { */
-            /*                 mc_oggz_user_data *data */
-            /*                     = (mc_oggz_user_data *)user_data; */
+                    oggz_set_read_callback (
+                        track_og, -1,
+                        [] (OGGZ *oggz, oggz_packet *packet, long serialno,
+                            void *user_data) {
+                            mc_oggz_user_data *data
+                                = (mc_oggz_user_data *)user_data;
 
-            /*                 data->voice_client->send_audio_opus ( */
-            /*                     packet->op.packet, packet->op.bytes); */
+                            data->voice_client->send_audio_opus (
+                                packet->op.packet, packet->op.bytes);
 
-            /*                 if (!data->track.seekable && packet->op.b_o_s ==
-             * 0) */
-            /*                     { */
-            /*                         data->track.seekable = true; */
-            /*                     } */
+                            if (!data->track.seekable && packet->op.b_o_s == 0)
+                                {
+                                    data->track.seekable = true;
+                                }
 
-            /*                 return 0; */
-            /*             }, */
-            /*             (void *)&data); */
+                            return 0;
+                        },
+                        (void *)&data);
 
-            /*         // stream loop */
-            /*         while (v && !v->terminating) */
-            /*             { */
-            /*                 if (is_stream_stopping (server_id)) */
-            /*                     break; */
+                    // stream loop
+                    while (v && !v->terminating)
+                        {
+                            if (is_stream_stopping (server_id))
+                                break;
 
-            /*                 debug = get_debug_state (); */
+                            debug = get_debug_state ();
 
-            /*                 static const constexpr long CHUNK_READ */
-            /*                     = BUFSIZ * 2; */
+                            static const constexpr long CHUNK_READ
+                                = BUFSIZ * 2;
 
-            /*                 if (track.seek_to > -1 && track.seekable) */
-            /*                     { */
-            /*                         oggz_off_t offset = oggz_seek ( */
-            /*                             track_og, track.seek_to, SEEK_SET);
-             */
+                            if (track.seek_to > -1 && track.seekable)
+                                {
+                                    oggz_off_t offset = oggz_seek (
+                                        track_og, track.seek_to, SEEK_SET);
 
-            /*                         if (debug) */
-            /*                             fprintf ( */
-            /*                                 stderr, */
-            /*                                 "[Manager::stream] Seeking from:
-             * " */
-            /*                                 "%ld\nTarget: %ld\nResult
-             * offset: " */
-            /*                                 "%ld\n", */
-            /*                                 track.current_byte,
-             * track.seek_to, */
-            /*                                 offset); */
+                                    if (debug)
+                                        fprintf (
+                                            stderr,
+                                            "[Manager::stream] Seeking from: "
+                                            "%ld\nTarget: %ld\nResult offset: "
+                                            "%ld\n",
+                                            track.current_byte, track.seek_to,
+                                            offset);
 
-            /*                         track.current_byte = offset; */
-            /*                         track.seek_to = -1; */
-            /*                     } */
+                                    track.current_byte = offset;
+                                    track.seek_to = -1;
+                                }
 
-            /*                 const long read_bytes */
-            /*                     = oggz_read (track_og, CHUNK_READ); */
+                            const long read_bytes
+                                = oggz_read (track_og, CHUNK_READ);
 
-            /*                 track.current_byte += read_bytes; */
+                            track.current_byte += read_bytes;
 
-            /*                 if (debug) */
-            /*                     printf ( */
-            /*                         "[Manager::stream] [guild_id] [size] "
-             */
-            /*                         "[chunk] [read_bytes]: %ld %ld %ld
-             * %ld\n", */
-            /*                         server_id, fsize, read_bytes, */
-            /*                         track.current_byte); */
+                            if (debug)
+                                printf (
+                                    "[Manager::stream] [guild_id] [size] "
+                                    "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
+                                    server_id, fsize, read_bytes,
+                                    track.current_byte);
 
-            /*                 while (v && !v->terminating */
-            /*                        && v->get_secs_remaining () > 0.05f) */
-            /*                     { */
-            /*                         std::this_thread::sleep_for ( */
-            /*                             std::chrono::milliseconds (10)); */
-            /*                     } */
+                            while (v && !v->terminating
+                                   && v->get_secs_remaining () > 0.05f)
+                                {
+                                    std::this_thread::sleep_for (
+                                        std::chrono::milliseconds (10));
+                                }
 
-            /*                 // eof */
-            /*                 if (!read_bytes) */
-            /*                     break; */
-            /*             } */
-            /*     } */
-            /* else */
-            /*     { */
-            /*         fprintf (stderr, */
-            /*                  "[Manager::stream ERROR] Can't open file for "
-             */
-            /*                  "reading: %ld '%s'\n", */
-            /*                  server_id, file_path.c_str ()); */
-            /*     } */
+                            // eof
+                            if (!read_bytes)
+                                break;
+                        }
+                }
+            else
+                {
+                    fprintf (stderr,
+                             "[Manager::stream ERROR] Can't open file for "
+                             "reading: %ld '%s'\n",
+                             server_id, file_path.c_str ());
+                }
 
-            /* oggz_close (track_og); */
+            oggz_close (track_og);
 
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
@@ -169,11 +160,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 {
                     fprintf (stderr, "Done streaming for %ld milliseconds\n",
                              done.count ());
-                    fprintf (stderr, "audio_processing status: %d\n", status);
+                    // fprintf (stderr, "audio_processing status: %d\n",
+                    // status);
                 }
 
-            if (status != audio_processing::SUCCESS)
-                throw 2;
+            // if (status != audio_processing::SUCCESS)
+            //     throw 2;
         }
     else
         throw 1;
