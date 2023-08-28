@@ -561,7 +561,6 @@ run (int argc, const char *argv[])
             return child_init_status;
         }
 
-    // the first thread ever created in the program
     // !IMPORTANT: only AFTER initializing child can you
     // spawn a thread! Never fork after being multi threaded!
     if (get_config_value<bool> ("RUNTIME_CLI", false))
