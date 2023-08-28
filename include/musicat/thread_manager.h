@@ -15,6 +15,8 @@ struct thread_data
     bool done;
 };
 
+void print_total_thread ();
+
 void dispatch (std::thread &t);
 
 void set_done ();

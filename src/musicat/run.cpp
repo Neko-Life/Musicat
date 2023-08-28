@@ -1,3 +1,4 @@
+#include "musicat/child.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
@@ -23,6 +24,8 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
+
+#define STR_SIZE(x) (sizeof (x) / sizeof (x[0])) - 1
 
 #define ONE_HOUR_SECOND 3600
 
@@ -328,7 +331,7 @@ on_sigint (int code)
     static const char exit_msg[] = "Received SIGINT, exiting...\n";
 
     // printf isn't signal safe, use write
-    write (STDERR_FILENO, exit_msg, sizeof (exit_msg) - 1);
+    write (STDERR_FILENO, exit_msg, STR_SIZE (exit_msg));
 
     if (_sigint_count > 1)
         {
@@ -336,7 +339,7 @@ on_sigint (int code)
                 = "If the program seems stuck try type something into your "
                   "terminal and then press ENTER\n";
 
-            write (STDERR_FILENO, stuck_help, sizeof (stuck_help) - 1);
+            write (STDERR_FILENO, stuck_help, STR_SIZE (stuck_help));
         }
 
     if (_sigint_count >= 5)
@@ -344,7 +347,7 @@ on_sigint (int code)
             static const char force_exit_msg[]
                 = "Understood, force exiting...\n";
 
-            write (STDERR_FILENO, force_exit_msg, sizeof (force_exit_msg) - 1);
+            write (STDERR_FILENO, force_exit_msg, STR_SIZE (force_exit_msg));
 
             exit (255);
         }
@@ -522,9 +525,6 @@ run (int argc, const char *argv[])
 
     set_debug_state (get_config_value<bool> ("DEBUG", false));
 
-    if (get_config_value<bool> ("RUNTIME_CLI", false))
-        runtime_cli::attach_listener ();
-
     const std::string sha_token = get_config_value<string> ("SHA_TKN", "");
     if (!sha_token.length ())
         {
@@ -552,6 +552,20 @@ run (int argc, const char *argv[])
                 std::this_thread::sleep_for (std::chrono::seconds (1));
             return ret;
         }
+
+    // no return after this, init child
+    const int child_init_status = child::init ();
+    if (child_init_status)
+        {
+            fprintf (stderr, "[FATAL] Can't initialize child, exiting...\n");
+            return child_init_status;
+        }
+
+    // the first thread ever created in the program
+    // !IMPORTANT: only AFTER initializing child can you
+    // spawn a thread! Never fork after being multi threaded!
+    if (get_config_value<bool> ("RUNTIME_CLI", false))
+        runtime_cli::attach_listener ();
 
     const bool no_db = sha_cfg["SHA_DB"].is_null ();
     string db_connect_param = "";
@@ -1082,6 +1096,8 @@ run (int argc, const char *argv[])
 
             thread_manager::join_done ();
         }
+
+    child::shutdown ();
 
     client_ptr = nullptr;
     player_manager = nullptr;
