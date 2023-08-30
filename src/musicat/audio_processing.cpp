@@ -357,6 +357,8 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
             // !TODO: poll and read for commands from stdin
             // commands: volume, panic_break
+            // probably create a big struct for every possible options and one
+            // universal command parser that will set those options
 
             if (panic_break)
                 break;
