@@ -18,6 +18,7 @@ struct parent_child_ic_t
     int rpipefd[2];
     pid_t cpid;
     pid_t rpid;
+    bool debug;
 };
 
 enum run_processor_error_t
@@ -37,6 +38,17 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+// this should be called
+// inside the streaming thread
+// returns 1 if vclient terminating or null
+// 0 on success
+static int send_audio_routine (dpp::discord_voice_client *vclient,
+                               uint16_t *send_buffer,
+                               size_t *send_buffer_length,
+                               bool no_wait = false);
+
+// should be run as a child process
+// !TODO: adjust signature to actual needed data
 run_processor_error_t run_processor (track_data_t *p_track,
                                      parent_child_ic_t *p_info);
 

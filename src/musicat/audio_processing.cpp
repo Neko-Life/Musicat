@@ -11,8 +11,8 @@
 #include <thread>
 #include <unistd.h>
 
-#define SEND_BUFFER_SIZE 11520
 #define BUFFER_SIZE processing_buffer_size
+#define READ_CHUNK_SIZE 4096
 
 #define OUT_CMD "pipe:1"
 
@@ -21,9 +21,11 @@ namespace musicat
 namespace audio_processing
 {
 
+// this should be called
+// inside the streaming thread
 static int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
-                    size_t *send_buffer_length, bool no_wait = false)
+                    size_t *send_buffer_length, bool no_wait)
 {
     // wait for old pending audio buffer to be sent to discord
     if (!no_wait)
@@ -45,6 +47,18 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
     return 0;
 }
 
+static void
+write_stdout (uint8_t *buffer, size_t *size)
+{
+    size_t written = 0;
+    while (
+        (written += write (STDOUT_FILENO, buffer + written, *size - written))
+        < *size)
+        ;
+
+    *size = 0;
+}
+
 static int
 run_reader (std::string &file_path, parent_child_ic_t *p_info)
 {
@@ -64,7 +78,7 @@ run_reader (std::string &file_path, parent_child_ic_t *p_info)
     close (crwritefd);
     if (status == -1)
         {
-            perror ("reader dout");
+            perror ("child reader dout");
             _exit (EXIT_FAILURE);
         }
 
@@ -77,7 +91,7 @@ run_reader (std::string &file_path, parent_child_ic_t *p_info)
             "-f", "s16le", "-ac", "2", "-ar", "48000",
             /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
 
-    perror ("reader");
+    perror ("child reader");
     _exit (EXIT_FAILURE);
 }
 
@@ -93,7 +107,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
             _exit (EXIT_FAILURE);
         }
 
-    const bool debug = get_debug_state ();
+    const bool debug = p_info->debug;
 
     int preadfd = p_info->ppipefd[0];
     int cwritefd = p_info->ppipefd[1];
@@ -111,7 +125,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     close (creadfd);
     if (status == -1)
         {
-            perror ("ffmpeg din");
+            perror ("child ffmpeg din");
             _exit (EXIT_FAILURE);
         }
 
@@ -119,7 +133,7 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
     close (cwritefd);
     if (status == -1)
         {
-            perror ("ffmpeg dout");
+            perror ("child ffmpeg dout");
             _exit (EXIT_FAILURE);
         }
 
@@ -139,10 +153,12 @@ run_ffmpeg (track_data_t *p_track, parent_child_ic_t *p_info)
             "-f", "s16le", "-ac", "2", "-ar", "48000",
             /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
 
-    perror ("ffmpeg");
+    perror ("child ffmpeg");
     _exit (EXIT_FAILURE);
 }
 
+// should be run as a child process
+// !TODO: opens 2 fifo, 1 for info and 1 for audio stream
 run_processor_error_t
 run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 {
@@ -185,17 +201,17 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
     // declare everything here to be able to use goto
     // fds and poll
-    int preadfd, cwritefd, creadfd, pwritefd, cstatus;
+    int preadfd, cwritefd, creadfd, pwritefd, cstatus = 0;
     struct pollfd prfds[1], pwfds[1];
 
     // main loop variable definition
     float current_volume = (float)p_track->player->volume;
     size_t read_size = 0;
     uint8_t buffer[BUFFER_SIZE];
+    size_t last_read_size = 0;
+    uint8_t rest_buffer[BUFFER_SIZE];
     bool read_input = true;
     size_t written_size = 0;
-    uint8_t send_buffer[SEND_BUFFER_SIZE];
-    size_t send_buffer_length = 0;
 
     FILE *input = fdopen (prreadfd, "r");
 
@@ -246,7 +262,7 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
     pwfds[0].fd = pwritefd;
 
     // main loop
-    while (vclient && player_manager
+    while (vclient && !vclient->terminating && player_manager
            && !player_manager->is_stream_stopping (vclient->server_id))
         {
             if (read_input)
@@ -265,10 +281,13 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
             // blocked in the middle of operation (waiting for the exact
             // requested amount of space/data to be available) if we were to do
             // more than a byte at a time
+            //
+            // as safe chunk read size is known we no longer need to read byte
+            // by byte
 
             // we can do chunk writing here as as long as the output keeps
             // being read, the buffer will keep being consumed by ffmpeg, as
-            // long as it's not too big
+            // long as it's not too big it won't block to wait for buffer space
             int write_has_event = poll (pwfds, 1, 0);
             bool write_ready
                 = (write_has_event > 0) && (pwfds[0].revents & POLLOUT);
@@ -294,38 +313,50 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
             int read_has_event = poll (prfds, 1, 0);
             bool read_ready
                 = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+
             size_t input_read_size = 0;
 
             bool panic_break = false;
 
             if (read_ready)
                 {
-                    uint8_t out_b;
-                    while (
-                        read_ready
-                        && ((input_read_size = read (preadfd, &out_b, 1)) > 0))
+                    // with known chunk size that always guarantee correct read
+                    // size that empties ffmpeg buffer, poll will report
+                    // correctly that the pipe is really empty so we know
+                    // exactly when to stop reading, this is where it's
+                    // problematic when BUFFER_SIZE%READ_CHUNK_SIZE doesn't
+                    // equal 0
+                    uint8_t out_buffer[BUFFER_SIZE];
+                    while (read_ready
+                           && ((input_read_size
+                                += read (preadfd, out_buffer + input_read_size,
+                                         READ_CHUNK_SIZE))
+                               > 0))
                         {
-                            send_buffer[send_buffer_length] = out_b;
-                            send_buffer_length += 1;
-
-                            if (send_buffer_length == SEND_BUFFER_SIZE)
+                            if (input_read_size == BUFFER_SIZE)
                                 {
-                                    int send_status = send_audio_routine (
-                                        vclient, (uint16_t *)send_buffer,
-                                        &send_buffer_length);
-
-                                    if (send_status)
-                                        {
-                                            panic_break = true;
-                                            break;
-                                        }
+                                    write_stdout (out_buffer,
+                                                  &input_read_size);
                                 }
 
                             read_has_event = poll (prfds, 1, 0);
                             read_ready = (read_has_event > 0)
                                          && (prfds[0].revents & POLLIN);
                         }
+
+                    // empties the last buffer that usually size less than
+                    // BUFFER_SIZE which usually left with 0 remainder when
+                    // divided by READ_CHUNK_SIZE, otherwise can means ffmpeg
+                    // have chunked audio packets with its specific size as its
+                    // output when specifying some other containerized format
+                    if (input_read_size > 0)
+                        {
+                            write_stdout (out_buffer, &input_read_size);
+                        }
                 }
+
+            // !TODO: poll and read for commands from stdin
+            // commands: volume, panic_break
 
             if (panic_break)
                 break;
@@ -339,31 +370,10 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
                     // read the rest of data before closing current instance
                     while ((input_read_size
-                            = read (preadfd, send_buffer + send_buffer_length,
-                                    SEND_BUFFER_SIZE - send_buffer_length))
+                            = read (preadfd, rest_buffer, BUFFER_SIZE))
                            > 0)
                         {
-                            send_buffer_length += input_read_size;
-
-                            if (send_buffer_length == SEND_BUFFER_SIZE)
-                                {
-                                    int send_status = send_audio_routine (
-                                        vclient, (uint16_t *)send_buffer,
-                                        &send_buffer_length);
-
-                                    if (send_status)
-                                        {
-                                            panic_break = true;
-                                            break;
-                                        }
-                                }
-                        }
-
-                    if (send_buffer_length > 0)
-                        {
-                            send_audio_routine (vclient,
-                                                (uint16_t *)send_buffer,
-                                                &send_buffer_length, true);
+                            write_stdout (rest_buffer, &input_read_size);
                         }
 
                     // close read fd
@@ -373,20 +383,13 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     preadfd = -1;
 
                     // wait for child to finish transferring data
-                    int status;
+                    int status = 0;
                     waitpid (p_info->cpid, &status, 0);
                     if (debug)
                         fprintf (stderr, "child status: %d\n", status);
 
-                    // kill child
-                    kill (p_info->cpid, SIGTERM);
-
-                    // wait for child until it completely died to prevent it
-                    // becoming zombie
-                    waitpid (p_info->cpid, &status, 0);
-                    if (debug)
-                        fprintf (stderr, "killed child status: %d\n", status);
-                    assert (waitpid (p_info->cpid, &status, 0) == -1);
+                    if (panic_break)
+                        break;
 
                     // do the same setup routine as startup
                     if (pipe (p_info->ppipefd) == -1)
@@ -400,9 +403,15 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
 
                     if (pipe (p_info->cpipefd) == -1)
                         {
-                            // fds will be closed on exit
                             perror ("cpipe");
                             error_status = ERR_LPIPE;
+
+                            close (preadfd);
+                            close (cwritefd);
+
+                            preadfd = -1;
+                            cwritefd = -1;
+
                             break;
                         }
                     creadfd = p_info->cpipefd[0];
@@ -411,9 +420,19 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                     p_info->cpid = fork ();
                     if (p_info->cpid == -1)
                         {
-                            // fds will be closed on exit
                             perror ("fork");
                             error_status = ERR_LFORK;
+
+                            close (preadfd);
+                            close (cwritefd);
+                            close (pwritefd);
+                            close (creadfd);
+
+                            preadfd = -1;
+                            cwritefd = -1;
+                            creadfd = -1;
+                            pwritefd = -1;
+
                             break;
                         }
 
@@ -437,36 +456,27 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
                 }
         }
 
-    if (send_buffer_length > 0)
-        {
-            send_audio_routine (vclient, (uint16_t *)send_buffer,
-                                &send_buffer_length, true);
-        }
-
     // exiting, clean up
     fclose (input);
     input = NULL;
 
-    if (creadfd > -1)
-        close (creadfd);
     if (pwritefd > -1)
         close (pwritefd);
-    if (cwritefd > -1)
-        close (cwritefd);
+
+    // read the rest of data before closing ffmpeg stdout
+    while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE)) > 0)
+        {
+            write_stdout (rest_buffer, &last_read_size);
+        }
+
     if (preadfd > -1)
         close (preadfd);
 
-    creadfd = -1;
     pwritefd = -1;
-    cwritefd = -1;
     preadfd = -1;
 
     if (debug)
         fprintf (stderr, "fds closed\n");
-
-    // kill child
-    kill (p_info->rpid, SIGTERM);
-    kill (p_info->cpid, SIGTERM);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
@@ -474,12 +484,10 @@ run_processor (track_data_t *p_track, parent_child_ic_t *p_info)
         fprintf (stderr, "waiting for child\n");
     waitpid (p_info->cpid, &cstatus, 0); /* Wait for child */
     if (debug)
-        fprintf (stderr, "killed cchild status: %d\n", cstatus);
+        fprintf (stderr, "cchild status: %d\n", cstatus);
     waitpid (p_info->rpid, &cstatus, 0); /* Wait for child */
     if (debug)
-        fprintf (stderr, "killed rchild status: %d\n", cstatus);
-    assert (waitpid (p_info->cpid, &cstatus, 0) == -1);
-    assert (waitpid (p_info->rpid, &cstatus, 0) == -1);
+        fprintf (stderr, "rchild status: %d\n", cstatus);
 
     return error_status;
 
@@ -494,9 +502,7 @@ err_spipe2:
 
 err_spipe1:
     fclose (input);
-    kill (p_info->rpid, SIGTERM);
     waitpid (p_info->rpid, &cstatus, 0);
-    assert (waitpid (p_info->rpid, &cstatus, 0) == -1);
 
     return init_error;
 } // run_processor

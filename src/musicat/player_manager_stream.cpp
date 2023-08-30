@@ -61,6 +61,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             //     = { file_path, guild_player, v };
 
             // audio_processing::parent_child_ic_t p_info;
+            // p_info->debug = get_debug_state ();
             // audio_processing::run_processor_error_t status
             //     = audio_processing::run_processor (&p_track, &p_info);
 
