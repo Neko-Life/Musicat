@@ -92,7 +92,7 @@ shutdown ()
 
     close (pm_write_fd);
 
-    int cm_status;
+    int cm_status = 0;
     waitpid (cm_pid, &cm_status, 0);
     fprintf (stderr, "[child] Status: %d\n", cm_status);
 
