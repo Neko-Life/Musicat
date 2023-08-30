@@ -532,11 +532,6 @@ run (int argc, const char *argv[])
             return -1;
         }
 
-    dpp::cluster client (sha_token,
-                         dpp::i_guild_members | dpp::i_default_intents);
-
-    client_ptr = &client;
-
     dpp::snowflake sha_id = get_sha_id ();
 
     if (!sha_id)
@@ -547,9 +542,15 @@ run (int argc, const char *argv[])
 
     if (argc > 1)
         {
+            dpp::cluster client (sha_token, dpp::i_guild_members
+                                                | dpp::i_default_intents);
+
+            client_ptr = &client;
+
             int ret = cli (client, sha_id, argc, argv);
             while (running)
                 std::this_thread::sleep_for (std::chrono::seconds (1));
+
             return ret;
         }
 
@@ -589,6 +590,13 @@ run (int argc, const char *argv[])
                     }
             }
     }
+
+    // initialize cluster here since constructing cluster
+    // also spawns threads
+    dpp::cluster client (sha_token,
+                         dpp::i_guild_members | dpp::i_default_intents);
+
+    client_ptr = &client;
 
     player_manager = std::make_shared<player::Manager> (&client, sha_id);
 
