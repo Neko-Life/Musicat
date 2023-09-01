@@ -1,4 +1,6 @@
 /* #include "musicat/audio_processing.h" */
+#include "musicat/child/command.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
@@ -52,6 +54,17 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             const size_t fsize = ofile_stat.st_size;
 
             track.filesize = fsize;
+
+            // !TODO: remove this testing
+            // std::string cmd
+            //     = child::worker::worker_command_options_keys_t.command + '='
+            //       + child::worker::worker_command_execute_commands_t
+            //             .create_audio_processor
+            //       + ';' + child::worker::worker_command_options_keys_t.debug
+            //       + "=1;"
+            //       + child::worker::worker_command_options_keys_t.file_path
+            //       + '=' + file_path;
+            // child::command::send_command (cmd);
 
             // auto guild_player = get_player (v->server_id);
             // if (!guild_player)
