@@ -25,6 +25,8 @@ command_queue_routine ()
         {
             write_command (*i);
 
+            // !TODO: read for status and write it to main parent
+
             i = command_queue.erase (i);
         }
 }
@@ -51,6 +53,9 @@ run_command_thread ()
 
         thread_manager::set_done ();
     });
+
+    // !TODO: create a thread to read from worker
+    // and do stuff like notify cv
 
     thread_manager::dispatch (command_thread);
 }

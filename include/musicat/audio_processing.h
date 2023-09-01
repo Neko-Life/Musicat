@@ -11,7 +11,7 @@ namespace audio_processing
 {
 static const size_t processing_buffer_size = BUFSIZ * 8;
 
-struct parent_child_ic_t
+struct processor_states_t
 {
     // temp vars to create pipes
     int ppipefd[2];
@@ -65,7 +65,7 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
 
 // should be run as a child process
 // !TODO: adjust signature to actual needed data
-run_processor_error_t run_processor (std::string &file_path);
+run_processor_error_t run_processor (std::string &file_path, const bool debug_option = false);
 
 } // audio_processing
 } // musicat

@@ -35,7 +35,7 @@ write_stdout (uint8_t *buffer, size_t *size)
 }
 
 static int
-run_reader (std::string &file_path, parent_child_ic_t &p_info)
+run_reader (std::string &file_path, processor_states_t &p_info)
 {
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
@@ -73,7 +73,7 @@ run_reader (std::string &file_path, parent_child_ic_t &p_info)
 // p*fd = fd for parent
 // c*fd = fd for child
 static int
-run_ffmpeg (processor_options_t &options, parent_child_ic_t &p_info)
+run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
 {
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
@@ -198,12 +198,13 @@ copy_options (processor_options_t &opts)
 // should be run as a child process
 // !TODO: opens 2 fifo, 1 for info and 1 for audio stream
 run_processor_error_t
-run_processor (std::string &file_path)
+run_processor (std::string &file_path, const bool debug_option)
 {
-    parent_child_ic_t p_info;
+    processor_states_t p_info;
 
     processor_options_t options = create_options ();
     options.file_path = file_path;
+    options.debug = debug_option;
 
     auto player_manager = get_player_manager_ptr ();
 
