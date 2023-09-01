@@ -101,6 +101,69 @@ write_command (std::string &cmd)
     write (write_fd, cmd.c_str (), CMD_BUFSIZE);
 }
 
+static const std::string to_sanitize_command_value ("\\=;");
+
+bool
+should_sanitize (const char &tc)
+{
+    for (const char &c : to_sanitize_command_value)
+        {
+            if (c == tc)
+                return true;
+        }
+
+    return false;
+}
+
+// should be called before send_command when setting value
+std::string
+sanitize_command_value (const std::string &value)
+{
+    // fprintf (stderr, "value: %s\n", value.c_str ());
+    std::string new_value = "";
+
+    for (const char &c : value)
+        {
+            if (should_sanitize (c))
+                {
+                    new_value += '\\';
+                }
+
+            new_value += c;
+        }
+
+    // fprintf (stderr, "new_value: %s\n", new_value.c_str ());
+
+    return new_value;
+}
+
+std::string
+sanitize_command_key_value (const std::string &key_value)
+{
+    // fprintf (stderr, "key_value: %s\n", key_value.c_str ());
+    std::string new_key_value = "";
+
+    bool should_check = false;
+    for (const char &c : key_value)
+        {
+            if (should_check && should_sanitize (c))
+                {
+                    new_key_value += '\\';
+                }
+
+            if (!should_check && c == '=')
+                {
+                    should_check = true;
+                }
+
+            new_key_value += c;
+        }
+
+    // fprintf (stderr, "new_key_value: %s\n", new_key_value.c_str ());
+
+    return new_key_value;
+}
+
 } // command
 } // child
 } // musicat

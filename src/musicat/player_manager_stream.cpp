@@ -63,7 +63,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             //       + ';' + child::worker::worker_command_options_keys_t.debug
             //       + "=1;"
             //       + child::worker::worker_command_options_keys_t.file_path
-            //       + '=' + file_path;
+            //       + '=' + child::command::sanitize_command_value (file_path);
             // child::command::send_command (cmd);
 
             // auto guild_player = get_player (v->server_id);

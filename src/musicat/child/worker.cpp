@@ -1,5 +1,6 @@
 #include "musicat/child/worker.h"
 #include "musicat/child.h"
+#include "musicat/child/command.h"
 #include "musicat/child/worker_command.h"
 #include <deque>
 #include <stddef.h>
@@ -31,22 +32,33 @@ set_option (worker_command_options_t &options, std::string &cmd_option)
     std::string value = "";
 
     bool filling_value = false;
+    bool include_next_special = false;
     for (const char &c : cmd_option)
         {
-            if (c == '=')
+            if (!include_next_special)
                 {
-                    filling_value = true;
-                    continue;
+                    if (c == '\\')
+                        {
+                            include_next_special = true;
+                            continue;
+                        }
+
+                    if (c == '=')
+                        {
+                            filling_value = true;
+                            continue;
+                        }
                 }
+            else
+                include_next_special = false;
 
             if (filling_value)
                 {
                     value += c;
+                    continue;
                 }
-            else
-                {
-                    opt += c;
-                }
+
+            opt += c;
         }
 
     if (opt == worker_command_options_keys_t.command)
@@ -82,22 +94,39 @@ handle_command (std::string cmd)
 {
     worker_command_options_t options = create_worker_command_options ();
 
+    bool include_next_special = false;
     std::string temp_str = "";
     for (const char &c : cmd)
         {
-            if (c == ';')
+            if (!include_next_special)
                 {
-                    set_option (options, temp_str);
-                    temp_str = "";
-                    continue;
+                    if (c == '\\')
+                        {
+                            include_next_special = true;
+                            continue;
+                        }
+
+                    if (c == ';')
+                        {
+                            std::string opt_str
+                                = command::sanitize_command_key_value (
+                                    temp_str);
+                            set_option (options, opt_str);
+                            temp_str = "";
+                            continue;
+                        }
                 }
+            else
+                include_next_special = false;
 
             temp_str += c;
         }
 
     if (temp_str.length ())
         {
-            set_option (options, temp_str);
+            std::string opt_str
+                = command::sanitize_command_key_value (temp_str);
+            set_option (options, opt_str);
         }
 
     execute (options);
