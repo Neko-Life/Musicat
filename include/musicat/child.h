@@ -1,7 +1,7 @@
 #ifndef MUSICAT_CHILD_H
 #define MUSICAT_CHILD_H
 
-#define CMD_BUFSIZE 256
+#define CMD_BUFSIZE 1024
 
 namespace musicat
 {
