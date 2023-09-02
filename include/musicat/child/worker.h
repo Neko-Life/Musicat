@@ -13,21 +13,23 @@ namespace worker
 static const struct
 {
     std::string create_audio_processor = "cap";
-} worker_command_execute_commands_t;
+} command_execute_commands_t;
 
 static const struct
 {
     std::string command = "cmd";  // str
     std::string file_path = "fp"; // str
     std::string debug = "dbg";    // bool
-} worker_command_options_keys_t;
+    std::string id = "id";        // str
+} command_options_keys_t;
 
-struct worker_command_options_t
+struct command_options_t
 {
     std::string command;
 
     std::string file_path;
     bool debug;
+    std::string id;
 };
 
 void set_fds (int r, int w);

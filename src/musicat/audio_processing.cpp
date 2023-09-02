@@ -200,6 +200,11 @@ copy_options (processor_options_t &opts)
 run_processor_error_t
 run_processor (std::string &file_path, const bool debug_option)
 {
+    // !TODO: remove this redirect
+    // int dnull = open ("/dev/null", O_WRONLY);
+    // dup2 (dnull, STDOUT_FILENO);
+    // close (dnull);
+
     processor_states_t p_info;
 
     processor_options_t options = create_options ();

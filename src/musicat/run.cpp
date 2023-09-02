@@ -948,8 +948,15 @@ run (int argc, const char *argv[])
                                 break;
                         }
 
+                    if (!player_manager)
+                        {
+                            thread_manager::set_done ();
+                            return;
+                        }
+
                     player_manager->remove_ignore_marker (
                         event.voice_client->server_id);
+
                     if (!d_s)
                         {
                             thread_manager::set_done ();
@@ -1106,13 +1113,14 @@ run (int argc, const char *argv[])
 
     child::shutdown ();
 
+    server::shutdown ();
+    client.shutdown ();
+
     client_ptr = nullptr;
     player_manager = nullptr;
 
-    server::shutdown ();
-    client.shutdown ();
-    database::shutdown ();
     thread_manager::join_all ();
+    database::shutdown ();
 
     return 0;
 }

@@ -10,7 +10,7 @@ namespace child
 namespace worker_command
 {
 
-int create_audio_processor (worker::worker_command_options_t &options);
+int create_audio_processor (worker::command_options_t &options);
 
 } // worker_command
 } // child

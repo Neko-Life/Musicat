@@ -56,27 +56,25 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             track.filesize = fsize;
 
             // !TODO: remove this testing
-            // std::string cmd
-            //     = child::worker::worker_command_options_keys_t.command + '='
-            //       + child::worker::worker_command_execute_commands_t
-            //             .create_audio_processor
-            //       + ';' + child::worker::worker_command_options_keys_t.debug
-            //       + "=1;"
-            //       + child::worker::worker_command_options_keys_t.file_path
-            //       + '=' + child::command::sanitize_command_value (file_path);
-            // child::command::send_command (cmd);
+            // if (server_id != 0)
+            //     {
+            //         using child::command::sanitize_command_value;
+            //         using child::command::send_command;
+            //         using child::worker::command_execute_commands_t;
+            //         using child::worker::command_options_keys_t;
 
-            // auto guild_player = get_player (v->server_id);
-            // if (!guild_player)
-            //     throw 2;
+            //         std::string cmd
+            //             = command_options_keys_t.id + '=' + "processor-"
+            //               + std::to_string (server_id) + ';'
+            //               + command_options_keys_t.command + '='
+            //               +
+            //               command_execute_commands_t.create_audio_processor
+            //               + ';' + command_options_keys_t.debug + "=1;"
+            //               + command_options_keys_t.file_path + '='
+            //               + sanitize_command_value (file_path);
 
-            // audio_processing::track_data_t p_track
-            //     = { file_path, guild_player, v };
-
-            // audio_processing::parent_child_ic_t p_info;
-            // p_info->debug = get_debug_state ();
-            // audio_processing::run_processor_error_t status
-            //     = audio_processing::run_processor (&p_track, &p_info);
+            //         send_command (cmd);
+            //     }
 
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 

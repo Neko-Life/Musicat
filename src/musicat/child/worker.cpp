@@ -19,14 +19,14 @@ namespace worker
 
 int read_fd, write_fd;
 
-worker_command_options_t
-create_worker_command_options ()
+command_options_t
+create_command_options ()
 {
-    return { "", "", false };
+    return { "", "", false, "" };
 }
 
 int
-set_option (worker_command_options_t &options, std::string &cmd_option)
+set_option (command_options_t &options, std::string &cmd_option)
 {
     std::string opt = "";
     std::string value = "";
@@ -61,15 +61,19 @@ set_option (worker_command_options_t &options, std::string &cmd_option)
             opt += c;
         }
 
-    if (opt == worker_command_options_keys_t.command)
+    if (opt == command_options_keys_t.id)
+        {
+            options.id = value;
+        }
+    else if (opt == command_options_keys_t.command)
         {
             options.command = value;
         }
-    else if (opt == worker_command_options_keys_t.file_path)
+    else if (opt == command_options_keys_t.file_path)
         {
             options.file_path = value;
         }
-    else if (opt == worker_command_options_keys_t.debug)
+    else if (opt == command_options_keys_t.debug)
         {
             options.debug = opt == "1";
         }
@@ -78,10 +82,9 @@ set_option (worker_command_options_t &options, std::string &cmd_option)
 }
 
 int
-execute (worker_command_options_t &options)
+execute (command_options_t &options)
 {
-    if (options.command
-        == worker_command_execute_commands_t.create_audio_processor)
+    if (options.command == command_execute_commands_t.create_audio_processor)
         {
             return worker_command::create_audio_processor (options);
         }
@@ -92,7 +95,7 @@ execute (worker_command_options_t &options)
 int
 handle_command (std::string cmd)
 {
-    worker_command_options_t options = create_worker_command_options ();
+    command_options_t options = create_command_options ();
 
     bool include_next_special = false;
     std::string temp_str = "";

@@ -10,7 +10,7 @@ namespace worker_command
 {
 
 int
-create_audio_processor (worker::worker_command_options_t &options)
+create_audio_processor (worker::command_options_t &options)
 {
     pid_t status = fork();
 
