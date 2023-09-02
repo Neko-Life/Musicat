@@ -56,8 +56,26 @@ run_command_thread ()
 
     // !TODO: create a thread to read from worker
     // and do stuff like notify cv
+    std::thread notify_thread ([] () {
+        char read_buf[CMD_BUFSIZE + 1];
+        size_t read_size = 0;
+
+        while (get_running_state ()
+               && ((read_size = read (pm_read_fd, read_buf, CMD_BUFSIZE)) > 0))
+            {
+                read_buf[CMD_BUFSIZE] = '\0';
+
+                fprintf (stderr,
+                         "[child::command] Received "
+                         "notification: %s\n",
+                         read_buf);
+            }
+
+        thread_manager::set_done ();
+    });
 
     thread_manager::dispatch (command_thread);
+    thread_manager::dispatch (notify_thread);
 }
 
 int

@@ -1,6 +1,7 @@
 #include "musicat/child/worker.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
+#include "musicat/child/slave_manager.h"
 #include "musicat/child/worker_command.h"
 #include <deque>
 #include <stddef.h>
@@ -22,7 +23,7 @@ int read_fd, write_fd;
 command_options_t
 create_command_options ()
 {
-    return { "", "", false, "" };
+    return { "", "", false, "", -1, -1, -1, -1, -1 };
 }
 
 int
@@ -84,12 +85,29 @@ set_option (command_options_t &options, std::string &cmd_option)
 int
 execute (command_options_t &options)
 {
+    int status = 0;
+
+    auto slave_info = slave_manager::get_slave (options.id);
+
+    if (slave_info.first == 0)
+        {
+            fprintf (stderr,
+                     "[child::worker_command ERROR] Slave with Id already "
+                     "exist: %s\n",
+                     options.id.c_str ());
+
+            return 1;
+        };
+
     if (options.command == command_execute_commands_t.create_audio_processor)
         {
-            return worker_command::create_audio_processor (options);
+            status = worker_command::create_audio_processor (options);
         }
 
-    return 0;
+    if (status == 0)
+        slave_manager::insert_slave (options);
+
+    return status;
 }
 
 int
@@ -161,11 +179,11 @@ run ()
 
     close (read_fd);
 
-    // !TODO: write all in message_queue to parent
+    slave_manager::shutdown_all ();
+    slave_manager::wait_all ();
+    slave_manager::clean_up_all ();
 
-    // !TODO: remove this and store all child id and pid in cache
-    // and wait one by one
-    wait (NULL);
+    // !TODO: write all in message_queue to parent
 
     close (write_fd);
 
@@ -178,6 +196,20 @@ run ()
 
     _exit (SUCCESS);
 };
+
+std::pair<int, int>
+create_pipe ()
+{
+    int fds[2];
+    if (pipe (fds) == -1)
+        {
+            perror ("create_pipe");
+
+            return { -1, -1 };
+        }
+
+    return { fds[0], fds[1] };
+}
 
 } // worker
 } // child

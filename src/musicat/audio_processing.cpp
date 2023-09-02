@@ -1,5 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include <assert.h>
 #include <fcntl.h>
@@ -196,9 +197,9 @@ copy_options (processor_options_t &opts)
 }
 
 // should be run as a child process
-// !TODO: opens 2 fifo, 1 for info and 1 for audio stream
+// !TODO: opens 3 fifo, 2 for control in and out and 1 for audio stream
 run_processor_error_t
-run_processor (std::string &file_path, const bool debug_option)
+run_processor (child::worker::command_options_t &process_options)
 {
     // !TODO: remove this redirect
     // int dnull = open ("/dev/null", O_WRONLY);
@@ -208,8 +209,8 @@ run_processor (std::string &file_path, const bool debug_option)
     processor_states_t p_info;
 
     processor_options_t options = create_options ();
-    options.file_path = file_path;
-    options.debug = debug_option;
+    options.file_path = process_options.file_path;
+    options.debug = process_options.debug;
 
     auto player_manager = get_player_manager_ptr ();
 

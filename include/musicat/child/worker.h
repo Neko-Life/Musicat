@@ -30,11 +30,24 @@ struct command_options_t
     std::string file_path;
     bool debug;
     std::string id;
+
+    pid_t pid;
+    int parent_read_fd;
+    int parent_write_fd;
+    int child_read_fd;
+    int child_write_fd;
 };
+
+command_options_t create_command_options ();
 
 void set_fds (int r, int w);
 
 void run ();
+
+/**
+ * @brief Create a one way pipe, read_fd and write_fd
+ */
+std::pair<int, int> create_pipe ();
 
 } // worker
 } // child

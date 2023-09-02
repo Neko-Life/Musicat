@@ -7,6 +7,7 @@ namespace musicat
 {
 namespace child
 {
+extern int pm_write_fd, pm_read_fd;
 
 enum child_error_t
 {

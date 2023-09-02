@@ -67,8 +67,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             //             = command_options_keys_t.id + '=' + "processor-"
             //               + std::to_string (server_id) + ';'
             //               + command_options_keys_t.command + '='
-            //               +
-            //               command_execute_commands_t.create_audio_processor
+            //               + command_execute_commands_t.create_audio_processor
             //               + ';' + command_options_keys_t.debug + "=1;"
             //               + command_options_keys_t.file_path + '='
             //               + sanitize_command_value (file_path);
