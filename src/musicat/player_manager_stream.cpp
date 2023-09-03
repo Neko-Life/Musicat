@@ -1,6 +1,6 @@
 /* #include "musicat/audio_processing.h" */
+#include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
-#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
@@ -58,21 +58,39 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // !TODO: remove this testing
             // if (server_id != 0)
             //     {
-            //         using child::command::sanitize_command_value;
-            //         using child::command::send_command;
-            //         using child::worker::command_execute_commands_t;
-            //         using child::worker::command_options_keys_t;
+            //         using namespace child::command;
+
+            //         std::string server_id_str = std::to_string (server_id);
 
             //         std::string cmd
             //             = command_options_keys_t.id + '=' + "processor-"
-            //               + std::to_string (server_id) + ';'
+            //               + server_id_str + ';'
+            //               + command_options_keys_t.guild_id + '='
+            //               + server_id_str + ';'
             //               + command_options_keys_t.command + '='
-            //               + command_execute_commands_t.create_audio_processor
+            //               +
+            //               command_execute_commands_t.create_audio_processor
             //               + ';' + command_options_keys_t.debug + "=1;"
             //               + command_options_keys_t.file_path + '='
             //               + sanitize_command_value (file_path);
 
             //         send_command (cmd);
+
+            //         // std::unique_lock ulk (this->as_m);
+            //         // this->as_cv.wait (ulk, [this] () {
+            //         //     return this->is_processor_ready ()
+            //         //            || this->is_processor_dead ();
+            //         // });
+
+            //         // if (this->is_processor_dead ())
+            //         //     {
+            //         //         throw 2;
+            //         //     }
+
+            //         // !TODO: get options from worker
+            //         audio_processing::processor_options_t options
+            //             = get_slave_options ();
+
             //     }
 
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
@@ -117,13 +135,13 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         track_og, track.seek_to, SEEK_SET);
 
                                     if (debug)
-                                        fprintf (
-                                            stderr,
-                                            "[Manager::stream] Seeking from: "
-                                            "%ld\nTarget: %ld\nResult offset: "
-                                            "%ld\n",
-                                            track.current_byte, track.seek_to,
-                                            offset);
+                                        fprintf (stderr,
+                                                 "[Manager::stream] "
+                                                 "Seeking from: "
+                                                 "%ld\nTarget: %ld\n"
+                                                 "Result offset: %ld\n",
+                                                 track.current_byte,
+                                                 track.seek_to, offset);
 
                                     track.current_byte = offset;
                                     track.seek_to = -1;
@@ -135,11 +153,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             track.current_byte += read_bytes;
 
                             if (debug)
-                                printf (
-                                    "[Manager::stream] [guild_id] [size] "
-                                    "[chunk] [read_bytes]: %ld %ld %ld %ld\n",
-                                    server_id, fsize, read_bytes,
-                                    track.current_byte);
+                                printf ("[Manager::stream] "
+                                        "[guild_id] [size] "
+                                        "[chunk] [read_bytes]: "
+                                        "%ld %ld %ld %ld\n",
+                                        server_id, fsize, read_bytes,
+                                        track.current_byte);
 
                             while (v && !v->terminating
                                    && v->get_secs_remaining () > 0.05f)
@@ -219,6 +238,28 @@ Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
         }
 
     return 1;
+}
+
+// !TODO
+void
+Manager::set_processor_state (std::string &server_id_str,
+                              processor_state_t state)
+{
+}
+
+void
+Manager::get_processor_state (std::string &server_id_str)
+{
+}
+
+bool
+Manager::is_processor_ready (std::string &server_id_str)
+{
+}
+
+bool
+Manager::is_processor_dead (std::string &server_id_str)
+{
 }
 
 } // player

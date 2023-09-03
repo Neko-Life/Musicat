@@ -69,6 +69,13 @@ run_command_thread ()
                          "[child::command] Received "
                          "notification: %s\n",
                          read_buf);
+
+                std::string read_str (read_buf);
+
+                command_options_t options = create_command_options ();
+                parse_command_to_options (read_str, options);
+
+                // !TODO: handle options
             }
 
         thread_manager::set_done ();
@@ -99,23 +106,22 @@ wake ()
 }
 
 void
-write_command (std::string &cmd)
+write_command (std::string &cmd, int write_fd, const char *caller)
 {
     const size_t cmd_size = cmd.size ();
     if (cmd_size > CMD_BUFSIZE)
         {
             fprintf (stderr,
-                     "[child::command ERROR] Command size bigger than read "
+                     "[%s ERROR] Command size bigger than read "
                      "buffer size: %ld > %d\n",
-                     cmd_size, CMD_BUFSIZE);
-            fprintf (stderr, "[child::command ERROR] Dropping command: %s\n",
+                     caller, cmd_size, CMD_BUFSIZE);
+            fprintf (stderr, "[%s ERROR] Dropping command: %s\n", caller,
                      cmd.c_str ());
             return;
         }
 
     cmd.resize (CMD_BUFSIZE, '\0');
 
-    int write_fd = get_parent_write_fd ();
     write (write_fd, cmd.c_str (), CMD_BUFSIZE);
 }
 
@@ -180,6 +186,111 @@ sanitize_command_key_value (const std::string &key_value)
     // fprintf (stderr, "new_key_value: %s\n", new_key_value.c_str ());
 
     return new_key_value;
+}
+
+command_options_t
+create_command_options ()
+{
+    return { "", "", false, "", -1, -1, -1, -1, -1, "" };
+}
+
+int
+set_option (command_options_t &options, std::string &cmd_option)
+{
+    std::string opt = "";
+    std::string value = "";
+
+    bool filling_value = false;
+    bool include_next_special = false;
+    for (const char &c : cmd_option)
+        {
+            if (!include_next_special)
+                {
+                    if (c == '\\')
+                        {
+                            include_next_special = true;
+                            continue;
+                        }
+
+                    if (c == '=')
+                        {
+                            filling_value = true;
+                            continue;
+                        }
+                }
+            else
+                include_next_special = false;
+
+            if (filling_value)
+                {
+                    value += c;
+                    continue;
+                }
+
+            opt += c;
+        }
+
+    if (opt == command_options_keys_t.id)
+        {
+            options.id = value;
+        }
+    else if (opt == command_options_keys_t.command)
+        {
+            options.command = value;
+        }
+    else if (opt == command_options_keys_t.file_path)
+        {
+            options.file_path = value;
+        }
+    else if (opt == command_options_keys_t.debug)
+        {
+            options.debug = value == "1";
+        }
+    else if (opt == command_options_keys_t.guild_id)
+        {
+            options.guild_id = value;
+        }
+
+    return 0;
+}
+
+void
+parse_command_to_options (std::string &cmd, command_options_t &options)
+{
+    bool include_next_special = false;
+    std::string temp_str = "";
+    for (const char &c : cmd)
+        {
+            if (!include_next_special)
+                {
+                    if (c == '\\')
+                        {
+                            include_next_special = true;
+                            continue;
+                        }
+
+                    if (c == ';')
+                        {
+                            std::string opt_str
+                                = command::sanitize_command_key_value (
+                                    temp_str);
+                            set_option (options, opt_str);
+                            temp_str = "";
+                            continue;
+                        }
+                }
+            else
+                include_next_special = false;
+
+            temp_str += c;
+        }
+
+    if (temp_str.length ())
+        {
+            std::string opt_str
+                = command::sanitize_command_key_value (temp_str);
+            set_option (options, opt_str);
+        }
 }
 
 } // command

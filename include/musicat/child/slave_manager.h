@@ -1,7 +1,7 @@
 #ifndef MUSICAT_CHILD_SLAVE_MANAGER_H
 #define MUSICAT_CHILD_SLAVE_MANAGER_H
 
-#include "musicat/child/worker.h"
+#include "musicat/child/command.h"
 
 namespace musicat
 {
@@ -10,9 +10,9 @@ namespace child
 namespace slave_manager
 {
 
-int insert_slave (worker::command_options_t &options);
+int insert_slave (command::command_options_t &options);
 
-std::pair<int, worker::command_options_t> get_slave (std::string &id);
+std::pair<int, command::command_options_t> get_slave (std::string &id);
 
 int delete_slave (std::string &id);
 

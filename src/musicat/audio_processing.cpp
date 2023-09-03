@@ -1,6 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
-#include "musicat/child/worker.h"
+#include "musicat/child/command.h"
 #include "musicat/musicat.h"
 #include <assert.h>
 #include <fcntl.h>
@@ -199,7 +199,7 @@ copy_options (processor_options_t &opts)
 // should be run as a child process
 // !TODO: opens 3 fifo, 2 for control in and out and 1 for audio stream
 run_processor_error_t
-run_processor (child::worker::command_options_t &process_options)
+run_processor (child::command::command_options_t &process_options)
 {
     // !TODO: remove this redirect
     // int dnull = open ("/dev/null", O_WRONLY);
@@ -508,6 +508,9 @@ run_processor (child::worker::command_options_t &process_options)
             read_command (cmdrfds, options);
         }
 
+    close (process_options.child_write_fd);
+    process_options.child_write_fd = -1;
+
     // exiting, clean up
     fclose (input);
     input = NULL;
@@ -553,11 +556,26 @@ err_spipe2:
     close (cwritefd);
 
 err_spipe1:
+    close (process_options.child_write_fd);
+    process_options.child_write_fd = -1;
+
     fclose (input);
     waitpid (p_info.rpid, &cstatus, 0);
 
     return init_error;
 } // run_processor
+
+std::string
+get_audio_stream_fifo_path (std::string &id)
+{
+    return std::string ("/tmp/musicat.") + id + ".audio_stream";
+}
+
+mode_t
+get_audio_stream_fifo_mode_t ()
+{
+    return 0600;
+}
 
 } // audio_processing
 } // musicat

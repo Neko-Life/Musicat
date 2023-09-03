@@ -26,6 +26,12 @@ enum loop_mode_t : int8_t
     l_song_queue
 };
 
+enum processor_state_t
+{
+    PROCESSOR_READY = 1,
+    PROCESSOR_DEAD = (1 << 1),
+};
+
 struct MCTrack : yt_search::YTrack
 {
     /**
@@ -262,13 +268,15 @@ class Manager
     // imc: info_messages_cache
     // im: ignore_marker
     // sq: stop_queue
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, sq_m;
+    // as: audio_stream
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, sq_m, as_m;
 
     // Conditional variable, use notify_all
-    std::condition_variable dl_cv, stop_queue_cv;
+    std::condition_variable dl_cv, stop_queue_cv, as_cv;
     std::map<dpp::snowflake, dpp::snowflake> connecting, disconnecting;
     std::map<dpp::snowflake, std::string> waiting_vc_ready;
     std::map<std::string, dpp::snowflake> waiting_file_download;
+    std::map<std::string, processor_state_t> processor_states;
     std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
     std::map<dpp::snowflake, bool> stop_queue;
@@ -358,6 +366,15 @@ class Manager
     void set_manually_paused (const dpp::snowflake &guild_id);
 
     void clear_manually_paused (const dpp::snowflake &guild_id);
+
+    void set_processor_state (std::string &server_id_str,
+                              processor_state_t state);
+
+    void get_processor_state (std::string &server_id_str);
+
+    bool is_processor_ready (std::string &server_id_str);
+
+    bool is_processor_dead (std::string &server_id_str);
 
     /**
      * @brief Check whether client is ready to stream in vc and make changes to

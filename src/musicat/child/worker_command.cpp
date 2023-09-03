@@ -1,6 +1,7 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker.h"
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace musicat
@@ -11,7 +12,7 @@ namespace worker_command
 {
 
 int
-create_audio_processor (worker::command_options_t &options)
+create_audio_processor (command::command_options_t &options)
 {
     std::pair<int, int> pipe_fds = worker::create_pipe ();
 
@@ -23,6 +24,23 @@ create_audio_processor (worker::command_options_t &options)
     int write_fd = pipe_fds.second;
 
     // !TODO: create fifos here
+    std::string as_fp
+        = audio_processing::get_audio_stream_fifo_path (options.id);
+
+    unlink (as_fp.c_str ());
+
+    if (mkfifo (as_fp.c_str (),
+                audio_processing::get_audio_stream_fifo_mode_t ())
+        < 0)
+        {
+            perror ("as_fp");
+            close (read_fd);
+            close (write_fd);
+
+            return -1;
+        }
+
+    options.audio_stream_fifo_path = as_fp;
 
     pid_t status = fork ();
 

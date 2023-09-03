@@ -11,10 +11,10 @@ namespace child
 namespace slave_manager
 {
 
-std::map<std::string, worker::command_options_t> slave_list;
+std::map<std::string, command::command_options_t> slave_list;
 
 int
-insert_slave (worker::command_options_t &options)
+insert_slave (command::command_options_t &options)
 {
     auto i = slave_list.find (options.id);
     if (i != slave_list.end ())
@@ -26,13 +26,13 @@ insert_slave (worker::command_options_t &options)
     return 0;
 }
 
-std::pair<int, worker::command_options_t>
+std::pair<int, command::command_options_t>
 get_slave (std::string &id)
 {
     auto i = slave_list.find (id);
     if (i == slave_list.end ())
         {
-            return { -1, worker::create_command_options () };
+            return { -1, command::create_command_options () };
         }
 
     return { 0, i->second };
@@ -52,12 +52,12 @@ delete_slave (std::string &id)
 }
 
 int
-shutdown_routine (worker::command_options_t &options)
+shutdown_routine (command::command_options_t &options)
 {
     std::string child_type = options.command;
 
     if (child_type
-        == worker::command_execute_commands_t.create_audio_processor)
+        == command::command_execute_commands_t.create_audio_processor)
         {
             return worker_management::shutdown_audio_processor (options);
         }
@@ -66,7 +66,7 @@ shutdown_routine (worker::command_options_t &options)
 }
 
 int
-wait_routine (worker::command_options_t &options)
+wait_routine (command::command_options_t &options)
 {
     int status = 0;
     waitpid (options.pid, &status, 0);
@@ -79,12 +79,19 @@ wait_routine (worker::command_options_t &options)
 }
 
 int
-clean_up_routine (worker::command_options_t &options)
+clean_up_routine (command::command_options_t &options)
 {
     // usually we close parent read fd here but it's already
     // closed on shutdown for all processor child
     // new type of child might need to be handled differently
     // !TODO: clean up to be made fifos
+    std::string child_type = options.command;
+
+    if (child_type
+        == command::command_execute_commands_t.create_audio_processor)
+        {
+            return worker_management::clean_up_audio_processor (options);
+        }
 
     return 0;
 }

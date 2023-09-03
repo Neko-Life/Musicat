@@ -1,7 +1,7 @@
 #ifndef MUSICAT_AUDIO_PROCESSING_H
 #define MUSICAT_AUDIO_PROCESSING_H
 
-#include "musicat/child/worker.h"
+#include "musicat/child/command.h"
 #include "musicat/player.h"
 #include <fcntl.h>
 #include <stdio.h>
@@ -67,7 +67,11 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
 // should be run as a child process
 // !TODO: adjust signature to actual needed data
 run_processor_error_t
-run_processor (child::worker::command_options_t &process_options);
+run_processor (child::command::command_options_t &process_options);
+
+std::string get_audio_stream_fifo_path (std::string &id);
+
+mode_t get_audio_stream_fifo_mode_t ();
 
 } // audio_processing
 } // musicat

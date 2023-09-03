@@ -20,70 +20,8 @@ namespace worker
 
 int read_fd, write_fd;
 
-command_options_t
-create_command_options ()
-{
-    return { "", "", false, "", -1, -1, -1, -1, -1 };
-}
-
 int
-set_option (command_options_t &options, std::string &cmd_option)
-{
-    std::string opt = "";
-    std::string value = "";
-
-    bool filling_value = false;
-    bool include_next_special = false;
-    for (const char &c : cmd_option)
-        {
-            if (!include_next_special)
-                {
-                    if (c == '\\')
-                        {
-                            include_next_special = true;
-                            continue;
-                        }
-
-                    if (c == '=')
-                        {
-                            filling_value = true;
-                            continue;
-                        }
-                }
-            else
-                include_next_special = false;
-
-            if (filling_value)
-                {
-                    value += c;
-                    continue;
-                }
-
-            opt += c;
-        }
-
-    if (opt == command_options_keys_t.id)
-        {
-            options.id = value;
-        }
-    else if (opt == command_options_keys_t.command)
-        {
-            options.command = value;
-        }
-    else if (opt == command_options_keys_t.file_path)
-        {
-            options.file_path = value;
-        }
-    else if (opt == command_options_keys_t.debug)
-        {
-            options.debug = opt == "1";
-        }
-
-    return 0;
-}
-
-int
-execute (command_options_t &options)
+execute (command::command_options_t &options)
 {
     int status = 0;
 
@@ -99,7 +37,7 @@ execute (command_options_t &options)
             return 1;
         };
 
-    if (options.command == command_execute_commands_t.create_audio_processor)
+    if (options.command == command::command_execute_commands_t.create_audio_processor)
         {
             status = worker_command::create_audio_processor (options);
         }
@@ -113,42 +51,8 @@ execute (command_options_t &options)
 int
 handle_command (std::string cmd)
 {
-    command_options_t options = create_command_options ();
-
-    bool include_next_special = false;
-    std::string temp_str = "";
-    for (const char &c : cmd)
-        {
-            if (!include_next_special)
-                {
-                    if (c == '\\')
-                        {
-                            include_next_special = true;
-                            continue;
-                        }
-
-                    if (c == ';')
-                        {
-                            std::string opt_str
-                                = command::sanitize_command_key_value (
-                                    temp_str);
-                            set_option (options, opt_str);
-                            temp_str = "";
-                            continue;
-                        }
-                }
-            else
-                include_next_special = false;
-
-            temp_str += c;
-        }
-
-    if (temp_str.length ())
-        {
-            std::string opt_str
-                = command::sanitize_command_key_value (temp_str);
-            set_option (options, opt_str);
-        }
+    command::command_options_t options = command::create_command_options ();
+    parse_command_to_options (cmd, options);
 
     execute (options);
 
