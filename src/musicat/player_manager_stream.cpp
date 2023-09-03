@@ -1,6 +1,7 @@
 /* #include "musicat/audio_processing.h" */
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
@@ -56,42 +57,37 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             track.filesize = fsize;
 
             // !TODO: remove this testing
-            // if (server_id != 0)
-            //     {
-            //         using namespace child::command;
+            if (server_id != 0)
+                {
+                    using namespace child::command;
+                    using child::worker::wait_slave_ready;
 
-            //         std::string server_id_str = std::to_string (server_id);
+                    std::string server_id_str = std::to_string (server_id);
+                    std::string slave_id = "processor-" + server_id_str;
 
-            //         std::string cmd
-            //             = command_options_keys_t.id + '=' + "processor-"
-            //               + server_id_str + ';'
-            //               + command_options_keys_t.guild_id + '='
-            //               + server_id_str + ';'
-            //               + command_options_keys_t.command + '='
-            //               +
-            //               command_execute_commands_t.create_audio_processor
-            //               + ';' + command_options_keys_t.debug + "=1;"
-            //               + command_options_keys_t.file_path + '='
-            //               + sanitize_command_value (file_path);
+                    std::string cmd
+                        = command_options_keys_t.id + '=' + slave_id + ';'
+                          + command_options_keys_t.guild_id + '='
+                          + server_id_str + ';'
+                          + command_options_keys_t.command + '='
+                          + command_execute_commands_t.create_audio_processor
+                          + ';' + command_options_keys_t.debug + "=1;"
+                          + command_options_keys_t.file_path + '='
+                          + sanitize_command_value (file_path);
 
-            //         send_command (cmd);
+                    send_command (cmd);
 
-            //         // std::unique_lock ulk (this->as_m);
-            //         // this->as_cv.wait (ulk, [this] () {
-            //         //     return this->is_processor_ready ()
-            //         //            || this->is_processor_dead ();
-            //         // });
+                    int status = wait_slave_ready (slave_id);
 
-            //         // if (this->is_processor_dead ())
-            //         //     {
-            //         //         throw 2;
-            //         //     }
+                    // if (status != 0)
+                    //     {
+                    //         throw 2;
+                    //     }
 
-            //         // !TODO: get options from worker
-            //         audio_processing::processor_options_t options
-            //             = get_slave_options ();
-
-            //     }
+                    //         // !TODO: get options from worker
+                    //         audio_processing::processor_options_t options
+                    //             = get_slave_options ();
+                }
 
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
@@ -240,26 +236,39 @@ Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
     return 1;
 }
 
-// !TODO
 void
 Manager::set_processor_state (std::string &server_id_str,
                               processor_state_t state)
 {
+    std::lock_guard<std::mutex> lk (this->as_m);
+
+    this->processor_states[server_id_str] = state;
 }
 
-void
+processor_state_t
 Manager::get_processor_state (std::string &server_id_str)
 {
+    std::lock_guard<std::mutex> lk (this->as_m);
+    auto i = this->processor_states.find (server_id_str);
+
+    if (i == this->processor_states.end ())
+        {
+            return PROCESSOR_NULL;
+        }
+
+    return i->second;
 }
 
 bool
 Manager::is_processor_ready (std::string &server_id_str)
 {
+    return get_processor_state (server_id_str) & PROCESSOR_READY;
 }
 
 bool
 Manager::is_processor_dead (std::string &server_id_str)
 {
+    return get_processor_state (server_id_str) & PROCESSOR_DEAD;
 }
 
 } // player

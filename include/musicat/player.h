@@ -28,6 +28,7 @@ enum loop_mode_t : int8_t
 
 enum processor_state_t
 {
+    PROCESSOR_NULL = 0,
     PROCESSOR_READY = 1,
     PROCESSOR_DEAD = (1 << 1),
 };
@@ -370,7 +371,7 @@ class Manager
     void set_processor_state (std::string &server_id_str,
                               processor_state_t state);
 
-    void get_processor_state (std::string &server_id_str);
+    processor_state_t get_processor_state (std::string &server_id_str);
 
     bool is_processor_ready (std::string &server_id_str);
 

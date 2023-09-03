@@ -23,6 +23,7 @@ static const struct
     std::string debug = "dbg";    // bool
     std::string id = "id";        // str
     std::string guild_id = "gid"; // str
+    std::string ready = "rdy";    // bool
 } command_options_keys_t;
 
 struct command_options_t
@@ -41,6 +42,7 @@ struct command_options_t
 
     std::string audio_stream_fifo_path;
     std::string guild_id;
+    bool ready;
 };
 
 command_options_t create_command_options ();

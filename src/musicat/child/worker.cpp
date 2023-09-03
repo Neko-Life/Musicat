@@ -3,7 +3,9 @@
 #include "musicat/child/command.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker_command.h"
+#include <condition_variable>
 #include <deque>
+#include <map>
 #include <stddef.h>
 #include <stdio.h>
 #include <string>
@@ -17,6 +19,10 @@ namespace child
 namespace worker
 {
 // !TODO: message_queue
+
+std::mutex sr_m;
+std::condition_variable sr_cv;
+std::map<std::string, bool> slave_ready_queue;
 
 int read_fd, write_fd;
 
@@ -37,13 +43,17 @@ execute (command::command_options_t &options)
             return 1;
         };
 
-    if (options.command == command::command_execute_commands_t.create_audio_processor)
+    if (options.command
+        == command::command_execute_commands_t.create_audio_processor)
         {
             status = worker_command::create_audio_processor (options);
         }
 
     if (status == 0)
-        slave_manager::insert_slave (options);
+        {
+            slave_manager::insert_slave (options);
+            mark_slave_ready (options.id);
+        }
 
     return status;
 }
@@ -113,6 +123,30 @@ create_pipe ()
         }
 
     return { fds[0], fds[1] };
+}
+
+// !TODO
+int
+wait_slave_ready (std::string &id)
+{
+    // std::unique_lock ulk (this->as_m);
+    // this->as_cv.wait (ulk, [this] () {
+    //     return this->is_processor_ready ()
+    //            || this->is_processor_dead ();
+    // });
+
+    // erase ready state from cache
+
+    // return 1 if false
+    return 0;
+}
+
+int
+mark_slave_ready (std::string &id)
+{
+    // insert ready state to cache
+
+    return 0;
 }
 
 } // worker
