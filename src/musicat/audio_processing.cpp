@@ -13,7 +13,7 @@
 #include <thread>
 #include <unistd.h>
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 1.25f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 1.5f
 #define BUFFER_SIZE processing_buffer_size
 #define READ_CHUNK_SIZE 4096
 
