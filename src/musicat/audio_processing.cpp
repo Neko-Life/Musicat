@@ -13,6 +13,7 @@
 #include <thread>
 #include <unistd.h>
 
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 1.25f
 #define BUFFER_SIZE processing_buffer_size
 #define READ_CHUNK_SIZE 4096
 
@@ -23,16 +24,26 @@ namespace musicat
 namespace audio_processing
 {
 
-static void
-write_stdout (uint8_t *buffer, size_t *size)
+static ssize_t
+write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 {
-    size_t written = 0;
-    while (
-        (written += write (STDOUT_FILENO, buffer + written, *size - written))
-        < *size)
-        ;
+    ssize_t written = 0;
+    ssize_t current_written = 0;
+    while ((current_written
+            = write (write_fifo, buffer + written, *size - written))
+           < *size)
+        {
+            if (current_written == -1)
+                {
+                    return -1;
+                }
+
+            written += current_written;
+        };
 
     *size = 0;
+
+    return written;
 }
 
 static int
@@ -135,12 +146,13 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
 // inside the streaming thread
 int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
-                    size_t *send_buffer_length, bool no_wait)
+                    ssize_t *send_buffer_length, bool no_wait)
 {
     // wait for old pending audio buffer to be sent to discord
     if (!no_wait)
         while (vclient && !vclient->terminating
-               && vclient->get_secs_remaining () > 0.05f)
+               && vclient->get_secs_remaining ()
+                      > DPP_AUDIO_BUFFER_LENGTH_SECOND)
             {
                 std::this_thread::sleep_for (std::chrono::milliseconds (10));
             }
@@ -160,7 +172,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 int
 read_command (pollfd cmdrfds[1], processor_options_t &options)
 {
-    size_t read_cmd_size = 0;
+    ssize_t read_cmd_size = 0;
     char cmd_buf[CMD_BUFSIZE + 1];
 
     int has_cmd = poll (cmdrfds, 1, 0);
@@ -255,16 +267,19 @@ run_processor (child::command::command_options_t &process_options)
     cmdrfds[0].fd = cmdreadfd = STDIN_FILENO;
 
     // main loop variable definition
-    size_t read_size = 0;
+    ssize_t read_size = 0;
     uint8_t buffer[BUFFER_SIZE];
-    size_t last_read_size = 0;
+    ssize_t last_read_size = 0;
     uint8_t rest_buffer[BUFFER_SIZE];
     bool read_input = true;
-    size_t written_size = 0;
+    ssize_t written_size = 0;
 
     processor_options_t current_options = copy_options (options);
 
     FILE *input = fdopen (prreadfd, "r");
+
+    int write_fifo
+        = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY);
 
     // prepare required pipes for bidirectional interprocess communication
     if (pipe (p_info.ppipefd) == -1)
@@ -362,7 +377,7 @@ run_processor (child::command::command_options_t &process_options)
             bool read_ready
                 = (read_has_event > 0) && (prfds[0].revents & POLLIN);
 
-            size_t input_read_size = 0;
+            ssize_t input_read_size = 0;
 
             if (read_ready)
                 {
@@ -381,8 +396,14 @@ run_processor (child::command::command_options_t &process_options)
                         {
                             if (input_read_size == BUFFER_SIZE)
                                 {
-                                    write_stdout (out_buffer,
-                                                  &input_read_size);
+                                    if (write_stdout (out_buffer,
+                                                      &input_read_size,
+                                                      write_fifo)
+                                        == -1)
+                                        {
+                                            options.panic_break = true;
+                                            break;
+                                        }
                                 }
 
                             read_has_event = poll (prfds, 1, 0);
@@ -397,7 +418,13 @@ run_processor (child::command::command_options_t &process_options)
                     // output when specifying some other containerized format
                     if (input_read_size > 0)
                         {
-                            write_stdout (out_buffer, &input_read_size);
+                            if (write_stdout (out_buffer, &input_read_size,
+                                              write_fifo)
+                                == -1)
+                                {
+                                    options.panic_break = true;
+                                    break;
+                                };
                         }
                 }
 
@@ -422,7 +449,13 @@ run_processor (child::command::command_options_t &process_options)
                             = read (preadfd, rest_buffer, BUFFER_SIZE))
                            > 0)
                         {
-                            write_stdout (rest_buffer, &input_read_size);
+                            if (write_stdout (rest_buffer, &input_read_size,
+                                              write_fifo)
+                                == -1)
+                                {
+                                    options.panic_break = true;
+                                    break;
+                                };
                         }
 
                     // close read fd
@@ -521,14 +554,21 @@ run_processor (child::command::command_options_t &process_options)
     // read the rest of data before closing ffmpeg stdout
     while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE)) > 0)
         {
-            write_stdout (rest_buffer, &last_read_size);
+            if (write_stdout (rest_buffer, &last_read_size, write_fifo) == -1)
+                {
+                    options.panic_break = true;
+                    break;
+                };
         }
 
     if (preadfd > -1)
         close (preadfd);
 
+    close (write_fifo);
+
     pwritefd = -1;
     preadfd = -1;
+    write_fifo = -1;
 
     if (options.debug)
         fprintf (stderr, "fds closed\n");
@@ -566,7 +606,7 @@ err_spipe1:
 } // run_processor
 
 std::string
-get_audio_stream_fifo_path (std::string &id)
+get_audio_stream_fifo_path (const std::string &id)
 {
     return std::string ("/tmp/musicat.") + id + ".audio_stream";
 }

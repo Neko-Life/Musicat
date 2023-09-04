@@ -19,10 +19,6 @@ void run ();
  */
 std::pair<int, int> create_pipe ();
 
-int wait_slave_ready (std::string &id);
-
-int mark_slave_ready (std::string &id);
-
 } // worker
 } // child
 } // musicat

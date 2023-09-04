@@ -2,6 +2,7 @@
 #include "musicat/child.h"
 #include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
+#include <chrono>
 #include <mutex>
 
 namespace musicat
@@ -14,6 +15,10 @@ namespace command
 std::deque<std::string> command_queue;
 std::mutex command_mutex;
 std::condition_variable command_cv;
+
+std::map<std::string, std::pair<bool, int> > slave_ready_queue;
+std::mutex sr_m;
+std::condition_variable sr_cv;
 
 void
 command_queue_routine ()
@@ -39,6 +44,15 @@ wait_for_command ()
     command_cv.wait (ulk, [] () {
         return (command_queue.size () > 0) || !get_running_state ();
     });
+}
+
+void
+handle_child_message (command_options_t &options)
+{
+    if (options.command == command_options_keys_t.ready)
+        {
+            mark_slave_ready (options.id, options.ready);
+        }
 }
 
 void
@@ -76,6 +90,7 @@ run_command_thread ()
                 parse_command_to_options (read_str, options);
 
                 // !TODO: handle options
+                handle_child_message (options);
             }
 
         thread_manager::set_done ();
@@ -250,6 +265,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.guild_id = value;
         }
+    else if (opt == command_options_keys_t.ready)
+        {
+            options.ready = atoi (value.c_str ());
+        }
 
     return 0;
 }
@@ -291,6 +310,63 @@ parse_command_to_options (std::string &cmd, command_options_t &options)
                 = command::sanitize_command_key_value (temp_str);
             set_option (options, opt_str);
         }
+}
+
+int
+wait_slave_ready (std::string &id, const int timeout)
+{
+    {
+        std::lock_guard<std::mutex> lk (sr_m);
+        auto i = slave_ready_queue.find (id);
+        if (i != slave_ready_queue.end ())
+            {
+                const int ret = i->second.second;
+                slave_ready_queue.erase (i);
+
+                return ret;
+            }
+    }
+
+    {
+        std::lock_guard<std::mutex> lk (sr_m);
+        slave_ready_queue.insert_or_assign (id, std::make_pair (false, -1));
+    }
+    {
+        std::unique_lock ulk (sr_m);
+        sr_cv.wait_until (ulk,
+                          std::chrono::system_clock::now ()
+                              + std::chrono::seconds (timeout),
+                          [id] () {
+                              auto i = slave_ready_queue.find (id);
+                              return i == slave_ready_queue.end ()
+                                     || i->second.first == true;
+                          });
+    }
+
+    std::lock_guard<std::mutex> lk (sr_m);
+    auto i = slave_ready_queue.find (id);
+    if (i == slave_ready_queue.end ())
+        {
+            return -1;
+        }
+
+    const int ret = i->second.second;
+    slave_ready_queue.erase (i);
+
+    return ret;
+}
+
+int
+mark_slave_ready (std::string &id, const int status)
+{
+    {
+        std::lock_guard<std::mutex> lk (sr_m);
+        slave_ready_queue.insert_or_assign (id, std::make_pair (true, status));
+    }
+
+    sr_cv.notify_all ();
+
+    return 0;
 }
 
 } // command

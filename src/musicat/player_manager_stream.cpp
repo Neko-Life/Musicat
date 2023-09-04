@@ -1,12 +1,15 @@
 /* #include "musicat/audio_processing.h" */
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
-#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
 #include <oggz/oggz_seek.h>
+#include <sys/poll.h>
 #include <sys/stat.h>
+
+// correct frame size with timescale for dpp
+#define STREAM_BUFSIZ 11520
 
 namespace musicat
 {
@@ -60,7 +63,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (server_id != 0)
                 {
                     using namespace child::command;
-                    using child::worker::wait_slave_ready;
+                    using child::command::wait_slave_ready;
 
                     std::string server_id_str = std::to_string (server_id);
                     std::string slave_id = "processor-" + server_id_str;
@@ -77,106 +80,173 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                     send_command (cmd);
 
-                    int status = wait_slave_ready (slave_id);
+                    int status = wait_slave_ready (slave_id, 10);
 
-                    // if (status != 0)
-                    //     {
-                    //         throw 2;
-                    //     }
+                    if (status != 0)
+                        {
+                            throw 2;
+                        }
+
+                    const std::string fifo_stream_path
+                        = audio_processing::get_audio_stream_fifo_path (
+                            slave_id);
+
+                    int read_fd = open (fifo_stream_path.c_str (), O_RDONLY);
+
+                    ssize_t read_size = 0;
+                    ssize_t last_read_size = 0;
+                    ssize_t total_read = 0;
+                    uint8_t buffer[STREAM_BUFSIZ];
+
+                    bool running_state;
+                    while ((running_state = get_running_state ())
+                           && ((read_size += read (read_fd, buffer + read_size,
+                                                   STREAM_BUFSIZ - read_size))
+                               > 0))
+                        {
+                            // prevent infinite loop when done reading the last
+                            // straw of data
+                            if (last_read_size == read_size
+                                && read_size < STREAM_BUFSIZ)
+                                {
+                                    break;
+                                }
+
+                            last_read_size = read_size;
+
+                            if (read_size == STREAM_BUFSIZ)
+                                {
+                                    total_read += read_size;
+
+                                    if ((debug = get_debug_state ()))
+                                        fprintf (stderr,
+                                                 "Sending buffer: %ld %ld\n",
+                                                 total_read, read_size);
+
+                                    if (audio_processing::send_audio_routine (
+                                            v, (uint16_t *)buffer, &read_size))
+                                        {
+                                            break;
+                                        }
+                                }
+                        }
+
+                    if (debug)
+                        fprintf (stderr, "Final buffer: %ld %ld\n",
+                                 total_read + read_size, read_size);
+
+                    audio_processing::send_audio_routine (
+                        v, (uint16_t *)buffer, &read_size, true);
+
+                    if (!running_state)
+                        {
+                            v->stop_audio ();
+                        }
+
+                    fprintf (stderr, "Exiting %ld\n", server_id);
+                    close (read_fd);
+
+                    std::string exit_cmd
+                        = command_options_keys_t.id + '=' + slave_id + ';'
+                          + command_options_keys_t.command + '='
+                          + command_execute_commands_t.shutdown + ';';
+
+                    send_command (exit_cmd);
 
                     //         // !TODO: get options from worker
                     //         audio_processing::processor_options_t options
                     //             = get_slave_options ();
                 }
 
-            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
+            // OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
-            if (track_og)
-                {
-                    mc_oggz_user_data data = { v, track, debug };
+            // if (track_og)
+            //     {
+            //         mc_oggz_user_data data = { v, track, debug };
 
-                    oggz_set_read_callback (
-                        track_og, -1,
-                        [] (OGGZ *oggz, oggz_packet *packet, long serialno,
-                            void *user_data) {
-                            mc_oggz_user_data *data
-                                = (mc_oggz_user_data *)user_data;
+            //         oggz_set_read_callback (
+            //             track_og, -1,
+            //             [] (OGGZ *oggz, oggz_packet *packet, long serialno,
+            //                 void *user_data) {
+            //                 mc_oggz_user_data *data
+            //                     = (mc_oggz_user_data *)user_data;
 
-                            data->voice_client->send_audio_opus (
-                                packet->op.packet, packet->op.bytes);
+            //                 data->voice_client->send_audio_opus (
+            //                     packet->op.packet, packet->op.bytes);
 
-                            if (!data->track.seekable && packet->op.b_o_s == 0)
-                                {
-                                    data->track.seekable = true;
-                                }
+            //                 if (!data->track.seekable && packet->op.b_o_s ==
+            //                 0)
+            //                     {
+            //                         data->track.seekable = true;
+            //                     }
 
-                            return 0;
-                        },
-                        (void *)&data);
+            //                 return 0;
+            //             },
+            //             (void *)&data);
 
-                    // stream loop
-                    while (v && !v->terminating)
-                        {
-                            if (is_stream_stopping (server_id))
-                                break;
+            //         // stream loop
+            //         while (v && !v->terminating)
+            //             {
+            //                 if (is_stream_stopping (server_id))
+            //                     break;
 
-                            debug = get_debug_state ();
+            //                 debug = get_debug_state ();
 
-                            static const constexpr long CHUNK_READ
-                                = BUFSIZ * 2;
+            //                 static const constexpr long CHUNK_READ
+            //                     = BUFSIZ * 2;
 
-                            if (track.seek_to > -1 && track.seekable)
-                                {
-                                    oggz_off_t offset = oggz_seek (
-                                        track_og, track.seek_to, SEEK_SET);
+            //                 if (track.seek_to > -1 && track.seekable)
+            //                     {
+            //                         oggz_off_t offset = oggz_seek (
+            //                             track_og, track.seek_to, SEEK_SET);
 
-                                    if (debug)
-                                        fprintf (stderr,
-                                                 "[Manager::stream] "
-                                                 "Seeking from: "
-                                                 "%ld\nTarget: %ld\n"
-                                                 "Result offset: %ld\n",
-                                                 track.current_byte,
-                                                 track.seek_to, offset);
+            //                         if (debug)
+            //                             fprintf (stderr,
+            //                                      "[Manager::stream] "
+            //                                      "Seeking from: "
+            //                                      "%ld\nTarget: %ld\n"
+            //                                      "Result offset: %ld\n",
+            //                                      track.current_byte,
+            //                                      track.seek_to, offset);
 
-                                    track.current_byte = offset;
-                                    track.seek_to = -1;
-                                }
+            //                         track.current_byte = offset;
+            //                         track.seek_to = -1;
+            //                     }
 
-                            const long read_bytes
-                                = oggz_read (track_og, CHUNK_READ);
+            //                 const long read_bytes
+            //                     = oggz_read (track_og, CHUNK_READ);
 
-                            track.current_byte += read_bytes;
+            //                 track.current_byte += read_bytes;
 
-                            if (debug)
-                                printf ("[Manager::stream] "
-                                        "[guild_id] [size] "
-                                        "[chunk] [read_bytes]: "
-                                        "%ld %ld %ld %ld\n",
-                                        server_id, fsize, read_bytes,
-                                        track.current_byte);
+            //                 if (debug)
+            //                     printf ("[Manager::stream] "
+            //                             "[guild_id] [size] "
+            //                             "[chunk] [read_bytes]: "
+            //                             "%ld %ld %ld %ld\n",
+            //                             server_id, fsize, read_bytes,
+            //                             track.current_byte);
 
-                            while (v && !v->terminating
-                                   && v->get_secs_remaining () > 0.05f)
-                                {
-                                    std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (10));
-                                }
+            //                 while (v && !v->terminating
+            //                        && v->get_secs_remaining () > 0.05f)
+            //                     {
+            //                         std::this_thread::sleep_for (
+            //                             std::chrono::milliseconds (10));
+            //                     }
 
-                            // eof
-                            if (!read_bytes)
-                                break;
-                        }
-                }
-            else
-                {
-                    fprintf (stderr,
-                             "[Manager::stream ERROR] Can't open file for "
-                             "reading: %ld '%s'\n",
-                             server_id, file_path.c_str ());
-                }
+            //                 // eof
+            //                 if (!read_bytes)
+            //                     break;
+            //             }
+            //     }
+            // else
+            //     {
+            //         fprintf (stderr,
+            //                  "[Manager::stream ERROR] Can't open file for "
+            //                  "reading: %ld '%s'\n",
+            //                  server_id, file_path.c_str ());
+            //     }
 
-            oggz_close (track_og);
+            // oggz_close (track_og);
 
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (

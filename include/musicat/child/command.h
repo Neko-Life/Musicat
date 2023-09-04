@@ -14,6 +14,7 @@ namespace command
 static const struct
 {
     std::string create_audio_processor = "cap";
+    std::string shutdown = "shut";
 } command_execute_commands_t;
 
 static const struct
@@ -42,7 +43,10 @@ struct command_options_t
 
     std::string audio_stream_fifo_path;
     std::string guild_id;
-    bool ready;
+    /**
+     * Ready status
+     */
+    int ready;
 };
 
 command_options_t create_command_options ();
@@ -70,6 +74,10 @@ std::string sanitize_command_value (const std::string &value);
 std::string sanitize_command_key_value (const std::string &key_value);
 
 void parse_command_to_options (std::string &cmd, command_options_t &options);
+
+int wait_slave_ready (std::string &id, const int timeout);
+
+int mark_slave_ready (std::string &id, const int status = 0);
 
 } // command
 } // child

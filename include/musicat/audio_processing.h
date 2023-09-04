@@ -61,7 +61,7 @@ processor_options_t copy_options (processor_options_t &opts);
 // returns 1 if vclient terminating or null
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient,
-                        uint16_t *send_buffer, size_t *send_buffer_length,
+                        uint16_t *send_buffer, ssize_t *send_buffer_length,
                         bool no_wait = false);
 
 // should be run as a child process
@@ -69,7 +69,7 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
 run_processor_error_t
 run_processor (child::command::command_options_t &process_options);
 
-std::string get_audio_stream_fifo_path (std::string &id);
+std::string get_audio_stream_fifo_path (const std::string &id);
 
 mode_t get_audio_stream_fifo_mode_t ();
 

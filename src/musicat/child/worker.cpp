@@ -20,10 +20,6 @@ namespace worker
 {
 // !TODO: message_queue
 
-std::mutex sr_m;
-std::condition_variable sr_cv;
-std::map<std::string, bool> slave_ready_queue;
-
 int read_fd, write_fd;
 
 int
@@ -33,12 +29,12 @@ execute (command::command_options_t &options)
 
     auto slave_info = slave_manager::get_slave (options.id);
 
-    if (slave_info.first == 0)
+    if (slave_info.first == 0 && slave_info.second.command == options.command)
         {
             fprintf (stderr,
-                     "[child::worker_command ERROR] Slave with Id already "
-                     "exist: %s\n",
-                     options.id.c_str ());
+                     "[child::worker_command ERROR] Slave with Id and command "
+                     "already exist: %s %s\n",
+                     options.id.c_str (), options.command.c_str ());
 
             return 1;
         };
@@ -48,12 +44,30 @@ execute (command::command_options_t &options)
         {
             status = worker_command::create_audio_processor (options);
         }
+    else if (options.command == command::command_execute_commands_t.shutdown)
+        {
+            if (slave_info.first != 0)
+                return slave_info.first;
+
+            slave_manager::shutdown (options.id);
+            slave_manager::wait (options.id);
+            slave_manager::clean_up (options.id);
+
+            return 0;
+        }
 
     if (status == 0)
         {
             slave_manager::insert_slave (options);
-            mark_slave_ready (options.id);
         }
+
+    std::string ready_msg (command::command_options_keys_t.ready);
+    ready_msg += '=' + std::to_string (status) + ';'
+                 + command::command_options_keys_t.id + '=' + options.id + ';'
+                 + command::command_options_keys_t.command + '='
+                 + command::command_options_keys_t.ready + ';';
+
+    command::write_command (ready_msg, write_fd, "child::worker::execute");
 
     return status;
 }
@@ -123,30 +137,6 @@ create_pipe ()
         }
 
     return { fds[0], fds[1] };
-}
-
-// !TODO
-int
-wait_slave_ready (std::string &id)
-{
-    // std::unique_lock ulk (this->as_m);
-    // this->as_cv.wait (ulk, [this] () {
-    //     return this->is_processor_ready ()
-    //            || this->is_processor_dead ();
-    // });
-
-    // erase ready state from cache
-
-    // return 1 if false
-    return 0;
-}
-
-int
-mark_slave_ready (std::string &id)
-{
-    // insert ready state to cache
-
-    return 0;
 }
 
 } // worker
