@@ -93,8 +93,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         == child::worker::ready_status_t.ERR_SLAVE_EXIST)
                         {
                             send_command (exit_cmd);
-                            send_command (cmd);
-                            status = wait_slave_ready (slave_id, 10);
+                            // send_command (cmd);
+                            // status = wait_slave_ready (slave_id, 10);
                         }
 
                     if (status != 0)
