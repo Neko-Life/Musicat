@@ -28,6 +28,7 @@ execute (command::command_options_t &options)
     int status = 0;
 
     auto slave_info = slave_manager::get_slave (options.id);
+    std::string ready_msg (command::command_options_keys_t.ready);
 
     if (slave_info.first == 0 && slave_info.second.command == options.command)
         {
@@ -36,7 +37,8 @@ execute (command::command_options_t &options)
                      "already exist: %s %s\n",
                      options.id.c_str (), options.command.c_str ());
 
-            return 1;
+            status = ready_status_t.ERR_SLAVE_EXIST;
+            goto ret;
         };
 
     if (options.command
@@ -61,7 +63,7 @@ execute (command::command_options_t &options)
             slave_manager::insert_slave (options);
         }
 
-    std::string ready_msg (command::command_options_keys_t.ready);
+ret:
     ready_msg += '=' + std::to_string (status) + ';'
                  + command::command_options_keys_t.id + '=' + options.id + ';'
                  + command::command_options_keys_t.command + '='

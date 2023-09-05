@@ -1,6 +1,7 @@
 /* #include "musicat/audio_processing.h" */
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
@@ -79,9 +80,22 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                           + command_options_keys_t.file_path + '='
                           + sanitize_command_value (file_path);
 
+                    std::string exit_cmd
+                        = command_options_keys_t.id + '=' + slave_id + ';'
+                          + command_options_keys_t.command + '='
+                          + command_execute_commands_t.shutdown + ';';
+
                     send_command (cmd);
 
                     int status = wait_slave_ready (slave_id, 10);
+
+                    if (status
+                        == child::worker::ready_status_t.ERR_SLAVE_EXIST)
+                        {
+                            send_command (exit_cmd);
+                            send_command (cmd);
+                            status = wait_slave_ready (slave_id, 10);
+                        }
 
                     if (status != 0)
                         {
@@ -164,11 +178,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                     fprintf (stderr, "Exiting %ld\n", server_id);
                     close (read_fd);
-
-                    std::string exit_cmd
-                        = command_options_keys_t.id + '=' + slave_id + ';'
-                          + command_options_keys_t.command + '='
-                          + command_execute_commands_t.shutdown + ';';
 
                     send_command (exit_cmd);
 

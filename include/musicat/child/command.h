@@ -13,18 +13,18 @@ namespace command
 
 static const struct
 {
-    std::string create_audio_processor = "cap";
-    std::string shutdown = "shut";
+    const std::string create_audio_processor = "cap";
+    const std::string shutdown = "shut";
 } command_execute_commands_t;
 
 static const struct
 {
-    std::string command = "cmd";  // str
-    std::string file_path = "fp"; // str
-    std::string debug = "dbg";    // bool
-    std::string id = "id";        // str
-    std::string guild_id = "gid"; // str
-    std::string ready = "rdy";    // bool
+    const std::string command = "cmd";  // str
+    const std::string file_path = "fp"; // str
+    const std::string debug = "dbg";    // bool
+    const std::string id = "id";        // str
+    const std::string guild_id = "gid"; // str
+    const std::string ready = "rdy";    // bool
 } command_options_keys_t;
 
 struct command_options_t
