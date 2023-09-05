@@ -1,6 +1,6 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/musicat.h"
-/* #include "musicat/thread_manager.h" */
+#include "musicat/thread_manager.h"
 #include <map>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,11 +113,11 @@ attach_listener ()
             {
             }
 
-        /* thread_manager::set_done (); */
+        thread_manager::set_done ();
     });
 
-    stdin_listener.detach ();
-    /* thread_manager::dispatch (stdin_listener); */
+    /* stdin_listener.detach (); */
+    thread_manager::dispatch (stdin_listener);
 
     return 0;
 }
