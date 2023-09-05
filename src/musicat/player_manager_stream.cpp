@@ -123,8 +123,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         {
                             // prevent infinite loop when done reading the last
                             // straw of data
-                            if (last_read_size == read_size
-                                && read_size < STREAM_BUFSIZ)
+                            if (read_size < STREAM_BUFSIZ
+                                && last_read_size == read_size)
                                 {
                                     break;
                                 }
