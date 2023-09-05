@@ -115,16 +115,22 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     ssize_t total_read = 0;
                     uint8_t buffer[STREAM_BUFSIZ];
 
-                    bool running_state;
+                    bool running_state, is_stopping;
                     while ((running_state = get_running_state ())
                            && ((read_size += read (read_fd, buffer + read_size,
                                                    STREAM_BUFSIZ - read_size))
                                > 0))
                         {
+                            // if (track.seek_to > -1 && track.seekable)
+
                             // prevent infinite loop when done reading the last
                             // straw of data
-                            if (read_size < STREAM_BUFSIZ
-                                && last_read_size == read_size)
+                            const bool is_last_data
+                                = read_size < STREAM_BUFSIZ
+                                  && last_read_size == read_size;
+
+                            if ((is_stopping = is_stream_stopping (server_id))
+                                || is_last_data)
                                 {
                                     break;
                                 }
@@ -152,7 +158,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         fprintf (stderr, "Final buffer: %ld %ld\n",
                                  (total_read += read_size), read_size);
 
-                    if ((read_size > 0) && ((read_size % 4) == 0))
+                    if (running_state && !is_stopping && (read_size > 0)
+                        && ((read_size % 4) == 0))
                         {
                             ssize_t padding = STREAM_BUFSIZ - read_size;
 
@@ -171,7 +178,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                 v, (uint16_t *)buffer, &read_size, true);
                         }
 
-                    if (!running_state)
+                    if (!running_state || is_stopping)
                         {
                             v->stop_audio ();
                         }

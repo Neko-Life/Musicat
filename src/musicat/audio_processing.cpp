@@ -13,7 +13,9 @@
 #include <thread>
 #include <unistd.h>
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 1.5f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 2.0f
+#define SLEEP_ON_BUFFER_THRESHOLD_MS 40
+
 #define BUFFER_SIZE processing_buffer_size
 #define READ_CHUNK_SIZE 4096
 
@@ -74,8 +76,8 @@ run_reader (std::string &file_path, processor_states_t &p_info)
     dup2 (dnull, STDERR_FILENO);
     close (dnull);
 
-    execlp ("ffmpeg", "ffmpeg", /*"-v", "debug",*/ "-i", file_path.c_str (),
-            "-f", "s16le", "-ac", "2", "-ar", "48000",
+    execlp ("ffmpeg", "ffmpeg", /*"-v", "debug",*/ "-re", "-i",
+            file_path.c_str (), "-f", "s16le", "-ac", "2", "-ar", "48000",
             /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
 
     perror ("child reader");
@@ -131,7 +133,7 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
         }
 
     execlp ("ffmpeg", "ffmpeg", "-v", "debug", "-f", "s16le", "-ac", "2",
-            "-ar", "48000", "-i", "pipe:0", "-af",
+            "-ar", "48000", "-re", "-i", "pipe:0", "-af",
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
                 .c_str (),
@@ -148,16 +150,19 @@ int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                     ssize_t *send_buffer_length, bool no_wait)
 {
+    bool running_state = get_running_state ();
     // wait for old pending audio buffer to be sent to discord
     if (!no_wait)
-        while (vclient && !vclient->terminating
+        while ((running_state = get_running_state ()) && vclient
+               && !vclient->terminating
                && vclient->get_secs_remaining ()
                       > DPP_AUDIO_BUFFER_LENGTH_SECOND)
             {
-                std::this_thread::sleep_for (std::chrono::milliseconds (10));
+                std::this_thread::sleep_for (
+                    std::chrono::milliseconds (SLEEP_ON_BUFFER_THRESHOLD_MS));
             }
 
-    if (!vclient || vclient->terminating)
+    if (!running_state || !vclient || vclient->terminating)
         {
             return 1;
         }
@@ -172,6 +177,9 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 int
 read_command (pollfd cmdrfds[1], processor_options_t &options)
 {
+    // do nothing for now
+    return 0;
+
     ssize_t read_cmd_size = 0;
     char cmd_buf[CMD_BUFSIZE + 1];
 
@@ -365,7 +373,12 @@ run_processor (child::command::command_options_t &process_options)
                 }; // keep writing until buffer entirely written
 
             if (written_size < read_size)
-                read_input = false;
+                {
+                    if (pwfds[0].revents & POLLERR)
+                        break;
+
+                    read_input = false;
+                }
             else
                 {
                     read_input = true;
