@@ -4,6 +4,7 @@
 #include <map>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/poll.h>
 #include <thread>
 
 void
@@ -69,11 +70,24 @@ attach_listener ()
                             padding_alias = len_alias;
                     }
 
+                struct pollfd stdinpfds[1];
+                stdinpfds[0].events = POLLIN;
+                stdinpfds[0].fd = STDIN_FILENO;
+
                 while (get_running_state ())
                     {
                         std::string cmd;
 
-                        std::cin >> cmd;
+                        // poll for 3 seconds every iteration
+                        const int read_has_event = poll (stdinpfds, 1, 3000);
+                        const bool read_ready
+                            = (read_has_event > 0)
+                              && (stdinpfds[0].revents & POLLIN);
+
+                        if (read_ready)
+                            std::cin >> cmd;
+                        else
+                            continue;
 
                         if (cmd == "help" || cmd == "-h")
                             {
@@ -116,7 +130,6 @@ attach_listener ()
         thread_manager::set_done ();
     });
 
-    /* stdin_listener.detach (); */
     thread_manager::dispatch (stdin_listener);
 
     return 0;
