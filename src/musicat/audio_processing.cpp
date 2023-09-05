@@ -76,9 +76,10 @@ run_reader (std::string &file_path, processor_states_t &p_info)
     dup2 (dnull, STDERR_FILENO);
     close (dnull);
 
-    execlp ("ffmpeg", "ffmpeg", /*"-v", "debug",*/ "-re", "-i",
-            file_path.c_str (), "-f", "s16le", "-ac", "2", "-ar", "48000",
-            /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
+    execlp ("ffmpeg", "ffmpeg", /*"-v", "debug",*/ "-i", file_path.c_str (),
+            "-f", "s16le", "-ac", "2", "-ar", "48000",
+            /*"-preset", "ultrafast",*/ "-threads", "1", OUT_CMD,
+            (char *)NULL);
 
     perror ("child reader");
     _exit (EXIT_FAILURE);
@@ -133,12 +134,13 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
         }
 
     execlp ("ffmpeg", "ffmpeg", "-v", "debug", "-f", "s16le", "-ac", "2",
-            "-ar", "48000", "-re", "-i", "pipe:0", "-af",
+            "-ar", "48000", "-i", "pipe:0", "-af",
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
                 .c_str (),
             "-f", "s16le", "-ac", "2", "-ar", "48000",
-            /*"-preset", "ultrafast",*/ OUT_CMD, (char *)NULL);
+            /*"-preset", "ultrafast",*/ "-threads", "1", OUT_CMD,
+            (char *)NULL);
 
     perror ("child ffmpeg");
     _exit (EXIT_FAILURE);
@@ -370,6 +372,9 @@ run_processor (child::command::command_options_t &process_options)
                     write_has_event = poll (pwfds, 1, 0);
                     write_ready = (write_has_event > 0)
                                   && (pwfds[0].revents & POLLOUT);
+
+                    if (pwfds[0].revents & POLLERR)
+                        break;
                 }; // keep writing until buffer entirely written
 
             if (written_size < read_size)
