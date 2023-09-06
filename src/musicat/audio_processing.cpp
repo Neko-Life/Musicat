@@ -31,11 +31,12 @@ write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 {
     ssize_t written = 0;
     ssize_t current_written = 0;
-    while ((current_written
-            = write (write_fifo, buffer + written, *size - written))
-           < *size)
+    while (((current_written
+             = write (write_fifo, buffer + written, *size - written))
+            > 0)
+           || (written < *size))
         {
-            if (current_written == -1)
+            if (current_written < 1)
                 {
                     return -1;
                 }
