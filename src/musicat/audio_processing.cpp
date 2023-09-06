@@ -78,7 +78,7 @@ run_reader (std::string &file_path, processor_states_t &p_info)
     close (dnull);
 
     execlp ("ffmpeg", "ffmpeg", /*"-v", "debug",*/ "-i", file_path.c_str (),
-            "-f", "s16le", "-ac", "2", "-ar", "48000",
+            "-f", "f32le", "-ac", "2", "-ar", "48000",
             /*"-preset", "ultrafast",*/ "-threads", "1", OUT_CMD,
             (char *)NULL);
 
@@ -134,7 +134,7 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
             close (dnull);
         }
 
-    execlp ("ffmpeg", "ffmpeg", "-v", "debug", "-f", "s16le", "-ac", "2",
+    execlp ("ffmpeg", "ffmpeg", "-v", "debug", "-f", "f32le", "-ac", "2",
             "-ar", "48000", "-i", "pipe:0", "-af",
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
