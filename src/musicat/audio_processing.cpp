@@ -169,7 +169,16 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
             return 1;
         }
 
-    vclient->send_audio_raw (send_buffer, *send_buffer_length);
+    try
+        {
+            vclient->send_audio_raw (send_buffer, *send_buffer_length);
+        }
+    catch (const dpp::voice_exception &e)
+        {
+            fprintf (stderr,
+                     "[audio_processing::send_audio_routine ERROR] %s\n",
+                     e.what ());
+        }
 
     *send_buffer_length = 0;
 

@@ -11,7 +11,7 @@
 #include <sys/types.h>
 
 // correct frame size with timescale for dpp
-#define STREAM_BUFSIZ 11520
+#define STREAM_BUFSIZ SEND_AUDIO_RAW_MAX_LENGTH
 
 namespace musicat
 {
@@ -154,33 +154,31 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                 }
                         }
 
-                    if (debug)
-                        fprintf (stderr, "Final buffer: %ld %ld\n",
-                                 (total_read += read_size), read_size);
-
-                    if (running_state && !is_stopping && (read_size > 0)
-                        && ((read_size % 4) == 0))
-                        {
-                            ssize_t padding = STREAM_BUFSIZ - read_size;
-
-                            for (; read_size < STREAM_BUFSIZ; read_size++)
-                                {
-                                    buffer[read_size] = 0;
-                                }
-
-                            if (debug)
-                                {
-                                    fprintf (stderr, "Added padding: %ld\n",
-                                             padding);
-                                }
-
-                            audio_processing::send_audio_routine (
-                                v, (uint16_t *)buffer, &read_size, true);
-                        }
-
                     if (!running_state || is_stopping)
                         {
                             v->stop_audio ();
+                        }
+                    else if (read_size > 0)
+                        {
+                            // ssize_t padding = STREAM_BUFSIZ - read_size;
+
+                            // for (; read_size < STREAM_BUFSIZ; read_size++)
+                            //     {
+                            //         buffer[read_size] = 0;
+                            //     }
+
+                            // if (debug)
+                            //     {
+                            //         fprintf (stderr, "Added padding: %ld\n",
+                            //                  padding);
+                            //     }
+
+                            if (debug)
+                                fprintf (stderr, "Final buffer: %ld %ld\n",
+                                         (total_read += read_size), read_size);
+
+                            audio_processing::send_audio_routine (
+                                v, (uint16_t *)buffer, &read_size, true);
                         }
 
                     fprintf (stderr, "Exiting %ld\n", server_id);
