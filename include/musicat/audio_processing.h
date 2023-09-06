@@ -10,7 +10,7 @@ namespace musicat
 {
 namespace audio_processing
 {
-static const size_t processing_buffer_size = BUFSIZ * 8;
+inline constexpr size_t processing_buffer_size = BUFSIZ * 8;
 
 struct processor_states_t
 {

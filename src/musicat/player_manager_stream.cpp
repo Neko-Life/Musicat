@@ -11,7 +11,7 @@
 #include <sys/types.h>
 
 // correct frame size with timescale for dpp
-#define STREAM_BUFSIZ SEND_AUDIO_RAW_MAX_LENGTH
+#define STREAM_BUFSIZ dpp::send_audio_raw_max_length
 
 namespace musicat
 {
