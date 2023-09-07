@@ -139,7 +139,7 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
                 .c_str (),
-            "-f", "s16le", "-ac", "2", "-ar", "48000",
+            "-f", "opus", "-ac", "2", "-ar", "48000",
             /*"-preset", "ultrafast",*/ "-threads", "1", OUT_CMD,
             (char *)NULL);
 
