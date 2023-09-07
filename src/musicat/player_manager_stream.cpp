@@ -13,7 +13,7 @@
 // correct frame size with timescale for dpp
 #define STREAM_BUFSIZ dpp::send_audio_raw_max_length
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.2f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.5f
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 inline constexpr long CHUNK_READ = BUFSIZ * 2;
