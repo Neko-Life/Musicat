@@ -113,6 +113,7 @@ void
 slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
+    /*
     std::string arg_to = "";
     get_inter_param (event, "to", &arg_to);
 
@@ -289,6 +290,7 @@ slash_run (const dpp::slashcommand_t &event,
     track.seek_to = seek_byte;
 
     event.reply ("Seeking to " + ts_str);
+    */
 }
 
 } // seek

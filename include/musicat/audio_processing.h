@@ -27,6 +27,7 @@ enum run_processor_error_t
 {
     SUCCESS,
     ERR_INPUT,
+    ERR_SFIFO,
     ERR_SPIPE,
     ERR_SFORK,
     ERR_LPIPE,
@@ -40,6 +41,7 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+// update create_options impl below when changing this struct
 struct processor_options_t
 {
     // static options
@@ -48,8 +50,10 @@ struct processor_options_t
     // settings
     bool debug;
     bool panic_break;
-    std::string seek_str;
+    std::string seek_to;
     int volume;
+    std::string id;
+    std::string guild_id;
 };
 
 processor_options_t create_options ();
@@ -72,6 +76,8 @@ run_processor (child::command::command_options_t &process_options);
 std::string get_audio_stream_fifo_path (const std::string &id);
 
 mode_t get_audio_stream_fifo_mode_t ();
+
+std::string get_audio_stream_stdin_path (const std::string &id);
 
 } // audio_processing
 } // musicat

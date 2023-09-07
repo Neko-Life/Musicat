@@ -54,7 +54,7 @@ struct MCTrack : yt_search::YTrack
 
     // seek query, reset to -1 after seek performed.
     // byte offset
-    int64_t seek_to;
+    std::string seek_to;
 
     // whether this track is in the process to stop
     // its audio stream

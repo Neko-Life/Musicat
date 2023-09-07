@@ -11,7 +11,7 @@ using string = std::string;
 MCTrack::MCTrack ()
 {
     seekable = false;
-    seek_to = -1;
+    seek_to = "";
     stopping = false;
     current_byte = 0;
     filesize = 0;
@@ -20,7 +20,7 @@ MCTrack::MCTrack ()
 MCTrack::MCTrack (YTrack t)
 {
     seekable = false;
-    seek_to = -1;
+    seek_to = "";
     stopping = false;
     current_byte = 0;
     filesize = 0;

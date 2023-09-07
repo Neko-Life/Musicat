@@ -1024,7 +1024,7 @@ run (int argc, const char *argv[])
                                 if (to_seek < 0)
                                     to_seek = 0;
 
-                                guild_player->queue.front ().seek_to = to_seek;
+                                // guild_player->queue.front ().seek_to = to_seek;
                             }
 
                         // rejoin channel

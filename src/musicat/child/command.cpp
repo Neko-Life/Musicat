@@ -206,7 +206,7 @@ sanitize_command_key_value (const std::string &key_value)
 command_options_t
 create_command_options ()
 {
-    return { "", "", false, "", -1, -1, -1, -1, -1, "", "", false };
+    return { "", "", false, "", -1, -1, -1, -1, -1, "", "", false, "", "" };
 }
 
 int
@@ -245,6 +245,7 @@ set_option (command_options_t &options, std::string &cmd_option)
             opt += c;
         }
 
+    // every value in command_options_keys_t should be handled here
     if (opt == command_options_keys_t.id)
         {
             options.id = value;
@@ -269,12 +270,16 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.ready = atoi (value.c_str ());
         }
+    else if (opt == command_options_keys_t.seek)
+        {
+            options.seek = value;
+        }
 
     return 0;
 }
 
 void
-parse_command_to_options (std::string &cmd, command_options_t &options)
+parse_command_to_options (const std::string &cmd, command_options_t &options)
 {
     bool include_next_special = false;
     std::string temp_str = "";

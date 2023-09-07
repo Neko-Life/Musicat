@@ -62,6 +62,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (fstat (fileno (ofile), &ofile_stat) != 0)
                 {
                     fclose (ofile);
+                    ofile = NULL;
                     throw 2;
                 }
 
@@ -108,9 +109,32 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             const std::string fifo_stream_path
                 = audio_processing::get_audio_stream_fifo_path (slave_id);
 
+            const std::string fifo_command_path
+                = audio_processing::get_audio_stream_stdin_path (slave_id);
+
+            // OPEN FIFOS
             int read_fd = open (fifo_stream_path.c_str (), O_RDONLY);
+            if (read_fd < 0)
+                {
+                    throw 2;
+                }
+
+            int command_fd = open (fifo_command_path.c_str (), O_WRONLY);
+
+            if (command_fd < 0)
+                {
+                    close (read_fd);
+                    throw 2;
+                }
 
             ofile = fdopen (read_fd, "r");
+
+            if (!ofile)
+                {
+                    close (command_fd);
+                    close (read_fd);
+                    throw 2;
+                }
 
             // I LOVE C++!!!
 
@@ -235,36 +259,22 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                             debug = get_debug_state ();
 
-                            // if (track.seek_to > -1 && track.seekable)
-                            //     {
-                            //         oggz_off_t offset = oggz_seek (
-                            //             track_og, track.seek_to, SEEK_SET);
-
-                            //         if (debug)
-                            //             fprintf (stderr,
-                            //                      "[Manager::stream] "
-                            //                      "Seeking from: "
-                            //                      "%ld\nTarget: %ld\n"
-                            //                      "Result offset: %ld\n",
-                            //                      track.current_byte,
-                            //                      track.seek_to, offset);
-
-                            //         track.current_byte = offset;
-                            //         track.seek_to = -1;
-                            //     }
+                            if (track.seek_to.length () > 0)
+                                {
+                                    track.seek_to = "";
+                                }
 
                             const long read_bytes
                                 = oggz_read (track_og, CHUNK_READ);
 
-                            track.current_byte += read_bytes;
+                            // track.current_byte += read_bytes;
 
                             if (debug)
                                 printf ("[Manager::stream] "
                                         "[guild_id] [size] "
                                         "[chunk] [read_bytes]: "
-                                        "%ld %ld %ld %ld\n",
-                                        server_id, track.filesize, read_bytes,
-                                        track.current_byte);
+                                        "%ld %ld %ld\n",
+                                        server_id, track.filesize, read_bytes);
 
                             while ((running_state = get_running_state ()) && v
                                    && !v->terminating
@@ -292,6 +302,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // read_fd already closed along with this
             oggz_close (track_og);
             track_og = NULL;
+            close (command_fd);
 
             if (debug)
                 fprintf (stderr, "Exiting %ld\n", server_id);

@@ -11,13 +11,15 @@ namespace child
 namespace command
 {
 
-static const struct
+// update worker::execute and related routines when changing this
+static inline const struct
 {
     const std::string create_audio_processor = "cap";
     const std::string shutdown = "shut";
 } command_execute_commands_t;
 
-static const struct
+// update set_option impl in child/command.cpp when changing this
+static inline const struct
 {
     const std::string command = "cmd";  // str
     const std::string file_path = "fp"; // str
@@ -25,8 +27,10 @@ static const struct
     const std::string id = "id";        // str
     const std::string guild_id = "gid"; // str
     const std::string ready = "rdy";    // bool
+    const std::string seek = "sk";      // bool
 } command_options_keys_t;
 
+// update create_command_options impl below when changing this struct
 struct command_options_t
 {
     std::string command;
@@ -47,6 +51,8 @@ struct command_options_t
      * Ready status
      */
     int ready;
+    std::string seek;
+    std::string audio_stream_stdin_path;
 };
 
 command_options_t create_command_options ();
@@ -73,7 +79,8 @@ std::string sanitize_command_value (const std::string &value);
 // mostly internal use
 std::string sanitize_command_key_value (const std::string &key_value);
 
-void parse_command_to_options (std::string &cmd, command_options_t &options);
+void parse_command_to_options (const std::string &cmd,
+                               command_options_t &options);
 
 int wait_slave_ready (std::string &id, const int timeout);
 
