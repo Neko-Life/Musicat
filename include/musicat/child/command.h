@@ -63,13 +63,14 @@ void wait_for_command ();
 
 void run_command_thread ();
 
-int send_command (std::string &cmd);
+int send_command (const std::string &cmd);
 
 void wake ();
 
 // default values are used in the main thread ONLY! You should specify
 // write_fd and caller in child processes
-void write_command (std::string &cmd, int write_fd = get_parent_write_fd (),
+void write_command (const std::string &cmd,
+                    const int write_fd = get_parent_write_fd (),
                     const char *caller = "child::command");
 
 // should be called before send_command when setting value

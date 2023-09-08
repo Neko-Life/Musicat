@@ -34,6 +34,8 @@ struct mc_oggz_user_data
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
+    namespace cc = child::command;
+
     const string &fname = track.filename;
 
     dpp::snowflake server_id = 0;
@@ -71,32 +73,30 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             track.filesize = ofile_stat.st_size;
 
-            using namespace child::command;
-            using child::command::wait_slave_ready;
-
             std::string server_id_str = std::to_string (server_id);
             std::string slave_id = "processor-" + server_id_str;
 
-            std::string cmd
-                = command_options_keys_t.id + '=' + slave_id + ';'
-                  + command_options_keys_t.guild_id + '=' + server_id_str + ';'
-                  + command_options_keys_t.command + '='
-                  + command_execute_commands_t.create_audio_processor + ';'
-                  + command_options_keys_t.debug + "=1;"
-                  + command_options_keys_t.file_path + '='
-                  + sanitize_command_value (file_path);
+            const std::string cmd
+                = cc::command_options_keys_t.id + '=' + slave_id + ';'
+                  + cc::command_options_keys_t.guild_id + '=' + server_id_str
+                  + ';' + cc::command_options_keys_t.command + '='
+                  + cc::command_execute_commands_t.create_audio_processor + ';'
+                  + cc::command_options_keys_t.debug + "=1;"
+                  + cc::command_options_keys_t.file_path + '='
+                  + cc::sanitize_command_value (file_path);
 
-            std::string exit_cmd = command_options_keys_t.id + '=' + slave_id
-                                   + ';' + command_options_keys_t.command + '='
-                                   + command_execute_commands_t.shutdown + ';';
+            const std::string exit_cmd
+                = cc::command_options_keys_t.id + '=' + slave_id + ';'
+                  + cc::command_options_keys_t.command + '='
+                  + cc::command_execute_commands_t.shutdown + ';';
 
-            send_command (cmd);
+            cc::send_command (cmd);
 
-            int status = wait_slave_ready (slave_id, 10);
+            int status = cc::wait_slave_ready (slave_id, 10);
 
             if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
                 {
-                    send_command (exit_cmd);
+                    cc::send_command (exit_cmd);
                     // send_command (cmd);
                     // status = wait_slave_ready (slave_id, 10);
                 }
@@ -261,6 +261,17 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                             if (track.seek_to.length () > 0)
                                 {
+                                    const std::string cmd_seek
+                                        = cc::command_options_keys_t.command
+                                          + '='
+                                          + cc::command_options_keys_t.seek
+                                          + ';'
+                                          + cc::command_options_keys_t.seek
+                                          + '=' + track.seek_to + ';';
+
+                                    cc::write_command (cmd_seek, command_fd,
+                                                       "Manager::stream");
+
                                     track.seek_to = "";
                                 }
 
@@ -307,7 +318,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (debug)
                 fprintf (stderr, "Exiting %ld\n", server_id);
 
-            send_command (exit_cmd);
+            cc::send_command (exit_cmd);
 
             if (!running_state || is_stopping)
                 {

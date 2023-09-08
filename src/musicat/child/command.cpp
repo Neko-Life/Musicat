@@ -101,7 +101,7 @@ run_command_thread ()
 }
 
 int
-send_command (std::string &cmd)
+send_command (const std::string &cmd)
 {
     {
         std::lock_guard<std::mutex> lk (command_mutex);
@@ -121,23 +121,36 @@ wake ()
 }
 
 void
-write_command (std::string &cmd, int write_fd, const char *caller)
+write_command (const std::string &cmd, const int write_fd, const char *caller)
 {
+    if (write_fd < 0)
+        {
+            fprintf (
+                stderr,
+                "[%s child::command::write_command ERROR] Invalid fd %d\n",
+                caller, write_fd);
+        }
+
     const size_t cmd_size = cmd.size ();
     if (cmd_size > CMD_BUFSIZE)
         {
             fprintf (stderr,
-                     "[%s ERROR] Command size bigger than read "
+                     "[%s child::command::write_command ERROR] Command size "
+                     "bigger than read "
                      "buffer size: %ld > %d\n",
                      caller, cmd_size, CMD_BUFSIZE);
-            fprintf (stderr, "[%s ERROR] Dropping command: %s\n", caller,
-                     cmd.c_str ());
+
+            fprintf (stderr,
+                     "[%s child::command::write_command ERROR] Dropping "
+                     "command: %s\n",
+                     caller, cmd.c_str ());
             return;
         }
 
-    cmd.resize (CMD_BUFSIZE, '\0');
+    std::string cpy (cmd);
+    cpy.resize (CMD_BUFSIZE, '\0');
 
-    write (write_fd, cmd.c_str (), CMD_BUFSIZE);
+    write (write_fd, cpy.c_str (), CMD_BUFSIZE);
 }
 
 static const std::string to_sanitize_command_value ("\\=;");

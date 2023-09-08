@@ -12,11 +12,11 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("seek", "Seek [currently playing] track", sha_id)
-        .add_option (
-            dpp::command_option (dpp::co_string, "to",
-                                 "Timestamp [to seek to]. Format: Absolute "
-                                 "`<[hour:][minute:]second>`. Example: 4:20",
-                                 true));
+        .add_option (dpp::command_option (
+            dpp::co_string, "to",
+            "Seconds [to seek to]. Format: Absolute "
+            "`<[hour:minute:]second[.ms]>`. Example: 4:20.69",
+            true));
 }
 
 char
