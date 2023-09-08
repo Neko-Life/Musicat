@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string>
 #include <sys/prctl.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -222,10 +223,11 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 }
 
 int
-read_command (pollfd cmdrfds[1], processor_options_t &options)
+read_command (processor_options_t &options)
 {
-    // do nothing for now
-    return 0;
+    pollfd cmdrfds[1];
+    cmdrfds[0].events = POLLIN;
+    cmdrfds[0].fd = STDIN_FILENO;
 
     ssize_t read_cmd_size = 0;
     char cmd_buf[CMD_BUFSIZE + 1];
@@ -332,12 +334,8 @@ run_processor (child::command::command_options_t &process_options)
 
     // declare everything here to be able to use goto
     // fds and poll
-    int preadfd, cwritefd, creadfd, pwritefd, cmdreadfd, cstatus = 0;
-    struct pollfd prfds[1], pwfds[1], cmdrfds[1];
-
-    // setup stdin poll
-    cmdrfds[0].events = POLLIN;
-    cmdrfds[0].fd = cmdreadfd = STDIN_FILENO;
+    int preadfd, cwritefd, creadfd, pwritefd, cstatus = 0;
+    struct pollfd prfds[1], pwfds[1];
 
     // main loop variable definition
     ssize_t read_size = 0;
@@ -539,7 +537,7 @@ run_processor (child::command::command_options_t &process_options)
             // probably create a big struct for every possible options and one
             // universal command parser that will set those options
             // commands should always be the length of CMD_BUFSIZE
-            read_command (cmdrfds, options);
+            read_command (options);
             if (options.panic_break)
                 break;
 
@@ -554,6 +552,10 @@ run_processor (child::command::command_options_t &process_options)
                         }
 
                     cstatus = 0;
+
+                    // kill reader immediately as closing its stdout or SIGTERM
+                    // won't trigger it to exit
+                    kill (p_info.rpid, SIGKILL);
 
                     waitpid (p_info.rpid, &cstatus, 0); /* Wait for child */
                     if (options.debug)
@@ -624,10 +626,6 @@ run_processor (child::command::command_options_t &process_options)
                     if (options.debug)
                         fprintf (stderr, "child status: %d\n", status);
 
-                    read_command (cmdrfds, options);
-                    if (options.panic_break)
-                        break;
-
                     // do the same setup routine as startup
                     if (pipe (p_info.ppipefd) == -1)
                         {
@@ -691,8 +689,6 @@ run_processor (child::command::command_options_t &process_options)
                     // mark changes done
                     current_options.volume = options.volume;
                 }
-
-            read_command (cmdrfds, options);
         }
 
     close (process_options.child_write_fd);

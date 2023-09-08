@@ -17,6 +17,7 @@
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 inline constexpr long CHUNK_READ = BUFSIZ * 2;
+inline constexpr long DRAIN_CHUNK = BUFSIZ / 2;
 
 namespace musicat
 {
@@ -112,6 +113,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             const std::string fifo_command_path
                 = audio_processing::get_audio_stream_stdin_path (slave_id);
 
+            const std::string fifo_notify_path
+                = audio_processing::get_audio_stream_stdout_path (slave_id);
+
             // OPEN FIFOS
             int read_fd = open (fifo_stream_path.c_str (), O_RDONLY);
             if (read_fd < 0)
@@ -120,10 +124,17 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 }
 
             int command_fd = open (fifo_command_path.c_str (), O_WRONLY);
-
             if (command_fd < 0)
                 {
                     close (read_fd);
+                    throw 2;
+                }
+
+            int notification_fd = open (fifo_notify_path.c_str (), O_RDONLY);
+            if (notification_fd < 0)
+                {
+                    close (read_fd);
+                    close (command_fd);
                     throw 2;
                 }
 
@@ -221,6 +232,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             //         audio_processing::processor_options_t options
             //             = get_slave_options ();
 
+            int throw_error = 0;
+
             OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
 
             if (track_og)
@@ -271,6 +284,39 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                                     cc::write_command (cmd_seek, command_fd,
                                                        "Manager::stream");
+
+                                    char b;
+                                    read (notification_fd, &b, 1);
+
+                                    if (b != '0')
+                                        {
+                                            throw_error = 3;
+                                            break;
+                                        }
+
+                                    // drain current output
+                                    struct pollfd pfds[1];
+                                    pfds[0].events = POLLIN;
+                                    pfds[0].fd = read_fd;
+
+                                    int has_event = poll (pfds, 1, 0);
+                                    bool drain_ready
+                                        = (has_event > 0)
+                                          && (pfds[0].revents & POLLIN);
+
+                                    ssize_t drain_size = 0;
+                                    char drain_buf[DRAIN_CHUNK];
+                                    while (drain_ready
+                                           && ((drain_size
+                                                = read (read_fd, drain_buf,
+                                                        DRAIN_CHUNK))
+                                               > 0))
+                                        {
+                                            has_event = poll (pfds, 1, 0);
+                                            drain_ready = (has_event > 0)
+                                                          && (pfds[0].revents
+                                                              & POLLIN);
+                                        }
 
                                     track.seek_to = "";
                                 }

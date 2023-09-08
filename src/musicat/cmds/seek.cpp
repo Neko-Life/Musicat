@@ -113,11 +113,10 @@ void
 slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
-    /*
     std::string arg_to = "";
     get_inter_param (event, "to", &arg_to);
 
-    int64_t seek_byte = -1;
+    // int64_t seek_byte = -1;
 
     auto player = player_manager->get_player (event.command.guild_id);
 
@@ -129,6 +128,12 @@ slash_run (const dpp::slashcommand_t &event,
 
     // !TODO: probably add a mutex for safety just in case?
     player::MCTrack &track = player->current_track;
+
+    track.seek_to = arg_to;
+
+    event.reply ("Seeking to " + arg_to);
+
+    /*
     const uint64_t duration = track.info.duration ();
 
     if (!track.seekable || !duration)
