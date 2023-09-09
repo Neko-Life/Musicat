@@ -3,7 +3,9 @@
 #include "musicat/child/command.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker_command.h"
+#include <condition_variable>
 #include <deque>
+#include <map>
 #include <stddef.h>
 #include <stdio.h>
 #include <string>
@@ -26,24 +28,48 @@ execute (command::command_options_t &options)
     int status = 0;
 
     auto slave_info = slave_manager::get_slave (options.id);
+    std::string ready_msg (command::command_options_keys_t.ready);
 
-    if (slave_info.first == 0)
+    if (slave_info.first == 0 && slave_info.second.command == options.command)
         {
             fprintf (stderr,
-                     "[child::worker_command ERROR] Slave with Id already "
-                     "exist: %s\n",
-                     options.id.c_str ());
+                     "[child::worker_command ERROR] Slave with Id and command "
+                     "already exist: %s %s\n",
+                     options.id.c_str (), options.command.c_str ());
 
-            return 1;
+            status = ready_status_t.ERR_SLAVE_EXIST;
+            goto ret;
         };
 
-    if (options.command == command::command_execute_commands_t.create_audio_processor)
+    if (options.command
+        == command::command_execute_commands_t.create_audio_processor)
         {
             status = worker_command::create_audio_processor (options);
         }
+    else if (options.command == command::command_execute_commands_t.shutdown)
+        {
+            if (slave_info.first != 0)
+                return slave_info.first;
+
+            slave_manager::shutdown (options.id);
+            slave_manager::wait (options.id);
+            slave_manager::clean_up (options.id);
+
+            return 0;
+        }
 
     if (status == 0)
-        slave_manager::insert_slave (options);
+        {
+            slave_manager::insert_slave (options);
+        }
+
+ret:
+    ready_msg += '=' + std::to_string (status) + ';'
+                 + command::command_options_keys_t.id + '=' + options.id + ';'
+                 + command::command_options_keys_t.command + '='
+                 + command::command_options_keys_t.ready + ';';
+
+    command::write_command (ready_msg, write_fd, "child::worker::execute");
 
     return status;
 }

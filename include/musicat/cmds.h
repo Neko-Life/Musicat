@@ -5,8 +5,8 @@
 #include "musicat/player.h"
 #include <dpp/dpp.h>
 #include <mutex>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace musicat
 {
@@ -51,25 +51,16 @@ void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 
 std::pair<yt_search::YTrack, int>
-find_track(
-    bool playlist,
-    std::string& arg_query,
-    player::player_manager_ptr player_manager,
-    bool from_interaction,
-    dpp::snowflake guild_id,
-    bool no_check_history = false);
+find_track (bool playlist, std::string &arg_query,
+            player::player_manager_ptr player_manager, bool from_interaction,
+            dpp::snowflake guild_id, bool no_check_history = false);
 
-std::string
-get_filename_from_result (yt_search::YTrack &result);
+std::string get_filename_from_result (yt_search::YTrack &result);
 
 std::pair<bool, int>
-track_exist(
-    const std::string& fname,
-    const std::string& url,
-    player::player_manager_ptr player_manager,
-    bool from_interaction,
-    dpp::snowflake guild_id,
-    bool no_download = false);
+track_exist (const std::string &fname, const std::string &url,
+             player::player_manager_ptr player_manager, bool from_interaction,
+             dpp::snowflake guild_id, bool no_download = false);
 
 /**
  * @brief Search and add track to guild queue, can be used for interaction and
@@ -258,7 +249,8 @@ void track (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event,
+                player::player_manager_ptr player_manager);
 } // download
 
 namespace image
@@ -285,10 +277,15 @@ dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::slashcommand_t &event,
                 player::player_manager_ptr player_manager);
 
-void
-update_progress (const dpp::button_click_t &event,
-           player::player_manager_ptr player_manager);
+void update_progress (const dpp::button_click_t &event,
+                      player::player_manager_ptr player_manager);
 } // progress
+
+namespace volume
+{
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+void slash_run (const dpp::slashcommand_t &event);
+} // volume
 
 } // command
 } // musicat

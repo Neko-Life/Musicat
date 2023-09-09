@@ -888,6 +888,8 @@ run (int argc, const char *argv[])
             command::seek::slash_run (event, player_manager);
         else if (cmd == "progress")
             command::progress::slash_run (event, player_manager);
+        else if (cmd == "volume")
+            command::volume::slash_run (event);
 
         else
             {
@@ -1024,7 +1026,8 @@ run (int argc, const char *argv[])
                                 if (to_seek < 0)
                                     to_seek = 0;
 
-                                guild_player->queue.front ().seek_to = to_seek;
+                                guild_player->queue.front ().current_byte
+                                    = to_seek;
                             }
 
                         // rejoin channel

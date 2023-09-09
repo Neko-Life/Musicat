@@ -22,6 +22,18 @@ print_total_thread ()
 void
 dispatch (std::thread &t)
 {
+    if (!get_running_state ())
+        {
+            fprintf (stderr,
+                     "[ERROR] Shouldn't spawn new thread when exiting, "
+                     "detaching this one while you fix the code! %ld\n",
+                     t.get_id ());
+
+            t.detach ();
+
+            return;
+        }
+
     const bool debug = get_debug_state ();
     std::lock_guard lk (_ns_mutex);
 
@@ -114,7 +126,10 @@ join_all ()
 {
     const bool debug = get_debug_state ();
 
-    std::lock_guard lk (_ns_mutex);
+    // manually lock and unlock mutex for this specific case
+    // where the thread can call set_done without deadlocking
+    // on exit
+    _ns_mutex.lock ();
 
     if (debug)
         {
@@ -128,7 +143,11 @@ join_all ()
         {
             if (i->t.joinable ())
                 {
+                    _ns_mutex.unlock ();
+                    // thread should guarantee to never modify _threads
+                    // when exiting
                     i->t.join ();
+                    _ns_mutex.lock ();
                     joined++;
 
                     i = _threads.erase (i);
@@ -142,6 +161,8 @@ join_all ()
             fprintf (stderr, "[INFO] Total joined thread: %ld\n", joined);
             print_total_thread ();
         }
+
+    _ns_mutex.unlock ();
 }
 
 } // thread_manager

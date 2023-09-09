@@ -16,6 +16,9 @@ bool
 Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                  std::shared_ptr<Manager> shared_manager)
 {
+    if (!get_running_state ())
+        return false;
+
     const bool debug = get_debug_state ();
 
     if (!event.voice_client)
@@ -147,7 +150,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
     guild_player->queue.front ().seekable = false;
 
     guild_player->current_track = guild_player->queue.front ();
-    guild_player->queue.front ().seek_to = -1;
+    guild_player->queue.front ().seek_to = "";
 
     guild_player->set_stopped (false);
 
@@ -414,9 +417,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             return true;
         }
     else
-        fprintf (stderr, "[Manager::handle_on_track_marker WARN] Voice "
-                         "client not present or already playing: %ld\n",
-                         guild_player->guild_id);
+        fprintf (stderr,
+                 "[Manager::handle_on_track_marker WARN] Voice "
+                 "client not present or already playing: %ld\n",
+                 guild_player->guild_id);
 
     if (debug)
         {

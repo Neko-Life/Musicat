@@ -10,7 +10,7 @@ namespace musicat
 {
 namespace audio_processing
 {
-static const size_t processing_buffer_size = BUFSIZ * 8;
+inline constexpr size_t processing_buffer_size = BUFSIZ * 8;
 
 struct processor_states_t
 {
@@ -27,6 +27,7 @@ enum run_processor_error_t
 {
     SUCCESS,
     ERR_INPUT,
+    ERR_SFIFO,
     ERR_SPIPE,
     ERR_SFORK,
     ERR_LPIPE,
@@ -40,6 +41,7 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+// update create_options impl below when changing this struct
 struct processor_options_t
 {
     // static options
@@ -48,8 +50,10 @@ struct processor_options_t
     // settings
     bool debug;
     bool panic_break;
-    std::string seek_str;
+    std::string seek_to;
     int volume;
+    std::string id;
+    std::string guild_id;
 };
 
 processor_options_t create_options ();
@@ -61,7 +65,7 @@ processor_options_t copy_options (processor_options_t &opts);
 // returns 1 if vclient terminating or null
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient,
-                        uint16_t *send_buffer, size_t *send_buffer_length,
+                        uint16_t *send_buffer, ssize_t *send_buffer_length,
                         bool no_wait = false);
 
 // should be run as a child process
@@ -69,9 +73,13 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
 run_processor_error_t
 run_processor (child::command::command_options_t &process_options);
 
-std::string get_audio_stream_fifo_path (std::string &id);
+std::string get_audio_stream_fifo_path (const std::string &id);
 
 mode_t get_audio_stream_fifo_mode_t ();
+
+std::string get_audio_stream_stdin_path (const std::string &id);
+
+std::string get_audio_stream_stdout_path (const std::string &id);
 
 } // audio_processing
 } // musicat

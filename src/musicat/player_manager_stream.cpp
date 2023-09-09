@@ -1,17 +1,31 @@
 /* #include "musicat/audio_processing.h" */
 #include "musicat/audio_processing.h"
+#include "musicat/child.h"
 #include "musicat/child/command.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <oggz/oggz.h>
 #include <oggz/oggz_seek.h>
+#include <sys/poll.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+// correct frame size with timescale for dpp
+#define STREAM_BUFSIZ dpp::send_audio_raw_max_length
+
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.5f
+#define SLEEP_ON_BUFFER_THRESHOLD_MS 50
+
+inline constexpr long CHUNK_READ = BUFSIZ * 2;
+inline constexpr long DRAIN_CHUNK = BUFSIZ / 2;
 
 namespace musicat
 {
 namespace player
 {
 using string = std::string;
+namespace cc = child::command;
 
 struct mc_oggz_user_data
 {
@@ -19,6 +33,155 @@ struct mc_oggz_user_data
     MCTrack &track;
     bool &debug;
 };
+
+struct handle_effect_chain_change_states_t
+{
+    std::shared_ptr<Player> &guild_player;
+    player::MCTrack &track;
+    int &command_fd;
+    int &read_fd;
+};
+
+struct run_stream_loop_states_t
+{
+    dpp::discord_voice_client *&v;
+    player::MCTrack &track;
+    dpp::snowflake &server_id;
+    OGGZ *&track_og;
+    bool &running_state;
+    bool &is_stopping;
+    bool &debug;
+};
+
+void
+handle_effect_chain_change (handle_effect_chain_change_states_t &states)
+{
+    const bool track_seek_queried = states.track.seek_to.length () > 0;
+
+    const bool queried_cmd = track_seek_queried;
+
+    if (queried_cmd)
+        {
+            if (track_seek_queried)
+                {
+                    const std::string cmd_seek
+                        = cc::command_options_keys_t.command + '='
+                          + cc::command_options_keys_t.seek + ';'
+                          + cc::command_options_keys_t.seek + '='
+                          + states.track.seek_to + ';';
+
+                    cc::write_command (cmd_seek, states.command_fd,
+                                       "Manager::stream");
+
+                    states.track.seek_to = "";
+                }
+
+            // struct pollfd nfds[1];
+            // nfds[0].events = POLLIN;
+            // nfds[0].fd = read_fd;
+
+            // int n_event = poll (nfds, 1, 100);
+            // bool n_ready
+            //     = (n_event > 0)
+            //       && (nfds[0].revents & POLLIN);
+
+            // if (n_ready)
+            //     {
+            //         char read_buf[CMD_BUFSIZE];
+            //         read (notification_fd, read_buf,
+            //               CMD_BUFSIZE);
+
+            //         if (read_buf[0] != '0')
+            //             {
+            //                 // !TODO: change to
+            //                 other
+            //                 // number and add
+            //                 handler
+            //                 // for it
+            //                 throw_error = 2;
+            //                 break;
+            //             }
+            //     }
+
+            // drain current output
+            struct pollfd pfds[1];
+            pfds[0].events = POLLIN;
+            pfds[0].fd = states.read_fd;
+
+            int has_event = poll (pfds, 1, 0);
+            bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+
+            ssize_t drain_size = 0;
+            char drain_buf[DRAIN_CHUNK];
+            while (drain_ready
+                   && ((drain_size
+                        = read (states.read_fd, drain_buf, DRAIN_CHUNK))
+                       > 0))
+                {
+                    has_event = poll (pfds, 1, 0);
+                    drain_ready
+                        = (has_event > 0) && (pfds[0].revents & POLLIN);
+                }
+        }
+
+    const bool volume_queried = states.guild_player->set_volume != -1;
+
+    if (volume_queried)
+        {
+            const std::string cmd_volume
+                = cc::command_options_keys_t.command + '='
+                  + cc::command_options_keys_t.volume + ';'
+                  + cc::command_options_keys_t.volume + '='
+                  + std::to_string (states.guild_player->set_volume) + ';';
+
+            cc::write_command (cmd_volume, states.command_fd,
+                               "Manager::stream");
+
+            states.guild_player->volume = states.guild_player->set_volume;
+            states.guild_player->set_volume = -1;
+        }
+}
+
+void
+run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
+                 handle_effect_chain_change_states_t &effect_states)
+{
+    while ((states.running_state = get_running_state ()) && states.v
+           && !states.v->terminating)
+        {
+            if ((states.is_stopping
+                 = manager->is_stream_stopping (states.server_id)))
+                break;
+
+            states.debug = get_debug_state ();
+
+            handle_effect_chain_change (effect_states);
+
+            const long read_bytes = oggz_read (states.track_og, CHUNK_READ);
+
+            states.track.current_byte += read_bytes;
+
+            if (states.debug)
+                printf ("[Manager::stream] "
+                        "[guild_id] [size] "
+                        "[chunk] [read_bytes]: "
+                        "%ld %ld %ld\n",
+                        states.server_id, states.track.filesize, read_bytes);
+
+            while ((states.running_state = get_running_state ()) && states.v
+                   && !states.v->terminating
+                   && states.v->get_secs_remaining ()
+                          > DPP_AUDIO_BUFFER_LENGTH_SECOND)
+                {
+                    std::this_thread::sleep_for (std::chrono::milliseconds (
+                        SLEEP_ON_BUFFER_THRESHOLD_MS));
+                }
+
+            // eof
+            if (!read_bytes)
+                break;
+        }
+}
 
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
@@ -36,6 +199,14 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             bool debug = get_debug_state ();
 
             server_id = v->server_id;
+            auto player_manager = get_player_manager_ptr ();
+            auto guild_player = player_manager
+                                    ? player_manager->get_player (server_id)
+                                    : nullptr;
+
+            if (!server_id || !guild_player)
+                throw 2;
+
             FILE *ofile = fopen (file_path.c_str (), "r");
 
             if (!ofile)
@@ -48,139 +219,243 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (fstat (fileno (ofile), &ofile_stat) != 0)
                 {
                     fclose (ofile);
+                    ofile = NULL;
                     throw 2;
                 }
 
-            const size_t fsize = ofile_stat.st_size;
+            fclose (ofile);
+            ofile = NULL;
 
-            track.filesize = fsize;
+            track.filesize = ofile_stat.st_size;
 
-            // !TODO: remove this testing
-            // if (server_id != 0)
-            //     {
-            //         using namespace child::command;
+            std::string server_id_str = std::to_string (server_id);
+            std::string slave_id = "processor-" + server_id_str;
 
-            //         std::string server_id_str = std::to_string (server_id);
+            const std::string cmd
+                = cc::command_options_keys_t.id + '=' + slave_id + ';'
+                  + cc::command_options_keys_t.guild_id + '=' + server_id_str
+                  + ';' + cc::command_options_keys_t.command + '='
+                  + cc::command_execute_commands_t.create_audio_processor + ';'
+                  + cc::command_options_keys_t.debug + "=1;"
+                  + cc::command_options_keys_t.file_path + '='
+                  + cc::sanitize_command_value (file_path);
 
-            //         std::string cmd
-            //             = command_options_keys_t.id + '=' + "processor-"
-            //               + server_id_str + ';'
-            //               + command_options_keys_t.guild_id + '='
-            //               + server_id_str + ';'
-            //               + command_options_keys_t.command + '='
-            //               +
-            //               command_execute_commands_t.create_audio_processor
-            //               + ';' + command_options_keys_t.debug + "=1;"
-            //               + command_options_keys_t.file_path + '='
-            //               + sanitize_command_value (file_path);
+            const std::string exit_cmd
+                = cc::command_options_keys_t.id + '=' + slave_id + ';'
+                  + cc::command_options_keys_t.command + '='
+                  + cc::command_execute_commands_t.shutdown + ';';
 
-            //         send_command (cmd);
+            cc::send_command (cmd);
 
-            //         // std::unique_lock ulk (this->as_m);
-            //         // this->as_cv.wait (ulk, [this] () {
-            //         //     return this->is_processor_ready ()
-            //         //            || this->is_processor_dead ();
-            //         // });
+            int status = cc::wait_slave_ready (slave_id, 10);
 
-            //         // if (this->is_processor_dead ())
-            //         //     {
-            //         //         throw 2;
-            //         //     }
-
-            //         // !TODO: get options from worker
-            //         audio_processing::processor_options_t options
-            //             = get_slave_options ();
-
-            //     }
-
-            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
-
-            if (track_og)
+            if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
                 {
-                    mc_oggz_user_data data = { v, track, debug };
+                    cc::send_command (exit_cmd);
+                    // send_command (cmd);
+                    // status = wait_slave_ready (slave_id, 10);
+                }
 
-                    oggz_set_read_callback (
-                        track_og, -1,
-                        [] (OGGZ *oggz, oggz_packet *packet, long serialno,
-                            void *user_data) {
-                            mc_oggz_user_data *data
-                                = (mc_oggz_user_data *)user_data;
+            if (status != 0)
+                {
+                    throw 2;
+                }
 
-                            data->voice_client->send_audio_opus (
-                                packet->op.packet, packet->op.bytes);
+            const std::string fifo_stream_path
+                = audio_processing::get_audio_stream_fifo_path (slave_id);
 
-                            if (!data->track.seekable && packet->op.b_o_s == 0)
-                                {
-                                    data->track.seekable = true;
-                                }
+            const std::string fifo_command_path
+                = audio_processing::get_audio_stream_stdin_path (slave_id);
 
-                            return 0;
-                        },
-                        (void *)&data);
+            const std::string fifo_notify_path
+                = audio_processing::get_audio_stream_stdout_path (slave_id);
 
-                    // stream loop
-                    while (v && !v->terminating)
+            // OPEN FIFOS
+            int read_fd = open (fifo_stream_path.c_str (), O_RDONLY);
+            if (read_fd < 0)
+                {
+                    throw 2;
+                }
+
+            int command_fd = open (fifo_command_path.c_str (), O_WRONLY);
+            if (command_fd < 0)
+                {
+                    close (read_fd);
+                    throw 2;
+                }
+
+            int notification_fd = open (fifo_notify_path.c_str (), O_RDONLY);
+            if (notification_fd < 0)
+                {
+                    close (read_fd);
+                    close (command_fd);
+                    throw 2;
+                }
+
+            handle_effect_chain_change_states_t effect_states
+                = { guild_player, track, command_fd, read_fd };
+
+            // I LOVE C++!!!
+
+            // track.seekable = true;
+
+            // using raw pcm need to change ffmpeg output format to s16le!
+            ssize_t read_size = 0;
+            ssize_t last_read_size = 0;
+            ssize_t total_read = 0;
+            uint8_t buffer[STREAM_BUFSIZ];
+
+            bool running_state = get_running_state (), is_stopping;
+
+            while ((running_state = get_running_state ())
+                   && ((read_size += read (read_fd, buffer + read_size,
+                                           STREAM_BUFSIZ - read_size))
+                       > 0))
+                {
+                    // if (track.seek_to > -1 && track.seekable)
+
+                    // prevent infinite loop when done reading the last
+                    // straw of data
+                    const bool is_last_data
+                        = read_size < (ssize_t)STREAM_BUFSIZ
+                          && last_read_size == read_size;
+
+                    if ((is_stopping = is_stream_stopping (server_id))
+                        || is_last_data)
                         {
-                            if (is_stream_stopping (server_id))
-                                break;
+                            break;
+                        }
 
-                            debug = get_debug_state ();
+                    handle_effect_chain_change (effect_states);
 
-                            static const constexpr long CHUNK_READ
-                                = BUFSIZ * 2;
+                    last_read_size = read_size;
 
-                            if (track.seek_to > -1 && track.seekable)
+                    if (read_size == STREAM_BUFSIZ)
+                        {
+                            total_read += read_size;
+
+                            if ((debug = get_debug_state ()))
+                                fprintf (stderr, "Sending buffer: %ld %ld\n",
+                                         total_read, read_size);
+
+                            if (audio_processing::send_audio_routine (
+                                    v, (uint16_t *)buffer, &read_size))
                                 {
-                                    oggz_off_t offset = oggz_seek (
-                                        track_og, track.seek_to, SEEK_SET);
-
-                                    if (debug)
-                                        fprintf (stderr,
-                                                 "[Manager::stream] "
-                                                 "Seeking from: "
-                                                 "%ld\nTarget: %ld\n"
-                                                 "Result offset: %ld\n",
-                                                 track.current_byte,
-                                                 track.seek_to, offset);
-
-                                    track.current_byte = offset;
-                                    track.seek_to = -1;
+                                    break;
                                 }
-
-                            const long read_bytes
-                                = oggz_read (track_og, CHUNK_READ);
-
-                            track.current_byte += read_bytes;
-
-                            if (debug)
-                                printf ("[Manager::stream] "
-                                        "[guild_id] [size] "
-                                        "[chunk] [read_bytes]: "
-                                        "%ld %ld %ld %ld\n",
-                                        server_id, fsize, read_bytes,
-                                        track.current_byte);
-
-                            while (v && !v->terminating
-                                   && v->get_secs_remaining () > 0.05f)
-                                {
-                                    std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (10));
-                                }
-
-                            // eof
-                            if (!read_bytes)
-                                break;
                         }
                 }
-            else
+
+            if ((read_size > 0) && running_state && !is_stopping)
                 {
-                    fprintf (stderr,
-                             "[Manager::stream ERROR] Can't open file for "
-                             "reading: %ld '%s'\n",
-                             server_id, file_path.c_str ());
+                    // ssize_t padding = STREAM_BUFSIZ - read_size;
+
+                    // for (; read_size < STREAM_BUFSIZ; read_size++)
+                    //     {
+                    //         buffer[read_size] = 0;
+                    //     }
+
+                    // if (debug)
+                    //     {
+                    //         fprintf (stderr, "Added padding: %ld\n",
+                    //                  padding);
+                    //     }
+
+                    if (debug)
+                        fprintf (stderr, "Final buffer: %ld %ld\n",
+                                 (total_read += read_size), read_size);
+
+                    audio_processing::send_audio_routine (
+                        v, (uint16_t *)buffer, &read_size, true);
                 }
 
-            oggz_close (track_og);
+            close (read_fd);
+
+            // using raw pcm code ends here
+
+            int throw_error = 0;
+
+            // using OGGZ need to change ffmpeg output format to opus!
+            // ofile = fdopen (read_fd, "r");
+
+            // if (!ofile)
+            //     {
+            //         close (read_fd);
+            //         close (command_fd);
+            //         close (notification_fd);
+            //         throw 2;
+            //     }
+
+            // OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
+
+            // if (track_og)
+            //     {
+            //         mc_oggz_user_data data = { v, track, debug };
+
+            //         oggz_set_read_callback (
+            //             track_og, -1,
+            //             [] (OGGZ *oggz, oggz_packet *packet, long serialno,
+            //                 void *user_data) {
+            //                 mc_oggz_user_data *data
+            //                     = (mc_oggz_user_data *)user_data;
+
+            //                 // if (data->debug)
+            //                 //     fprintf (stderr, "OGGZ Read Bytes:
+            //                 %ld\n",
+            //                 //              packet->op.bytes);
+
+            //                 data->voice_client->send_audio_opus (
+            //                     packet->op.packet, packet->op.bytes);
+
+            //                 // if (!data->track.seekable && packet->op.b_o_s
+            //                 ==
+            //                 // 0)
+            //                 //     {
+            //                 //         data->track.seekable = true;
+            //                 //     }
+
+            //                 return 0;
+            //             },
+            //             (void *)&data);
+
+            // !TODO: update with effect_states struct
+            //         struct run_stream_loop_states_t states
+            //             = { running_state, is_stopping, v, server_id,
+            //                 debug,         track,       command_fd, read_fd,
+            //                 guild_player,  track_og };
+
+            //         // stream loop
+            //         run_stream_loop (this, states);
+            //     }
+            // else
+            //     {
+            //         fprintf (stderr,
+            //                  "[Manager::stream ERROR] Can't open file for "
+            //                  "reading: %ld '%s'\n",
+            //                  server_id, file_path.c_str ());
+            //     }
+
+            // // read_fd already closed along with this
+            // oggz_close (track_og);
+            // track_og = NULL;
+
+            // using OGGZ code ends here
+
+            close (command_fd);
+            command_fd = -1;
+            close (notification_fd);
+            notification_fd = -1;
+
+            if (debug)
+                fprintf (stderr, "Exiting %ld\n", server_id);
+
+            cc::send_command (exit_cmd);
+
+            if (!running_state || is_stopping)
+                {
+                    // clear voice client buffer
+                    v->stop_audio ();
+                }
 
             auto end_time = std::chrono::high_resolution_clock::now ();
             auto done = std::chrono::duration_cast<std::chrono::milliseconds> (
@@ -192,6 +467,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                              done.count ());
                     // fprintf (stderr, "audio_processing status: %d\n",
                     // status);
+                }
+
+            if (throw_error != 0)
+                {
+                    throw throw_error;
                 }
 
             // if (status != audio_processing::SUCCESS)
@@ -240,26 +520,39 @@ Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
     return 1;
 }
 
-// !TODO
 void
 Manager::set_processor_state (std::string &server_id_str,
                               processor_state_t state)
 {
+    std::lock_guard<std::mutex> lk (this->as_m);
+
+    this->processor_states[server_id_str] = state;
 }
 
-void
+processor_state_t
 Manager::get_processor_state (std::string &server_id_str)
 {
+    std::lock_guard<std::mutex> lk (this->as_m);
+    auto i = this->processor_states.find (server_id_str);
+
+    if (i == this->processor_states.end ())
+        {
+            return PROCESSOR_NULL;
+        }
+
+    return i->second;
 }
 
 bool
 Manager::is_processor_ready (std::string &server_id_str)
 {
+    return get_processor_state (server_id_str) & PROCESSOR_READY;
 }
 
 bool
 Manager::is_processor_dead (std::string &server_id_str)
 {
+    return get_processor_state (server_id_str) & PROCESSOR_DEAD;
 }
 
 } // player

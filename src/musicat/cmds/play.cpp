@@ -207,6 +207,7 @@ slash_run (const dpp::slashcommand_t &event,
                 && !v->voiceclient->is_paused ()
                 && v->voiceclient->get_secs_remaining () < 0.05f)
                 {
+                    v->voiceclient->stop_audio ();
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }

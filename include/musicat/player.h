@@ -28,6 +28,7 @@ enum loop_mode_t : int8_t
 
 enum processor_state_t
 {
+    PROCESSOR_NULL = 0,
     PROCESSOR_READY = 1,
     PROCESSOR_DEAD = (1 << 1),
 };
@@ -53,7 +54,7 @@ struct MCTrack : yt_search::YTrack
 
     // seek query, reset to -1 after seek performed.
     // byte offset
-    int64_t seek_to;
+    std::string seek_to;
 
     // whether this track is in the process to stop
     // its audio stream
@@ -165,12 +166,15 @@ class Player
     bool stopped;
 
     int volume;
+    int set_volume;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
     std::mutex t_mutex;
+
+    void init ();
 
     Player ();
     Player (dpp::cluster *_cluster, dpp::snowflake _guild_id);
@@ -370,7 +374,7 @@ class Manager
     void set_processor_state (std::string &server_id_str,
                               processor_state_t state);
 
-    void get_processor_state (std::string &server_id_str);
+    processor_state_t get_processor_state (std::string &server_id_str);
 
     bool is_processor_ready (std::string &server_id_str);
 
