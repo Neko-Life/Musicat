@@ -14,8 +14,8 @@ get_register_obj (const dpp::snowflake &sha_id)
     return dpp::slashcommand ("volume", "Set [playback] volume", sha_id)
         .add_option (
             dpp::command_option (dpp::co_integer, "percentage",
-                                 "Volume percentage [to set]. <0-300>", true)
-                .set_min_value (0)
+                                 "Volume percentage [to set]. <1-300>", true)
+                .set_min_value (1)
                 .set_max_value (300));
 }
 
@@ -39,9 +39,9 @@ slash_run (const dpp::slashcommand_t &event)
 
     auto player = player_manager->get_player (event.command.guild_id);
 
-    if (!util::player_has_current_track (player))
+    if (!player)
         {
-            event.reply ("I'm not playing anything");
+            event.reply ("No active player in this guild");
             return;
         }
 
@@ -49,10 +49,10 @@ slash_run (const dpp::slashcommand_t &event)
     int64_t v_arg = -1;
     get_inter_param (event, "percentage", &v_arg);
 
-    if (v_arg < 0 || v_arg > 300)
+    if (v_arg < 1 || v_arg > 300)
         {
-            event.reply ("Invalid `percentage` argument. Must be between 0 "
-                         "and 300 inclusive");
+            event.reply ("Invalid `percentage` argument. Must be between 1% "
+                         "and 300% inclusive");
             return;
         }
 

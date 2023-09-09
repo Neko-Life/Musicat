@@ -285,7 +285,7 @@ namespace volume
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::slashcommand_t &event);
-} // seek
+} // volume
 
 } // command
 } // musicat
