@@ -398,7 +398,7 @@ get_track_progress (player::MCTrack &track)
 {
     const int64_t duration = track.info.duration ();
 
-    if (!duration)
+    if (!duration || !track.filesize)
         return { 0, 0, 1 };
 
     float byte_per_ms = (float)track.filesize / (float)duration;

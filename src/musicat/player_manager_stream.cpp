@@ -345,7 +345,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             const long read_bytes
                                 = oggz_read (track_og, CHUNK_READ);
 
-                            // track.current_byte += read_bytes;
+                            track.current_byte += read_bytes;
 
                             if (debug)
                                 printf ("[Manager::stream] "

@@ -1,5 +1,5 @@
+#include "musicat/musicat.h"
 #include <musicat/cmds.h>
-#include <string.h>
 #include <string>
 
 namespace musicat
@@ -16,10 +16,11 @@ get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("seek", "Seek [currently playing] track", sha_id)
         .add_option (dpp::command_option (
-            dpp::co_string, "to",
-            "Timestamp [to seek to]. Format: Absolute "
-            "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
-            true));
+                         dpp::co_string, "to",
+                         "Timestamp [to seek to]. Format: Absolute "
+                         "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
+                         true)
+                         .set_max_length (14));
 }
 
 char
@@ -137,14 +138,141 @@ is_valid_str (const std::string &str)
     return true;
 }
 
+struct arg_to_t
+{
+    int64_t hour;
+    int64_t minute;
+    int64_t second;
+    int64_t ms;
+    bool valid;
+};
+
+arg_to_t
+parse_arg_to (const std::string &str)
+{
+    arg_to_t result = { 0, 0, 0, 0, false };
+
+    if (str.length () < 1 || str.length () > 14)
+        {
+            return result;
+        }
+
+    std::string list[4] = {};
+
+    size_t last_idx = 0;
+    size_t sc_count = 0;
+    size_t dot_count = 0;
+    int i = 0;
+    for (; i < 4; i++)
+        {
+            std::string temp = "";
+
+            for (auto j = (str.begin () + last_idx); j != str.end ();
+                 j++, last_idx++)
+                {
+                    if (!is_valid_char (*j))
+                        {
+                            return result;
+                        }
+
+                    if (*j == ':')
+                        {
+                            if (dot_count != 0)
+                                {
+                                    return result;
+                                }
+
+                            sc_count++;
+
+                            last_idx++;
+                            break;
+                        }
+
+                    if (*j == '.')
+                        {
+                            dot_count++;
+
+                            last_idx++;
+                            break;
+                        }
+
+                    temp += *j;
+                }
+
+            if (!temp.length ())
+                {
+                    break;
+                }
+
+            list[i] = temp;
+        }
+
+    if (i > 0 && sc_count < 3 && dot_count < 2)
+        {
+            int subt = -1;
+            if (sc_count == 2)
+                {
+                    if (!list[0].length ())
+                        return result;
+
+                    result.hour = stoll (list[0], NULL, 10);
+                    subt = 0;
+                }
+
+            if (sc_count > 0)
+                {
+                    if (subt == -1)
+                        subt = 1;
+
+                    if (!list[1 - subt].length ())
+                        return result;
+
+                    result.minute = stoll (list[1 - subt], NULL, 10);
+                }
+
+            if (subt == -1)
+                subt = 2;
+
+            if (!list[2 - subt].length ())
+                return result;
+
+            result.second = stoll (list[2 - subt], NULL, 10);
+
+            if (dot_count == 1)
+                {
+                    if (!list[3 - subt].length ())
+                        return result;
+
+                    result.ms = stoll (list[3 - subt], NULL, 10);
+                }
+
+            result.valid = true;
+        }
+
+    if (get_debug_state ())
+        {
+            fprintf (stderr,
+                     "[seek::parse_arg_to] Parsed hour minute second ms "
+                     "valid: %ld %ld %ld %ld %d\n",
+                     result.hour, result.minute, result.second, result.ms,
+                     result.valid);
+        }
+
+    return result;
+}
+
 void
 slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
+    const bool debug = get_debug_state ();
+
     std::string arg_to = "";
     get_inter_param (event, "to", &arg_to);
 
-    if (arg_to.length () < 1 || !is_valid_str (arg_to))
+    arg_to_t parsed = parse_arg_to (arg_to);
+
+    if (!parsed.valid)
         {
             event.reply (
                 "Invalid format, seek format should be "
@@ -168,6 +296,47 @@ slash_run (const dpp::slashcommand_t &event,
 
     // !TODO: probably add a mutex for safety just in case?
     player::MCTrack &track = player->current_track;
+
+    const uint64_t duration = track.info.duration ();
+
+    if (!duration || !track.filesize)
+        {
+            event.reply ("I'm sorry but the current track is not seek-able. "
+                         "Might be missing metadata or unsupported format");
+
+            return;
+        }
+
+    static const constexpr uint64_t second_ms = 1000;
+    static const constexpr uint64_t minute_ms = second_ms * 60;
+    static const constexpr uint64_t hour_ms = 60 * minute_ms;
+
+    const uint64_t total_ms = (parsed.hour * hour_ms)
+                              + (parsed.minute * minute_ms)
+                              + (parsed.second * second_ms) + parsed.ms;
+    if (debug)
+        printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n", total_ms,
+                duration);
+
+    // skip instead of error
+    // if (total_ms > duration)
+    //     {
+    //         event.reply ("Can't seek, seek target exceeding track
+    //         duration"); return;
+    //     }
+
+    float byte_per_ms = (float)track.filesize / (float)duration;
+
+    track.current_byte = (int64_t)(byte_per_ms * total_ms);
+
+    if (debug)
+        {
+            printf ("[seek::slash_run] [filesize] [duration] "
+                    "[byte_per_ms] [seek_byte]: "
+                    "%f %f %f %ld\n",
+                    (float)track.filesize, (float)duration, byte_per_ms,
+                    track.current_byte);
+        }
 
     track.seek_to = arg_to;
 

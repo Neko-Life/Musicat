@@ -1012,20 +1012,21 @@ run (int argc, const char *argv[])
                         // set to seek to last position in the next playing
                         // track !TODO: probably add this to player manager for
                         // convenience?
-                        // auto guild_player
-                        //     = player_manager->get_player (guild_id);
+                        auto guild_player
+                            = player_manager->get_player (guild_id);
 
-                        // if (guild_player && guild_player->queue.size ())
-                        //     {
-                        //         int64_t to_seek
-                        //             = guild_player->current_track.current_byte
-                        //               - (BUFSIZ * 8);
+                        if (guild_player && guild_player->queue.size ())
+                            {
+                                int64_t to_seek
+                                    = guild_player->current_track.current_byte
+                                      - (BUFSIZ * 8);
 
-                        //         if (to_seek < 0)
-                        //             to_seek = 0;
+                                if (to_seek < 0)
+                                    to_seek = 0;
 
-                        //         // guild_player->queue.front ().seek_to = to_seek;
-                        //     }
+                                guild_player->queue.front ().current_byte
+                                    = to_seek;
+                            }
 
                         // rejoin channel
                         if (debug)
