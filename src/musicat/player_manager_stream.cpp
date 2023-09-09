@@ -1,5 +1,6 @@
 /* #include "musicat/audio_processing.h" */
 #include "musicat/audio_processing.h"
+#include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/child/worker.h"
 #include "musicat/musicat.h"
@@ -142,8 +143,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             if (!ofile)
                 {
-                    close (command_fd);
                     close (read_fd);
+                    close (command_fd);
+                    close (notification_fd);
                     throw 2;
                 }
 
@@ -254,10 +256,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                             data->voice_client->send_audio_opus (
                                 packet->op.packet, packet->op.bytes);
 
-                            if (!data->track.seekable && packet->op.b_o_s == 0)
-                                {
-                                    data->track.seekable = true;
-                                }
+                            // if (!data->track.seekable && packet->op.b_o_s ==
+                            // 0)
+                            //     {
+                            //         data->track.seekable = true;
+                            //     }
 
                             return 0;
                         },
@@ -285,14 +288,32 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     cc::write_command (cmd_seek, command_fd,
                                                        "Manager::stream");
 
-                                    char b;
-                                    read (notification_fd, &b, 1);
+                                    // struct pollfd nfds[1];
+                                    // nfds[0].events = POLLIN;
+                                    // nfds[0].fd = read_fd;
 
-                                    if (b != '0')
-                                        {
-                                            throw_error = 3;
-                                            break;
-                                        }
+                                    // int n_event = poll (nfds, 1, 100);
+                                    // bool n_ready
+                                    //     = (n_event > 0)
+                                    //       && (nfds[0].revents & POLLIN);
+
+                                    // if (n_ready)
+                                    //     {
+                                    //         char read_buf[CMD_BUFSIZE];
+                                    //         read (notification_fd, read_buf,
+                                    //               CMD_BUFSIZE);
+
+                                    //         if (read_buf[0] != '0')
+                                    //             {
+                                    //                 // !TODO: change to
+                                    //                 other
+                                    //                 // number and add
+                                    //                 handler
+                                    //                 // for it
+                                    //                 throw_error = 2;
+                                    //                 break;
+                                    //             }
+                                    //     }
 
                                     // drain current output
                                     struct pollfd pfds[1];
@@ -360,6 +381,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             oggz_close (track_og);
             track_og = NULL;
             close (command_fd);
+            command_fd = -1;
+            close (notification_fd);
+            notification_fd = -1;
 
             if (debug)
                 fprintf (stderr, "Exiting %ld\n", server_id);
@@ -382,6 +406,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                              done.count ());
                     // fprintf (stderr, "audio_processing status: %d\n",
                     // status);
+                }
+
+            if (throw_error != 0)
+                {
+                    throw throw_error;
                 }
 
             // if (status != audio_processing::SUCCESS)

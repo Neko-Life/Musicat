@@ -79,6 +79,8 @@ mode_t get_audio_stream_fifo_mode_t ();
 
 std::string get_audio_stream_stdin_path (const std::string &id);
 
+std::string get_audio_stream_stdout_path (const std::string &id);
+
 } // audio_processing
 } // musicat
 

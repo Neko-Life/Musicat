@@ -28,6 +28,7 @@ clean_up_audio_processor (command::command_options_t &options)
 {
     unlink (options.audio_stream_fifo_path.c_str ());
     unlink (options.audio_stream_stdin_path.c_str ());
+    unlink (options.audio_stream_stdout_path.c_str ());
 
     return 0;
 }

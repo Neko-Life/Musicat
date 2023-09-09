@@ -219,7 +219,7 @@ sanitize_command_key_value (const std::string &key_value)
 command_options_t
 create_command_options ()
 {
-    return { "", "", false, "", -1, -1, -1, -1, -1, "", "", false, "", "" };
+    return { "", "", false, "", -1, -1, -1, -1, -1, "", "", false, "", "", "" };
 }
 
 int

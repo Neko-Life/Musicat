@@ -53,6 +53,7 @@ struct command_options_t
     int ready;
     std::string seek;
     std::string audio_stream_stdin_path;
+    std::string audio_stream_stdout_path;
 };
 
 command_options_t create_command_options ();

@@ -8,14 +8,17 @@ namespace command
 {
 namespace seek
 {
+
+inline constexpr char valid_tokens[] = "0123456789:.";
+
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("seek", "Seek [currently playing] track", sha_id)
         .add_option (dpp::command_option (
             dpp::co_string, "to",
-            "Seconds [to seek to]. Format: Absolute "
-            "`<[hour:minute:]second[.ms]>`. Example: 4:20.69",
+            "Timestamp [to seek to]. Format: Absolute "
+            "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
             true));
 }
 
@@ -109,12 +112,49 @@ _pad0 (std::string str)
     return str;
 }
 
+bool
+is_valid_char (const char &c)
+{
+    for (size_t i = 0;
+         i < ((sizeof (valid_tokens) / sizeof (valid_tokens[0])) - 1); i++)
+        {
+            if (c == valid_tokens[i])
+                return true;
+        }
+
+    return false;
+}
+
+bool
+is_valid_str (const std::string &str)
+{
+    for (const char &c : str)
+        {
+            if (!is_valid_char (c))
+                return false;
+        }
+
+    return true;
+}
+
 void
 slash_run (const dpp::slashcommand_t &event,
            player::player_manager_ptr player_manager)
 {
     std::string arg_to = "";
     get_inter_param (event, "to", &arg_to);
+
+    if (arg_to.length () < 1 || !is_valid_str (arg_to))
+        {
+            event.reply (
+                "Invalid format, seek format should be "
+                "`[[hour:]minute:]second[.ms]`, Timestamp exceeding duration "
+                "implies skip.\nExamples:\n`360` "
+                "-> second\n`270.629` -> second.ms\n`3:24` -> "
+                "minute:second\n`2:15:37.899` -> hour:minute:second.ms");
+
+            return;
+        }
 
     // int64_t seek_byte = -1;
 

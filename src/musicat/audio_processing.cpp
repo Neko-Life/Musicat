@@ -349,7 +349,7 @@ run_processor (child::command::command_options_t &process_options)
 
     int write_fifo
         = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY),
-        stdin_fifo, stdin_fifo_status;
+        stdin_fifo, fifo_status, stdout_fifo;
 
     if (write_fifo < 0)
         {
@@ -368,13 +368,32 @@ run_processor (child::command::command_options_t &process_options)
             goto err_sfifo2;
         }
 
-    stdin_fifo_status = dup2 (stdin_fifo, STDIN_FILENO);
+    fifo_status = dup2 (stdin_fifo, STDIN_FILENO);
     close (stdin_fifo);
-    if (stdin_fifo_status == -1)
+    if (fifo_status == -1)
         {
             perror ("dup2 stdin_fifo");
             init_error = ERR_SFIFO;
             goto err_sfifo3;
+        }
+
+    stdout_fifo
+        = open (process_options.audio_stream_stdout_path.c_str (), O_WRONLY);
+
+    if (stdout_fifo < 0)
+        {
+            perror ("stdout_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo4;
+        }
+
+    fifo_status = dup2 (stdout_fifo, STDOUT_FILENO);
+    close (stdout_fifo);
+    if (fifo_status == -1)
+        {
+            perror ("dup2 stdout_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo5;
         }
 
     // prepare required pipes for bidirectional interprocess communication
@@ -561,9 +580,15 @@ run_processor (child::command::command_options_t &process_options)
                     if (options.debug)
                         fprintf (stderr, "rchild status: %d\n", cstatus);
 
+                    // char notif[CMD_BUFSIZE];
+                    // memset (notif, '\0', sizeof (notif) / sizeof
+                    // (notif[0]));
+
                     if (pipe (p_info.rpipefd) == -1)
                         {
                             perror ("rpipe");
+                            // notif[0] = '1';
+                            // write (STDOUT_FILENO, notif, CMD_BUFSIZE);
                             break;
                         }
                     prreadfd = p_info.rpipefd[0];
@@ -577,6 +602,8 @@ run_processor (child::command::command_options_t &process_options)
                             close (prreadfd);
                             close (crwritefd);
 
+                            // notif[0] = '2';
+                            // write (STDOUT_FILENO, notif, CMD_BUFSIZE);
                             break;
                         }
 
@@ -591,6 +618,9 @@ run_processor (child::command::command_options_t &process_options)
                     input = fdopen (prreadfd, "r");
 
                     options.seek_to = "";
+
+                    // notif[0] = '0';
+                    // write (STDOUT_FILENO, notif, CMD_BUFSIZE);
                 }
 
             // recreate ffmpeg process to update filter chain
@@ -754,6 +784,8 @@ err_spipe2:
     close (preadfd);
     close (cwritefd);
 err_spipe1:
+err_sfifo5:
+err_sfifo4:
 err_sfifo3:
 err_sfifo2:
     close (write_fifo);
@@ -783,6 +815,12 @@ std::string
 get_audio_stream_stdin_path (const std::string &id)
 {
     return std::string ("/tmp/musicat.") + id + ".stdin";
+}
+
+std::string
+get_audio_stream_stdout_path (const std::string &id)
+{
+    return std::string ("/tmp/musicat.") + id + ".stdout";
 }
 
 } // audio_processing

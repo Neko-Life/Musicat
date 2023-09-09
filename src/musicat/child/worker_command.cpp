@@ -31,34 +31,44 @@ create_audio_processor (command::command_options_t &options)
     std::string si_fp
         = audio_processing::get_audio_stream_stdin_path (options.id);
 
+    std::string so_fp
+        = audio_processing::get_audio_stream_stdout_path (options.id);
+
     unlink (as_fp.c_str ());
     unlink (si_fp.c_str ());
+    unlink (so_fp.c_str ());
 
-    if ((status = mkfifo (as_fp.c_str (),
-                          audio_processing::get_audio_stream_fifo_mode_t ()))
-        < 0)
+    const auto fifo_bitmask
+        = audio_processing::get_audio_stream_fifo_mode_t ();
+
+    if ((status = mkfifo (as_fp.c_str (), fifo_bitmask)) < 0)
         {
             perror ("cap as_fp");
             goto err1;
         }
 
-    if ((status = mkfifo (si_fp.c_str (),
-                          audio_processing::get_audio_stream_fifo_mode_t ()))
-        < 0)
+    if ((status = mkfifo (si_fp.c_str (), fifo_bitmask)) < 0)
         {
             perror ("cap si_fp");
             goto err2;
         }
 
+    if ((status = mkfifo (so_fp.c_str (), fifo_bitmask)) < 0)
+        {
+            perror ("cap so_fp");
+            goto err3;
+        }
+
     options.audio_stream_fifo_path = as_fp;
     options.audio_stream_stdin_path = si_fp;
+    options.audio_stream_stdout_path = so_fp;
 
     status = fork ();
 
     if (status < 0)
         {
             perror ("cap fork");
-            goto err3;
+            goto err4;
         }
 
     if (status == 0)
@@ -78,6 +88,8 @@ create_audio_processor (command::command_options_t &options)
 
     return 0;
 
+err4:
+    unlink (so_fp.c_str ());
 err3:
     unlink (si_fp.c_str ());
 err2:
