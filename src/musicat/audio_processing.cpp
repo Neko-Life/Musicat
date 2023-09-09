@@ -20,6 +20,11 @@
 #define BUFFER_SIZE processing_buffer_size
 #define READ_CHUNK_SIZE 4096
 
+#define USING_OPUS "-f", "opus", "-b:a", "128k",
+#define USING_PCM "-f", "s16le",
+
+#define USING_FORMAT USING_PCM
+
 #define OUT_CMD "pipe:1"
 
 namespace musicat
@@ -225,9 +230,11 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
                 .c_str (),
-            "-f", "opus", "-ac", "2", "-ar", "48000", "-b:a", "128k",
-            /*"-preset", "ultrafast",*/ "-threads", "1", OUT_CMD,
-            (char *)NULL);
+            "-ac", "2", "-ar", "48000",
+            USING_FORMAT
+            /* "-bufsize", "1024", */
+            /*"-preset", "ultrafast",*/ "-threads",
+            "1", OUT_CMD, (char *)NULL);
 
     perror ("child ffmpeg");
     _exit (EXIT_FAILURE);
