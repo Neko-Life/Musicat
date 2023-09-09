@@ -231,14 +231,29 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             std::string server_id_str = std::to_string (server_id);
             std::string slave_id = "processor-" + server_id_str;
 
-            const std::string cmd
+            std::string cmd
                 = cc::command_options_keys_t.id + '=' + slave_id + ';'
                   + cc::command_options_keys_t.guild_id + '=' + server_id_str
+
                   + ';' + cc::command_options_keys_t.command + '='
-                  + cc::command_execute_commands_t.create_audio_processor + ';'
-                  + cc::command_options_keys_t.debug + "=1;"
-                  + cc::command_options_keys_t.file_path + '='
-                  + cc::sanitize_command_value (file_path);
+                  + cc::command_execute_commands_t.create_audio_processor
+                  + ';';
+
+            if (debug)
+                {
+                    cmd += cc::command_options_keys_t.debug + "=1;";
+                }
+
+            cmd += cc::command_options_keys_t.file_path + '='
+                   + cc::sanitize_command_value (file_path) + ';'
+
+                   + cc::command_options_keys_t.volume + '='
+                   + std::to_string (guild_player->volume) + ';';
+
+            // !TODO: convert current byte to timestamp string
+            // + cc::command_options_keys_t.seek + '=' +
+            // track.current_byte
+            // + ';';
 
             const std::string exit_cmd
                 = cc::command_options_keys_t.id + '=' + slave_id + ';'
@@ -330,6 +345,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                     last_read_size = read_size;
 
+                    // !TODO: calculate pcm duration based on size
                     if (read_size == STREAM_BUFSIZ)
                         {
                             total_read += read_size;
