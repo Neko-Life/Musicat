@@ -25,6 +25,7 @@ namespace musicat
 namespace player
 {
 using string = std::string;
+namespace cc = child::command;
 
 struct mc_oggz_user_data
 {
@@ -33,11 +34,149 @@ struct mc_oggz_user_data
     bool &debug;
 };
 
+struct run_stream_loop_states_t
+{
+    bool &running_state;
+    bool &is_stopping;
+    dpp::discord_voice_client *&v;
+    dpp::snowflake &server_id;
+    bool &debug;
+    player::MCTrack &track;
+    int &command_fd;
+    int &read_fd;
+    std::shared_ptr<Player> &guild_player;
+    OGGZ *&track_og;
+};
+
+void
+run_stream_loop (Manager *manager, run_stream_loop_states_t &states)
+{
+    while ((states.running_state = get_running_state ()) && states.v
+           && !states.v->terminating)
+        {
+            if ((states.is_stopping
+                 = manager->is_stream_stopping (states.server_id)))
+                break;
+
+            states.debug = get_debug_state ();
+
+            const bool track_seek_queried = states.track.seek_to.length () > 0;
+
+            const bool queried_cmd = track_seek_queried;
+
+            if (queried_cmd)
+                {
+                    if (track_seek_queried)
+                        {
+                            const std::string cmd_seek
+                                = cc::command_options_keys_t.command + '='
+                                  + cc::command_options_keys_t.seek + ';'
+                                  + cc::command_options_keys_t.seek + '='
+                                  + states.track.seek_to + ';';
+
+                            cc::write_command (cmd_seek, states.command_fd,
+                                               "Manager::stream");
+
+                            states.track.seek_to = "";
+                        }
+
+                    // struct pollfd nfds[1];
+                    // nfds[0].events = POLLIN;
+                    // nfds[0].fd = read_fd;
+
+                    // int n_event = poll (nfds, 1, 100);
+                    // bool n_ready
+                    //     = (n_event > 0)
+                    //       && (nfds[0].revents & POLLIN);
+
+                    // if (n_ready)
+                    //     {
+                    //         char read_buf[CMD_BUFSIZE];
+                    //         read (notification_fd, read_buf,
+                    //               CMD_BUFSIZE);
+
+                    //         if (read_buf[0] != '0')
+                    //             {
+                    //                 // !TODO: change to
+                    //                 other
+                    //                 // number and add
+                    //                 handler
+                    //                 // for it
+                    //                 throw_error = 2;
+                    //                 break;
+                    //             }
+                    //     }
+
+                    // drain current output
+                    struct pollfd pfds[1];
+                    pfds[0].events = POLLIN;
+                    pfds[0].fd = states.read_fd;
+
+                    int has_event = poll (pfds, 1, 0);
+                    bool drain_ready
+                        = (has_event > 0) && (pfds[0].revents & POLLIN);
+
+                    ssize_t drain_size = 0;
+                    char drain_buf[DRAIN_CHUNK];
+                    while (drain_ready
+                           && ((drain_size = read (states.read_fd, drain_buf,
+                                                   DRAIN_CHUNK))
+                               > 0))
+                        {
+                            has_event = poll (pfds, 1, 0);
+                            drain_ready = (has_event > 0)
+                                          && (pfds[0].revents & POLLIN);
+                        }
+                }
+
+            const bool volume_queried = states.guild_player->set_volume != -1;
+
+            if (volume_queried)
+                {
+                    const std::string cmd_volume
+                        = cc::command_options_keys_t.command + '='
+                          + cc::command_options_keys_t.volume + ';'
+                          + cc::command_options_keys_t.volume + '='
+                          + std::to_string (states.guild_player->set_volume)
+                          + ';';
+
+                    cc::write_command (cmd_volume, states.command_fd,
+                                       "Manager::stream");
+
+                    states.guild_player->volume
+                        = states.guild_player->set_volume;
+                    states.guild_player->set_volume = -1;
+                }
+
+            const long read_bytes = oggz_read (states.track_og, CHUNK_READ);
+
+            states.track.current_byte += read_bytes;
+
+            if (states.debug)
+                printf ("[Manager::stream] "
+                        "[guild_id] [size] "
+                        "[chunk] [read_bytes]: "
+                        "%ld %ld %ld\n",
+                        states.server_id, states.track.filesize, read_bytes);
+
+            while ((states.running_state = get_running_state ()) && states.v
+                   && !states.v->terminating
+                   && states.v->get_secs_remaining ()
+                          > DPP_AUDIO_BUFFER_LENGTH_SECOND)
+                {
+                    std::this_thread::sleep_for (std::chrono::milliseconds (
+                        SLEEP_ON_BUFFER_THRESHOLD_MS));
+                }
+
+            // eof
+            if (!read_bytes)
+                break;
+        }
+}
+
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
-    namespace cc = child::command;
-
     const string &fname = track.filename;
 
     dpp::snowflake server_id = 0;
@@ -51,7 +190,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             bool debug = get_debug_state ();
 
             server_id = v->server_id;
-            if (!server_id)
+            auto player_manager = get_player_manager_ptr ();
+            auto guild_player = player_manager
+                                    ? player_manager->get_player (server_id)
+                                    : nullptr;
+
+            if (!server_id || !guild_player)
                 throw 2;
 
             FILE *ofile = fopen (file_path.c_str (), "r");
@@ -266,108 +410,13 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                         },
                         (void *)&data);
 
+                    struct run_stream_loop_states_t states
+                        = { running_state, is_stopping, v,          server_id,
+                            debug,         track,       command_fd, read_fd,
+                            guild_player,  track_og };
+
                     // stream loop
-                    while ((running_state = get_running_state ()) && v
-                           && !v->terminating)
-                        {
-                            if ((is_stopping = is_stream_stopping (server_id)))
-                                break;
-
-                            debug = get_debug_state ();
-
-                            if (track.seek_to.length () > 0)
-                                {
-                                    const std::string cmd_seek
-                                        = cc::command_options_keys_t.command
-                                          + '='
-                                          + cc::command_options_keys_t.seek
-                                          + ';'
-                                          + cc::command_options_keys_t.seek
-                                          + '=' + track.seek_to + ';';
-
-                                    cc::write_command (cmd_seek, command_fd,
-                                                       "Manager::stream");
-
-                                    // struct pollfd nfds[1];
-                                    // nfds[0].events = POLLIN;
-                                    // nfds[0].fd = read_fd;
-
-                                    // int n_event = poll (nfds, 1, 100);
-                                    // bool n_ready
-                                    //     = (n_event > 0)
-                                    //       && (nfds[0].revents & POLLIN);
-
-                                    // if (n_ready)
-                                    //     {
-                                    //         char read_buf[CMD_BUFSIZE];
-                                    //         read (notification_fd, read_buf,
-                                    //               CMD_BUFSIZE);
-
-                                    //         if (read_buf[0] != '0')
-                                    //             {
-                                    //                 // !TODO: change to
-                                    //                 other
-                                    //                 // number and add
-                                    //                 handler
-                                    //                 // for it
-                                    //                 throw_error = 2;
-                                    //                 break;
-                                    //             }
-                                    //     }
-
-                                    // drain current output
-                                    struct pollfd pfds[1];
-                                    pfds[0].events = POLLIN;
-                                    pfds[0].fd = read_fd;
-
-                                    int has_event = poll (pfds, 1, 0);
-                                    bool drain_ready
-                                        = (has_event > 0)
-                                          && (pfds[0].revents & POLLIN);
-
-                                    ssize_t drain_size = 0;
-                                    char drain_buf[DRAIN_CHUNK];
-                                    while (drain_ready
-                                           && ((drain_size
-                                                = read (read_fd, drain_buf,
-                                                        DRAIN_CHUNK))
-                                               > 0))
-                                        {
-                                            has_event = poll (pfds, 1, 0);
-                                            drain_ready = (has_event > 0)
-                                                          && (pfds[0].revents
-                                                              & POLLIN);
-                                        }
-
-                                    track.seek_to = "";
-                                }
-
-                            const long read_bytes
-                                = oggz_read (track_og, CHUNK_READ);
-
-                            track.current_byte += read_bytes;
-
-                            if (debug)
-                                printf ("[Manager::stream] "
-                                        "[guild_id] [size] "
-                                        "[chunk] [read_bytes]: "
-                                        "%ld %ld %ld\n",
-                                        server_id, track.filesize, read_bytes);
-
-                            while ((running_state = get_running_state ()) && v
-                                   && !v->terminating
-                                   && v->get_secs_remaining ()
-                                          > DPP_AUDIO_BUFFER_LENGTH_SECOND)
-                                {
-                                    std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (
-                                            SLEEP_ON_BUFFER_THRESHOLD_MS));
-                                }
-
-                            // eof
-                            if (!read_bytes)
-                                break;
-                        }
+                    run_stream_loop (this, states);
                 }
             else
                 {

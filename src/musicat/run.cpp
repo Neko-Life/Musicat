@@ -888,6 +888,8 @@ run (int argc, const char *argv[])
             command::seek::slash_run (event, player_manager);
         else if (cmd == "progress")
             command::progress::slash_run (event, player_manager);
+        else if (cmd == "volume")
+            command::volume::slash_run (event);
 
         else
             {

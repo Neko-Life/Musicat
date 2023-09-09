@@ -27,6 +27,56 @@ namespace musicat
 namespace audio_processing
 {
 
+int
+read_command (processor_options_t &options)
+{
+    pollfd cmdrfds[1];
+    cmdrfds[0].events = POLLIN;
+    cmdrfds[0].fd = STDIN_FILENO;
+
+    ssize_t read_cmd_size = 0;
+    char cmd_buf[CMD_BUFSIZE + 1];
+
+    int has_cmd = poll (cmdrfds, 1, 0);
+    bool read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
+    while (
+        read_cmd
+        && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
+        {
+            cmd_buf[CMD_BUFSIZE] = '\0';
+
+            if (options.debug)
+                fprintf (stderr,
+                         "[audio_processing::read_command %s] Processor "
+                         "command: %s\n",
+                         options.guild_id.c_str (), cmd_buf);
+
+            const std::string cmd (cmd_buf);
+
+            {
+                using namespace child::command;
+                command_options_t command_options = create_command_options ();
+                parse_command_to_options (cmd, command_options);
+
+                if (command_options.command == command_options_keys_t.seek)
+                    {
+                        options.seek_to = command_options.seek;
+                    }
+
+                else if (command_options.command
+                         == command_options_keys_t.volume)
+                    {
+                        options.volume = command_options.volume;
+                    }
+            }
+
+            has_cmd = poll (cmdrfds, 1, 0);
+            read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
+        }
+
+    return 0;
+}
+
 static ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 {
@@ -222,50 +272,6 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
     return 0;
 }
 
-int
-read_command (processor_options_t &options)
-{
-    pollfd cmdrfds[1];
-    cmdrfds[0].events = POLLIN;
-    cmdrfds[0].fd = STDIN_FILENO;
-
-    ssize_t read_cmd_size = 0;
-    char cmd_buf[CMD_BUFSIZE + 1];
-
-    int has_cmd = poll (cmdrfds, 1, 0);
-    bool read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
-    while (
-        read_cmd
-        && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
-        {
-            cmd_buf[CMD_BUFSIZE] = '\0';
-
-            if (options.debug)
-                fprintf (stderr,
-                         "[audio_processing::read_command %s] Processor "
-                         "command: %s\n",
-                         options.guild_id.c_str (), cmd_buf);
-
-            const std::string cmd (cmd_buf);
-
-            {
-                using namespace child::command;
-                command_options_t command_options = create_command_options ();
-                parse_command_to_options (cmd, command_options);
-
-                if (command_options.command == command_options_keys_t.seek)
-                    {
-                        options.seek_to = command_options.seek;
-                    }
-            }
-
-            has_cmd = poll (cmdrfds, 1, 0);
-            read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
-        }
-
-    return 0;
-}
-
 processor_options_t
 create_options ()
 {
@@ -295,6 +301,7 @@ run_processor (child::command::command_options_t &process_options)
     options.debug = process_options.debug;
     options.id = process_options.id;
     options.guild_id = process_options.guild_id;
+    options.volume = process_options.volume;
 
     auto player_manager = get_player_manager_ptr ();
 
@@ -330,6 +337,7 @@ run_processor (child::command::command_options_t &process_options)
     crwritefd = -1;
 
     // when closing, assign NULL and prreadfd=-1
+    // closing this will also close prreadfd
     FILE *input = fdopen (prreadfd, "r");
 
     // declare everything here to be able to use goto
@@ -425,7 +433,11 @@ run_processor (child::command::command_options_t &process_options)
         }
 
     if (p_info.cpid == 0)
-        { /* Child reads from pipe */
+        {
+            // close unrelated fds
+            fclose (input);
+            close (write_fifo);
+
             run_ffmpeg (options, p_info);
         }
 
@@ -574,7 +586,7 @@ run_processor (child::command::command_options_t &process_options)
 
                     // kill reader immediately as closing its stdout or SIGTERM
                     // won't trigger it to exit
-                    kill (p_info.rpid, SIGKILL);
+                    // kill (p_info.rpid, SIGKILL);
 
                     waitpid (p_info.rpid, &cstatus, 0); /* Wait for child */
                     if (options.debug)
@@ -608,7 +620,12 @@ run_processor (child::command::command_options_t &process_options)
                         }
 
                     if (p_info.rpid == 0)
-                        { /* Child reads from pipe */
+                        {
+                            // close unrelated fds to avoid deadlock
+                            close (pwritefd);
+                            close (preadfd);
+                            close (write_fifo);
+
                             run_reader (options, p_info);
                         }
 
@@ -626,12 +643,18 @@ run_processor (child::command::command_options_t &process_options)
             // recreate ffmpeg process to update filter chain
             if (options.volume != current_options.volume)
                 {
-                    // close write fd, we can now safely read until
-                    // eof without worrying about polling and blocked read
                     close (pwritefd);
 
                     // read the rest of data before closing current instance
-                    while ((input_read_size
+                    /*
+                    read_has_event = poll (prfds, 1, 0);
+                    read_ready = (read_has_event > 0)
+                                 && (prfds[0].revents & POLLIN
+                                     && !(prfds[0].revents & POLLERR));
+                     */
+                    while (/*read_ready
+                           && */
+                           (input_read_size
                             = read (preadfd, rest_buffer, BUFFER_SIZE))
                            > 0)
                         {
@@ -642,6 +665,13 @@ run_processor (child::command::command_options_t &process_options)
                                     options.panic_break = true;
                                     break;
                                 };
+
+                            /*
+                            read_has_event = poll (prfds, 1, 0);
+                            read_ready = (read_has_event > 0)
+                                         && (prfds[0].revents & POLLIN
+                                             && !(prfds[0].revents & POLLERR));
+                             */
                         }
 
                     // close read fd
@@ -650,11 +680,16 @@ run_processor (child::command::command_options_t &process_options)
                     pwritefd = -1;
                     preadfd = -1;
 
+                    cstatus = 0;
+
+                    // kill ffmpeg immediately as closing its stdout or SIGTERM
+                    // won't trigger it to exit
+                    // kill (p_info.cpid, SIGKILL);
+
                     // wait for child to finish transferring data
-                    int status = 0;
-                    waitpid (p_info.cpid, &status, 0);
+                    waitpid (p_info.cpid, &cstatus, 0);
                     if (options.debug)
-                        fprintf (stderr, "child status: %d\n", status);
+                        fprintf (stderr, "child status: %d\n", cstatus);
 
                     // do the same setup routine as startup
                     if (pipe (p_info.ppipefd) == -1)
@@ -702,7 +737,11 @@ run_processor (child::command::command_options_t &process_options)
                         }
 
                     if (p_info.cpid == 0)
-                        { /* Child reads from pipe */
+                        {
+                            // close unrelated fds to avoid deadlock
+                            fclose (input);
+                            close (write_fifo);
+
                             run_ffmpeg (options, p_info);
                         }
 

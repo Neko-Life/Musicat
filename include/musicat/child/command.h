@@ -28,6 +28,7 @@ static inline const struct
     const std::string guild_id = "gid"; // str
     const std::string ready = "rdy";    // bool
     const std::string seek = "sk";      // bool
+    const std::string volume = "vl";    // bool
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -54,9 +55,15 @@ struct command_options_t
     std::string seek;
     std::string audio_stream_stdin_path;
     std::string audio_stream_stdout_path;
+    int volume;
 };
 
-command_options_t create_command_options ();
+static inline command_options_t
+create_command_options ()
+{
+    return { "", "", false, "",    -1, -1, -1, -1,
+             -1, "", "",    false, "", "", "", 100 };
+}
 
 void command_queue_routine ();
 

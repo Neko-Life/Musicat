@@ -290,7 +290,7 @@ slash_run (const dpp::slashcommand_t &event,
 
     if (!util::player_has_current_track (player))
         {
-            event.reply ("Not playing anything");
+            event.reply ("I'm not playing anything");
             return;
         }
 

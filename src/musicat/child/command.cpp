@@ -20,6 +20,79 @@ std::map<std::string, std::pair<bool, int> > slave_ready_queue;
 std::mutex sr_m;
 std::condition_variable sr_cv;
 
+int
+set_option (command_options_t &options, std::string &cmd_option)
+{
+    std::string opt = "";
+    std::string value = "";
+
+    bool filling_value = false;
+    bool include_next_special = false;
+    for (const char &c : cmd_option)
+        {
+            if (!include_next_special)
+                {
+                    if (c == '\\')
+                        {
+                            include_next_special = true;
+                            continue;
+                        }
+
+                    if (c == '=')
+                        {
+                            filling_value = true;
+                            continue;
+                        }
+                }
+            else
+                include_next_special = false;
+
+            if (filling_value)
+                {
+                    value += c;
+                    continue;
+                }
+
+            opt += c;
+        }
+
+    // every value in command_options_keys_t should be handled here
+    if (opt == command_options_keys_t.id)
+        {
+            options.id = value;
+        }
+    else if (opt == command_options_keys_t.command)
+        {
+            options.command = value;
+        }
+    else if (opt == command_options_keys_t.file_path)
+        {
+            options.file_path = value;
+        }
+    else if (opt == command_options_keys_t.debug)
+        {
+            options.debug = value == "1";
+        }
+    else if (opt == command_options_keys_t.guild_id)
+        {
+            options.guild_id = value;
+        }
+    else if (opt == command_options_keys_t.ready)
+        {
+            options.ready = atoi (value.c_str ());
+        }
+    else if (opt == command_options_keys_t.seek)
+        {
+            options.seek = value;
+        }
+    else if (opt == command_options_keys_t.volume)
+        {
+            options.volume = atoi (value.c_str ());
+        }
+
+    return 0;
+}
+
 void
 command_queue_routine ()
 {
@@ -214,81 +287,6 @@ sanitize_command_key_value (const std::string &key_value)
     // fprintf (stderr, "new_key_value: %s\n", new_key_value.c_str ());
 
     return new_key_value;
-}
-
-command_options_t
-create_command_options ()
-{
-    return { "", "", false, "", -1, -1, -1, -1, -1, "", "", false, "", "", "" };
-}
-
-int
-set_option (command_options_t &options, std::string &cmd_option)
-{
-    std::string opt = "";
-    std::string value = "";
-
-    bool filling_value = false;
-    bool include_next_special = false;
-    for (const char &c : cmd_option)
-        {
-            if (!include_next_special)
-                {
-                    if (c == '\\')
-                        {
-                            include_next_special = true;
-                            continue;
-                        }
-
-                    if (c == '=')
-                        {
-                            filling_value = true;
-                            continue;
-                        }
-                }
-            else
-                include_next_special = false;
-
-            if (filling_value)
-                {
-                    value += c;
-                    continue;
-                }
-
-            opt += c;
-        }
-
-    // every value in command_options_keys_t should be handled here
-    if (opt == command_options_keys_t.id)
-        {
-            options.id = value;
-        }
-    else if (opt == command_options_keys_t.command)
-        {
-            options.command = value;
-        }
-    else if (opt == command_options_keys_t.file_path)
-        {
-            options.file_path = value;
-        }
-    else if (opt == command_options_keys_t.debug)
-        {
-            options.debug = value == "1";
-        }
-    else if (opt == command_options_keys_t.guild_id)
-        {
-            options.guild_id = value;
-        }
-    else if (opt == command_options_keys_t.ready)
-        {
-            options.ready = atoi (value.c_str ());
-        }
-    else if (opt == command_options_keys_t.seek)
-        {
-            options.seek = value;
-        }
-
-    return 0;
 }
 
 void

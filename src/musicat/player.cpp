@@ -29,7 +29,8 @@ MCTrack::MCTrack (YTrack t)
 
 MCTrack::~MCTrack () = default;
 
-Player::Player ()
+void
+Player::init ()
 {
     this->guild_id = 0;
     this->cluster = nullptr;
@@ -44,23 +45,16 @@ Player::Player ()
     this->saved_queue_loaded = false;
     this->saved_config_loaded = false;
     this->volume = 100;
+    this->set_volume = -1;
 }
+
+Player::Player () { this->init (); }
 
 Player::Player (dpp::cluster *_cluster, dpp::snowflake _guild_id)
 {
+    this->init ();
     this->guild_id = _guild_id;
     this->cluster = _cluster;
-    this->loop_mode = loop_mode_t::l_none;
-    this->shifted_track = 0;
-    this->info_message = nullptr;
-    this->from = nullptr;
-    this->auto_play = false;
-    this->max_history_size = 0;
-    this->stopped = false;
-    this->channel_id = 0;
-    this->saved_queue_loaded = false;
-    this->saved_config_loaded = false;
-    this->volume = 100;
 }
 
 Player::~Player ()

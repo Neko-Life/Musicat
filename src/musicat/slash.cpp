@@ -30,6 +30,7 @@ get_all (dpp::snowflake sha_id)
         image::get_register_obj (sha_id),
         seek::get_register_obj (sha_id),
         progress::get_register_obj (sha_id),
+        volume::get_register_obj (sha_id),
     });
     return slash_commands;
 }

@@ -166,12 +166,15 @@ class Player
     bool stopped;
 
     int volume;
+    int set_volume;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
     std::mutex t_mutex;
+
+    void init ();
 
     Player ();
     Player (dpp::cluster *_cluster, dpp::snowflake _guild_id);
