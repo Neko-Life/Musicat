@@ -17,10 +17,10 @@ struct processor_states_t
     // temp vars to create pipes
     int ppipefd[2];
     int cpipefd[2];
-    int rpipefd[2];
+    /* int rpipefd[2]; */
 
     pid_t cpid;
-    pid_t rpid;
+    /* pid_t rpid; */
 };
 
 enum run_processor_error_t

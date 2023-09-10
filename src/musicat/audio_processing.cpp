@@ -3,6 +3,7 @@
 #include "musicat/child/command.h"
 #include "musicat/musicat.h"
 #include <assert.h>
+#include <chrono>
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>
@@ -14,14 +15,14 @@
 #include <thread>
 #include <unistd.h>
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 2.0f
-#define SLEEP_ON_BUFFER_THRESHOLD_MS 40
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
+#define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 #define BUFFER_SIZE processing_buffer_size
-#define READ_CHUNK_SIZE 4096
+#define READ_CHUNK_SIZE BUFSIZ / 2
 
-#define USING_OPUS "-f", "opus", "-b:a", "128k",
-#define USING_PCM "-f", "s16le",
+#define USING_OPUS "-f", "opus", "-b:a", "128k"
+#define USING_PCM "-f", "s16le"
 
 #define USING_FORMAT USING_PCM
 
@@ -104,7 +105,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 
     return written;
 }
-
+/*
 static int
 run_reader (const processor_options_t &options,
             const processor_states_t &p_info)
@@ -112,13 +113,13 @@ run_reader (const processor_options_t &options,
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
-            perror ("child reader");
+            perror ("child reader prctl");
             _exit (EXIT_FAILURE);
         }
     int prreadfd = p_info.rpipefd[0];
     int crwritefd = p_info.rpipefd[1];
 
-    close (prreadfd); /* Close unused read end */
+    close (prreadfd);
 
     int status;
     status = dup2 (crwritefd, STDOUT_FILENO);
@@ -149,8 +150,8 @@ run_reader (const processor_options_t &options,
             args[args_idx++] = (char *)options.seek_to.c_str ();
         }
 
-    char *rest_args[] = { /*"-v",
-                          "debug",*/
+    char *rest_args[] = { // "-v",
+                          // "debug",
                           "-i",
                           (char *)file_path.c_str (),
                           "-f",
@@ -159,7 +160,8 @@ run_reader (const processor_options_t &options,
                           "2",
                           "-ar",
                           "48000",
-                          /*"-preset", "ultrafast",*/ "-threads",
+                          //"-preset", "ultrafast",
+                          "-threads",
                           "1",
                           OUT_CMD,
                           (char *)NULL
@@ -173,7 +175,7 @@ run_reader (const processor_options_t &options,
 
     execvp ("ffmpeg", args);
 
-    perror ("child reader");
+    perror ("child reader exit");
     _exit (EXIT_FAILURE);
 }
 
@@ -185,7 +187,7 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
-            perror ("child ffmpeg");
+            perror ("child ffmpeg prctl");
             _exit (EXIT_FAILURE);
         }
 
@@ -194,8 +196,8 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
     int creadfd = p_info.cpipefd[0];
     int pwritefd = p_info.cpipefd[1];
 
-    close (pwritefd); /* Close unused write end */
-    close (preadfd);  /* Close unused read end */
+    close (pwritefd);
+    close (preadfd);
 
     // redirect ffmpeg stdin and stdout to prepared pipes
     // exit if unable to redirect
@@ -230,33 +232,24 @@ run_ffmpeg (processor_options_t &options, processor_states_t &p_info)
             (std::string ("volume=")
              + std::to_string ((float)options.volume / (float)100))
                 .c_str (),
-            "-ac", "2", "-ar", "48000",
-            USING_FORMAT
-            /* "-bufsize", "1024", */
-            /*"-preset", "ultrafast",*/ "-threads",
-            "1", OUT_CMD, (char *)NULL);
+            "-ac", "2", "-ar", "48000", USING_FORMAT,
+            //"-bufsize", "1024",
+            //"-preset", "ultrafast",
+            //"-threads", "1", OUT_CMD,
+            (char *)NULL);
 
-    perror ("child ffmpeg");
+    perror ("child ffmpeg exit");
     _exit (EXIT_FAILURE);
 }
-
+*/
 // this should be called
 // inside the streaming thread
 int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                     ssize_t *send_buffer_length, bool no_wait)
 {
+    // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
-    // wait for old pending audio buffer to be sent to discord
-    if (!no_wait)
-        while ((running_state = get_running_state ()) && vclient
-               && !vclient->terminating
-               && vclient->get_secs_remaining ()
-                      > DPP_AUDIO_BUFFER_LENGTH_SECOND)
-            {
-                std::this_thread::sleep_for (
-                    std::chrono::milliseconds (SLEEP_ON_BUFFER_THRESHOLD_MS));
-            }
 
     if (!running_state || !vclient || vclient->terminating)
         {
@@ -276,6 +269,50 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 
     *send_buffer_length = 0;
 
+    // wait for old pending audio buffer to be sent to discord
+    // if (!no_wait)
+    //     {
+    //         float outbuf_duration;
+
+    //         while ((running_state = get_running_state ()) && vclient
+    //                && !vclient->terminating
+    //                && ((outbuf_duration = vclient->get_secs_remaining ())
+    //                    > DPP_AUDIO_BUFFER_LENGTH_SECOND))
+    //             {
+    //                 if (debug)
+    //                     {
+    //                         static std::chrono::time_point start_time
+    //                             = std::chrono::high_resolution_clock::now
+    //                             ();
+
+    //                         auto end_time
+    //                             = std::chrono::high_resolution_clock::now
+    //                             ();
+
+    //                         auto done = std::chrono::duration_cast<
+    //                             std::chrono::milliseconds> (end_time
+    //                                                         - start_time);
+
+    //                         start_time = end_time;
+
+    //                         fprintf (stderr,
+    //                                  "[audio_processing::send_audio_routine]
+    //                                  " "outbuf_duration: %f > %f\n",
+    //                                  outbuf_duration,
+    //                                  DPP_AUDIO_BUFFER_LENGTH_SECOND);
+
+    //                         fprintf (
+    //                             stderr,
+    //                             "[audio_processing::send_audio_routine]
+    //                             Delay " "between send: %ld milliseconds\n",
+    //                             done.count ());
+    //                     }
+
+    //                 std::this_thread::sleep_for (std::chrono::milliseconds (
+    //                     SLEEP_ON_BUFFER_THRESHOLD_MS));
+    //             }
+    //     }
+
     return 0;
 }
 
@@ -290,11 +327,10 @@ copy_options (processor_options_t &opts)
 {
     return opts;
 }
-
+/*
 // should be run as a child process
-// !TODO: opens 3 fifo, 2 for control in and out and 1 for audio stream
 run_processor_error_t
-run_processor (child::command::command_options_t &process_options)
+run_processor_2_child (child::command::command_options_t &process_options)
 {
     // !TODO: remove this redirect
     // int dnull = open ("/dev/null", O_WRONLY);
@@ -309,8 +345,6 @@ run_processor (child::command::command_options_t &process_options)
     options.id = process_options.id;
     options.guild_id = process_options.guild_id;
     options.volume = process_options.volume;
-
-    auto player_manager = get_player_manager_ptr ();
 
     run_processor_error_t init_error = SUCCESS;
     run_processor_error_t error_status = SUCCESS;
@@ -336,7 +370,7 @@ run_processor (child::command::command_options_t &process_options)
         }
 
     if (p_info.rpid == 0)
-        { /* Child reads from pipe */
+        {
             run_reader (options, p_info);
         }
 
@@ -448,8 +482,8 @@ run_processor (child::command::command_options_t &process_options)
             run_ffmpeg (options, p_info);
         }
 
-    close (creadfd);  /* Close unused read end */
-    close (cwritefd); /* Close unused write end */
+    close (creadfd);
+    close (cwritefd);
 
     creadfd = -1;
     cwritefd = -1;
@@ -595,7 +629,7 @@ run_processor (child::command::command_options_t &process_options)
                     // won't trigger it to exit
                     // kill (p_info.rpid, SIGKILL);
 
-                    waitpid (p_info.rpid, &cstatus, 0); /* Wait for child */
+                    waitpid (p_info.rpid, &cstatus, 0);
                     if (options.debug)
                         fprintf (stderr, "rchild status: %d\n", cstatus);
 
@@ -653,14 +687,13 @@ run_processor (child::command::command_options_t &process_options)
                     close (pwritefd);
 
                     // read the rest of data before closing current instance
-                    /*
-                    read_has_event = poll (prfds, 1, 0);
-                    read_ready = (read_has_event > 0)
-                                 && (prfds[0].revents & POLLIN
-                                     && !(prfds[0].revents & POLLERR));
-                     */
-                    while (/*read_ready
-                           && */
+                    // read_has_event = poll (prfds, 1, 0);
+                    // read_ready = (read_has_event > 0)
+                    //              && (prfds[0].revents & POLLIN
+                    //                  && !(prfds[0].revents & POLLERR));
+                    //
+                    while (//read_ready
+                           //&&
                            (input_read_size
                             = read (preadfd, rest_buffer, BUFFER_SIZE))
                            > 0)
@@ -673,12 +706,12 @@ run_processor (child::command::command_options_t &process_options)
                                     break;
                                 };
 
-                            /*
-                            read_has_event = poll (prfds, 1, 0);
-                            read_ready = (read_has_event > 0)
-                                         && (prfds[0].revents & POLLIN
-                                             && !(prfds[0].revents & POLLERR));
-                             */
+
+                            // read_has_event = poll (prfds, 1, 0);
+                            // read_ready = (read_has_event > 0)
+                            //              && (prfds[0].revents & POLLIN
+                            //                  && !(prfds[0].revents &
+POLLERR));
                         }
 
                     // close read fd
@@ -752,8 +785,8 @@ run_processor (child::command::command_options_t &process_options)
                             run_ffmpeg (options, p_info);
                         }
 
-                    close (creadfd);  /* Close unused read end */
-                    close (cwritefd); /* Close unused write end */
+                    close (creadfd);
+                    close (cwritefd);
 
                     creadfd = -1;
                     cwritefd = -1;
@@ -810,13 +843,13 @@ run_processor (child::command::command_options_t &process_options)
 
     cstatus = 0;
 
-    waitpid (p_info.cpid, &cstatus, 0); /* Wait for child */
+    waitpid (p_info.cpid, &cstatus, 0);
     if (options.debug)
         fprintf (stderr, "cchild status: %d\n", cstatus);
 
     cstatus = 0;
 
-    waitpid (p_info.rpid, &cstatus, 0); /* Wait for child */
+    waitpid (p_info.rpid, &cstatus, 0);
     if (options.debug)
         fprintf (stderr, "rchild status: %d\n", cstatus);
 
@@ -841,6 +874,495 @@ err_sfifo1:
 
     fclose (input);
     waitpid (p_info.rpid, &cstatus, 0);
+
+    return init_error;
+} // run_processor_2_child
+*/
+static int
+run_standalone (const processor_options_t &options,
+                const processor_states_t &p_info)
+{
+    // request kernel to kill little self when parent dies
+    if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+        {
+            perror ("child standalone prctl");
+            _exit (EXIT_FAILURE);
+        }
+    int preadfd = p_info.ppipefd[0];
+    int cwritefd = p_info.ppipefd[1];
+    int creadfd = p_info.cpipefd[0];
+    int pwritefd = p_info.cpipefd[1];
+
+    close (preadfd);  /* Close unused read end */
+    close (pwritefd); /* Close unused read end */
+
+    int status;
+    status = dup2 (cwritefd, STDOUT_FILENO);
+    close (cwritefd);
+    if (status == -1)
+        {
+            perror ("child standalone dout");
+            _exit (EXIT_FAILURE);
+        }
+
+    status = dup2 (creadfd, STDIN_FILENO);
+    close (creadfd);
+    if (status == -1)
+        {
+            perror ("child standalone din");
+            _exit (EXIT_FAILURE);
+        }
+
+    // redirect ffmpeg stderr to /dev/null
+    if (!options.debug)
+        {
+            // redirect ffmpeg stderr to /dev/null
+            int dnull = open ("/dev/null", O_WRONLY);
+            dup2 (dnull, STDERR_FILENO);
+            close (dnull);
+        }
+
+    const std::string file_path = options.file_path;
+
+    const bool need_seek = options.seek_to.length () > 0;
+
+    char *args[64] = {
+        "ffmpeg",
+    };
+    int args_idx = 1;
+
+    if (need_seek)
+        {
+            args[args_idx++] = "-ss";
+            args[args_idx++] = (char *)options.seek_to.c_str ();
+        }
+
+    char *rest_args[]
+        = { "-v",
+            "debug",
+            "-i",
+            (char *)file_path.c_str (),
+            "-af",
+            (char *)(std::string ("volume=")
+                     + std::to_string ((float)options.volume / (float)100))
+                .c_str (),
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            /*"-preset", "ultrafast",*/ "-threads",
+            "1",
+            USING_FORMAT,
+            OUT_CMD,
+            (char *)NULL };
+
+    for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0]));
+         i++)
+        args[args_idx++] = rest_args[i];
+
+    if (options.debug)
+        for (unsigned long i = 0; i < (sizeof (args) / sizeof (args[0])); i++)
+            {
+                if (!args[i])
+                    break;
+
+                fprintf (stderr, "%s\n", args[i]);
+            }
+
+    execvp ("ffmpeg", args);
+
+    perror ("child standalone exit");
+    _exit (EXIT_FAILURE);
+}
+
+// should be run as a child process
+run_processor_error_t
+run_processor (child::command::command_options_t &process_options)
+{
+    // !TODO: remove this useless child_write_fd entirely
+    close (process_options.child_write_fd);
+    process_options.child_write_fd = -1;
+
+    processor_states_t p_info;
+
+    processor_options_t options = create_options ();
+    options.file_path = process_options.file_path;
+    options.debug = process_options.debug;
+    options.id = process_options.id;
+    options.guild_id = process_options.guild_id;
+    options.volume = process_options.volume;
+
+    run_processor_error_t init_error = SUCCESS;
+    run_processor_error_t error_status = SUCCESS;
+
+    // declare everything here to be able to use goto
+    // fds and poll
+    int preadfd, cwritefd, creadfd, pwritefd, cstatus = 0;
+    struct pollfd prfds[1], pwfds[1];
+
+    // main loop variable definition
+    ssize_t last_read_size = 0;
+    uint8_t rest_buffer[BUFFER_SIZE];
+
+    processor_options_t current_options = copy_options (options);
+
+    int write_fifo
+        = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY),
+        stdin_fifo, fifo_status, stdout_fifo;
+
+    if (write_fifo < 0)
+        {
+            perror ("write_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo1;
+        }
+
+    stdin_fifo
+        = open (process_options.audio_stream_stdin_path.c_str (), O_RDONLY);
+
+    if (stdin_fifo < 0)
+        {
+            perror ("stdin_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo2;
+        }
+
+    fifo_status = dup2 (stdin_fifo, STDIN_FILENO);
+    close (stdin_fifo);
+    if (fifo_status == -1)
+        {
+            perror ("dup2 stdin_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo3;
+        }
+
+    stdout_fifo
+        = open (process_options.audio_stream_stdout_path.c_str (), O_WRONLY);
+
+    if (stdout_fifo < 0)
+        {
+            perror ("stdout_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo4;
+        }
+
+    fifo_status = dup2 (stdout_fifo, STDOUT_FILENO);
+    close (stdout_fifo);
+    if (fifo_status == -1)
+        {
+            perror ("dup2 stdout_fifo");
+            init_error = ERR_SFIFO;
+            goto err_sfifo5;
+        }
+
+    // prepare required pipes for bidirectional interprocess communication
+    if (pipe (p_info.ppipefd) == -1)
+        {
+            perror ("ppipe");
+            init_error = ERR_SPIPE;
+            goto err_spipe1;
+        }
+    preadfd = p_info.ppipefd[0];
+    cwritefd = p_info.ppipefd[1];
+
+    if (pipe (p_info.cpipefd) == -1)
+        {
+            perror ("cpipe");
+            init_error = ERR_SPIPE;
+            goto err_spipe2;
+        }
+    creadfd = p_info.cpipefd[0];
+    pwritefd = p_info.cpipefd[1];
+
+    // create a child
+    p_info.cpid = fork ();
+    if (p_info.cpid == -1)
+        {
+            perror ("fork");
+            init_error = ERR_SFORK;
+            goto err_sfork;
+        }
+
+    if (p_info.cpid == 0)
+        {
+            // close unrelated fds
+            close (write_fifo);
+
+            run_standalone (options, p_info);
+        }
+
+    close (cwritefd); /* Close unused write end */
+    close (creadfd);  /* Close unused write end */
+
+    cwritefd = -1;
+
+    // prepare required data for polling
+    prfds[0].events = POLLIN;
+    pwfds[0].events = POLLOUT;
+
+    prfds[0].fd = preadfd;
+    pwfds[0].fd = pwritefd;
+
+    // main loop, breaking means exiting
+    while (!options.panic_break)
+        {
+            // poll ffmpeg stdout
+            int read_has_event = poll (prfds, 1, 0);
+            bool read_ready
+                = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+
+            ssize_t input_read_size = 0;
+
+            if (read_ready)
+                {
+                    // with known chunk size that always guarantee correct read
+                    // size that empties ffmpeg buffer, poll will report
+                    // correctly that the pipe is really empty so we know
+                    // exactly when to stop reading, this is where it's
+                    // problematic when BUFFER_SIZE%READ_CHUNK_SIZE doesn't
+                    // equal 0
+                    uint8_t out_buffer[BUFFER_SIZE];
+                    ssize_t current_read = 0;
+                    while (read_ready
+                           && ((current_read
+                                = read (preadfd, out_buffer + input_read_size,
+                                        READ_CHUNK_SIZE))
+                               > 0))
+                        {
+                            input_read_size += current_read;
+                            if (input_read_size == BUFFER_SIZE)
+                                {
+                                    if (write_stdout (out_buffer,
+                                                      &input_read_size,
+                                                      write_fifo)
+                                        == -1)
+                                        {
+                                            options.panic_break = true;
+                                            break;
+                                        }
+                                }
+
+                            // break on last buffer
+                            if (current_read < READ_CHUNK_SIZE)
+                                {
+                                    break;
+                                }
+
+                            read_has_event = poll (prfds, 1, 0);
+                            read_ready = (read_has_event > 0)
+                                         && (prfds[0].revents & POLLIN);
+                        }
+
+                    // empties the last buffer that usually size less than
+                    // BUFFER_SIZE which usually left with 0 remainder when
+                    // divided by READ_CHUNK_SIZE, otherwise can means ffmpeg
+                    // have chunked audio packets with its specific size as its
+                    // output when specifying some other containerized format
+                    if (input_read_size > 0)
+                        {
+                            if (write_stdout (out_buffer, &input_read_size,
+                                              write_fifo)
+                                == -1)
+                                {
+                                    options.panic_break = true;
+                                    break;
+                                };
+                        }
+                }
+            else if ((prfds[0].revents & POLLERR)
+                     || (prfds[0].revents & POLLHUP))
+                {
+                    // we got doomed
+                    perror ("main poll");
+                    break;
+                }
+
+            // !TODO: poll and read for commands from stdin
+            // commands: volume, panic_break
+            // probably create a big struct for every possible options and one
+            // universal command parser that will set those options
+            // commands should always be the length of CMD_BUFSIZE
+            read_command (options);
+            if (options.panic_break)
+                break;
+
+            // recreate ffmpeg process to update filter chain
+            if (options.seek_to.length ())
+                {
+                    close (pwritefd);
+
+                    kill (p_info.cpid, SIGTERM);
+
+                    // read the rest of data before closing current instance
+                    // have some patient and wait for 1000 ms each poll
+                    // cuz if the pipe isn't really empty by the time
+                    // read fd closed (cuz late data), the to be created new
+                    // pipe will have POLLHUP and can't be recovered
+                    read_has_event = poll (prfds, 1, 1000);
+                    read_ready
+                        = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+                    while (read_ready
+                           && (input_read_size
+                               = read (preadfd, rest_buffer, BUFFER_SIZE))
+                                  > 0)
+                        {
+                            if (write_stdout (rest_buffer, &input_read_size,
+                                              write_fifo)
+                                == -1)
+                                {
+                                    options.panic_break = true;
+                                    break;
+                                };
+
+                            read_has_event = poll (prfds, 1, 1000);
+                            read_ready = (read_has_event > 0)
+                                         && (prfds[0].revents & POLLIN);
+                        }
+
+                    // close read fd
+                    close (preadfd);
+
+                    preadfd = -1;
+
+                    cstatus = 0;
+
+                    // wait for child to finish transferring data
+                    waitpid (p_info.cpid, &cstatus, 0);
+                    if (options.debug)
+                        fprintf (stderr, "child status: %d\n", cstatus);
+
+                    // do the same setup routine as startup
+                    if (pipe (p_info.ppipefd) == -1)
+                        {
+                            perror ("ppipe");
+                            error_status = ERR_LPIPE;
+                            break;
+                        }
+                    preadfd = p_info.ppipefd[0];
+                    cwritefd = p_info.ppipefd[1];
+
+                    if (pipe (p_info.cpipefd) == -1)
+                        {
+                            perror ("cpipe");
+                            init_error = ERR_SPIPE;
+
+                            close (preadfd);
+                            close (cwritefd);
+
+                            preadfd = -1;
+                            cwritefd = -1;
+                            break;
+                        }
+                    creadfd = p_info.cpipefd[0];
+                    pwritefd = p_info.cpipefd[1];
+
+                    p_info.cpid = fork ();
+                    if (p_info.cpid == -1)
+                        {
+                            perror ("fork");
+                            error_status = ERR_LFORK;
+
+                            close (preadfd);
+                            close (cwritefd);
+                            close (pwritefd);
+                            close (creadfd);
+
+                            preadfd = -1;
+                            cwritefd = -1;
+                            pwritefd = -1;
+                            creadfd = -1;
+
+                            break;
+                        }
+
+                    if (p_info.cpid == 0)
+                        {
+                            // close unrelated fds to avoid deadlock
+                            close (write_fifo);
+
+                            run_standalone (options, p_info);
+                        }
+
+                    close (cwritefd); /* Close unused write end */
+                    close (creadfd);  /* Close unused write end */
+
+                    cwritefd = -1;
+                    creadfd = -1;
+
+                    // update fd to poll
+                    prfds[0].fd = preadfd;
+                    pwfds[0].fd = pwritefd;
+
+                    // mark changes done
+                    options.seek_to = "";
+                }
+
+            // runtime effects here
+            if (options.volume != current_options.volume)
+                {
+                    const std::string str_buf
+                        = "call -1 volume "
+                          + std::to_string ((float)options.volume / (float)100)
+                          + '\n';
+                    const char *buf = str_buf.c_str ();
+
+                    write (pwritefd, buf, str_buf.size () + 1);
+                    current_options.volume = options.volume;
+                }
+        }
+
+    // exiting, clean up
+
+    // read the rest of data before closing ffmpeg stdout
+    while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE)) > 0)
+        {
+            if (write_stdout (rest_buffer, &last_read_size, write_fifo) == -1)
+                {
+                    options.panic_break = true;
+                    break;
+                };
+        }
+
+    if (preadfd > -1)
+        close (preadfd);
+
+    close (write_fifo);
+
+    preadfd = -1;
+    write_fifo = -1;
+
+    if (options.debug)
+        fprintf (stderr, "fds closed\n");
+
+    // wait for childs to make sure they're dead and
+    // prevent them to become zombies
+    if (options.debug)
+        fprintf (stderr, "waiting for child\n");
+
+    cstatus = 0;
+
+    waitpid (p_info.cpid, &cstatus, 0); /* Wait for child */
+    if (options.debug)
+        fprintf (stderr, "cchild status: %d\n", cstatus);
+
+    return error_status;
+
+    // init error handling
+err_sfork:
+    close (pwritefd);
+    close (creadfd);
+err_spipe2:
+    close (preadfd);
+    close (cwritefd);
+err_spipe1:
+err_sfifo5:
+err_sfifo4:
+err_sfifo3:
+err_sfifo2:
+    close (write_fifo);
+err_sfifo1:
+    close (process_options.child_write_fd);
+    process_options.child_write_fd = -1;
 
     return init_error;
 } // run_processor

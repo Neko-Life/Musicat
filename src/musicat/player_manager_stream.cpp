@@ -14,7 +14,7 @@
 // correct frame size with timescale for dpp
 #define STREAM_BUFSIZ dpp::send_audio_raw_max_length
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.5f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 inline constexpr long CHUNK_READ = BUFSIZ * 2;
@@ -108,8 +108,12 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             pfds[0].events = POLLIN;
             pfds[0].fd = states.read_fd;
 
-            int has_event = poll (pfds, 1, 0);
+            // have some patient and wait for 1000 ms each poll
+            // cuz if the pipe isn't really empty we will not have a smooth
+            // seek
+            int has_event = poll (pfds, 1, 1000);
             bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+            bool less_buffer_encountered = false;
 
             ssize_t drain_size = 0;
             char drain_buf[DRAIN_CHUNK];
@@ -118,7 +122,22 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                         = read (states.read_fd, drain_buf, DRAIN_CHUNK))
                        > 0))
                 {
-                    has_event = poll (pfds, 1, 0);
+                    if (drain_size < DRAIN_CHUNK)
+                        {
+                            // might be the last buffer, might be not
+                            if (less_buffer_encountered)
+                                {
+                                    // this is the second time we encountered
+                                    // buffer with size less than chunk read,
+                                    // lets break
+                                    break;
+                                }
+
+                            // lets set a flag for next encounter to break
+                            less_buffer_encountered = true;
+                        }
+
+                    has_event = poll (pfds, 1, 1000);
                     drain_ready
                         = (has_event > 0) && (pfds[0].revents & POLLIN);
                 }
@@ -358,6 +377,56 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     v, (uint16_t *)buffer, &read_size))
                                 {
                                     break;
+                                }
+
+                            float outbuf_duration;
+
+                            while ((running_state = get_running_state ()) && v
+                                   && !v->terminating
+                                   && ((outbuf_duration
+                                        = v->get_secs_remaining ())
+                                       > DPP_AUDIO_BUFFER_LENGTH_SECOND))
+                                {
+                                    if ((debug = get_debug_state ()))
+                                        {
+                                            static std::chrono::time_point
+                                                start_time
+                                                = std::chrono::
+                                                    high_resolution_clock::
+                                                        now ();
+
+                                            auto end_time = std::chrono::
+                                                high_resolution_clock::now ();
+
+                                            auto done
+                                                = std::chrono::duration_cast<
+                                                    std::chrono::
+                                                        milliseconds> (
+                                                    end_time - start_time);
+
+                                            start_time = end_time;
+
+                                            fprintf (
+                                                stderr,
+                                                "[audio_processing::send_"
+                                                "audio_routine] "
+                                                "outbuf_duration: %f > %f\n",
+                                                outbuf_duration,
+                                                DPP_AUDIO_BUFFER_LENGTH_SECOND);
+
+                                            fprintf (stderr,
+                                                     "[audio_processing::send_"
+                                                     "audio_routine] Delay "
+                                                     "between send: %ld "
+                                                     "milliseconds\n",
+                                                     done.count ());
+                                        }
+
+                                    handle_effect_chain_change (effect_states);
+
+                                    std::this_thread::sleep_for (
+                                        std::chrono::milliseconds (
+                                            SLEEP_ON_BUFFER_THRESHOLD_MS));
                                 }
                         }
                 }
