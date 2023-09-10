@@ -14,7 +14,7 @@
 // correct frame size with timescale for dpp
 #define STREAM_BUFSIZ dpp::send_audio_raw_max_length
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.5f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 inline constexpr long CHUNK_READ = BUFSIZ * 2;
@@ -377,6 +377,56 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     v, (uint16_t *)buffer, &read_size))
                                 {
                                     break;
+                                }
+
+                            float outbuf_duration;
+
+                            while ((running_state = get_running_state ()) && v
+                                   && !v->terminating
+                                   && ((outbuf_duration
+                                        = v->get_secs_remaining ())
+                                       > DPP_AUDIO_BUFFER_LENGTH_SECOND))
+                                {
+                                    if ((debug = get_debug_state ()))
+                                        {
+                                            static std::chrono::time_point
+                                                start_time
+                                                = std::chrono::
+                                                    high_resolution_clock::
+                                                        now ();
+
+                                            auto end_time = std::chrono::
+                                                high_resolution_clock::now ();
+
+                                            auto done
+                                                = std::chrono::duration_cast<
+                                                    std::chrono::
+                                                        milliseconds> (
+                                                    end_time - start_time);
+
+                                            start_time = end_time;
+
+                                            fprintf (
+                                                stderr,
+                                                "[audio_processing::send_"
+                                                "audio_routine] "
+                                                "outbuf_duration: %f > %f\n",
+                                                outbuf_duration,
+                                                DPP_AUDIO_BUFFER_LENGTH_SECOND);
+
+                                            fprintf (stderr,
+                                                     "[audio_processing::send_"
+                                                     "audio_routine] Delay "
+                                                     "between send: %ld "
+                                                     "milliseconds\n",
+                                                     done.count ());
+                                        }
+
+                                    handle_effect_chain_change (effect_states);
+
+                                    std::this_thread::sleep_for (
+                                        std::chrono::milliseconds (
+                                            SLEEP_ON_BUFFER_THRESHOLD_MS));
                                 }
                         }
                 }

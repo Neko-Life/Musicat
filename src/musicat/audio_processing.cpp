@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 #define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
-#define SLEEP_ON_BUFFER_THRESHOLD_MS 40
+#define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 #define BUFFER_SIZE processing_buffer_size
 #define READ_CHUNK_SIZE BUFSIZ / 2
@@ -248,49 +248,8 @@ int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                     ssize_t *send_buffer_length, bool no_wait)
 {
-    const bool debug = get_debug_state ();
+    // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
-    // wait for old pending audio buffer to be sent to discord
-    if (!no_wait)
-        {
-            float outbuf_duration;
-
-            while ((running_state = get_running_state ()) && vclient
-                   && !vclient->terminating
-                   && ((outbuf_duration = vclient->get_secs_remaining ())
-                       > DPP_AUDIO_BUFFER_LENGTH_SECOND))
-                {
-                    if (debug)
-                        {
-                            static std::chrono::time_point start_time
-                                = std::chrono::high_resolution_clock::now ();
-
-                            auto end_time
-                                = std::chrono::high_resolution_clock::now ();
-
-                            auto done = std::chrono::duration_cast<
-                                std::chrono::milliseconds> (end_time
-                                                            - start_time);
-
-                            start_time = end_time;
-
-                            fprintf (stderr,
-                                     "[audio_processing::send_audio_routine] "
-                                     "outbuf_duration: %f > %f\n",
-                                     outbuf_duration,
-                                     DPP_AUDIO_BUFFER_LENGTH_SECOND);
-
-                            fprintf (
-                                stderr,
-                                "[audio_processing::send_audio_routine] Delay "
-                                "between send: %ld milliseconds\n",
-                                done.count ());
-                        }
-
-                    std::this_thread::sleep_for (std::chrono::milliseconds (
-                        SLEEP_ON_BUFFER_THRESHOLD_MS));
-                }
-        }
 
     if (!running_state || !vclient || vclient->terminating)
         {
@@ -309,6 +268,50 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
         }
 
     *send_buffer_length = 0;
+
+    // wait for old pending audio buffer to be sent to discord
+    // if (!no_wait)
+    //     {
+    //         float outbuf_duration;
+
+    //         while ((running_state = get_running_state ()) && vclient
+    //                && !vclient->terminating
+    //                && ((outbuf_duration = vclient->get_secs_remaining ())
+    //                    > DPP_AUDIO_BUFFER_LENGTH_SECOND))
+    //             {
+    //                 if (debug)
+    //                     {
+    //                         static std::chrono::time_point start_time
+    //                             = std::chrono::high_resolution_clock::now
+    //                             ();
+
+    //                         auto end_time
+    //                             = std::chrono::high_resolution_clock::now
+    //                             ();
+
+    //                         auto done = std::chrono::duration_cast<
+    //                             std::chrono::milliseconds> (end_time
+    //                                                         - start_time);
+
+    //                         start_time = end_time;
+
+    //                         fprintf (stderr,
+    //                                  "[audio_processing::send_audio_routine]
+    //                                  " "outbuf_duration: %f > %f\n",
+    //                                  outbuf_duration,
+    //                                  DPP_AUDIO_BUFFER_LENGTH_SECOND);
+
+    //                         fprintf (
+    //                             stderr,
+    //                             "[audio_processing::send_audio_routine]
+    //                             Delay " "between send: %ld milliseconds\n",
+    //                             done.count ());
+    //                     }
+
+    //                 std::this_thread::sleep_for (std::chrono::milliseconds (
+    //                     SLEEP_ON_BUFFER_THRESHOLD_MS));
+    //             }
+    //     }
 
     return 0;
 }
