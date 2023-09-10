@@ -3,6 +3,7 @@
 #include "musicat/child/command.h"
 #include "musicat/musicat.h"
 #include <assert.h>
+#include <chrono>
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>
@@ -18,7 +19,7 @@
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 40
 
 #define BUFFER_SIZE processing_buffer_size
-#define READ_CHUNK_SIZE 4096
+#define READ_CHUNK_SIZE BUFSIZ / 2
 
 #define USING_OPUS "-f", "opus", "-b:a", "128k"
 #define USING_PCM "-f", "s16le"
@@ -854,8 +855,11 @@ run_standalone (const processor_options_t &options,
         }
     int preadfd = p_info.ppipefd[0];
     int cwritefd = p_info.ppipefd[1];
+    int creadfd = p_info.cpipefd[0];
+    int pwritefd = p_info.cpipefd[1];
 
-    close (preadfd); /* Close unused read end */
+    close (preadfd);  /* Close unused read end */
+    close (pwritefd); /* Close unused read end */
 
     int status;
     status = dup2 (cwritefd, STDOUT_FILENO);
@@ -866,15 +870,22 @@ run_standalone (const processor_options_t &options,
             _exit (EXIT_FAILURE);
         }
 
-    int dnull = open ("/dev/null", O_WRONLY);
-    dup2 (dnull, STDIN_FILENO);
+    status = dup2 (creadfd, STDIN_FILENO);
+    close (creadfd);
+    if (status == -1)
+        {
+            perror ("child standalone din");
+            _exit (EXIT_FAILURE);
+        }
+
     // redirect ffmpeg stderr to /dev/null
     if (!options.debug)
         {
             // redirect ffmpeg stderr to /dev/null
+            int dnull = open ("/dev/null", O_WRONLY);
             dup2 (dnull, STDERR_FILENO);
+            close (dnull);
         }
-    close (dnull);
 
     const std::string file_path = options.file_path;
 
@@ -951,8 +962,8 @@ run_processor (child::command::command_options_t &process_options)
 
     // declare everything here to be able to use goto
     // fds and poll
-    int preadfd, cwritefd, cstatus = 0;
-    struct pollfd prfds[1];
+    int preadfd, cwritefd, creadfd, pwritefd, cstatus = 0;
+    struct pollfd prfds[1], pwfds[1];
 
     // main loop variable definition
     ssize_t last_read_size = 0;
@@ -1019,6 +1030,15 @@ run_processor (child::command::command_options_t &process_options)
     preadfd = p_info.ppipefd[0];
     cwritefd = p_info.ppipefd[1];
 
+    if (pipe (p_info.cpipefd) == -1)
+        {
+            perror ("cpipe");
+            init_error = ERR_SPIPE;
+            goto err_spipe2;
+        }
+    creadfd = p_info.cpipefd[0];
+    pwritefd = p_info.cpipefd[1];
+
     // create a child
     p_info.cpid = fork ();
     if (p_info.cpid == -1)
@@ -1037,13 +1057,16 @@ run_processor (child::command::command_options_t &process_options)
         }
 
     close (cwritefd); /* Close unused write end */
+    close (creadfd);  /* Close unused write end */
 
     cwritefd = -1;
 
     // prepare required data for polling
     prfds[0].events = POLLIN;
+    pwfds[0].events = POLLOUT;
 
     prfds[0].fd = preadfd;
+    pwfds[0].fd = pwritefd;
 
     // main loop, breaking means exiting
     while (!options.panic_break)
@@ -1084,6 +1107,12 @@ run_processor (child::command::command_options_t &process_options)
                                         }
                                 }
 
+                            // break on last buffer
+                            if (current_read < READ_CHUNK_SIZE)
+                                {
+                                    break;
+                                }
+
                             read_has_event = poll (prfds, 1, 0);
                             read_ready = (read_has_event > 0)
                                          && (prfds[0].revents & POLLIN);
@@ -1105,6 +1134,13 @@ run_processor (child::command::command_options_t &process_options)
                                 };
                         }
                 }
+            else if ((prfds[0].revents & POLLERR)
+                     || (prfds[0].revents & POLLHUP))
+                {
+                    // we got doomed
+                    perror ("main poll");
+                    break;
+                }
 
             // !TODO: poll and read for commands from stdin
             // commands: volume, panic_break
@@ -1116,16 +1152,20 @@ run_processor (child::command::command_options_t &process_options)
                 break;
 
             // recreate ffmpeg process to update filter chain
-            if (options.seek_to.length ()
-                || (options.volume != current_options.volume))
+            if (options.seek_to.length ())
                 {
+                    close (pwritefd);
+
                     kill (p_info.cpid, SIGTERM);
 
                     // read the rest of data before closing current instance
-                    read_has_event = poll (prfds, 1, 0);
-                    read_ready = (read_has_event > 0)
-                                 && (prfds[0].revents & POLLIN
-                                     && !(prfds[0].revents & POLLERR));
+                    // have some patient and wait for 1000 ms each poll
+                    // cuz if the pipe isn't really empty by the time
+                    // read fd closed (cuz late data), the to be created new
+                    // pipe will have POLLHUP and can't be recovered
+                    read_has_event = poll (prfds, 1, 1000);
+                    read_ready
+                        = (read_has_event > 0) && (prfds[0].revents & POLLIN);
                     while (read_ready
                            && (input_read_size
                                = read (preadfd, rest_buffer, BUFFER_SIZE))
@@ -1139,10 +1179,9 @@ run_processor (child::command::command_options_t &process_options)
                                     break;
                                 };
 
-                            read_has_event = poll (prfds, 1, 0);
+                            read_has_event = poll (prfds, 1, 1000);
                             read_ready = (read_has_event > 0)
-                                         && (prfds[0].revents & POLLIN
-                                             && !(prfds[0].revents & POLLERR));
+                                         && (prfds[0].revents & POLLIN);
                         }
 
                     // close read fd
@@ -1167,6 +1206,21 @@ run_processor (child::command::command_options_t &process_options)
                     preadfd = p_info.ppipefd[0];
                     cwritefd = p_info.ppipefd[1];
 
+                    if (pipe (p_info.cpipefd) == -1)
+                        {
+                            perror ("cpipe");
+                            init_error = ERR_SPIPE;
+
+                            close (preadfd);
+                            close (cwritefd);
+
+                            preadfd = -1;
+                            cwritefd = -1;
+                            break;
+                        }
+                    creadfd = p_info.cpipefd[0];
+                    pwritefd = p_info.cpipefd[1];
+
                     p_info.cpid = fork ();
                     if (p_info.cpid == -1)
                         {
@@ -1175,9 +1229,13 @@ run_processor (child::command::command_options_t &process_options)
 
                             close (preadfd);
                             close (cwritefd);
+                            close (pwritefd);
+                            close (creadfd);
 
                             preadfd = -1;
                             cwritefd = -1;
+                            pwritefd = -1;
+                            creadfd = -1;
 
                             break;
                         }
@@ -1191,15 +1249,30 @@ run_processor (child::command::command_options_t &process_options)
                         }
 
                     close (cwritefd); /* Close unused write end */
+                    close (creadfd);  /* Close unused write end */
 
                     cwritefd = -1;
+                    creadfd = -1;
 
                     // update fd to poll
                     prfds[0].fd = preadfd;
+                    pwfds[0].fd = pwritefd;
 
                     // mark changes done
-                    current_options.volume = options.volume;
                     options.seek_to = "";
+                }
+
+            // runtime effects here
+            if (options.volume != current_options.volume)
+                {
+                    const std::string str_buf
+                        = "call -1 volume "
+                          + std::to_string ((float)options.volume / (float)100)
+                          + '\n';
+                    const char *buf = str_buf.c_str ();
+
+                    write (pwritefd, buf, str_buf.size () + 1);
+                    current_options.volume = options.volume;
                 }
         }
 
@@ -1241,6 +1314,9 @@ run_processor (child::command::command_options_t &process_options)
 
     // init error handling
 err_sfork:
+    close (pwritefd);
+    close (creadfd);
+err_spipe2:
     close (preadfd);
     close (cwritefd);
 err_spipe1:

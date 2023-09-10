@@ -108,8 +108,12 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             pfds[0].events = POLLIN;
             pfds[0].fd = states.read_fd;
 
-            int has_event = poll (pfds, 1, 0);
+            // have some patient and wait for 1000 ms each poll
+            // cuz if the pipe isn't really empty we will not have a smooth
+            // seek
+            int has_event = poll (pfds, 1, 1000);
             bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+            bool less_buffer_encountered = false;
 
             ssize_t drain_size = 0;
             char drain_buf[DRAIN_CHUNK];
@@ -118,7 +122,22 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                         = read (states.read_fd, drain_buf, DRAIN_CHUNK))
                        > 0))
                 {
-                    has_event = poll (pfds, 1, 0);
+                    if (drain_size < DRAIN_CHUNK)
+                        {
+                            // might be the last buffer, might be not
+                            if (less_buffer_encountered)
+                                {
+                                    // this is the second time we encountered
+                                    // buffer with size less than chunk read,
+                                    // lets break
+                                    break;
+                                }
+
+                            // lets set a flag for next encounter to break
+                            less_buffer_encountered = true;
+                        }
+
+                    has_event = poll (pfds, 1, 1000);
                     drain_ready
                         = (has_event > 0) && (pfds[0].revents & POLLIN);
                 }
