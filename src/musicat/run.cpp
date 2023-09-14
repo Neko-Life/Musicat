@@ -836,6 +836,7 @@ run (int argc, const char *argv[])
 
         string cmd = event.command.get_command_name ();
 
+        // !TODO: refactor this horrible if else to use command_manager or smt
         if (cmd == "hello")
             command::hello::slash_run (event);
         else if (cmd == "why")
@@ -1048,7 +1049,33 @@ run (int argc, const char *argv[])
         vcs_setting_handle_updated (event.updated);
     });
 
-    // client.set_websocket_protocol(dpp::websocket_protocol_t::ws_etf);
+    client.on_voice_buffer_send ([] (const dpp::voice_buffer_send_t &event) {
+        auto manager = get_player_manager_ptr ();
+        auto player = manager
+                          ? manager->get_player (event.voice_client->server_id)
+                          : NULL;
+
+        if (!player)
+            return;
+
+        if (player->current_track.current_byte
+            >= (INT64_MAX - event.buffer_size))
+            return;
+
+        static constexpr const double ratio = 1.3067854;
+
+        player->current_track.current_byte
+            += round ((double)event.buffer_size * ratio);
+
+        if (get_debug_state ())
+            fprintf (stderr,
+                     "[on_voice_buffer_send] size current_byte: %ld %ld\n",
+                     event.buffer_size, player->current_track.current_byte);
+    });
+
+#ifdef MUSICAT_WS_P_ETF
+    client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);
+#endif
 
     _nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);

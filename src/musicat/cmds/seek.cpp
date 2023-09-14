@@ -307,17 +307,6 @@ slash_run (const dpp::slashcommand_t &event,
             return;
         }
 
-    static const constexpr uint64_t second_ms = 1000;
-    static const constexpr uint64_t minute_ms = second_ms * 60;
-    static const constexpr uint64_t hour_ms = 60 * minute_ms;
-
-    const uint64_t total_ms = (parsed.hour * hour_ms)
-                              + (parsed.minute * minute_ms)
-                              + (parsed.second * second_ms) + parsed.ms;
-    if (debug)
-        printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n", total_ms,
-                duration);
-
     // skip instead of error
     // if (total_ms > duration)
     //     {
@@ -325,16 +314,11 @@ slash_run (const dpp::slashcommand_t &event,
     //         duration"); return;
     //     }
 
-    float byte_per_ms = (float)track.filesize / (float)duration;
-
-    track.current_byte = (int64_t)(byte_per_ms * total_ms);
-
     if (debug)
         {
-            printf ("[seek::slash_run] [filesize] [duration] "
-                    "[byte_per_ms] [seek_byte]: "
-                    "%f %f %f %ld\n",
-                    (float)track.filesize, (float)duration, byte_per_ms,
+            printf ("[seek::slash_run] [filesize] [duration] [current_byte]: "
+                    "%f %f %ld\n",
+                    (float)track.filesize, (float)duration,
                     track.current_byte);
         }
 

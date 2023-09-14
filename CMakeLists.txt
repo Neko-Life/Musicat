@@ -85,6 +85,8 @@ add_executable(Shasha
         src/musicat/cmds/seek.cpp
         src/musicat/cmds/progress.cpp
         src/musicat/cmds/volume.cpp
+        # src/musicat/cmds/filters.cpp
+        # src/musicat/cmds/filters/equalizer.cpp
         libs/yt-search.h/src/yt-search/encode.cpp
         libs/yt-search.h/src/yt-search/yt-playlist.cpp
         libs/yt-search.h/src/yt-search/yt-search.cpp

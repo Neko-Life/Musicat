@@ -2,6 +2,12 @@
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 
+#define MIN_PERCENTAGE 1
+#define MIN_PERCENTAGE_STR "1"
+
+#define MAX_PERCENTAGE 500
+#define MAX_PERCENTAGE_STR "500"
+
 namespace musicat
 {
 namespace command
@@ -12,11 +18,13 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("volume", "Set [playback] volume", sha_id)
-        .add_option (
-            dpp::command_option (dpp::co_integer, "percentage",
-                                 "Volume percentage [to set]. <1-300>", true)
-                .set_min_value (1)
-                .set_max_value (300));
+        .add_option (dpp::command_option (
+                         dpp::co_integer, "percentage",
+                         "Volume percentage [to set]. <" MIN_PERCENTAGE_STR
+                         "-" MAX_PERCENTAGE_STR ">",
+                         true)
+                         .set_min_value (MIN_PERCENTAGE)
+                         .set_max_value (MAX_PERCENTAGE));
 }
 
 void
@@ -49,10 +57,11 @@ slash_run (const dpp::slashcommand_t &event)
     int64_t v_arg = -1;
     get_inter_param (event, "percentage", &v_arg);
 
-    if (v_arg < 1 || v_arg > 300)
+    if (v_arg < MIN_PERCENTAGE || v_arg > MAX_PERCENTAGE)
         {
-            event.reply ("Invalid `percentage` argument. Must be between 1% "
-                         "and 300% inclusive");
+            event.reply ("Invalid `percentage` argument. Must be "
+                         "between " MIN_PERCENTAGE_STR "% "
+                         "and " MAX_PERCENTAGE_STR "% inclusive");
             return;
         }
 
