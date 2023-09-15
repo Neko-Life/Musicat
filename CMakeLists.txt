@@ -13,6 +13,7 @@ add_subdirectory(libs/DPP)
 # Create an executable
 add_executable(Shasha
         # include files
+        include/musicat/config.h
         include/musicat/autocomplete.h
         include/musicat/cmds.h
         include/musicat/db.h

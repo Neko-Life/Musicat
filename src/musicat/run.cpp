@@ -1,5 +1,6 @@
 #include "musicat/child.h"
 #include "musicat/cmds.h"
+#include "musicat/config.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
@@ -1050,6 +1051,9 @@ run (int argc, const char *argv[])
     });
 
     client.on_voice_buffer_send ([] (const dpp::voice_buffer_send_t &event) {
+#ifndef MUSICAT_USE_PCM
+        return;
+#endif
         auto manager = get_player_manager_ptr ();
         auto player = manager
                           ? manager->get_player (event.voice_client->server_id)

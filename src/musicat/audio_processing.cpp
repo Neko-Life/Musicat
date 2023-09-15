@@ -1,6 +1,7 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
+#include "musicat/config.h"
 #include "musicat/musicat.h"
 #include <assert.h>
 #include <chrono>
@@ -15,18 +16,27 @@
 #include <thread>
 #include <unistd.h>
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
-#define SLEEP_ON_BUFFER_THRESHOLD_MS 50
+#ifdef MUSICAT_USE_PCM
 
-#define BUFFER_SIZE processing_buffer_size
-#define READ_CHUNK_SIZE BUFSIZ / 2
+#define USING_FORMAT FORMAT_USING_PCM
+#define BUFFER_SIZE processing_buffer_size_pcm
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_PCM
 
-#define USING_OPUS "-f", "opus", "-b:a", "128k"
-#define USING_PCM "-f", "s16le"
+#else
 
-#define USING_FORMAT USING_PCM
+#define USING_FORMAT FORMAT_USING_OPUS
+#define BUFFER_SIZE processing_buffer_size_opus
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
+
+#endif
+
+#define FORMAT_USING_OPUS "-f", "opus", "-b:a", "128k"
+#define FORMAT_USING_PCM "-f", "s16le"
 
 #define OUT_CMD "pipe:1"
+
+inline constexpr long READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
+inline constexpr long READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
 namespace musicat
 {
@@ -43,7 +53,7 @@ read_command (processor_options_t &options)
     ssize_t read_cmd_size = 0;
     char cmd_buf[CMD_BUFSIZE + 1];
 
-    int has_cmd = poll (cmdrfds, 1, 0);
+    int has_cmd = poll (cmdrfds, 1, 1);
     bool read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
     while (
         read_cmd
@@ -52,10 +62,18 @@ read_command (processor_options_t &options)
             cmd_buf[CMD_BUFSIZE] = '\0';
 
             if (options.debug)
-                fprintf (stderr,
-                         "[audio_processing::read_command %s] Processor "
-                         "command: %s\n",
-                         options.guild_id.c_str (), cmd_buf);
+                {
+                    constexpr char audio_cmd_str[]
+                        = "[audio_processing::read_command ";
+
+                    write (STDERR_FILENO, audio_cmd_str,
+                           (sizeof (audio_cmd_str) / sizeof (*audio_cmd_str)));
+
+                    fprintf (stderr,
+                             "%s] Processor "
+                             "command: %s\n",
+                             options.guild_id.c_str (), cmd_buf);
+                }
 
             const std::string cmd (cmd_buf);
 
@@ -76,7 +94,7 @@ read_command (processor_options_t &options)
                     }
             }
 
-            has_cmd = poll (cmdrfds, 1, 0);
+            has_cmd = poll (cmdrfds, 1, 1);
             read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
         }
 
@@ -952,6 +970,7 @@ run_standalone (const processor_options_t &options,
             "48000",
             /*"-preset", "ultrafast",*/ "-threads",
             "1",
+            "-stdin",
             USING_FORMAT,
             OUT_CMD,
             (char *)NULL };
