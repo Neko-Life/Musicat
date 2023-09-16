@@ -100,9 +100,14 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     std::deque<player::MCTrack> q
         = player_manager->get_queue (event.command.guild_id);
     size_t q_size = q.size ();
@@ -158,12 +163,20 @@ get_option_obj ()
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager, const bool view)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     const std::string p_id = _get_id_arg (event);
     int64_t arg_top = _get_top_arg (event);
+
     event.thinking ();
+
+    const bool view = event.command.get_command_interaction ().options.at (0).name == "view";
 
     std::pair<PGresult *, ExecStatusType> res = database::get_user_playlist (
         event.command.usr.id, p_id, database::gup_raw_only);
@@ -341,7 +354,7 @@ get_option_obj ()
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    load::slash_run (event, {}, true);
+    load::slash_run (event);
 }
 } // view
 
@@ -388,8 +401,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
     auto inter = event.command.get_command_interaction ();
 
@@ -404,9 +416,9 @@ slash_run (const dpp::slashcommand_t &event,
 
     const std::string cmd = inter.options.at (0).name;
     if (cmd == "save")
-        save::slash_run (event, player_manager);
+        save::slash_run (event);
     else if (cmd == "load")
-        load::slash_run (event, player_manager);
+        load::slash_run (event);
     else if (cmd == "view")
         view::slash_run (event);
     else if (cmd == "delete")

@@ -73,9 +73,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     std::string filename = "";
     get_inter_param (event, "track", &filename);
     auto guild_id = event.command.guild_id;

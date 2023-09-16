@@ -22,9 +22,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     int64_t arg_state = -1;
     int64_t arg_no_duplicate_threashold = -1;
     get_inter_param (event, "state", &arg_state);

@@ -15,13 +15,18 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     auto p = player_manager->get_player (event.command.guild_id);
     dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
 
-    if (util::is_player_not_playing(p, v))
+    if (util::is_player_not_playing (p, v))
         {
             event.reply ("I'm not playing anything");
             return;
@@ -56,7 +61,7 @@ slash_run (const dpp::slashcommand_t &event,
     p->set_stopped (true);
     v->voiceclient->pause_audio (true);
 
-    player_manager->set_manually_paused(event.command.guild_id);
+    player_manager->set_manually_paused (event.command.guild_id);
 
     event.reply ("Stopped");
 }

@@ -6,9 +6,11 @@ namespace musicat
 {
 namespace command
 {
-// save, load, delete filters manage subcommand
+// status, save, load, delete filters manage subcommand
 namespace filters
 {
+static inline const command_handlers_map_t subcommand_handlers = {};
+
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {

@@ -74,6 +74,15 @@ namespace filters
 {
 namespace equalizer
 {
+static inline const command_handlers_map_t action_handlers = {
+    { "", show_setting },
+};
+
+void
+show_setting (const dpp::slashcommand_t &event)
+{
+}
+
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
@@ -83,10 +92,10 @@ void
 slash_run (const dpp::slashcommand_t &event)
 {
     // argument
-    int64_t v_arg = -1;
-    get_inter_param (event, "arg-name", &v_arg);
+    std::string arg_action = "";
+    get_inter_param (event, "action", &arg_action);
 
-    event.reply ("Not implemented");
+    handle_command ({ arg_action, action_handlers, event });
 }
 
 } // equalizer

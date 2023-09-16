@@ -10,16 +10,17 @@ namespace queue
 // =================== PRIVATE ===================
 
 void
-handle_option (int64_t &qarg,
-               const dpp::interaction_create_t &event,
+handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                player::player_manager_ptr player_manager,
                std::deque<player::MCTrack> &queue,
                const dpp::snowflake &sha_id)
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
 
-    const bool debug = get_debug_state();
-    if (debug) printf("[queue::handle_option] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+    const bool debug = get_debug_state ();
+    if (debug)
+        printf ("[queue::handle_option] Locked player::t_mutex: %ld\n",
+                guild_player->guild_id);
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     guild_player->reset_shifted ();
 
@@ -30,8 +31,9 @@ handle_option (int64_t &qarg,
                 auto siz = queue.size ();
                 if (siz < 2)
                     {
-                        event.edit_response ("No track to clear, skip the current "
-                                     "track to clear the queue completely");
+                        event.edit_response (
+                            "No track to clear, skip the current "
+                            "track to clear the queue completely");
                         break;
                     }
 
@@ -73,7 +75,7 @@ handle_option (int64_t &qarg,
                 if (siz < 3)
                     {
                         event.edit_response ("Reversed. Not that you can tell "
-                                     "the difference");
+                                             "the difference");
                         break;
                     }
                 {
@@ -84,7 +86,7 @@ handle_option (int64_t &qarg,
                         n_queue.push_back (guild_player->queue.at (i));
 
                     guild_player->queue.clear ();
-                    guild_player->queue = std::move(n_queue);
+                    guild_player->queue = std::move (n_queue);
                     guild_player->queue.push_front (t);
                 }
                 player_manager->update_info_embed (event.command.guild_id);
@@ -95,9 +97,10 @@ handle_option (int64_t &qarg,
             }
         case queue_modify_t::m_clear_left:
             {
-                // we need to be in the vc where we check which users left the vc
-                // currently no check for user who invoked the command (it's rather a feature
-                // where user who left the vc can clear their tracks to keep their friend happy)
+                // we need to be in the vc where we check which users left the
+                // vc currently no check for user who invoked the command (it's
+                // rather a feature where user who left the vc can clear their
+                // tracks to keep their friend happy)
                 if (!player_manager->voice_ready (event.command.guild_id,
                                                   event.from,
                                                   event.command.usr.id))
@@ -123,13 +126,14 @@ handle_option (int64_t &qarg,
                         for (auto i = guild_player->queue.begin ();
                              i != guild_player->queue.end (); i++)
                             {
-                                // whether the user of this track already checked
+                                // whether the user of this track already
+                                // checked
                                 if (vector_find (&all_user, i->user_id)
                                     != all_user.end ())
                                     continue;
 
                                 // save as checked user
-                                all_user.push_back(i->user_id);
+                                all_user.push_back (i->user_id);
 
                                 // whether this track have its owner in vc
                                 bool cont = false;
@@ -149,15 +153,16 @@ handle_option (int64_t &qarg,
                                 l_user.push_back (i->user_id);
                             }
 
-                        // because it's modifying the queue, it should be in different loop than above loop
-                        // otherwise it will be catastrophic
+                        // because it's modifying the queue, it should be in
+                        // different loop than above loop otherwise it will be
+                        // catastrophic
                         for (const auto &i : l_user)
                             rmed += guild_player->remove_track_by_user (i);
                     }
                 catch (...)
                     {
                         event.edit_response ("`[ERROR]` Can't get current "
-                                     "voice connection");
+                                             "voice connection");
                         break;
                     }
                 size_t usiz = l_user.size ();
@@ -169,10 +174,10 @@ handle_option (int64_t &qarg,
                 player_manager->update_info_embed (event.command.guild_id);
 
                 event.edit_response (std::to_string (usiz) + " user"
-                             + std::string (usiz > 1 ? "s" : "")
-                             + " left this session. Removed "
-                             + std::to_string (rmed) + " track"
-                             + std::string (rmed > 1 ? "s" : ""));
+                                     + std::string (usiz > 1 ? "s" : "")
+                                     + " left this session. Removed "
+                                     + std::to_string (rmed) + " track"
+                                     + std::string (rmed > 1 ? "s" : ""));
 
                 break;
             }
@@ -181,17 +186,19 @@ handle_option (int64_t &qarg,
                 const size_t rmed
                     = guild_player->remove_track_by_user (sha_id);
 
-                event.edit_response (std::string ("Removed ") + std::to_string (rmed)
-                             + " track" + std::string (rmed > 1 ? "s" : "")
-                             + " from queue");
+                event.edit_response (
+                    std::string ("Removed ") + std::to_string (rmed) + " track"
+                    + std::string (rmed > 1 ? "s" : "") + " from queue");
 
                 break;
             }
         default:
             event.edit_response ("Option not yet supported and is still in "
-                         "development");
+                                 "development");
         }
-    if (debug) printf("[queue::handle_option] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+    if (debug)
+        printf ("[queue::handle_option] Should unlock player::t_mutex: %ld\n",
+                guild_player->guild_id);
 }
 
 // =================== PRIVATE END ===================
@@ -217,9 +224,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     const dpp::snowflake sha_id = event.from->creator->me.id;
 
     // avoid getting timed out when loading large queue
@@ -239,7 +251,7 @@ slash_run (const dpp::slashcommand_t &event,
     get_inter_param (event, "action", &qarg);
 
     if (qarg > -1)
-        return handle_option(qarg, event, player_manager, queue, sha_id);
+        return handle_option (qarg, event, player_manager, queue, sha_id);
 
     paginate::reply_paginated_playlist (event, queue, "Queue", true);
 }

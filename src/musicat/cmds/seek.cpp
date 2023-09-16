@@ -262,9 +262,14 @@ parse_arg_to (const std::string &str)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     const bool debug = get_debug_state ();
 
     std::string arg_to = "";

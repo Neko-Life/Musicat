@@ -1,3 +1,5 @@
+// !TODO: REFACTOR THIS HORRIBLE FILE
+
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
@@ -67,9 +69,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     if (!player_manager->voice_ready (event.command.guild_id, event.from,
                                       event.command.usr.id))
         {
@@ -202,8 +209,9 @@ slash_run (const dpp::slashcommand_t &event,
                 }
         }
 
-    auto guild_player = player_manager->get_player (event.command.guild_id);
     bool continued = false;
+
+    auto guild_player = player_manager->get_player (event.command.guild_id);
     if (guild_player)
         {
             if (debug)
@@ -320,6 +328,7 @@ find_track (bool playlist, std::string &arg_query,
 
                     if (br)
                         continue;
+
                     result = i;
                     break;
                 }
