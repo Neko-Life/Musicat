@@ -189,7 +189,7 @@ set_debug_state (const bool state)
     std::lock_guard<std::mutex> lk (main_mutex);
     debug = state;
 
-    printf ("[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
+    fprintf (stderr, "[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
 
     return 0;
 }
@@ -474,8 +474,8 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
                     if (from)
                         command::play::decide_play (from, guild_id, false);
                     else if (get_debug_state ())
-                        printf ("[modal_p] No client to "
-                                "decide play\n");
+                        fprintf (stderr, "[modal_p] No client to "
+                                         "decide play\n");
                 }
             catch (...)
                 {
@@ -573,8 +573,9 @@ run (int argc, const char *argv[])
     {
         if (no_db)
             {
-                printf ("[WARN] No database configured, some functionality "
-                        "might not work\n");
+                fprintf (stderr,
+                         "[WARN] No database configured, some functionality "
+                         "might not work\n");
             }
         else
             {
@@ -614,9 +615,9 @@ run (int argc, const char *argv[])
         dpp::discord_client *from = event.from;
         dpp::user me = from->creator->me;
 
-        printf ("[READY] Shard: %d\n", from->shard_id);
-        printf ("Logged in as %s#%d (%ld)\n", me.username.c_str (),
-                me.discriminator, me.id);
+        fprintf (stderr, "[READY] Shard: %d\n", from->shard_id);
+        fprintf (stderr, "Logged in as %s#%d (%ld)\n", me.username.c_str (),
+                 me.discriminator, me.id);
     });
 
     client.on_message_create ([] (const dpp::message_create_t &event) {
@@ -751,8 +752,8 @@ run (int argc, const char *argv[])
 
     client.on_form_submit ([] (const dpp::form_submit_t &event) {
         if (get_debug_state ())
-            printf ("[FORM] %s %ld\n", event.custom_id.c_str (),
-                    event.command.message_id);
+            fprintf (stderr, "[FORM] %s %ld\n", event.custom_id.c_str (),
+                     event.command.message_id);
         if (event.custom_id == "modal_p")
             {
                 _handle_form_modal_p (event);
@@ -913,10 +914,12 @@ run (int argc, const char *argv[])
         if (player_manager->has_ignore_marker (event.voice_client->server_id))
             {
                 if (get_debug_state ())
-                    printf ("[PLAYER_MANAGER] Meta \"%s\" is ignored in guild "
-                            "%ld\n",
-                            event.track_meta.c_str (),
-                            event.voice_client->server_id);
+                    fprintf (
+                        stderr,
+                        "[PLAYER_MANAGER] Meta \"%s\" is ignored in guild "
+                        "%ld\n",
+                        event.track_meta.c_str (),
+                        event.voice_client->server_id);
                 return;
             }
 
@@ -967,11 +970,12 @@ run (int argc, const char *argv[])
                             return;
                         }
 
-                    printf ("Removed ignore marker for meta '%s'",
-                            event.track_meta.c_str ());
+                    fprintf (stderr, "Removed ignore marker for meta '%s'",
+                             event.track_meta.c_str ());
                     if (event.voice_client)
-                        printf (" in %ld", event.voice_client->server_id);
-                    printf ("\n");
+                        fprintf (stderr, " in %ld",
+                                 event.voice_client->server_id);
+                    fprintf (stderr, "\n");
                 }
             catch (...)
                 {
@@ -1114,7 +1118,8 @@ run (int argc, const char *argv[])
             if (!r_s || (time (NULL) - last_gc) > ONE_HOUR_SECOND)
                 {
                     if (d_s)
-                        printf ("[GC] Starting scheduled gc\n");
+                        fprintf (stderr, "[GC] Starting scheduled gc\n");
+
                     auto start_time
                         = std::chrono::high_resolution_clock::now ();
                     // gc codes
@@ -1126,14 +1131,17 @@ run (int argc, const char *argv[])
                     auto end_time = std::chrono::high_resolution_clock::now ();
                     auto done = std::chrono::duration_cast<
                         std::chrono::milliseconds> (end_time - start_time);
+
                     if (d_s)
-                        printf ("[GC] Ran for %ld ms\n", done.count ());
+                        fprintf (stderr, "[GC] Ran for %ld ms\n",
+                                 done.count ());
                 }
 
             if (r_s && !no_db && (time (NULL) - last_recon) > 60)
                 {
                     const ConnStatusType status
                         = database::reconnect (false, db_connect_param);
+
                     time (&last_recon);
 
                     if (status != CONNECTION_OK && d_s)

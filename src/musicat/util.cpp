@@ -32,10 +32,11 @@ u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
 
     if (debug)
         {
-            printf ("[util::u8_limit_length] need_length buf "
-                    "extracted_length max_length: '%d' '%s' "
-                    "'%ld' '%d'\n",
-                    v_s, buf, strnlen (buf, max_length * 4), max_length);
+            fprintf (stderr,
+                     "[util::u8_limit_length] need_length buf "
+                     "extracted_length max_length: '%d' '%s' "
+                     "'%ld' '%d'\n",
+                     v_s, buf, strnlen (buf, max_length * 4), max_length);
         }
 }
 
@@ -44,10 +45,10 @@ print_autocomplete_results (
     const std::vector<std::pair<std::string, std::string> > &avail,
     const char *debug_fn)
 {
-    printf ("[%s] results:\n", debug_fn);
+    fprintf (stderr, "[%s] results:\n", debug_fn);
     for (size_t i = 0; i < avail.size (); i++)
         {
-            printf ("%ld: %s\n", i, avail.at (i).first.c_str ());
+            fprintf (stderr, "%ld: %s\n", i, avail.at (i).first.c_str ());
         }
 }
 

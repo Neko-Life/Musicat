@@ -1,7 +1,8 @@
-#include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/storage.h"
+#include "musicat/util.h"
 #include <dpp/dpp.h>
 #include <map>
 #include <stdio.h>
@@ -27,6 +28,7 @@ delete_page (dpp::snowflake msg_id)
                 {
                     storage::remove (msg_id);
                 }
+
             paginated_messages.erase (del);
         }
 }
@@ -56,7 +58,7 @@ pages_t::~pages_t () = default;
 void
 pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 {
-    std::lock_guard<std::mutex> lk(this->s_mutex);
+    std::lock_guard<std::mutex> lk (this->s_mutex);
     if (cb.is_error ())
         {
             fprintf (stderr,
@@ -79,7 +81,7 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
                 std::get<dpp::message> (cb.value));
         }
     else if (get_debug_state ())
-        printf ("[PAGES_T EDIT_CB] No edit_cb size\n");
+        fprintf (stderr, "[PAGES_T EDIT_CB] No edit_cb size\n");
 
     this->current = new_current;
 }
@@ -87,13 +89,13 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 void
 pages_t::edit (size_t c, const dpp::interaction_create_t &event)
 {
-    std::lock_guard<std::mutex> lk(this->s_mutex);
+    std::lock_guard<std::mutex> lk (this->s_mutex);
     const bool debug = get_debug_state ();
 
     if (this->current == c)
         {
             if (debug)
-                printf ("[RETURN PAGES_T EDIT] (current == c)\n");
+                fprintf (stderr, "[RETURN PAGES_T EDIT] (current == c)\n");
             return;
         }
     bool disable_components = false;
@@ -120,7 +122,7 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
     if (disable_components)
         {
             if (debug)
-                printf ("[PAGES_T EDIT] (t > 3600)\n");
+                fprintf (stderr, "[PAGES_T EDIT] (t > 3600)\n");
             c = std::string::npos;
             for (auto &i : this->message->components)
                 for (auto &a : i.components)
@@ -133,6 +135,7 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
         [this, c] (const dpp::confirmation_callback_t &cb) {
             this->edit_cb (cb, c);
         });
+
     // this->client->message_edit (
     //     *this->message, [this, c] (const dpp::confirmation_callback_t &cb) {
     //         this->edit_cb (cb, c);
@@ -195,8 +198,22 @@ update_page (dpp::snowflake msg_id, std::string param,
             //         }
             //     });
             // }
+
+            dpp::message m (util::rand_item<std::string> (
+                { "The book for this message is missing!",
+                  "Unfortunately, the pages for this message has been burned",
+                  "Sorry I can't find any information about pages for this "
+                  "message",
+                  "Can't", "I'm unable to flip the page...",
+                  "Try again after a rewrite", "A good day to be lazy",
+                  "The page for this message _might_ be processed in 3 to 5 business day" }));
+
+            m.flags |= dpp::m_ephemeral;
+            event.reply (m);
+
             return;
         }
+
     auto &b = a->second;
     if (param == "n")
         {
@@ -241,6 +258,7 @@ get_inter_reply_cb (const dpp::interaction_create_t &event, bool paginate,
                                 cb2.get_error ().message.c_str ());
                             return;
                         }
+
                     std::shared_ptr<dpp::message> m
                         = std::make_shared<dpp::message> (
                             std::get<dpp::message> (cb2.value));
@@ -253,16 +271,19 @@ get_inter_reply_cb (const dpp::interaction_create_t &event, bool paginate,
 
                     const bool debug = get_debug_state ();
                     if (debug)
-                        printf ("[PAGINATE GET_INTER_REPLY_CB] PAGINATED ID: "
-                                "%ld\nLEN: %ld\n",
-                                m->id, paginated_messages.size ());
+                        fprintf (stderr,
+                                 "[PAGINATE GET_INTER_REPLY_CB] PAGINATED ID: "
+                                 "%ld\nLEN: %ld\n",
+                                 m->id, paginated_messages.size ());
+
                     if (has_v)
                         {
                             storage::set (m->id, storage_data);
                             if (debug)
-                                printf ("[PAGINATE GET_INTER_REPLY_CB] "
-                                        "STORAGE ID: %ld\nLEN: %ld\n",
-                                        m->id, storage::size ());
+                                fprintf (stderr,
+                                         "[PAGINATE GET_INTER_REPLY_CB] "
+                                         "STORAGE ID: %ld\nLEN: %ld\n",
+                                         m->id, storage::size ());
                         }
                 });
             }
@@ -282,6 +303,11 @@ add_pagination_buttons (dpp::message *msg)
             .add_component (dpp::component ()
                                 .set_emoji (u8"🏠")
                                 .set_id ("page_queue/h")
+                                .set_type (dpp::cot_button)
+                                .set_style (dpp::cos_primary))
+            .add_component (dpp::component ()
+                                .set_emoji (u8"🦘")
+                                .set_id ("page_queue/j")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
@@ -312,9 +338,11 @@ gc (bool clear)
 
     size_t pg_s = paginated_messages.size ();
     const bool debug = get_debug_state ();
+
     if (debug)
-        printf ("[PAGINATE_GC] SIZE BEFORE: %ld, %ld\n", pg_s,
-                storage::size ());
+        fprintf (stderr, "[PAGINATE_GC] SIZE BEFORE: %ld, %ld\n", pg_s,
+                 storage::size ());
+
     size_t d = 0;
     auto i = paginated_messages.begin ();
     while (i != paginated_messages.end ())
@@ -323,17 +351,19 @@ gc (bool clear)
             if (clear || (t - (time_t)L) > ONE_HOUR_SECOND)
                 {
                     if (debug)
-                        printf ("Deleting %ld: %ld\n", ++d,
-                                i->second.message->id);
+                        fprintf (stderr, "Deleting %ld: %ld\n", ++d,
+                                 i->second.message->id);
+
                     storage::remove (i->first);
                     i = paginated_messages.erase (i);
                 }
             else
                 i++;
         }
+
     if (debug)
-        printf ("[PAGINATE_GC] SIZE AFTER: %ld, %ld\n",
-                paginated_messages.size (), storage::size ());
+        fprintf (stderr, "[PAGINATE_GC] SIZE AFTER: %ld, %ld\n",
+                 paginated_messages.size (), storage::size ());
 }
 
 void
@@ -341,12 +371,14 @@ _construct_desc (std::deque<player::MCTrack> &queue,
                  std::deque<player::MCTrack>::iterator i, std::string &desc,
                  size_t &id, size_t &count, size_t &qs, dpp::embed &embed,
                  const std::string &title, std::vector<dpp::embed> &embeds,
-                 uint64_t &totald, std::shared_ptr<player::Player> guild_player)
+                 uint64_t &totald,
+                 std::shared_ptr<player::Player> guild_player)
 {
     if (i == queue.begin ())
         {
             player::track_progress prog = { 0, 0, -1 };
-            if (util::player_has_current_track(guild_player) && !guild_player->current_track.info.raw.is_null ())
+            if (util::player_has_current_track (guild_player)
+                && !guild_player->current_track.info.raw.is_null ())
                 prog = util::get_track_progress (guild_player->current_track);
             else if (!i->info.raw.is_null ())
                 prog = util::get_track_progress (*i);
@@ -375,6 +407,7 @@ _construct_desc (std::deque<player::MCTrack> &queue,
             id++;
             count++;
         }
+
     if ((count && !(count % 10)) || id == qs)
         {
             embed.set_title (title).set_description (
@@ -395,6 +428,7 @@ _construct_desc (std::deque<player::MCTrack> &queue,
                 }
             if (fot.length ())
                 embed.set_footer (fot, "");
+
             embeds.emplace_back (embed);
             embed = dpp::embed ();
             desc = "";
@@ -425,7 +459,8 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
         if (!i->info.raw.is_null ())
             totald += i->info.duration ();
 
-    auto guild_player = get_player_manager_ptr ()->get_player (event.command.guild_id);
+    auto guild_player
+        = get_player_manager_ptr ()->get_player (event.command.guild_id);
 
     for (auto i = queue.begin (); i != queue.end (); i++)
         {
@@ -435,6 +470,7 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
 
     dpp::message msg;
     msg.add_embed (embeds.front ());
+
     bool paginate = embeds.size () > 1;
     if (paginate)
         {

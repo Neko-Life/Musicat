@@ -9,7 +9,8 @@ namespace download
 {
 // ============ PRIVATE ============
 bool
-fileHasError (const dpp::interaction_create_t &event, const std::string& fullpath)
+fileHasError (const dpp::interaction_create_t &event,
+              const std::string &fullpath)
 {
     struct stat filestat;
 
@@ -58,7 +59,7 @@ track (const dpp::autocomplete_t &event, std::string param,
 {
     // simply run the autocomplete of query argument of the play command
     // it's exactly the same expected result
-    play::autocomplete::query(event, param, player_manager);
+    play::autocomplete::query (event, param, player_manager);
 }
 } // autocomplete
 
@@ -72,7 +73,8 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 void
-slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event,
+           player::player_manager_ptr player_manager)
 {
     std::string filename = "";
     get_inter_param (event, "track", &filename);
@@ -85,8 +87,8 @@ slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_m
 
     if (filename.length ())
         {
-            auto find_result = play::find_track (false, filename, player_manager,
-                                           true, guild_id, true);
+            auto find_result = play::find_track (
+                false, filename, player_manager, true, guild_id, true);
 
             switch (find_result.second)
                 {
@@ -97,31 +99,35 @@ slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_m
                 case 0:
                     break;
                 default:
-                    fprintf(stderr, "[download::slash_run WARN] Unhandled find_track return status: %d\n", find_result.second);
+                    fprintf (stderr,
+                             "[download::slash_run WARN] Unhandled find_track "
+                             "return status: %d\n",
+                             find_result.second);
                 }
 
             auto result = find_result.first;
 
             fname = play::get_filename_from_result (result);
 
-            auto download_result = play::track_exist (fname, result.url (), player_manager,
-                                                      true, guild_id, true);
+            auto download_result = play::track_exist (
+                fname, result.url (), player_manager, true, guild_id, true);
             bool dling = download_result.first;
 
             fullpath = get_music_folder_path () + fname;
-            
+
             switch (download_result.second)
                 {
                 case 1:
                     if (dling)
                         {
-                            event.edit_response (
-                                "Can't find anything, maybe play the song first?");
+                            event.edit_response ("Can't find anything, maybe "
+                                                 "play the song first?");
                             return;
                         }
                     else
                         {
-                            if (fileHasError (event, fullpath)) return;
+                            if (fileHasError (event, fullpath))
+                                return;
 
                             // proceed upload
                             event.edit_response (std::string ("Uploading: ")
@@ -131,40 +137,52 @@ slash_run (const dpp::slashcommand_t &event, player::player_manager_ptr player_m
                     break;
                 default:
                     fprintf (stderr,
-                             "[download::slash_run WARN] Unhandled track_exist return "
+                             "[download::slash_run WARN] Unhandled "
+                             "track_exist return "
                              "status: %d\n",
                              download_result.second);
                 }
         }
-    else // no track argument specified, lets download current playing song if any       
+    else // no track argument specified, lets download current playing song if
+         // any
         {
             auto guild_player = player_manager->get_player (guild_id);
             if (!guild_player)
                 return e_re_no_track (event);
 
             auto conn = event.from->get_voice (guild_id);
-            const bool debug = get_debug_state();
+            const bool debug = get_debug_state ();
 
-            if (debug) printf("[download::slash_run] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+            if (debug)
+                fprintf (stderr,
+                         "[download::slash_run] Locked player::t_mutex: %ld\n",
+                         guild_player->guild_id);
+
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
-            if (guild_player->queue.size ()
-                && !guild_player->current_track.raw.is_null ()
-                && conn && conn->voiceclient
-                && conn->voiceclient->is_playing ()) // if there's currently playing track
+
+            if (!guild_player->queue.size ()
+                || guild_player->current_track.raw.is_null () || !conn
+                || !conn->voiceclient
+                || !conn->voiceclient
+                        ->is_playing ()) // if there's no currently playing
+                                         // track
                 {
-                    auto& track = guild_player->current_track;
-                    fname = play::get_filename_from_result (track);
-                    fullpath = get_music_folder_path () + fname;
-                }
-            else
-                {
-                    if (debug) printf("[download::slash_run] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+                    if (debug)
+                        fprintf (stderr,
+                                 "[download::slash_run] Should unlock "
+                                 "player::t_mutex: %ld\n",
+                                 guild_player->guild_id);
+
                     return e_re_no_track (event);
                 }
+
+            auto &track = guild_player->current_track;
+            fname = play::get_filename_from_result (track);
+            fullpath = get_music_folder_path () + fname;
         }
 
     // by the time it got here, fname and fullpath mustn't be empty
-    event.thinking();
+    event.thinking ();
 
     dpp::message msg (event.command.channel_id, "");
     msg.add_file (fname, dpp::utility::read_file (fullpath));
