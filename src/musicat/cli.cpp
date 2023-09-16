@@ -11,58 +11,13 @@ print_usage_register_slash ()
 
 namespace musicat
 {
-void
-delete_global_command_cb (dpp::cluster &client, const dpp::snowflake &id,
-                          [[maybe_unused]] const dpp::snowflake &gid = 0)
-{
-    client.global_command_delete (id);
-}
-
-void
-delete_guild_command_cb (dpp::cluster &client, const dpp::snowflake &id,
-                         const dpp::snowflake &gid)
-{
-    client.guild_command_delete (id, gid);
-}
-
-void
-exec_command_delete_cb (dpp::cluster &client,
-                        const dpp::confirmation_callback_t &res,
-                        void (*delete_cb) (dpp::cluster &,
-                                           const dpp::snowflake &,
-                                           const dpp::snowflake &),
-                        const dpp::snowflake &gid = 0)
-{
-    if (res.is_error ())
-        {
-            auto e = res.get_error ();
-            fprintf (stderr, "ERROR %d: %s\n", e.code, e.message.c_str ());
-
-            set_running_state (false);
-            return;
-        }
-
-    // !TODO: update this to register empty command array instead
-    // must have been fixed in the lib right?
-    auto val = std::get<dpp::slashcommand_map> (res.value);
-    for (const auto &i : val)
-        {
-            auto id = i.second.id;
-            fprintf (stderr, "%ld ", id);
-
-            delete_cb (client, id, gid);
-        }
-
-    set_running_state (false);
-}
 
 int
 exec_delete_global_command (dpp::cluster &client)
 {
-    client.global_commands_get (
-        [&client] (const dpp::confirmation_callback_t &res) {
-            exec_command_delete_cb (client, res, delete_global_command_cb);
-        });
+    client.global_bulk_command_create_sync ({});
+
+    set_running_state (false);
 
     return 0;
 }
@@ -70,10 +25,9 @@ exec_delete_global_command (dpp::cluster &client)
 int
 exec_delete_guild_command (dpp::cluster &client, const dpp::snowflake &gid)
 {
-    client.guild_commands_get (
-        gid, [&client, gid] (const dpp::confirmation_callback_t &res) {
-            exec_command_delete_cb (client, res, delete_guild_command_cb, gid);
-        });
+    client.guild_bulk_command_create_sync ({}, gid);
+
+    set_running_state (false);
 
     return 0;
 }
@@ -101,6 +55,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
             if (rm)
                 {
                     client.me.id = sha_id;
+
                     return exec_delete_global_command (client);
                 }
 
