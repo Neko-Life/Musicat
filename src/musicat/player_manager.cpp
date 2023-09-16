@@ -143,8 +143,8 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
 
     const bool debug = get_debug_state ();
     if (debug)
-        printf ("[Manager::skip] Locked player::t_mutex: %ld\n",
-                guild_player->guild_id);
+        fprintf (stderr, "[Manager::skip] Locked player::t_mutex: %ld\n",
+                 guild_player->guild_id);
 
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     try
@@ -232,8 +232,9 @@ Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
         v->voiceclient->insert_marker ("rm");
 
     if (debug)
-        printf ("[Manager::skip] Should unlock player::t_mutex: %ld\n",
-                guild_player->guild_id);
+        fprintf (stderr,
+                 "[Manager::skip] Should unlock player::t_mutex: %ld\n",
+                 guild_player->guild_id);
 
     return { removed_tracks, a.second };
 }
@@ -286,9 +287,9 @@ Manager::download (const string &fname, const string &url,
 
                     if (debug)
                         {
-                            printf ("DOWNLOAD: \"%s\" \"%s\"\n",
-                                    fname.c_str (), url.c_str ());
-                            printf ("CMD: %s\n", cmd.c_str ());
+                            fprintf (stderr, "DOWNLOAD: \"%s\" \"%s\"\n",
+                                     fname.c_str (), url.c_str ());
+                            fprintf (stderr, "CMD: %s\n", cmd.c_str ());
                         }
                     else
                         cmd += " 1>/dev/null";
@@ -328,8 +329,10 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     auto voice_channel_id = v->channel_id;
 
                     if (debug)
-                        printf ("[Manager::play] Attempt to stream: %ld %ld\n",
-                                server_id, voice_channel_id);
+                        fprintf (
+                            stderr,
+                            "[Manager::play] Attempt to stream: %ld %ld\n",
+                            server_id, voice_channel_id);
 
                     try
                         {

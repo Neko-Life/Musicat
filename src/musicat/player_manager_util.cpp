@@ -30,7 +30,7 @@ void
 Manager::clear_disconnecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        printf ("[EVENT] on_voice_state_leave: %ld\n", guild_id);
+        fprintf (stderr, "[EVENT] on_voice_state_leave: %ld\n", guild_id);
 
     std::lock_guard<std::mutex> lk (this->dc_m);
 
@@ -184,7 +184,7 @@ int
 Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        printf ("[Manager::clear_wait_vc_ready]: %ld\n", guild_id);
+        fprintf (stderr, "[Manager::clear_wait_vc_ready]: %ld\n", guild_id);
 
     const int err = this->clear_connecting (guild_id);
 
@@ -206,7 +206,7 @@ int
 Manager::clear_connecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        printf ("[Manager::clear_connecting]: %ld\n", guild_id);
+        fprintf (stderr, "[Manager::clear_connecting]: %ld\n", guild_id);
 
     std::lock_guard<std::mutex> lk (this->c_m);
 
@@ -305,12 +305,13 @@ Manager::voice_ready (dpp::snowflake guild_id, dpp::discord_client *from,
                                      && uservc.first->id != c.first->id)
                                 {
                                     if (get_debug_state ())
-                                        printf ("Disconnecting as it "
-                                                "seems I just got moved "
-                                                "to different vc and "
-                                                "connection not updated "
-                                                "yet: %ld\n",
-                                                guild_id);
+                                        fprintf (stderr,
+                                                 "Disconnecting as it "
+                                                 "seems I just got moved "
+                                                 "to different vc and "
+                                                 "connection not updated "
+                                                 "yet: %ld\n",
+                                                 guild_id);
 
                                     this->set_disconnecting (
                                         guild_id, f->second->channel_id);

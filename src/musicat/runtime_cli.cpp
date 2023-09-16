@@ -15,7 +15,7 @@ _print_pad (size_t len)
 
     for (size_t i = 0; i < len; i++)
         {
-            printf (" ");
+            fprintf (stderr, " ");
         }
 }
 
@@ -35,7 +35,7 @@ attach_listener ()
             return 1;
         }
 
-    printf ("[INFO] Enter `-d` to toggle debug mode\n");
+    fprintf (stderr, "[INFO] Enter `-d` to toggle debug mode\n");
 
     std::thread stdin_listener ([] () {
         try
@@ -91,26 +91,38 @@ attach_listener ()
 
                         if (cmd == "help" || cmd == "-h")
                             {
-                                printf ("Usage: [command] [args] <ENTER>\n\n");
+                                fprintf (
+                                    stderr,
+                                    "Usage: [command] [args] <ENTER>\n\n");
 
                                 for (std::pair<
                                          std::pair<const char *, const char *>,
                                          const char *>
                                          desc : commands)
                                     {
-                                        printf ("%s", desc.first.first);
+                                        fprintf (stderr, "%s",
+                                                 desc.first.first);
+
                                         _print_pad (
                                             padding_command
                                             - strlen (desc.first.first));
-                                        printf (":");
+
+                                        fprintf (stderr, ":");
+
                                         const size_t pad_a
                                             = padding_alias
                                               - strlen (desc.first.second);
+
                                         _print_pad (pad_a / 2);
-                                        printf ("%s", desc.first.second);
+
+                                        fprintf (stderr, "%s",
+                                                 desc.first.second);
+
                                         _print_pad ((size_t)ceil (
                                             (double)pad_a / (double)2.0));
-                                        printf (": %s\n", desc.second);
+
+                                        fprintf (stderr, ": %s\n",
+                                                 desc.second);
                                     }
                             }
                         else if (cmd == "debug" || cmd == "-d")

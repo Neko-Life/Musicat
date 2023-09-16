@@ -28,9 +28,12 @@ slash_run (const dpp::slashcommand_t &event,
             return;
         }
 
-    const bool debug = get_debug_state();
+    const bool debug = get_debug_state ();
 
-    if (debug) printf("[move::slash_run] Locked player::t_mutex: %ld\n", guild_player->guild_id);
+    if (debug)
+        fprintf (stderr, "[move::slash_run] Locked player::t_mutex: %ld\n",
+                 guild_player->guild_id);
+
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
     size_t queue_siz = guild_player->queue.size ();
@@ -38,7 +41,11 @@ slash_run (const dpp::slashcommand_t &event,
     if (2 > max_to)
         {
             event.reply ("No moveable track in the queue");
-            if (debug) printf("[move::slash_run] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+            if (debug)
+                fprintf (
+                    stderr,
+                    "[move::slash_run] Should unlock player::t_mutex: %ld\n",
+                    guild_player->guild_id);
             return;
         }
 
@@ -68,7 +75,8 @@ slash_run (const dpp::slashcommand_t &event,
                 b = guild_player->queue.back ().title ();
 
                 guild_player->queue.erase (guild_player->queue.begin () + fr);
-                guild_player->queue.insert (guild_player->queue.begin () + to, track);
+                guild_player->queue.insert (guild_player->queue.begin () + to,
+                                            track);
             }
 
             if (a != guild_player->queue.at (1).title ()
@@ -82,9 +90,14 @@ slash_run (const dpp::slashcommand_t &event,
                     {
                     }
         }
+
     event.reply (std::string ("Moved ") + track.title () + " to position "
                  + std::to_string (to));
-    if (debug) printf("[move::slash_run] Should unlock player::t_mutex: %ld\n", guild_player->guild_id);
+
+    if (debug)
+        fprintf (stderr,
+                 "[move::slash_run] Should unlock player::t_mutex: %ld\n",
+                 guild_player->guild_id);
 }
 } // move
 } // command

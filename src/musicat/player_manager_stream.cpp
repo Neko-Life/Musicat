@@ -241,11 +241,12 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
             states.track.current_byte += read_bytes;
 
             if (states.debug)
-                printf ("[Manager::stream] "
-                        "[guild_id] [size] "
-                        "[chunk] [read_bytes]: "
-                        "%ld %ld %ld\n",
-                        states.server_id, states.track.filesize, read_bytes);
+                fprintf (stderr,
+                         "[Manager::stream] "
+                         "[guild_id] [size] "
+                         "[chunk] [read_bytes]: "
+                         "%ld %ld %ld\n",
+                         states.server_id, states.track.filesize, read_bytes);
 
             while ((states.running_state = get_running_state ()) && states.v
                    && !states.v->terminating

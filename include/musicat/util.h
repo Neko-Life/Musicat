@@ -36,9 +36,22 @@ bool fuzzy_match (std::string search, std::string str,
 
 int get_random_number ();
 
-bool
-is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
-                       dpp::voiceconn *voiceconn);
+bool is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
+                            dpp::voiceconn *voiceconn);
+
+// vec size can't be larger than (RAND_MAX+1)
+template <typename T>
+T
+rand_item (const std::vector<T> &vec)
+{
+    int r = get_random_number ();
+
+    int idx = r > 0 ? (r % vec.size ()) : 0;
+
+    return vec.at (idx);
+}
+
+/////////////////////////////
 
 namespace response
 {
@@ -60,6 +73,7 @@ reply_skipped_track (std::deque<musicat::player::MCTrack> &removed_tracks);
 std::string str_mention_user (const dpp::snowflake &user_id);
 
 } // response
+
 } // util
 } // musicat
 

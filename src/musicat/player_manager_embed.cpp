@@ -23,7 +23,9 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
     if (update && !player->info_message)
         {
             if (debug)
-                printf ("[MANAGER:SEND_INFO_EMBED] No message to update\n");
+                fprintf (stderr,
+                         "[MANAGER:SEND_INFO_EMBED] No message to update\n");
+
             return false;
         }
 
@@ -128,14 +130,16 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
                                                               ->id]
                                     = player->info_message;
                                 if (debug)
-                                    printf ("[MANAGER::SEND_INFO_EMBED] New "
-                                            "message info: %ld\n",
-                                            player->info_message->id);
+                                    fprintf (stderr,
+                                             "[MANAGER::SEND_INFO_EMBED] New "
+                                             "message info: %ld\n",
+                                             player->info_message->id);
                             }
                     }
             }
         else if (debug)
-            printf ("[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
+            fprintf (stderr,
+                     "[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
     };
 
     if (delete_original)
@@ -167,12 +171,14 @@ Manager::send_info_embed (dpp::snowflake guild_id, bool update,
             auto mn = *player->info_message;
             if (!mn.embeds.empty ())
                 mn.embeds.pop_back ();
+
             mn.embeds.push_back (e);
 
             if (debug)
-                printf ("[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
-                        "Edit: %ld %ld\n",
-                        mn.channel_id, mn.id);
+                fprintf (stderr,
+                         "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
+                         "Edit: %ld %ld\n",
+                         mn.channel_id, mn.id);
 
             if (event)
                 {
@@ -192,7 +198,8 @@ Manager::update_info_embed (dpp::snowflake guild_id, bool force_playing_status,
                             const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
-        printf ("[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
+        fprintf (stderr, "[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
+
     return this->send_info_embed (guild_id, true, force_playing_status, event);
 }
 
@@ -226,7 +233,8 @@ Manager::delete_info_embed (dpp::snowflake guild_id,
     auto cid = player->info_message->channel_id;
 
     if (get_debug_state ())
-        printf (
+        fprintf (
+            stderr,
             "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: %ld\n",
             cid);
 

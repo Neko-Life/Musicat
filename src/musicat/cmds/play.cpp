@@ -77,6 +77,8 @@ slash_run (const dpp::slashcommand_t &event,
             return;
         }
 
+    const bool debug = get_debug_state ();
+
     auto guild_id = event.command.guild_id;
     auto from = event.from;
     auto user_id = event.command.usr.id;
@@ -107,8 +109,8 @@ slash_run (const dpp::slashcommand_t &event,
 
     uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user),
                                                sha_user, vcuser.first);
-    printf ("c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel,
-            cperm & dpp::p_connect);
+    fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm,
+             cperm & dpp::p_view_channel, cperm & dpp::p_connect);
 
     if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
         {
@@ -130,9 +132,11 @@ slash_run (const dpp::slashcommand_t &event,
             if (from->connecting_voice_channels.find (guild_id)
                 != from->connecting_voice_channels.end ())
                 {
-                    printf ("Disconnecting as not in vc but connected state "
-                            "still in cache: %ld\n",
-                            guild_id);
+                    fprintf (stderr,
+                             "Disconnecting as not in vc but connected state "
+                             "still in cache: %ld\n",
+                             guild_id);
+
                     from->disconnect_voice (guild_id);
                 }
         }
@@ -142,9 +146,10 @@ slash_run (const dpp::slashcommand_t &event,
     if (vcclient_cont && v && v->channel_id != vcclient.first->id)
         {
             vcclient_cont = false;
-            printf ("Disconnecting as it seems I just got moved to "
-                    "different vc and connection not updated yet: %ld\n",
-                    guild_id);
+            fprintf (stderr,
+                     "Disconnecting as it seems I just got moved to "
+                     "different vc and connection not updated yet: %ld\n",
+                     guild_id);
 
             std::lock_guard<std::mutex> lk (player_manager->dc_m);
             player_manager->disconnecting[guild_id] = vcclient.first->id;
@@ -160,9 +165,12 @@ slash_run (const dpp::slashcommand_t &event,
             vcclient_cont = false;
             if (v)
                 {
-                    printf ("Disconnecting as no member in vc: %ld connecting "
-                            "to %ld\n",
-                            guild_id, vcuser.first->id);
+                    fprintf (
+                        stderr,
+                        "Disconnecting as no member in vc: %ld connecting "
+                        "to %ld\n",
+                        guild_id, vcuser.first->id);
+
                     if (v && v->voiceclient
                         && v->voiceclient->get_secs_remaining () > 0.05f)
                         {
@@ -198,10 +206,11 @@ slash_run (const dpp::slashcommand_t &event,
     bool continued = false;
     if (guild_player)
         {
-            const bool debug = get_debug_state ();
             if (debug)
-                printf ("[play::slash_run] Locked player::t_mutex: %ld\n",
-                        guild_player->guild_id);
+                fprintf (stderr,
+                         "[play::slash_run] Locked player::t_mutex: %ld\n",
+                         guild_player->guild_id);
+
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (v && v->voiceclient && guild_player->queue.size ()
                 && !v->voiceclient->is_paused ()
@@ -211,8 +220,10 @@ slash_run (const dpp::slashcommand_t &event,
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
+
             if (debug)
-                printf (
+                fprintf (
+                    stderr,
                     "[play::slash_run] Should unlock player::t_mutex: %ld\n",
                     guild_player->guild_id);
         }
@@ -253,6 +264,8 @@ find_track (bool playlist, std::string &arg_query,
                 return { {}, -1 };
         }
 
+    const bool debug = get_debug_state ();
+
     yt_search::YTrack result = {};
     if (playlist == false || no_check_history)
         result = searches.front ();
@@ -262,18 +275,20 @@ find_track (bool playlist, std::string &arg_query,
             if (!guild_player)
                 return { {}, 1 };
 
-            const bool debug = get_debug_state ();
             if (debug)
-                printf ("[play::find_track] Locked player::t_mutex: %ld\n",
-                        guild_player->guild_id);
+                fprintf (stderr,
+                         "[play::find_track] Locked player::t_mutex: %ld\n",
+                         guild_player->guild_id);
 
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (guild_player->queue.begin () == guild_player->queue.end ())
                 {
                     if (debug)
-                        printf ("[play::find_track] Should unlock "
-                                "player::t_mutex: %ld\n",
-                                guild_player->guild_id);
+                        fprintf (stderr,
+                                 "[play::find_track] Should unlock "
+                                 "player::t_mutex: %ld\n",
+                                 guild_player->guild_id);
+
                     return { {}, 1 };
                 }
 
@@ -310,9 +325,11 @@ find_track (bool playlist, std::string &arg_query,
                 }
 
             if (debug)
-                printf (
+                fprintf (
+                    stderr,
                     "[play::find_track] Should unlock player::t_mutex: %ld\n",
                     guild_player->guild_id);
+
             if (result.raw.is_null ())
                 return { {}, 1 };
         }

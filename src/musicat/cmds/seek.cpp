@@ -315,8 +315,8 @@ slash_run (const dpp::slashcommand_t &event,
                               + (parsed.minute * minute_ms)
                               + (parsed.second * second_ms) + parsed.ms;
     if (debug)
-        printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n", total_ms,
-                duration);
+        fprintf (stderr, "[seek::slash_run] [total_ms] [duration]: %ld %ld\n",
+                 total_ms, duration);
 
     // skip instead of error
     // if (total_ms > duration)
@@ -331,11 +331,12 @@ slash_run (const dpp::slashcommand_t &event,
 
     if (debug)
         {
-            printf ("[seek::slash_run] [filesize] [duration] "
-                    "[byte_per_ms] [seek_byte]: "
-                    "%f %f %f %ld\n",
-                    (float)track.filesize, (float)duration, byte_per_ms,
-                    track.current_byte);
+            fprintf (stderr,
+                     "[seek::slash_run] [filesize] [duration] "
+                     "[byte_per_ms] [seek_byte]: "
+                     "%f %f %f %ld\n",
+                     (float)track.filesize, (float)duration, byte_per_ms,
+                     track.current_byte);
         }
 
     track.seek_to = arg_to;

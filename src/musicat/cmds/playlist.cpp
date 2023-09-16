@@ -225,9 +225,10 @@ slash_run (const dpp::slashcommand_t &event,
 
     const bool add_to_top = arg_top ? true : false;
     const bool debug = get_debug_state ();
+
     if (debug)
-        printf ("[playlist::load] arg_top add_to_top: %ld %d\n", arg_top,
-                add_to_top);
+        fprintf (stderr, "[playlist::load] arg_top add_to_top: %ld %d\n",
+                 arg_top, add_to_top);
 
     std::deque<player::MCTrack> to_iter = {};
 
@@ -236,8 +237,10 @@ slash_run (const dpp::slashcommand_t &event,
             for (auto &d : playlist_res.first)
                 {
                     if (debug)
-                        printf ("[playlist::load] Pushed to front: '%s'\n",
-                                d.title ().c_str ());
+                        fprintf (stderr,
+                                 "[playlist::load] Pushed to front: '%s'\n",
+                                 d.title ().c_str ());
+
                     to_iter.push_front (d);
                 }
         }
