@@ -170,6 +170,7 @@ slash_run (const dpp::slashcommand_t &event)
                     "Sorry but I'm already in another voice channel");
 
             vcclient_cont = false;
+
             if (v)
                 {
                     fprintf (
@@ -186,6 +187,7 @@ slash_run (const dpp::slashcommand_t &event)
                                     v->voiceclient->pause_audio (false);
                                     v->voiceclient->skip_to_next_marker ();
                                 }
+
                             player_manager->stop_stream (guild_id);
                         }
 
@@ -238,6 +240,7 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (resumed)
         return;
+
     else if (no_query)
         {
             if (continued)
@@ -252,8 +255,8 @@ slash_run (const dpp::slashcommand_t &event)
             event.thinking ();
 
             add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v,
-                       vcuser.first->id, sha_id, player_manager, true, from,
-                       event, continued, arg_slip);
+                       vcuser.first->id, sha_id, true, from, event, continued,
+                       arg_slip);
         }
 }
 
@@ -262,24 +265,14 @@ find_track (bool playlist, std::string &arg_query,
             player::player_manager_ptr player_manager, bool from_interaction,
             dpp::snowflake guild_id, bool no_check_history)
 {
-    std::vector<yt_search::YTrack> searches
-        = playlist ? yt_search::get_playlist (arg_query).entries ()
-                   : yt_search::search (arg_query).trackResults ();
-
-    if (searches.begin () == searches.end ())
-        {
-            if (from_interaction)
-                return { {}, -1 };
-        }
-
     const bool debug = get_debug_state ();
 
-    yt_search::YTrack result = {};
-    if (playlist == false || no_check_history)
-        result = searches.front ();
-    else if (!no_check_history)
+    std::shared_ptr<player::Player> guild_player = NULL;
+
+    if (playlist && !no_check_history)
         {
-            auto guild_player = player_manager->get_player (guild_id);
+            guild_player = player_manager->get_player (guild_id);
+
             if (!guild_player)
                 return { {}, 1 };
 
@@ -299,31 +292,53 @@ find_track (bool playlist, std::string &arg_query,
 
                     return { {}, 1 };
                 }
+        }
 
-            for (auto i : searches)
+    std::vector<yt_search::YTrack> searches
+        = playlist ? yt_search::get_playlist (arg_query).entries ()
+                   : yt_search::search (arg_query).trackResults ();
+
+    if (searches.begin () == searches.end ())
+        {
+            if (from_interaction)
+                return { {}, -1 };
+
+            return { {}, 0 };
+        }
+
+    yt_search::YTrack result = {};
+    if (playlist == false || no_check_history)
+        // play the first result according to user query
+        result = searches.front ();
+    else if (!no_check_history)
+        {
+            const size_t gphs = guild_player->history.size ();
+
+            // find entry that wasn't played before
+            for (const auto &i : searches)
                 {
-                    auto iid = i.id ();
+                    const auto iid = i.id ();
                     bool br = false;
-                    for (auto &a : guild_player->queue)
+
+                    for (const auto &a : guild_player->queue)
                         {
-                            if (a.id () == iid)
+                            if (a.id () != iid)
+                                continue;
+
+                            br = true;
+                            break;
+                        }
+
+                    if (gphs && !br)
+                        {
+                            for (const auto &a : guild_player->history)
                                 {
+                                    if (a != iid)
+                                        continue;
+
                                     br = true;
                                     break;
                                 }
-                        }
-
-                    if (!br)
-                        {
-                            if (guild_player->history.size ())
-                                for (const auto &a : guild_player->history)
-                                    {
-                                        if (a == iid)
-                                            {
-                                                br = true;
-                                                break;
-                                            }
-                                    }
                         }
 
                     if (br)
@@ -393,10 +408,21 @@ void
 add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
            int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
            const dpp::snowflake channel_id, const dpp::snowflake sha_id,
-           player::player_manager_ptr player_manager, bool from_interaction,
-           dpp::discord_client *from, const dpp::interaction_create_t event,
-           bool continued, int64_t arg_slip)
+           bool from_interaction, dpp::discord_client *from,
+           const dpp::interaction_create_t event, bool continued,
+           int64_t arg_slip)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            fprintf (stderr,
+                     "[command::play::add_track WARN] Can't add track with "
+                     "query, no manager: %s\n",
+                     arg_query.c_str ());
+
+            return;
+        }
+
     const bool debug = get_debug_state ();
 
     auto find_result = find_track (playlist, arg_query, player_manager,
@@ -412,10 +438,10 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         case 0:
             break;
         default:
-            fprintf (
-                stderr,
-                "[add_track WARN] Unhandled find_track return status: %d\n",
-                find_result.second);
+            fprintf (stderr,
+                     "[command::play::add_track WARN] Unhandled find_track "
+                     "return status: %d\n",
+                     find_result.second);
         }
 
     auto result = find_result.first;
@@ -454,10 +480,10 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         case 0:
             break;
         default:
-            fprintf (
-                stderr,
-                "[add_track WARN] Unhandled track_exist return status: %d\n",
-                download_result.second);
+            fprintf (stderr,
+                     "[command::play::add_track WARN] Unhandled track_exist "
+                     "return status: %d\n",
+                     download_result.second);
         }
 
     std::thread pjt ([player_manager, from, guild_id] () {

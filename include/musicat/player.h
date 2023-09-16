@@ -485,8 +485,8 @@ class Manager
     std::vector<std::string> get_available_tracks (const size_t amount
                                                    = 0) const;
 
-    bool handle_on_track_marker (const dpp::voice_track_marker_t &event,
-                                 std::shared_ptr<Manager> shared_manager);
+    bool handle_on_track_marker (const dpp::voice_track_marker_t &event);
+
     dpp::embed get_playing_info_embed (dpp::snowflake guild_id,
                                        bool force_playing_status);
     void handle_on_voice_ready (const dpp::voice_ready_t &event);

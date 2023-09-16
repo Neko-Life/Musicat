@@ -532,6 +532,7 @@ Manager::load_guild_player_config (const dpp::snowflake &guild_id)
     auto player = this->create_player (guild_id);
     if (player->saved_config_loaded == true)
         return 0;
+
     player->saved_config_loaded = true;
 
     std::pair<PGresult *, ExecStatusType> res

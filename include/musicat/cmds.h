@@ -94,7 +94,6 @@ track_exist (const std::string &fname, const std::string &url,
  * @param channel_id Target voice channel for the client to join and play
  * tracks to
  * @param sha_id Client user Id
- * @param player_manager Player manager ptr
  * @param from_interaction Whether from an interaction or not
  * @param from Discord client used to reconnect/join voice channel
  * @param event Can be incomplete type or filled if from interaction
@@ -103,7 +102,6 @@ track_exist (const std::string &fname, const std::string &url,
 void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
                 const dpp::snowflake channel_id, const dpp::snowflake sha_id,
-                player::player_manager_ptr player_manager,
                 bool from_interaction, dpp::discord_client *from,
                 const dpp::interaction_create_t event
                 = dpp::interaction_create_t (NULL, "{}"),

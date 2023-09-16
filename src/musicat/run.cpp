@@ -44,6 +44,7 @@ bool running = false;
 bool debug = false;
 std::mutex main_mutex;
 
+dpp::snowflake sha_id = 0;
 dpp::cluster *client_ptr = nullptr;
 std::shared_ptr<player::Manager> player_manager = nullptr;
 
@@ -57,19 +58,43 @@ get_client_ptr ()
 {
     if (!get_running_state ())
         return nullptr;
+
     return client_ptr;
 }
 
 dpp::snowflake
 get_sha_id ()
 {
-    return get_config_value<int64_t> ("SHA_ID", 0);
+    if (sha_id)
+        return sha_id;
+
+    sha_id = get_config_value<int64_t> ("SHA_ID", 0);
+
+    return sha_id;
+}
+
+string
+get_sha_token ()
+{
+    return get_config_value<string> ("SHA_TKN", "");
 }
 
 string
 get_sha_secret ()
 {
     return get_config_value<std::string> ("SHA_SECRET", "");
+}
+
+string
+get_sha_db_params ()
+{
+    return get_config_value<string> ("SHA_DB", "");
+}
+
+bool
+get_sha_runtime_cli_opt ()
+{
+    return get_config_value<bool> ("RUNTIME_CLI", false);
 }
 
 player::player_manager_ptr
@@ -203,12 +228,12 @@ get_music_folder_path ()
 std::string
 get_invite_oauth_base_url ()
 {
-    const std::string sha_id = std::to_string (get_sha_id ());
+    const std::string sha_id_str = std::to_string (get_sha_id ());
 
-    if (!sha_id.length ())
+    if (!sha_id_str.length ())
         return "";
 
-    return OAUTH_BASE_URL + "?client_id=" + sha_id;
+    return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
 }
 
 std::string
@@ -325,7 +350,7 @@ get_ytdlp_exe ()
 int _sigint_count = 0;
 
 void
-on_sigint (int code)
+on_sigint ([[maybe_unused]] int code)
 {
     _sigint_count++;
 
@@ -397,6 +422,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         {
             dpp::message m ("It seems like this result is "
                             "outdated, try make a new search");
+
             m.flags |= dpp::m_ephemeral;
             event.reply (m);
             return;
@@ -526,18 +552,18 @@ run (int argc, const char *argv[])
 
     set_debug_state (get_config_value<bool> ("DEBUG", false));
 
-    const std::string sha_token = get_config_value<string> ("SHA_TKN", "");
+    const std::string sha_token = get_sha_token ();
     if (!sha_token.length ())
         {
             fprintf (stderr, "[ERROR] No token provided\n");
             return -1;
         }
 
-    dpp::snowflake sha_id = get_sha_id ();
+    get_sha_id ();
 
     if (!sha_id)
         {
-            fprintf (stderr, "[ERROR] No bot user id provided\n");
+            fprintf (stderr, "[ERROR] No bot user Id provided\n");
             return -1;
         }
 
@@ -549,6 +575,7 @@ run (int argc, const char *argv[])
             client_ptr = &client;
 
             int ret = cli (client, sha_id, argc, argv);
+
             while (running)
                 std::this_thread::sleep_for (std::chrono::seconds (1));
 
@@ -565,7 +592,7 @@ run (int argc, const char *argv[])
 
     // !IMPORTANT: only AFTER initializing child can you
     // spawn a thread! Never fork after being multi threaded!
-    if (get_config_value<bool> ("RUNTIME_CLI", false))
+    if (get_sha_runtime_cli_opt ())
         runtime_cli::attach_listener ();
 
     const bool no_db = sha_cfg["SHA_DB"].is_null ();
@@ -579,7 +606,7 @@ run (int argc, const char *argv[])
             }
         else
             {
-                db_connect_param = get_config_value<string> ("SHA_DB", "");
+                db_connect_param = get_sha_db_params ();
                 ConnStatusType status = database::init (db_connect_param);
                 if (status != CONNECTION_OK)
                     {
@@ -608,6 +635,7 @@ run (int argc, const char *argv[])
     client.on_log ([&dpp_on_log_handler] (const dpp::log_t &event) {
         if (!get_debug_state ())
             return;
+
         dpp_on_log_handler (event);
     });
 
@@ -705,6 +733,7 @@ run (int argc, const char *argv[])
             {
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
+
                 if (!param.length ())
                     {
                         fprintf (stderr,
@@ -753,6 +782,7 @@ run (int argc, const char *argv[])
         if (get_debug_state ())
             fprintf (stderr, "[FORM] %s %ld\n", event.custom_id.c_str (),
                      event.command.message_id);
+
         if (event.custom_id == "modal_p")
             {
                 _handle_form_modal_p (event);
@@ -769,14 +799,15 @@ run (int argc, const char *argv[])
 
         for (const auto &i : event.options)
             {
-                if (i.focused)
-                    {
-                        opt = i.name;
-                        if (i.value.index ())
-                            param = std::get<string> (i.value);
-                        sub_level = false;
-                        break;
-                    }
+                if (!i.focused)
+                    continue;
+
+                opt = i.name;
+                if (i.value.index ())
+                    param = std::get<string> (i.value);
+
+                sub_level = false;
+                break;
             }
 
         // int cur_sub = 0;
@@ -790,17 +821,20 @@ run (int argc, const char *argv[])
                 sub_cmd.push_back (sub.name);
                 for (const auto &i : sub.options)
                     {
-                        if (i.focused)
-                            {
-                                opt = i.name;
-                                if (i.value.index ())
-                                    param = std::get<string> (i.value);
-                                sub_level = false;
-                                break;
-                            }
+                        if (!i.focused)
+                            continue;
+
+                        opt = i.name;
+                        if (i.value.index ())
+                            param = std::get<string> (i.value);
+
+                        sub_level = false;
+                        break;
                     }
+
                 if (!sub_level)
                     break;
+
                 eopts = sub.options;
             }
 
@@ -897,47 +931,54 @@ run (int argc, const char *argv[])
                         "%ld\n",
                         event.track_meta.c_str (),
                         event.voice_client->server_id);
+
                 return;
             }
 
         if (event.track_meta != "rm")
             player_manager->set_ignore_marker (event.voice_client->server_id);
-        if (!player_manager->handle_on_track_marker (event, player_manager))
-            {
-                player_manager->delete_info_embed (
-                    event.voice_client->server_id);
-            }
 
-        // track marker remover
+        if (!player_manager->handle_on_track_marker (event))
+            player_manager->delete_info_embed (event.voice_client->server_id);
+
+        // ignore marker remover
         std::thread t ([event] () {
             try
                 {
-                    if (!event.voice_client)
-                        {
-                            thread_manager::set_done ();
-                            return;
-                        }
-
-                    short int count = 0;
                     const bool d_s = get_debug_state ();
+                    short int count = 0;
+                    int until_count;
 
+                    auto player = player_manager ? player_manager->get_player (
+                                      event.voice_client->server_id)
+                                                 : NULL;
+
+                    if (!event.voice_client || event.voice_client->terminating
+                        || !player)
+                        goto gt_rm;
+
+                    until_count = player->saved_queue_loaded ? 10 : 30;
                     while (!event.voice_client->terminating
                            && !event.voice_client->is_playing ()
                            && !event.voice_client->is_paused ())
                         {
                             std::this_thread::sleep_for (
                                 std::chrono::milliseconds (500));
+
                             count++;
-                            if (count == 10)
+
+                            if (count == until_count)
                                 break;
                         }
 
-                    if (!player_manager)
+                    if (!event.voice_client || event.voice_client->terminating
+                        || !player_manager)
                         {
                             thread_manager::set_done ();
                             return;
                         }
 
+                gt_rm:
                     player_manager->remove_ignore_marker (
                         event.voice_client->server_id);
 
@@ -949,9 +990,11 @@ run (int argc, const char *argv[])
 
                     fprintf (stderr, "Removed ignore marker for meta '%s'",
                              event.track_meta.c_str ());
+
                     if (event.voice_client)
                         fprintf (stderr, " in %ld",
                                  event.voice_client->server_id);
+
                     fprintf (stderr, "\n");
                 }
             catch (...)

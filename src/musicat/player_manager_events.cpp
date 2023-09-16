@@ -12,16 +12,17 @@ namespace player
 // this section can't be anymore horrible than this....
 using string = std::string;
 
+// !!TODO: remove shared_manager and use get_player_manager_ptr() instead!!!
+// do that for everything requires player_manager!!!!!!!!
+//
+// btw shared_manager can be simply `this` smfh
 bool
-Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
-                                 std::shared_ptr<Manager> shared_manager)
+Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 {
-    if (!get_running_state ())
-        return false;
-
     const bool debug = get_debug_state ();
 
-    if (!event.voice_client)
+    if (!event.voice_client || event.voice_client->terminating
+        || !get_running_state ())
         {
             fprintf (stderr, "NO CLIENT\n");
             return false;
@@ -31,7 +32,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
         fprintf (stderr, "Handling voice marker: \"%s\" in guild %ld\n",
                  event.track_meta.c_str (), event.voice_client->server_id);
 
-    shared_manager->clear_manually_paused (event.voice_client->server_id);
+    this->clear_manually_paused (event.voice_client->server_id);
 
     if (this->is_disconnecting (event.voice_client->server_id))
         {
@@ -66,6 +67,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
         {
             this->load_guild_current_queue (event.voice_client->server_id,
                                             &sha_id);
+
             just_loaded_queue = true;
         }
 
@@ -78,6 +80,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                 {
                     fprintf (stderr, "NO SIZE BEFORE: %d\n",
                              guild_player->loop_mode);
+
                     fprintf (stderr,
                              "[Manager::handle_on_track_marker] Should unlock "
                              "player::t_mutex: %ld\n",
@@ -179,13 +182,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
             return false;
         }
 
-    if (event.voice_client
-        && event.voice_client->get_secs_remaining () < 0.05f)
+    if (event.voice_client->get_secs_remaining () < 0.05f)
         {
             std::thread tj (
-                [this, shared_manager,
-                 debug] (dpp::discord_voice_client *v, string meta,
-                         std::shared_ptr<Player> guild_player) {
+                [this, debug] (dpp::discord_voice_client *v, string meta,
+                               std::shared_ptr<Player> guild_player) {
                     try
                         {
                             MCTrack &track = guild_player->current_track;
@@ -228,13 +229,14 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                             if (guild_player->auto_play)
                                 {
                                     std::thread at_t ([debug, id, this,
-                                                       shared_manager,
                                                        guild_player, v] () {
                                         try
                                             {
                                                 if (debug)
                                                     fprintf (
                                                         stderr,
+                                                        "[Manager::handle_on_"
+                                                        "track_marker] "
                                                         "Getting new autoplay "
                                                         "track: %s\n",
                                                         id.c_str ());
@@ -246,8 +248,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                                             "watch?v=")
                                                         + id + "&list=RD" + id,
                                                     0, true, NULL, 0,
-                                                    this->sha_id,
-                                                    shared_manager, false,
+                                                    this->sha_id, false,
                                                     guild_player->from);
                                             }
                                         catch (...)
@@ -289,6 +290,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event,
                                             {
                                                 this->remove_ignore_marker (
                                                     guild_id);
+
                                                 v->insert_marker ("e");
                                             }
 

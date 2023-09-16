@@ -89,6 +89,7 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
 
         if (arg_slip == 1)
             top = true;
+
         if (top)
             {
                 this->queue.push_front (track);
@@ -99,6 +100,7 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
                         this->shifted_track++;
                     }
             }
+
         // This is correct, don't "optimize" it
         else if (arg_slip > 1 && siz > (size_t)arg_slip)
             {
@@ -167,6 +169,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current)
 {
     if (amount < 1)
         amount = 1;
+
     if (amount > 1000)
         amount = 1000;
 
@@ -272,6 +275,7 @@ Player::remove_track (size_t pos, size_t amount, const size_t to)
 
     if ((long)to != -1 && to > pos)
         amount = to - pos;
+
     size_t max = siz - pos;
     if (amount > max)
         amount = max;
@@ -283,6 +287,7 @@ Player::remove_track (size_t pos, size_t amount, const size_t to)
         {
             if (a == amount)
                 break;
+
             b = this->queue.erase (b);
             a++;
         }
@@ -295,6 +300,7 @@ Player::remove_track_by_user (dpp::snowflake user_id)
 {
     if (!user_id)
         return 0;
+
     size_t ret = 0;
     auto i = this->queue.begin ();
     while (i != this->queue.end ())
@@ -303,10 +309,12 @@ Player::remove_track_by_user (dpp::snowflake user_id)
                 {
                     this->queue.erase (i);
                     ret++;
+                    continue;
                 }
-            else
-                i++;
+
+            i++;
         }
+
     return ret;
 }
 
@@ -326,13 +334,14 @@ Player::pause (dpp::discord_client *from, dpp::snowflake user_id) const
                 {
                     throw exception ("You're not in a voice channel", 1);
                 }
+
             v->voiceclient->pause_audio (true);
             // Paused
             return true;
         }
+
     // Not playing anythin
-    else
-        return false;
+    return false;
 }
 
 bool
@@ -344,7 +353,9 @@ Player::shuffle ()
         if (siz < 3)
             return false;
     }
+
     this->reset_shifted ();
+
     std::deque<MCTrack> n_queue = {};
     auto b = shuffle_indexes (siz - 1);
     {
@@ -353,11 +364,13 @@ Player::shuffle ()
 
         for (auto i : b)
             n_queue.push_back (this->queue.at (i));
+
         this->queue.clear ();
 
         this->queue = n_queue;
         this->queue.push_front (os);
     }
+
     this->manager->update_info_embed (this->guild_id);
     return true;
 }
@@ -384,6 +397,7 @@ player_has_current_track (std::shared_ptr<player::Player> guild_player)
     if (!guild_player || guild_player->current_track.raw.is_null ()
         || !guild_player->queue.size ())
         return false;
+
     return true;
 }
 
