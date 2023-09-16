@@ -12,6 +12,26 @@ namespace musicat
 {
 namespace command
 {
+using command_handlers_map_t
+    = std::map<std::string, void (*) (const dpp::slashcommand_t &)>;
+
+struct handle_command_params_t
+{
+    const std::string &command_name;
+    const command_handlers_map_t &command_handlers_map;
+    const dpp::slashcommand_t &event;
+};
+
+enum handle_command_status_e
+{
+    HANDLE_SLASH_COMMAND_SUCCESS,
+    HANDLE_SLASH_COMMAND_NO_HANDLER,
+};
+
+handle_command_status_e handle_command (const handle_command_params_t &params);
+
+///////////////////////////////////////////////////////////////////
+
 namespace hello
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
@@ -27,15 +47,13 @@ void slash_run (const dpp::slashcommand_t &event);
 namespace pause
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // pause
 
 namespace skip
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // skip
 
 namespace play
@@ -47,8 +65,7 @@ void query (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
@@ -64,7 +81,9 @@ track_exist (const std::string &fname, const std::string &url,
 
 /**
  * @brief Search and add track to guild queue, can be used for interaction and
- * non interaction. Interaction must have already deferred/replied
+ * non interaction. Interaction must have already deferred/replied.
+ *
+ * !TODO: WHAT IN THE WORLD WAS THIS???
  *
  * @param playlist Whether arg_query is youtube playlist url or search query
  * @param guild_id Guild which data to be updated with
@@ -103,8 +122,7 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 namespace loop
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // loop
 
 namespace queue
@@ -124,29 +142,25 @@ enum queue_modify_t : int8_t
 };
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // queue
 
 namespace autoplay
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // autoplay
 
 namespace move
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // move
 
 namespace remove
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // remove
 
 namespace bubble_wrap
@@ -176,16 +190,13 @@ void id (const dpp::autocomplete_t &event, std::string param);
 namespace save
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 }
 
 namespace load
 {
 dpp::command_option get_option_obj ();
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager,
-                const bool view = false);
+void slash_run (const dpp::slashcommand_t &event);
 }
 
 namespace view
@@ -201,8 +212,7 @@ void slash_run (const dpp::slashcommand_t &event);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // playlist
 
 // OMGGG THEY WON'T STOP ASKING ME TO MAKE THIS OMIGOD, am making this for
@@ -210,8 +220,7 @@ void slash_run (const dpp::slashcommand_t &event,
 namespace stop
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // stop
 
 namespace interactive_message
@@ -229,15 +238,13 @@ void slash_run (const dpp::slashcommand_t &event);
 namespace join
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // join
 
 namespace leave
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // leave
 
 namespace download
@@ -249,8 +256,7 @@ void track (const dpp::autocomplete_t &event, std::string param,
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // download
 
 namespace image
@@ -267,18 +273,15 @@ void slash_run (const dpp::slashcommand_t &event);
 namespace seek
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 } // seek
 
 namespace progress
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event,
-                player::player_manager_ptr player_manager);
+void slash_run (const dpp::slashcommand_t &event);
 
-void update_progress (const dpp::button_click_t &event,
-                      player::player_manager_ptr player_manager);
+void update_progress (const dpp::button_click_t &event);
 } // progress
 
 namespace volume
@@ -286,6 +289,17 @@ namespace volume
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::slashcommand_t &event);
 } // volume
+
+namespace filters
+{
+
+namespace equalizer
+{
+void show_setting (const dpp::slashcommand_t &event);
+
+} // equalizer
+
+} // filters
 
 } // command
 } // musicat

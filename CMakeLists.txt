@@ -59,6 +59,7 @@ add_executable(Shasha
         src/musicat/server.cpp
         src/musicat/thread_manager.cpp
         src/musicat/audio_processing.cpp
+        src/musicat/command.cpp
         src/musicat/child.cpp
         src/musicat/child/worker.cpp
         src/musicat/child/command.cpp

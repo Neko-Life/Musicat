@@ -691,8 +691,7 @@ run (int argc, const char *argv[])
 
                 if (param.find ("u") != std::string::npos)
                     {
-                        command::progress::update_progress (event,
-                                                            player_manager);
+                        command::progress::update_progress (event);
                     }
                 else
                     {
@@ -833,68 +832,46 @@ run (int argc, const char *argv[])
     });
 
     client.on_slashcommand ([] (const dpp::slashcommand_t &event) {
+        static const command::command_handlers_map_t command_handlers = {
+            { "hello", command::hello::slash_run },
+            { "invite", command::invite::slash_run },
+            { "pause", command::pause::slash_run },
+            { "skip", command::skip::slash_run }, // add 'force' arg, save
+                                                  // djrole within db
+            { "play", command::play::slash_run },
+            { "loop", command::loop::slash_run },
+            { "queue", command::queue::slash_run },
+            { "autoplay", command::autoplay::slash_run },
+            { "move", command::move::slash_run },
+            { "remove", command::remove::slash_run },
+            { "bubble_wrap", command::bubble_wrap::slash_run },
+            { "search", command::search::slash_run },
+            { "playlist", command::playlist::slash_run },
+            { "stop", command::stop::slash_run },
+            { "interactive_message", command::interactive_message::slash_run },
+            { "join", command::join::slash_run },
+            { "leave", command::leave::slash_run },
+            { "download", command::download::slash_run },
+            { "image", command::image::slash_run },
+            { "seek", command::seek::slash_run },
+            { "progress", command::progress::slash_run },
+            { "volume", command::volume::slash_run },
+        };
+
         if (!event.command.guild_id)
             return;
 
-        string cmd = event.command.get_command_name ();
+        const string cmd = event.command.get_command_name ();
 
-        // !TODO: refactor this horrible if else to use command_manager or smt
-        if (cmd == "hello")
-            command::hello::slash_run (event);
-        else if (cmd == "why")
-            event.reply ("Why not");
-        else if (cmd == "hi")
-            event.reply ("HIII");
-        else if (cmd == "invite")
-            command::invite::slash_run (event);
-        else if (cmd == "support")
-            event.reply ("https://www.discord.gg/vpk2KyKHtu");
-        else if (cmd == "repo")
-            event.reply ("https://github.com/Neko-Life/Musicat");
-        else if (cmd == "pause")
-            command::pause::slash_run (event, player_manager);
-        else if (cmd == "skip")
-            command::skip::slash_run (
-                event,
-                player_manager); // add 'force' arg, save djrole within db
-        else if (cmd == "play")
-            command::play::slash_run (event, player_manager);
-        else if (cmd == "loop")
-            command::loop::slash_run (event, player_manager);
-        else if (cmd == "queue")
-            command::queue::slash_run (event, player_manager);
-        else if (cmd == "autoplay")
-            command::autoplay::slash_run (event, player_manager);
-        else if (cmd == "move")
-            command::move::slash_run (event, player_manager);
-        else if (cmd == "remove")
-            command::remove::slash_run (event, player_manager);
-        else if (cmd == "bubble_wrap")
-            command::bubble_wrap::slash_run (event);
-        else if (cmd == "search")
-            command::search::slash_run (event);
-        else if (cmd == "playlist")
-            command::playlist::slash_run (event, player_manager);
-        else if (cmd == "stop")
-            command::stop::slash_run (event, player_manager);
-        else if (cmd == "interactive_message")
-            command::interactive_message::slash_run (event);
-        else if (cmd == "join")
-            command::join::slash_run (event, player_manager);
-        else if (cmd == "leave")
-            command::leave::slash_run (event, player_manager);
-        else if (cmd == "download")
-            command::download::slash_run (event, player_manager);
-        else if (cmd == "image")
-            command::image::slash_run (event);
-        else if (cmd == "seek")
-            command::seek::slash_run (event, player_manager);
-        else if (cmd == "progress")
-            command::progress::slash_run (event, player_manager);
-        else if (cmd == "volume")
-            command::volume::slash_run (event);
+        auto status
+            = command::handle_command ({ cmd, command_handlers, event });
 
-        else
+        // if (cmd == "why")
+        //     event.reply ("Why not");
+        // else if (cmd == "repo")
+        //     event.reply ("https://github.com/Neko-Life/Musicat");
+
+        if (status == command::HANDLE_SLASH_COMMAND_NO_HANDLER)
             {
                 event.reply (
                     "Seems like somethin's wrong here, I can't find that "

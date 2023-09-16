@@ -12,11 +12,12 @@ namespace progress
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("progress", "Current [track] progress",
-                              sha_id);
+    return dpp::slashcommand ("progress", "Current [track] progress", sha_id);
 }
 
-dpp::message _reply_embed (player::MCTrack &current_track, const int64_t &current_ms, const int64_t &duration)
+dpp::message
+_reply_embed (player::MCTrack &current_track, const int64_t &current_ms,
+              const int64_t &duration)
 {
     dpp::message msg;
 
@@ -24,18 +25,17 @@ dpp::message _reply_embed (player::MCTrack &current_track, const int64_t &curren
 
     embed.set_title (current_track.title ())
         .set_url (current_track.url ())
-        .set_description (std::string ("[") + format_duration (current_ms) + "/" + format_duration (duration) + "]");
+        .set_description (std::string ("[") + format_duration (current_ms)
+                          + "/" + format_duration (duration) + "]");
 
-    msg.add_embed(embed);
+    msg.add_embed (embed);
 
-    msg.add_component(
-        dpp::component ()
-            .add_component (dpp::component ()
-                                .set_label("Update")
-                                .set_id ("progress/u")
-                                .set_type (dpp::cot_button)
-                                .set_style (dpp::cos_primary))
-    );
+    msg.add_component (
+        dpp::component ().add_component (dpp::component ()
+                                             .set_label ("Update")
+                                             .set_id ("progress/u")
+                                             .set_type (dpp::cot_button)
+                                             .set_style (dpp::cos_primary)));
 
     return msg;
 }
@@ -78,9 +78,14 @@ _process_command (const dpp::interaction_create_t &event,
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           player::player_manager_ptr player_manager)
+slash_run (const dpp::slashcommand_t &event)
 {
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        {
+            return;
+        }
+
     if (!player_manager->voice_ready (event.command.guild_id))
         {
             event.reply ("Please wait while I'm getting ready to stream");
@@ -93,7 +98,8 @@ slash_run (const dpp::slashcommand_t &event,
             if (value.error)
                 return event.reply (value.error_msg);
 
-            event.reply(_reply_embed (value.current_track, value.current_ms, value.duration));
+            event.reply (_reply_embed (value.current_track, value.current_ms,
+                                       value.duration));
         }
     catch (const exception &e)
         {
@@ -102,18 +108,28 @@ slash_run (const dpp::slashcommand_t &event,
 }
 
 void
-update_progress (const dpp::button_click_t &event,
-           player::player_manager_ptr player_manager)
+update_progress (const dpp::button_click_t &event)
 {
     try
         {
+            auto player_manager = get_player_manager_ptr ();
+            if (!player_manager)
+                {
+                    return;
+                }
+
             _processed_t value = _process_command (event, player_manager);
 
             if (value.error)
                 return event.reply (value.error_msg);
 
-            dpp::interaction_response reply(dpp::ir_update_message, _reply_embed (value.current_track, value.current_ms, value.duration));
-            event.from->creator->interaction_response_create(event.command.id, event.command.token, reply);
+            dpp::interaction_response reply (dpp::ir_update_message,
+                                             _reply_embed (value.current_track,
+                                                           value.current_ms,
+                                                           value.duration));
+
+            event.from->creator->interaction_response_create (
+                event.command.id, event.command.token, reply);
         }
     catch (const exception &e)
         {
