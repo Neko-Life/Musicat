@@ -1,4 +1,5 @@
 #include "musicat/pagination.h"
+#include "musicat/function_macros.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/storage.h"
@@ -9,8 +10,6 @@
 #include <string>
 #include <variant>
 #include <vector>
-
-#define ONE_HOUR_SECOND 3600
 
 namespace musicat
 {
@@ -206,7 +205,8 @@ update_page (dpp::snowflake msg_id, std::string param,
                   "message",
                   "Can't", "I'm unable to flip the page...",
                   "Try again after a rewrite", "A good day to be lazy",
-                  "The page for this message _might_ be processed in 3 to 5 business day" }));
+                  "The page for this message _might_ be processed in 3 to 5 "
+                  "business day" }));
 
             m.flags |= dpp::m_ephemeral;
             event.reply (m);
@@ -296,22 +296,22 @@ add_pagination_buttons (dpp::message *msg)
     msg->add_component (
         dpp::component ()
             .add_component (dpp::component ()
-                                .set_emoji (u8"◀️")
+                                .set_emoji (MUSICAT_U8 ("◀️"))
                                 .set_id ("page_queue/p")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
-                                .set_emoji (u8"🏠")
+                                .set_emoji (MUSICAT_U8 ("🏠"))
                                 .set_id ("page_queue/h")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
-                                .set_emoji (u8"🦘")
+                                .set_emoji (MUSICAT_U8 ("🦘"))
                                 .set_id ("page_queue/j")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary))
             .add_component (dpp::component ()
-                                .set_emoji (u8"▶️")
+                                .set_emoji (MUSICAT_U8 ("▶️"))
                                 .set_id ("page_queue/n")
                                 .set_type (dpp::cot_button)
                                 .set_style (dpp::cos_primary)));

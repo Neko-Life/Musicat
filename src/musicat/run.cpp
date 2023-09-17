@@ -2,6 +2,7 @@
 #include "musicat/cmds.h"
 #include "musicat/config.h"
 #include "musicat/db.h"
+#include "musicat/function_macros.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
@@ -25,10 +26,6 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
-
-#define STR_SIZE(x) (sizeof (x) / sizeof (x[0])) - 1
-
-#define ONE_HOUR_SECOND 3600
 
 static const std::string OAUTH_BASE_URL
     = "https://discord.com/api/oauth2/authorize";
