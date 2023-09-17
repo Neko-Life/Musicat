@@ -627,7 +627,7 @@ run (int argc, const char *argv[])
 
     client_ptr = &client;
 
-    player_manager = std::make_shared<player::Manager> (&client, sha_id);
+    player_manager = std::make_shared<player::Manager> (&client);
 
     std::function<void (const dpp::log_t &)> dpp_on_log_handler
         = dpp::utility::cout_logger ();

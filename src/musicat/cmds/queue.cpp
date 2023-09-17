@@ -118,7 +118,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 try
                     {
                         auto vc = get_voice_from_gid (event.command.guild_id,
-                                                      player_manager->sha_id);
+                                                      sha_id);
 
                         // users in the vc that have been checked
                         std::vector<dpp::snowflake> all_user = {};

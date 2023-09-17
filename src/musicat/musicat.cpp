@@ -51,13 +51,17 @@ get_voice (dpp::guild *guild, dpp::snowflake user_id)
             auto gc = dpp::find_channel (fc);
             if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
                 continue;
+
             std::map<dpp::snowflake, dpp::voicestate> vm
                 = gc->get_voice_members ();
+
             if (vm.find (user_id) != vm.end ())
                 {
                     return { gc, vm };
                 }
         }
+
+    // !TODO: THROWING CHARS???
     throw "User not in vc";
 }
 
@@ -76,31 +80,8 @@ get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id)
     if (g)
         return get_voice (g, user_id);
 
+    // !TODO: THROWING CHARS???
     throw "Unknown guild";
-}
-
-/**
- * @brief Execute shell cmd and return anything it printed to console
- *
- * @param cmd Command
- * @return string
- * @throw const char* Exec failed (can't call popen or unknown command)
- */
-string
-exec (string cmd)
-{
-    if (!cmd.length ())
-        throw "LEN";
-
-    std::array<char, 128> buffer;
-    string res;
-    std::unique_ptr<FILE, decltype (&pclose)> pipe (popen (cmd.c_str (), "r"),
-                                                    pclose);
-    if (!pipe)
-        throw "ERROR: exec failed";
-    while (fgets (buffer.data (), buffer.size (), pipe.get ()))
-        res += buffer.data ();
-    return res;
 }
 
 bool
@@ -131,41 +112,39 @@ bool
 has_listener_fetch (dpp::cluster *client,
                     std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 {
-    if (vstate_map->size () > 1)
+    if (vstate_map->size () < 2)
+        return false;
+
+    for (auto r : *vstate_map)
         {
-            for (auto r : *vstate_map)
+            auto u = dpp::find_user (r.second.user_id);
+            /* if (!u)
                 {
-                    auto u = dpp::find_user (r.second.user_id);
-                    /* if (!u)
+                    try
                         {
-                            try
-                                {
-                                    if (get_debug_state ())
-                                        printf (
-                                            "Fetching user %ld in vc %ld\n",
-                                            r.second.user_id,
-                                            r.second.channel_id);
-                                    dpp::user_identified uf
-                                        = client->user_get_sync (
-                                            r.second.user_id);
-                                    if (uf.is_bot ())
-                                        continue;
-                                }
-                            catch (const dpp::rest_exception *e)
-                                {
-                                    fprintf (stderr,
-                                             "[ERROR(musicat.182)] Can't "
-                                             "fetch user in VC: %ld\n",
-                                             r.second.user_id);
-                                    continue;
-                                }
+                            if (get_debug_state ())
+                                printf ("Fetching user %ld in vc %ld\n",
+                                        r.second.user_id, r.second.channel_id);
+                            dpp::user_identified uf
+                                = client->user_get_sync (r.second.user_id);
+                            if (uf.is_bot ())
+                                continue;
                         }
-                    else */
-                    if (u->is_bot ())
-                        continue;
-                    return true;
+                    catch (const dpp::rest_exception *e)
+                        {
+                            fprintf (stderr,
+                                     "[ERROR(musicat.182)] Can't "
+                                     "fetch user in VC: %ld\n",
+                                     r.second.user_id);
+                            continue;
+                        }
                 }
+            else */ if (u->is_bot ())
+                continue;
+
+            return true;
         }
+
     return false;
 }
 
