@@ -139,12 +139,14 @@ _generate_oauth_state ()
 
     do
         {
-            const int len = (util::get_random_number () % 30) + 50;
+            const int r1 = util::get_random_number ();
+            const int len = ((r1 > 0) ? (r1 % 31) : 0) + 50;
             state = "";
 
             for (int i = 0; i < len; i++)
                 {
-                    state += token[util::get_random_number () % token_size];
+                    const int r2 = util::get_random_number ();
+                    state += token[(r2 > 0) ? (r2 % token_size) : 0];
                 }
         }
     while (_util_deque_find<std::string> (&_oauth_states, state)
