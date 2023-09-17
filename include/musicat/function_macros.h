@@ -7,7 +7,7 @@
 
 #if __cplusplus >= 201703L && __cplusplus < 202002L
 
-#define MUSICAT_U8(x) u8x
+#define MUSICAT_U8(x) u8 ## x
 
 #elif __cplusplus >= 202002L
 
