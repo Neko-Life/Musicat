@@ -1,7 +1,7 @@
 #ifndef MUSICAT_CONFIG_H
 #define MUSICAT_CONFIG_H
 
-#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.3f
+#define DPP_AUDIO_BUFFER_LENGTH_SECOND 0.5f
 #define SLEEP_ON_BUFFER_THRESHOLD_MS 50
 
 // use etf websocket protocol
