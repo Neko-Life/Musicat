@@ -140,7 +140,7 @@ enum queue_modify_t : int8_t
 };
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
-void slash_run (const dpp::slashcommand_t &event);
+dpp::coroutine<void> slash_run (const dpp::slashcommand_t &event);
 } // queue
 
 namespace autoplay

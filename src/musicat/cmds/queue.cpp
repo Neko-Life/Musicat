@@ -1,5 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
+#include <dpp/dpp.h>
 
 namespace musicat
 {
@@ -21,6 +22,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
     if (debug)
         printf ("[queue::handle_option] Locked player::t_mutex: %ld\n",
                 guild_player->guild_id);
+
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     guild_player->reset_shifted ();
 
@@ -223,35 +225,41 @@ get_register_obj (const dpp::snowflake &sha_id)
                     "Clear Musicat", queue_modify_t::m_clear_musicat)));
 }
 
-void
+dpp::coroutine<void>
 slash_run (const dpp::slashcommand_t &event)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
         {
-            return;
+            co_return;
         }
 
     const dpp::snowflake sha_id = event.from->creator->me.id;
 
     // avoid getting timed out when loading large queue
-    event.thinking ();
+    dpp::async thinking = event.co_thinking ();
+
     player_manager->load_guild_current_queue (event.command.guild_id, &sha_id);
 
     std::deque<player::MCTrack> queue
         = player_manager->get_queue (event.command.guild_id);
 
+    co_await thinking;
+
     if (queue.empty ())
         {
             event.edit_response ("No track");
-            return;
+            co_return;
         }
 
     int64_t qarg = -1;
     get_inter_param (event, "action", &qarg);
 
     if (qarg > -1)
-        return handle_option (qarg, event, player_manager, queue, sha_id);
+        {
+            co_return handle_option (qarg, event, player_manager, queue,
+                                     sha_id);
+        }
 
     paginate::reply_paginated_playlist (event, queue, "Queue", true);
 }

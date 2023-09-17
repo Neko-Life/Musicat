@@ -862,7 +862,7 @@ run (int argc, const char *argv[])
             }
     });
 
-    client.on_slashcommand ([] (const dpp::slashcommand_t &event) {
+    client.on_slashcommand ([] (dpp::slashcommand_t event) -> dpp::job {
         static const command::command_handlers_map_t command_handlers = {
             { "hello", command::hello::slash_run },
             { "invite", command::invite::slash_run },
@@ -871,7 +871,6 @@ run (int argc, const char *argv[])
                                                   // djrole within db
             { "play", command::play::slash_run },
             { "loop", command::loop::slash_run },
-            { "queue", command::queue::slash_run },
             { "autoplay", command::autoplay::slash_run },
             { "move", command::move::slash_run },
             { "remove", command::remove::slash_run },
@@ -890,12 +889,20 @@ run (int argc, const char *argv[])
         };
 
         if (!event.command.guild_id)
-            return;
+            co_return;
 
         const string cmd = event.command.get_command_name ();
 
         auto status
             = command::handle_command ({ cmd, command_handlers, event });
+
+        if (cmd == "queue")
+            {
+                co_await command::queue::slash_run (event);
+
+                co_return;
+                // { "queue", command::queue::slash_run },
+            }
 
         // if (cmd == "why")
         //     event.reply ("Why not");

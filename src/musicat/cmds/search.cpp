@@ -22,6 +22,7 @@ create_short_text_input (const std::string &label, const std::string &id)
         .set_label (label)
         .set_id (id)
         .set_text_style (dpp::text_short);
+
     return component;
 }
 
