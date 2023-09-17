@@ -1,7 +1,8 @@
 #include "musicat/cmds.h"
+#include "musicat/function_macros.h"
 #include "musicat/pagination.h"
-#include "yt-search/yt-search.h"
 #include "musicat/util.h"
+#include "yt-search/yt-search.h"
 #include <dpp/message.h>
 #include <string>
 
@@ -37,8 +38,8 @@ get_register_obj (const dpp::snowflake &sha_id)
 dpp::interaction_modal_response
 modal_enqueue_searched_track ()
 {
-    dpp::component input = create_short_text_input ("Input track number to add to playback queue:",
-                                                    "que_s_track");
+    dpp::component input = create_short_text_input (
+        "Input track number to add to playback queue:", "que_s_track");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Track");
     modal.add_component (input);
@@ -48,8 +49,8 @@ modal_enqueue_searched_track ()
 dpp::interaction_modal_response
 modal_enqueue_searched_track_top ()
 {
-    dpp::component input = create_short_text_input ("Input track number to add to top of queue:",
-                                                   "que_s_track_top");
+    dpp::component input = create_short_text_input (
+        "Input track number to add to top of queue:", "que_s_track_top");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Top");
     modal.add_component (input);
@@ -59,14 +60,14 @@ modal_enqueue_searched_track_top ()
 dpp::interaction_modal_response
 modal_enqueue_searched_track_slip ()
 {
-    dpp::component input1 = create_short_text_input ("Input track number to add to playback queue:",
-                                                     "que_s_track");
-    dpp::component input2 = create_short_text_input ("Input position to slip into playback queue:",
-                                                    "que_s_track_slip");
+    dpp::component input1 = create_short_text_input (
+        "Input track number to add to playback queue:", "que_s_track");
+    dpp::component input2 = create_short_text_input (
+        "Input position to slip into playback queue:", "que_s_track_slip");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Slip");
     modal.add_component (input1);
-    modal.add_row();
+    modal.add_row ();
     modal.add_component (input2);
     return modal;
 }
@@ -101,12 +102,11 @@ slash_run (const dpp::slashcommand_t &event)
             size_t cn = mult * 10 + (++count);
             const std::string tit = t.title ();
             char tit_char[512];
-            util::u8_limit_length(tit.c_str(), tit_char, 80);
+            util::u8_limit_length (tit.c_str (), tit_char, 80);
 
-            desc += std::string ("`") + std::to_string (cn) + "`: ["
-                    + tit_char + (tit.length () > 80 ? "..." : "")
-                    + "](" + t.url () + ") [" + t.length () + "] - "
-                    + t.channel ().name + "\n";
+            desc += std::string ("`") + std::to_string (cn) + "`: [" + tit_char
+                    + (tit.length () > 80 ? "..." : "") + "](" + t.url ()
+                    + ") [" + t.length () + "] - " + t.channel ().name + "\n";
 
             if (count == 10 || cn == pl_siz)
                 {
@@ -129,17 +129,17 @@ slash_run (const dpp::slashcommand_t &event)
     m.add_component (
         dpp::component ()
             .add_component (dpp::component ()
-                                .set_emoji (u8"🎵")
+                                .set_emoji (MUSICAT_U8 ("🎵"))
                                 .set_label ("Add Track")
                                 .set_style (dpp::cos_success)
                                 .set_id ("modal_p/que_s_track"))
             .add_component (dpp::component ()
-                                .set_emoji (u8"🎵")
+                                .set_emoji (MUSICAT_U8 ("🎵"))
                                 .set_label ("Add Slip")
                                 .set_style (dpp::cos_primary)
                                 .set_id ("modal_p/que_s_track_slip"))
             .add_component (dpp::component ()
-                                .set_emoji (u8"🎵")
+                                .set_emoji (MUSICAT_U8 ("🎵"))
                                 .set_label ("Add Top")
                                 .set_style (dpp::cos_danger)
                                 .set_id ("modal_p/que_s_track_top")));
