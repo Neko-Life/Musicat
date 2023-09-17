@@ -15,39 +15,40 @@ namespace player
 // this section looks so bad
 using string = std::string;
 
-Manager::Manager (dpp::cluster *cluster, dpp::snowflake sha_id)
-{
-    this->cluster = cluster;
-    this->sha_id = sha_id;
-}
+Manager::Manager (dpp::cluster *cluster) { this->cluster = cluster; }
 
 Manager::~Manager () = default;
 
 std::shared_ptr<Player>
-Manager::create_player (dpp::snowflake guild_id)
+Manager::create_player (const dpp::snowflake &guild_id)
 {
     std::lock_guard<std::mutex> lk (this->ps_m);
+
     auto l = players.find (guild_id);
     if (l != players.end ())
         return l->second;
+
     std::shared_ptr<Player> v = std::make_shared<Player> (cluster, guild_id);
     v->manager = this;
     players.insert (std::pair (guild_id, v));
+
     return v;
 }
 
 std::shared_ptr<Player>
-Manager::get_player (dpp::snowflake guild_id)
+Manager::get_player (const dpp::snowflake &guild_id)
 {
     std::lock_guard<std::mutex> lk (this->ps_m);
+
     auto l = players.find (guild_id);
     if (l != players.end ())
         return l->second;
+
     return NULL;
 }
 
 void
-Manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id)
+Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 {
     bool from_dc = false;
     {
@@ -69,10 +70,15 @@ Manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id)
             {
                 {
                     using namespace std::chrono_literals;
+
+                    // wait for 500 ms since discord will just ignore the
+                    // request if it was too quick
                     if (from_dc)
                         std::this_thread::sleep_for (500ms);
                 }
+
                 from->connect_voice (guild_id, a->second, false, true);
+
                 this->dl_cv.wait (lk, [this, &guild_id] () {
                     auto t = this->connecting.find (guild_id);
                     return t == this->connecting.end ();
@@ -82,42 +88,50 @@ Manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id)
 }
 
 bool
-Manager::delete_player (dpp::snowflake guild_id)
+Manager::delete_player (const dpp::snowflake &guild_id)
 {
     std::lock_guard<std::mutex> lk (this->ps_m);
+
     auto l = players.find (guild_id);
     if (l == players.end ())
         return false;
+
     players.erase (l);
     return true;
 }
 
 std::deque<MCTrack>
-Manager::get_queue (dpp::snowflake guild_id)
+Manager::get_queue (const dpp::snowflake &guild_id)
 {
     auto guild_player = get_player (guild_id);
     if (!guild_player)
         return {};
+
     guild_player->reset_shifted ();
     return guild_player->queue;
 }
 
 bool
-Manager::pause (dpp::discord_client *from, dpp::snowflake guild_id,
-                dpp::snowflake user_id)
+Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
+                const dpp::snowflake &user_id)
 {
     auto guild_player = get_player (guild_id);
     if (!guild_player)
         return false;
+
     bool a = guild_player->pause (from, user_id);
+
     if (a)
         {
             std::lock_guard<std::mutex> lk (mp_m);
+
             if (vector_find (&this->manually_paused, guild_id)
                 == this->manually_paused.end ())
                 this->manually_paused.push_back (guild_id);
+
             this->update_info_embed (guild_id);
         }
+
     return a;
 }
 
@@ -126,13 +140,16 @@ Manager::unpause (dpp::discord_voice_client *voiceclient,
                   const dpp::snowflake &guild_id)
 {
     this->clear_manually_paused (guild_id);
+
     voiceclient->pause_audio (false);
+
     this->update_info_embed (guild_id);
 }
 
 std::pair<std::deque<MCTrack>, int>
-Manager::skip (dpp::voiceconn *v, dpp::snowflake guild_id,
-               dpp::snowflake user_id, int64_t amount, bool remove)
+Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
+               const dpp::snowflake &user_id, const int64_t &amount,
+               const bool remove)
 {
     if (!v)
         return { {}, -1 };
@@ -250,6 +267,7 @@ Manager::download (const string &fname, const string &url,
                      "[ERROR Manager::download] yt-dlp executable isn't "
                      "configured, unable to download track '%s'\n",
                      fname.c_str ());
+
             return;
         }
 
@@ -273,8 +291,7 @@ Manager::download (const string &fname, const string &url,
                     }
 
                     string cmd
-                        = string (yt_dlp + " -f 251 --http-chunk-size 2M '")
-                          + url
+                        = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
                           + string ("' -x --audio-format opus --audio-quality "
                                     "0 -o '")
                           + music_folder_path
@@ -294,6 +311,8 @@ Manager::download (const string &fname, const string &url,
                     else
                         cmd += " 1>/dev/null";
 
+                    // !TODO: probably move this operation to child
+                    // instead of using literal shell to run the command
                     system (cmd.c_str ());
 
                     {
@@ -316,7 +335,7 @@ Manager::download (const string &fname, const string &url,
 
 void
 Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
-               dpp::snowflake channel_id)
+               const dpp::snowflake &channel_id)
 {
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
@@ -365,11 +384,13 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                                     else if (e == 1)
                                         msg = "No connection";
 
-                                    dpp::message m;
-                                    m.set_channel_id (channel_id)
-                                        .set_content (msg);
+                                    if (msg.length ())
+                                        {
+                                            const dpp::message m (channel_id,
+                                                                  msg);
 
-                                    this->cluster->message_create (m);
+                                            this->cluster->message_create (m);
+                                        }
                                 }
                         }
 
@@ -384,7 +405,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 
                     try
                         {
-                            get_voice_from_gid (server_id, this->sha_id);
+                            get_voice_from_gid (server_id, get_sha_id ());
                             thread_manager::set_done ();
                             return;
                         }
@@ -410,21 +431,23 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 }
 
 size_t
-Manager::remove_track (dpp::snowflake guild_id, size_t pos,
-                       const size_t amount, const size_t to)
+Manager::remove_track (const dpp::snowflake &guild_id, const size_t &pos,
+                       const size_t &amount, const size_t &to)
 {
     auto guild_player = this->get_player (guild_id);
     if (!guild_player)
         return 0;
+
     return guild_player->remove_track (pos, amount, to);
 }
 
 bool
-Manager::shuffle_queue (dpp::snowflake guild_id)
+Manager::shuffle_queue (const dpp::snowflake &guild_id)
 {
     auto guild_player = this->get_player (guild_id);
     if (!guild_player)
         return false;
+
     return guild_player->shuffle ();
 }
 

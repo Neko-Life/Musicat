@@ -89,7 +89,7 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_id = event.command.guild_id;
     auto from = event.from;
     auto user_id = event.command.usr.id;
-    const dpp::snowflake sha_id = player_manager->sha_id;
+    const dpp::snowflake sha_id = get_sha_id();
 
     std::string arg_query = "";
     int64_t arg_top = 0;
@@ -158,8 +158,8 @@ slash_run (const dpp::slashcommand_t &event)
                      "different vc and connection not updated yet: %ld\n",
                      guild_id);
 
-            std::lock_guard<std::mutex> lk (player_manager->dc_m);
-            player_manager->disconnecting[guild_id] = vcclient.first->id;
+            player_manager->set_disconnecting (guild_id, vcclient.first->id);
+
             from->disconnect_voice (guild_id);
         }
 

@@ -17,7 +17,7 @@ MCTrack::MCTrack ()
     filesize = 0;
 }
 
-MCTrack::MCTrack (YTrack t)
+MCTrack::MCTrack (const YTrack &t)
 {
     seekable = false;
     seek_to = "";
@@ -50,7 +50,7 @@ Player::init ()
 
 Player::Player () { this->init (); }
 
-Player::Player (dpp::cluster *_cluster, dpp::snowflake _guild_id)
+Player::Player (dpp::cluster *_cluster, const dpp::snowflake &_guild_id)
 {
     this->init ();
     this->guild_id = _guild_id;
@@ -72,8 +72,8 @@ Player::~Player ()
 };
 
 Player &
-Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
-                   bool update_embed, int64_t arg_slip)
+Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
+                   const bool update_embed, const int64_t &arg_slip)
 {
     size_t siz = 0;
     {
@@ -117,7 +117,7 @@ Player::add_track (MCTrack track, bool top, dpp::snowflake guild_id,
 }
 
 Player &
-Player::set_max_history_size (size_t siz)
+Player::set_max_history_size (const size_t &siz)
 {
     this->max_history_size = siz;
     int set = (int)siz;
@@ -165,7 +165,7 @@ Player::skip (dpp::voiceconn *v)
 }
 
 std::deque<MCTrack>
-Player::skip_queue (int64_t amount, bool remove, bool pop_current)
+Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
 {
     if (amount < 1)
         amount = 1;
@@ -203,7 +203,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current)
 }
 
 Player &
-Player::set_auto_play (bool state)
+Player::set_auto_play (const bool state)
 {
     this->auto_play = state;
     database::update_guild_player_config (this->guild_id, &state, NULL, NULL);
@@ -228,7 +228,7 @@ Player::reset_shifted ()
 }
 
 Player &
-Player::set_loop_mode (int8_t mode)
+Player::set_loop_mode (const int8_t mode)
 {
     loop_mode_t nm = this->loop_mode;
     switch (mode)
@@ -254,14 +254,14 @@ Player::set_loop_mode (int8_t mode)
 }
 
 Player &
-Player::set_channel (dpp::snowflake channel_id)
+Player::set_channel (const dpp::snowflake &channel_id)
 {
     this->channel_id = channel_id;
     return *this;
 }
 
 size_t
-Player::remove_track (size_t pos, size_t amount, const size_t to)
+Player::remove_track (const size_t &pos, size_t amount, const size_t &to)
 {
     if (!pos || (!amount && (long)to == -1))
         return 0;
@@ -296,7 +296,7 @@ Player::remove_track (size_t pos, size_t amount, const size_t to)
 }
 
 size_t
-Player::remove_track_by_user (dpp::snowflake user_id)
+Player::remove_track_by_user (const dpp::snowflake &user_id)
 {
     if (!user_id)
         return 0;
@@ -319,7 +319,7 @@ Player::remove_track_by_user (dpp::snowflake user_id)
 }
 
 bool
-Player::pause (dpp::discord_client *from, dpp::snowflake user_id) const
+Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id) const
 {
     auto v = from->get_voice (guild_id);
     if (v && !v->voiceclient->is_paused ())
@@ -381,8 +381,8 @@ Player::set_stopped (const bool &val)
     this->stopped = val;
 }
 
-const bool &
-Player::is_stopped ()
+bool
+Player::is_stopped () const
 {
     return this->stopped;
 }

@@ -450,40 +450,41 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         = v->get_secs_remaining ())
                                        > DPP_AUDIO_BUFFER_LENGTH_SECOND))
                                 {
-                                    if ((debug = get_debug_state ()))
-                                        {
-                                            static std::chrono::time_point
-                                                start_time
-                                                = std::chrono::
-                                                    high_resolution_clock::
-                                                        now ();
+                                    // isn't very pretty for the terminal, disable for now
+                                    // if ((debug = get_debug_state ()))
+                                    //     {
+                                    //         static std::chrono::time_point
+                                    //             start_time
+                                    //             = std::chrono::
+                                    //                 high_resolution_clock::
+                                    //                     now ();
 
-                                            auto end_time = std::chrono::
-                                                high_resolution_clock::now ();
+                                    //         auto end_time = std::chrono::
+                                    //             high_resolution_clock::now ();
 
-                                            auto done
-                                                = std::chrono::duration_cast<
-                                                    std::chrono::
-                                                        milliseconds> (
-                                                    end_time - start_time);
+                                    //         auto done
+                                    //             = std::chrono::duration_cast<
+                                    //                 std::chrono::
+                                    //                     milliseconds> (
+                                    //                 end_time - start_time);
 
-                                            start_time = end_time;
+                                    //         start_time = end_time;
 
-                                            fprintf (
-                                                stderr,
-                                                "[audio_processing::send_"
-                                                "audio_routine] "
-                                                "outbuf_duration: %f > %f\n",
-                                                outbuf_duration,
-                                                DPP_AUDIO_BUFFER_LENGTH_SECOND);
+                                    //         fprintf (
+                                    //             stderr,
+                                    //             "[audio_processing::send_"
+                                    //             "audio_routine] "
+                                    //             "outbuf_duration: %f > %f\n",
+                                    //             outbuf_duration,
+                                    //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
 
-                                            fprintf (stderr,
-                                                     "[audio_processing::send_"
-                                                     "audio_routine] Delay "
-                                                     "between send: %ld "
-                                                     "milliseconds\n",
-                                                     done.count ());
-                                        }
+                                    //         fprintf (stderr,
+                                    //                  "[audio_processing::send_"
+                                    //                  "audio_routine] Delay "
+                                    //                  "between send: %ld "
+                                    //                  "milliseconds\n",
+                                    //                  done.count ());
+                                    //     }
 
                                     handle_effect_chain_change (effect_states);
 

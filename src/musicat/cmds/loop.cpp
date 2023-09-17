@@ -36,7 +36,7 @@ slash_run (const dpp::slashcommand_t &event)
             event.reply ("Please wait while I'm getting ready to stream");
             return;
         }
-    const dpp::snowflake sha_id = player_manager->sha_id;
+    const dpp::snowflake sha_id = get_sha_id ();
     static const char *loop_message[]
         = { "Turned off repeat mode", "Set to repeat a song",
             "Set to repeat queue",

@@ -1,3 +1,4 @@
+#include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -99,6 +100,8 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
                                                 ? guild_player->channel_id
                                                 : (dpp::snowflake)0;
 
+                const auto sha_id = get_sha_id ();
+
                 if (status != 0)
                     {
                         fprintf (stderr, "[Manager::set_vc_ready_timeout "
@@ -107,8 +110,8 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
                             && guild_player->from)
                             try
                                 {
-                                    auto vcs = get_voice_from_gid (
-                                        guild_id, this->sha_id);
+                                    auto vcs = get_voice_from_gid (guild_id,
+                                                                   sha_id);
 
                                     if (vcs.first && vcs.first->id)
                                         {
@@ -257,8 +260,8 @@ Manager::clear_manually_paused (const dpp::snowflake &guild_id)
 }
 
 bool
-Manager::voice_ready (dpp::snowflake guild_id, dpp::discord_client *from,
-                      dpp::snowflake user_id)
+Manager::voice_ready (const dpp::snowflake &guild_id,
+                      dpp::discord_client *from, const dpp::snowflake &user_id)
 {
     bool re = is_connecting (guild_id);
 
@@ -380,7 +383,7 @@ Manager::voice_ready (dpp::snowflake guild_id, dpp::discord_client *from,
 }
 
 void
-Manager::stop_stream (dpp::snowflake guild_id)
+Manager::stop_stream (const dpp::snowflake &guild_id)
 {
     auto guild_player = this->get_player (guild_id);
     if (guild_player)
@@ -414,7 +417,7 @@ Manager::wait_for_download (const string &file_name)
 }
 
 std::vector<std::string>
-Manager::get_available_tracks (const size_t amount) const
+Manager::get_available_tracks (const size_t &amount) const
 {
     std::vector<std::string> ret = {};
     size_t c = 0;
@@ -586,9 +589,11 @@ Manager::full_reconnect (dpp::discord_client *from,
                          const dpp::snowflake &connect_channel_id,
                          const bool &for_listener)
 {
+    const auto sha_id = get_sha_id ();
+
     if (for_listener)
         {
-            auto m = get_voice_from_gid (guild_id, this->sha_id);
+            auto m = get_voice_from_gid (guild_id, sha_id);
 
             if (!has_listener (&m.second))
                 return 0;
@@ -614,6 +619,26 @@ Manager::full_reconnect (dpp::discord_client *from,
     thread_manager::dispatch (pjt);
 
     return status;
+}
+
+void
+Manager::get_next_autoplay_track (const string &track_id,
+                                  dpp::discord_client *from,
+                                  const dpp::snowflake &server_id)
+{
+    const bool debug = get_debug_state ();
+
+    if (debug)
+        fprintf (stderr,
+                 "[Manager::handle_on_track_marker] Getting new autoplay "
+                 "track: %s\n",
+                 track_id.c_str ());
+
+    const string query = "https://www.youtube.com/watch?v=" + track_id
+                         + "&list=RD" + track_id;
+
+    command::play::add_track (true, server_id, query, 0, true, NULL, 0,
+                              get_sha_id (), false, from);
 }
 
 } // player

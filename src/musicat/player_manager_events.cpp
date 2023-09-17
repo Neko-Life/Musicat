@@ -20,6 +20,7 @@ bool
 Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 {
     const bool debug = get_debug_state ();
+    const auto sha_id = get_sha_id ();
 
     if (!event.voice_client || event.voice_client->terminating
         || !get_running_state ())
@@ -80,11 +81,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                 {
                     fprintf (stderr, "NO SIZE BEFORE: %d\n",
                              guild_player->loop_mode);
-
-                    fprintf (stderr,
-                             "[Manager::handle_on_track_marker] Should unlock "
-                             "player::t_mutex: %ld\n",
-                             guild_player->guild_id);
                 }
 
             return false;
@@ -120,12 +116,14 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
     else if (event.track_meta == "rm")
         {
+            const string removed_title = guild_player->queue.front ().title ();
             guild_player->queue.pop_front ();
+
             if (debug)
                 fprintf (stderr,
-                         "[Manager::handle_on_track_marker] Should unlock "
-                         "player::t_mutex: %ld\n",
-                         guild_player->guild_id);
+                         "[Manager::handle_on_track_marker rm] Track removed "
+                         "in guild: `%s` %ld\n",
+                         removed_title.c_str (), guild_player->guild_id);
 
             return false;
         }
@@ -136,10 +134,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                 {
                     fprintf (stderr, "NO SIZE AFTER: %d\n",
                              guild_player->loop_mode);
-                    fprintf (stderr,
-                             "[Manager::handle_on_track_marker] Should unlock "
-                             "player::t_mutex: %ld\n",
-                             guild_player->guild_id);
                 }
 
             if (!just_loaded_queue)
@@ -163,15 +157,16 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
     try
         {
-            auto c = get_voice_from_gid (event.voice_client->server_id,
-                                         this->sha_id);
+            auto c
+                = get_voice_from_gid (event.voice_client->server_id, sha_id);
+
             if (!has_listener (&c.second))
                 {
                     if (debug)
                         fprintf (stderr,
-                                 "[Manager::handle_on_track_marker] Should "
-                                 "unlock player::t_mutex: %ld\n",
-                                 guild_player->guild_id);
+                                 "[Manager::handle_on_track_marker] No "
+                                 "listener in voice channel: %ld (%ld)\n",
+                                 c.first->id, guild_player->guild_id);
 
                     return false;
                 }
@@ -194,6 +189,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                             std::lock_guard<std::mutex> lk (
                                 guild_player->t_mutex);
+
                             // text channel to send embed
                             dpp::snowflake channel_id
                                 = guild_player->channel_id;
@@ -225,45 +221,35 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                             this->wait_for_download (track.filename);
 
-                            string id = track.id ();
+                            const string track_id = track.id ();
                             if (guild_player->auto_play)
                                 {
-                                    std::thread at_t ([debug, id, this,
-                                                       guild_player, v] () {
-                                        try
-                                            {
-                                                if (debug)
-                                                    fprintf (
-                                                        stderr,
-                                                        "[Manager::handle_on_"
-                                                        "track_marker] "
-                                                        "Getting new autoplay "
-                                                        "track: %s\n",
-                                                        id.c_str ());
+                                    std::thread at_t (
+                                        [this] (
+                                            const std::string &track_id,
+                                            dpp::discord_client *from,
+                                            const dpp::snowflake &server_id) {
+                                            try
+                                                {
+                                                    this->get_next_autoplay_track (
+                                                        track_id, from,
+                                                        server_id);
+                                                }
+                                            catch (...)
+                                                {
+                                                }
 
-                                                command::play::add_track (
-                                                    true, v->server_id,
-                                                    string ("https://"
-                                                            "www.youtube.com/"
-                                                            "watch?v=")
-                                                        + id + "&list=RD" + id,
-                                                    0, true, NULL, 0,
-                                                    this->sha_id, false,
-                                                    guild_player->from);
-                                            }
-                                        catch (...)
-                                            {
-                                            }
-
-                                        thread_manager::set_done ();
-                                    });
+                                            thread_manager::set_done ();
+                                        },
+                                        track_id, guild_player->from,
+                                        guild_player->guild_id);
 
                                     thread_manager::dispatch (at_t);
                                 }
 
                             if (guild_player->max_history_size)
                                 {
-                                    guild_player->history.push_back (id);
+                                    guild_player->history.push_back (track_id);
 
                                     while (guild_player->history.size ()
                                            > guild_player->max_history_size)
@@ -284,6 +270,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                                 std::ifstream test (
                                     music_folder_path + track.filename,
                                     std::ios_base::in | std::ios_base::binary);
+
                                 if (!test.is_open ())
                                     {
                                         if (v && !v->terminating)
@@ -296,28 +283,20 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                                         if (embed_perms)
                                             {
-                                                dpp::message m;
-                                                m.set_channel_id (channel_id)
-                                                    .set_content (
-                                                        "Can't play track: "
-                                                        + track.title ()
-                                                        + " (added by <@"
-                                                        + std::to_string (
-                                                            track.user_id)
-                                                        + ">)");
+                                                const string m_content
+                                                    = "Can't play track: "
+                                                      + track.title ()
+                                                      + " (added by <@"
+                                                      + std::to_string (
+                                                          track.user_id)
+                                                      + ">)";
+
+                                                dpp::message m (channel_id,
+                                                                m_content);
 
                                                 this->cluster->message_create (
                                                     m);
                                             }
-
-                                        if (debug)
-                                            fprintf (stderr,
-                                                     "[thread tj "
-                                                     "Manager::handle_on_"
-                                                     "track_marker] "
-                                                     "Should unlock "
-                                                     "player::t_mutex: %ld\n",
-                                                     guild_player->guild_id);
 
                                         thread_manager::set_done ();
                                         return;
@@ -410,12 +389,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             thread_manager::dispatch (tj);
 
-            if (debug)
-                fprintf (stderr,
-                         "[Manager::handle_on_track_marker] Should unlock "
-                         "player::t_mutex: %ld\n",
-                         guild_player->guild_id);
-
             return true;
         }
     else
@@ -426,10 +399,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
     if (debug)
         {
-            fprintf (stderr,
-                     "[Manager::handle_on_track_marker] Should unlock "
-                     "player::t_mutex: %ld\n",
-                     guild_player->guild_id);
             fprintf (stderr, "RETURN NO TRACK SIZE\n");
         }
 
@@ -460,6 +429,7 @@ void
 Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 {
     const bool debug = get_debug_state ();
+    const auto sha_id = get_sha_id ();
 
     // Non client's user code
     if (event.state.user_id != sha_id)
@@ -502,8 +472,10 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
                                     if (!p)
                                         {
                                             v->voiceclient->pause_audio (true);
+
                                             this->update_info_embed (
                                                 event.state.guild_id);
+
                                             if (debug)
                                                 fprintf (stderr,
                                                          "Paused %ld as no "
@@ -710,7 +682,7 @@ Manager::prepare_play_stage_channel_routine (
 
     const bool debug = get_debug_state ();
 
-    auto i = guild->voice_members.find (this->sha_id);
+    auto i = guild->voice_members.find (get_sha_id ());
 
     if (i == guild->voice_members.end ())
         return;
