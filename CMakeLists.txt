@@ -7,8 +7,10 @@ project(Musicat
 	DESCRIPTION "Discord Music Bot written in C++")
 
 option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
+option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
+set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
 
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
@@ -141,10 +143,20 @@ if (MUSICAT_WITH_CORO)
 	message("-- INFO: Configuring Musicat with coroutines")
 
 	target_compile_definitions(dpp PUBLIC DPP_CORO=ON)
-	target_compile_options(dpp PUBLIC -std=c++20)
+	set(DPP_COMPILE_OPTIONS -std=c++20 ${DPP_COMPILE_OPTIONS})
 
 	target_compile_definitions(Shasha PRIVATE DPP_CORO=ON)
 	set(MUSICAT_CXX_STANDARD 20)
+endif()
+
+if (MUSICAT_DEBUG_SYMBOL)
+	message("-- INFO: Will build Musicat with debug symbol")
+	set(MUSICAT_COMPILE_OPTIONS -g ${MUSICAT_COMPILE_OPTIONS})
+	set(DPP_COMPILE_OPTIONS -g ${DPP_COMPILE_OPTIONS})
+endif()
+
+if (DPP_COMPILE_OPTIONS)
+	target_compile_options(dpp PUBLIC ${DPP_COMPILE_OPTIONS})
 endif()
 
 # Linking libraries
@@ -188,7 +200,7 @@ target_link_directories(Shasha PRIVATE
 	libs/liboggz/build/lib
 	)
 
-target_compile_options(Shasha PRIVATE -g -Wall -Wextra -Wpedantic)
+target_compile_options(Shasha PRIVATE ${MUSICAT_COMPILE_OPTIONS})
 
 # Set C++ version
 set_target_properties(Shasha PROPERTIES
