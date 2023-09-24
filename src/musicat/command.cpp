@@ -8,19 +8,22 @@ namespace command
 handle_command_status_e
 handle_command (const handle_command_params_t &params)
 {
-    auto handler = params.command_handlers_map.find (params.command_name);
+    void (*handler) (const dpp::slashcommand_t &) = nullptr;
 
-    if (handler == params.command_handlers_map.end ())
+    for (const command_handler_t *i = params.command_handlers_map;
+         i->name != NULL; i++)
         {
-            fprintf (stderr,
-                     "[command::handle_command] No handler registered for "
-                     "command: %s\n",
-                     params.command_name.c_str ());
+            if (params.command_name != i->name)
+                continue;
 
-            return HANDLE_SLASH_COMMAND_NO_HANDLER;
+            handler = i->handler;
+            break;
         }
 
-    handler->second (params.event);
+    if (!handler)
+        return HANDLE_SLASH_COMMAND_NO_HANDLER;
+
+    handler (params.event);
 
     return HANDLE_SLASH_COMMAND_SUCCESS;
 }

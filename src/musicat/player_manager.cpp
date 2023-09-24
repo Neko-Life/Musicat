@@ -158,6 +158,8 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     if (!guild_player)
         return { {}, -1 };
 
+    guild_player->reset_shifted ();
+
     const bool debug = get_debug_state ();
     if (debug)
         fprintf (stderr, "[Manager::skip] Locked player::t_mutex: %ld\n",

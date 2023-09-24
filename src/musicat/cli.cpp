@@ -12,12 +12,33 @@ print_usage_register_slash ()
 namespace musicat
 {
 
+void
+command_create_callback (const dpp::confirmation_callback_t &e)
+{
+    if (e.is_error ())
+        {
+            std::cerr << "ERROR:" << '\n';
+
+            dpp::error_info ev = e.get_error ();
+            for (auto eve : ev.errors)
+                {
+                    std::cerr << eve.code << '\n';
+                    std::cerr << eve.field << '\n';
+                    std::cerr << eve.reason << '\n';
+                    std::cerr << eve.object << '\n';
+                }
+
+            std::cerr << ev.code << '\n';
+            std::cerr << ev.message << '\n';
+        }
+
+    set_running_state (false);
+}
+
 int
 exec_delete_global_command (dpp::cluster &client)
 {
-    client.global_bulk_command_create_sync ({});
-
-    set_running_state (false);
+    client.global_bulk_command_create ({}, command_create_callback);
 
     return 0;
 }
@@ -25,9 +46,7 @@ exec_delete_global_command (dpp::cluster &client)
 int
 exec_delete_guild_command (dpp::cluster &client, const dpp::snowflake &gid)
 {
-    client.guild_bulk_command_create_sync ({}, gid);
-
-    set_running_state (false);
+    client.guild_bulk_command_create ({}, gid, command_create_callback);
 
     return 0;
 }
@@ -60,8 +79,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
                 }
 
             auto c = command::get_all (sha_id);
-            client.global_bulk_command_create (c);
-            set_running_state (false);
+            client.global_bulk_command_create (c, command_create_callback);
             return 0;
         }
 
@@ -100,8 +118,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
         }
 
     auto c = command::get_all (sha_id);
-    client.guild_bulk_command_create (c, gid);
-    set_running_state (false);
+    client.guild_bulk_command_create (c, gid, command_create_callback);
     return 0;
 }
 

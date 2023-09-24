@@ -62,6 +62,7 @@ action: set balance reset
 up the volume threshold to 500
 */
 
+#include "appcommand.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
@@ -74,18 +75,138 @@ namespace filters
 {
 namespace equalizer
 {
-static inline const command_handlers_map_t action_handlers = {
-    { "", show_setting },
-};
 
-void
-show_setting (const dpp::slashcommand_t &event)
-{
-}
+static inline constexpr const char *eq_options[][2] = {
+    { "band-1", "Set 65Hz band gain" },
+    { "band-2", "Set 92Hz band gain" },
+    { "band-3", "Set 131Hz band gain" },
+    { "band-4", "Set 185Hz band gain" },
+    { "band-5", "Set 262Hz band gain" },
+    { "band-6", "Set 370Hz band gain" },
+    { "band-7", "Set 523Hz band gain" },
+    { "band-8", "Set 740Hz band gain" },
+    { "band-9", "Set 1047Hz band gain" },
+    { "band-10", "Set 1480Hz band gain" },
+    { "band-11", "Set 2093Hz band gain" },
+    { "band-12", "Set 2960Hz band gain" },
+    { "band-13", "Set 4186Hz band gain" },
+    { "band-14", "Set 5920Hz band gain" },
+    { "band-15", "Set 8372Hz band gain" },
+    { "band-16", "Set 11840Hz band gain" },
+    { "band-17", "Set 16744Hz band gain" },
+    { "band-18", "Set 20000Hz band gain" },
+};
 
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
+    constexpr size_t arg_size = (sizeof (eq_options) / sizeof (*eq_options));
+    constexpr int argpc = 18;
+
+    for (size_t i = 0; i < (arg_size / argpc); i++)
+        {
+            // char cmdname[16] = "equalizer-";
+            // char *c = cmdname;
+            // for (; *c; c++)
+            //     ;
+            // *c++ = (i + '0');
+
+            // dpp::command_option eqsubcmd (dpp::co_sub_command, cmdname,
+            //                               "Apply 18 band equalizer");
+            dpp::command_option eqsubcmd (dpp::co_sub_command, "equalizer",
+                                          "Apply 18 band equalizer");
+
+            eqsubcmd.add_option (
+                dpp::command_option (dpp::co_integer, "action",
+                                     "What you wanna do?", false)
+                    .add_choice (dpp::command_option_choice ("Set", 1))
+                    .add_choice (dpp::command_option_choice ("Balance", 2))
+                    .add_choice (dpp::command_option_choice ("Reset", 3)));
+
+            for (size_t j = i * argpc; j < ((i+1) * argpc) && j < arg_size; j++)
+                {
+                    eqsubcmd.add_option (
+                        dpp::command_option (dpp::co_integer, eq_options[j][0],
+                                             eq_options[j][1], false)
+                            .set_min_value (1)
+                            .set_max_value (150));
+                }
+
+            slash.add_option (eqsubcmd);
+        }
+
+    // auto eqsubcmd = dpp::command_option (dpp::co_sub_command, "equalizer",
+    //                                      "Apply 18 band equalizer");
+
+    // eqsubcmd.add_option (
+    //     dpp::command_option (dpp::co_integer, "action", "What you wanna
+    //     do?",
+    //                          false)
+    //         .add_choice (dpp::command_option_choice ("Set", 1))
+    //         .add_choice (dpp::command_option_choice ("Balance", 2))
+    //         .add_choice (dpp::command_option_choice ("Reset", 3)));
+
+    // eqsubcmd.add_option (
+    //     dpp::command_option (dpp::co_integer, eq_options[0][0],
+    //     eq_options[0][1], false)
+    //         .set_min_value (1)
+    //         .set_max_value (150));
+
+    // slash.add_option (eqsubcmd);
+
+    // auto eqsubcmd = dpp::command_option (dpp::co_sub_command, "equalizer",
+    //                                      "Apply 18 band equalizer");
+
+    // eqsubcmd.add_option (
+    //     dpp::command_option (dpp::co_integer, "action", "What you wanna
+    //     do?",
+    //                          false)
+    //         .add_choice (dpp::command_option_choice ("Set", 1))
+    //         .add_choice (dpp::command_option_choice ("Balance", 2))
+    //         .add_choice (dpp::command_option_choice ("Reset", 3)));
+
+    // for (size_t j = 0; j < arg_size; j++)
+    //     {
+    //         eqsubcmd.add_option (dpp::command_option (dpp::co_integer,
+    //                                                   eq_options[j][0],
+    //                                                   eq_options[j][1],
+    //                                                   false)
+    //                                  .set_min_value (1)
+    //                                  .set_max_value (150));
+    //     }
+
+    // slash.add_option (eqsubcmd);
+}
+
+static inline constexpr const command_handlers_map_t action_handlers
+    = { { "", show },
+        { "set", set },
+        { "balance", balance },
+        { "reset", reset },
+        { NULL, NULL } };
+
+void
+show (const dpp::slashcommand_t &event)
+{
+    event.reply ("show");
+}
+
+void
+set (const dpp::slashcommand_t &event)
+{
+    event.reply ("set");
+}
+
+void
+balance (const dpp::slashcommand_t &event)
+{
+    event.reply ("balance");
+}
+
+void
+reset (const dpp::slashcommand_t &event)
+{
+    event.reply ("reset");
 }
 
 void

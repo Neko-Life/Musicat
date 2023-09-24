@@ -408,13 +408,17 @@ slash_run (const dpp::slashcommand_t &event)
     if (inter.options.begin () == inter.options.end ())
         {
             fprintf (stderr,
-                     "[ERROR] !!! No options for command 'playlist' !!!\n");
+                     "[command::playlist::slash_run ERROR] !!! No options for command 'playlist' !!!\n");
+
             event.reply ("I don't have that command, how'd you get that?? "
                          "Please report this to my developer");
+
             return;
         }
 
     const std::string cmd = inter.options.at (0).name;
+
+    // !TODO: refactor: use command_handlers_map_t
     if (cmd == "save")
         save::slash_run (event);
     else if (cmd == "load")

@@ -31,6 +31,24 @@
           }
         ]
       }
+    },
+    "Launch Register Global": {
+      "adapter": "vscode-cpptools",
+      "configuration": {
+        "request": "launch",
+        "program": "${workspaceRoot}/exe/Shasha",
+        "args": ["reg", "g"],
+        "cwd": "${workspaceRoot}/exe/",
+        "externalConsole": true,
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ]
+      }
     }
   }
 }

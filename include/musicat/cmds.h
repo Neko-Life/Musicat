@@ -12,13 +12,18 @@ namespace musicat
 {
 namespace command
 {
-using command_handlers_map_t
-    = std::map<std::string, void (*) (const dpp::slashcommand_t &)>;
+struct command_handler_t
+{
+    const char *name;
+    void (*handler) (const dpp::slashcommand_t &);
+};
+
+using command_handlers_map_t = command_handler_t[];
 
 struct handle_command_params_t
 {
     const std::string &command_name;
-    const command_handlers_map_t &command_handlers_map;
+    const command_handler_t *const command_handlers_map;
     const dpp::slashcommand_t &event;
 };
 
@@ -291,12 +296,30 @@ void slash_run (const dpp::slashcommand_t &event);
 namespace filters
 {
 
+struct filters_perquisite_t
+{
+    player::player_manager_ptr player_manager;
+    std::shared_ptr<player::Player> guild_player;
+};
+
+dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+
+int perquisite (const dpp::slashcommand_t &event, filters_perquisite_t *fpt);
+
+void slash_run (const dpp::slashcommand_t &event);
+
 namespace equalizer
 {
-void show_setting (const dpp::slashcommand_t &event);
+void show (const dpp::slashcommand_t &event);
+void set (const dpp::slashcommand_t &event);
+void balance (const dpp::slashcommand_t &event);
+void reset (const dpp::slashcommand_t &event);
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
 
 } // equalizer
-
 } // filters
 
 } // command

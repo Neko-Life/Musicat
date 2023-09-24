@@ -19,8 +19,10 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 
     const bool debug = get_debug_state ();
     if (debug)
-        printf ("[queue::handle_option] Locked player::t_mutex: %ld\n",
-                guild_player->guild_id);
+        fprintf (stderr,
+                 "[queue::handle_option] Locked player::t_mutex: %ld\n",
+                 guild_player->guild_id);
+
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     guild_player->reset_shifted ();
 
@@ -197,8 +199,9 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                                  "development");
         }
     if (debug)
-        printf ("[queue::handle_option] Should unlock player::t_mutex: %ld\n",
-                guild_player->guild_id);
+        fprintf (stderr,
+                 "[queue::handle_option] Should unlock player::t_mutex: %ld\n",
+                 guild_player->guild_id);
 }
 
 // =================== PRIVATE END ===================

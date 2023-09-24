@@ -50,6 +50,33 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 
+static inline constexpr const command::command_handlers_map_t command_handlers
+    = { { "hello", command::hello::slash_run },
+        { "invite", command::invite::slash_run },
+        { "pause", command::pause::slash_run },
+        { "skip", command::skip::slash_run }, // add 'force' arg, save
+                                              // djrole within db
+        { "play", command::play::slash_run },
+        { "loop", command::loop::slash_run },
+        { "queue", command::queue::slash_run },
+        { "autoplay", command::autoplay::slash_run },
+        { "move", command::move::slash_run },
+        { "remove", command::remove::slash_run },
+        { "bubble_wrap", command::bubble_wrap::slash_run },
+        { "search", command::search::slash_run },
+        { "playlist", command::playlist::slash_run },
+        { "stop", command::stop::slash_run },
+        { "interactive_message", command::interactive_message::slash_run },
+        { "join", command::join::slash_run },
+        { "leave", command::leave::slash_run },
+        { "download", command::download::slash_run },
+        { "image", command::image::slash_run },
+        { "seek", command::seek::slash_run },
+        { "progress", command::progress::slash_run },
+        { "volume", command::volume::slash_run },
+        { "filters", command::filters::slash_run },
+        { NULL, NULL } };
+
 dpp::cluster *
 get_client_ptr ()
 {
@@ -863,32 +890,6 @@ run (int argc, const char *argv[])
     });
 
     client.on_slashcommand ([] (const dpp::slashcommand_t &event) {
-        static const command::command_handlers_map_t command_handlers = {
-            { "hello", command::hello::slash_run },
-            { "invite", command::invite::slash_run },
-            { "pause", command::pause::slash_run },
-            { "skip", command::skip::slash_run }, // add 'force' arg, save
-                                                  // djrole within db
-            { "play", command::play::slash_run },
-            { "loop", command::loop::slash_run },
-            { "queue", command::queue::slash_run },
-            { "autoplay", command::autoplay::slash_run },
-            { "move", command::move::slash_run },
-            { "remove", command::remove::slash_run },
-            { "bubble_wrap", command::bubble_wrap::slash_run },
-            { "search", command::search::slash_run },
-            { "playlist", command::playlist::slash_run },
-            { "stop", command::stop::slash_run },
-            { "interactive_message", command::interactive_message::slash_run },
-            { "join", command::join::slash_run },
-            { "leave", command::leave::slash_run },
-            { "download", command::download::slash_run },
-            { "image", command::image::slash_run },
-            { "seek", command::seek::slash_run },
-            { "progress", command::progress::slash_run },
-            { "volume", command::volume::slash_run },
-        };
-
         if (!event.command.guild_id)
             return;
 

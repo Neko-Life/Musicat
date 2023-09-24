@@ -87,9 +87,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
 
     // Handle shifted tracks (tracks shifted to the front of the queue)
-    if (debug)
-        fprintf (stderr, "Resetting shifted: %d\n",
-                 guild_player->reset_shifted ());
+    guild_player->reset_shifted ();
 
     // Do stuff according to loop mode when playback ends
     if (event.track_meta == "e" && !guild_player->is_stopped ())
