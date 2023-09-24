@@ -105,23 +105,15 @@ setup_subcommand (dpp::slashcommand &slash)
 
     for (size_t i = 0; i < (arg_size / argpc); i++)
         {
-            // char cmdname[16] = "equalizer-";
-            // char *c = cmdname;
-            // for (; *c; c++)
-            //     ;
-            // *c++ = (i + '0');
-
-            // dpp::command_option eqsubcmd (dpp::co_sub_command, cmdname,
-            //                               "Apply 18 band equalizer");
             dpp::command_option eqsubcmd (dpp::co_sub_command, "equalizer",
                                           "Apply 18 band equalizer");
 
             eqsubcmd.add_option (
-                dpp::command_option (dpp::co_integer, "action",
+                dpp::command_option (dpp::co_string, "action",
                                      "What you wanna do?", false)
-                    .add_choice (dpp::command_option_choice ("Set", 1))
-                    .add_choice (dpp::command_option_choice ("Balance", 2))
-                    .add_choice (dpp::command_option_choice ("Reset", 3)));
+                    .add_choice (dpp::command_option_choice ("Set", "set"))
+                    .add_choice (dpp::command_option_choice ("Balance", "balance"))
+                    .add_choice (dpp::command_option_choice ("Reset", "reset")));
 
             for (size_t j = i * argpc; j < ((i+1) * argpc) && j < arg_size; j++)
                 {
@@ -134,48 +126,6 @@ setup_subcommand (dpp::slashcommand &slash)
 
             slash.add_option (eqsubcmd);
         }
-
-    // auto eqsubcmd = dpp::command_option (dpp::co_sub_command, "equalizer",
-    //                                      "Apply 18 band equalizer");
-
-    // eqsubcmd.add_option (
-    //     dpp::command_option (dpp::co_integer, "action", "What you wanna
-    //     do?",
-    //                          false)
-    //         .add_choice (dpp::command_option_choice ("Set", 1))
-    //         .add_choice (dpp::command_option_choice ("Balance", 2))
-    //         .add_choice (dpp::command_option_choice ("Reset", 3)));
-
-    // eqsubcmd.add_option (
-    //     dpp::command_option (dpp::co_integer, eq_options[0][0],
-    //     eq_options[0][1], false)
-    //         .set_min_value (1)
-    //         .set_max_value (150));
-
-    // slash.add_option (eqsubcmd);
-
-    // auto eqsubcmd = dpp::command_option (dpp::co_sub_command, "equalizer",
-    //                                      "Apply 18 band equalizer");
-
-    // eqsubcmd.add_option (
-    //     dpp::command_option (dpp::co_integer, "action", "What you wanna
-    //     do?",
-    //                          false)
-    //         .add_choice (dpp::command_option_choice ("Set", 1))
-    //         .add_choice (dpp::command_option_choice ("Balance", 2))
-    //         .add_choice (dpp::command_option_choice ("Reset", 3)));
-
-    // for (size_t j = 0; j < arg_size; j++)
-    //     {
-    //         eqsubcmd.add_option (dpp::command_option (dpp::co_integer,
-    //                                                   eq_options[j][0],
-    //                                                   eq_options[j][1],
-    //                                                   false)
-    //                                  .set_min_value (1)
-    //                                  .set_max_value (150));
-    //     }
-
-    // slash.add_option (eqsubcmd);
 }
 
 static inline constexpr const command_handlers_map_t action_handlers
