@@ -16,7 +16,7 @@ COPY CMakeLists.txt ./
 
 # Build Musicat
 RUN mkdir -p exe build && cd build && \
-      cmake .. && make all && mv Shasha ../exe
+      cmake .. -DMUSICAT_WITH_CORO=OFF -DMUSICAT_DEBUG_SYMBOL=ON && make all && mv Shasha ../exe
 
 # !TODO: clean up? need to move libs first after compile
 
