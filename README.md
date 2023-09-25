@@ -61,6 +61,16 @@ docker run -it --rm -p 3000:3000 -v ./exe/sha_conf-docker.json:/root/Musicat/exe
 
 You can create a docker-compose.yml file to integrate with postgresql, configure however you want.
 
+* Misc
+    * Creating container
+        ```sh
+        docker container create -p 9001:9001 -v ./exe/sha_conf.docker.json:/root/Musicat/exe/sha_conf.json -v ./exe/music:/root/music --name Musicat shasha/musicat:latest
+        ```
+    * Running container
+        ```sh
+        docker container start Musicat
+        ```
+
 ## Installing Dependencies
 
 Ubuntu 22.04.2 LTS:
