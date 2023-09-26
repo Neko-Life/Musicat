@@ -362,7 +362,13 @@ find_track (bool playlist, std::string &arg_query,
                     guild_player->guild_id);
 
             if (result.raw.is_null ())
-                return { {}, 1 };
+                {
+                    // invalidate cache if Id provided
+                    if (has_cache_id)
+                        search_cache::remove (cache_id);
+
+                    return { {}, 1 };
+                }
         }
 
     if (!playlist && !has_cache_id)
