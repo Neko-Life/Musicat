@@ -35,6 +35,7 @@ add_executable(Shasha
 	include/musicat/audio_processing.h
 	include/musicat/child.h
 	include/musicat/function_macros.h
+	include/musicat/search-cache.h
 	include/musicat/child/worker.h
 	include/musicat/child/command.h
 	include/musicat/child/worker_command.h
@@ -68,6 +69,7 @@ add_executable(Shasha
 	src/musicat/audio_processing.cpp
 	src/musicat/command.cpp
 	src/musicat/child.cpp
+	src/musicat/search-cache.cpp
 	src/musicat/child/worker.cpp
 	src/musicat/child/command.cpp
 	src/musicat/child/worker_command.cpp

@@ -75,7 +75,8 @@ void slash_run (const dpp::slashcommand_t &event);
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
             player::player_manager_ptr player_manager, bool from_interaction,
-            dpp::snowflake guild_id, bool no_check_history = false);
+            dpp::snowflake guild_id, bool no_check_history = false,
+            const std::string &cache_id = "");
 
 std::string get_filename_from_result (yt_search::YTrack &result);
 

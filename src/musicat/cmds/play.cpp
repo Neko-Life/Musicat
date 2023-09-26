@@ -3,6 +3,7 @@
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
+#include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "yt-search/yt-playlist.h"
@@ -263,12 +264,15 @@ slash_run (const dpp::slashcommand_t &event)
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
             player::player_manager_ptr player_manager, bool from_interaction,
-            dpp::snowflake guild_id, bool no_check_history)
+            dpp::snowflake guild_id, bool no_check_history,
+            const std::string &cache_id)
 {
     const bool debug = get_debug_state ();
+    const bool has_cache_id = cache_id.length ();
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
+    // i wonder what was this for... i do the one who wrote this but i forgot
     if (playlist && !no_check_history)
         {
             guild_player = player_manager->get_player (guild_id);
@@ -276,27 +280,30 @@ find_track (bool playlist, std::string &arg_query,
             if (!guild_player)
                 return { {}, 1 };
 
-            if (debug)
-                fprintf (stderr,
-                         "[play::find_track] Locked player::t_mutex: %ld\n",
-                         guild_player->guild_id);
-
+            // if there's no track return without searching first?
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (guild_player->queue.begin () == guild_player->queue.end ())
                 {
-                    if (debug)
-                        fprintf (stderr,
-                                 "[play::find_track] Should unlock "
-                                 "player::t_mutex: %ld\n",
-                                 guild_player->guild_id);
-
                     return { {}, 1 };
                 }
         }
 
-    std::vector<yt_search::YTrack> searches
-        = playlist ? yt_search::get_playlist (arg_query).entries ()
-                   : yt_search::search (arg_query).trackResults ();
+    std::vector<yt_search::YTrack> searches = {};
+
+    if (has_cache_id)
+        {
+            searches = search_cache::get (cache_id);
+        }
+
+    if (!searches.size ())
+        {
+            searches = playlist
+                           ? yt_search::get_playlist (arg_query).entries ()
+                           : yt_search::search (arg_query).trackResults ();
+
+            if (has_cache_id)
+                search_cache::set (cache_id, searches);
+        }
 
     if (searches.begin () == searches.end ())
         {
@@ -369,13 +376,12 @@ get_filename_from_result (yt_search::YTrack &result)
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
-    if (!sid.length()/* || !st.length()*/) 
+    if (!sid.length () /* || !st.length()*/)
         return "";
 
-    return std::regex_replace (st + std::string ("-")
-                                   + sid + std::string (".opus"),
-                               std::regex ("/"), "",
-                               std::regex_constants::match_any);
+    return std::regex_replace (
+        st + std::string ("-") + sid + std::string (".opus"), std::regex ("/"),
+        "", std::regex_constants::match_any);
 }
 
 std::pair<bool, int>
