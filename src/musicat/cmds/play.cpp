@@ -288,21 +288,14 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
-    std::vector<yt_search::YTrack> searches = {};
+    // prioritize searching over cache
+    std::vector<yt_search::YTrack> searches
+        = playlist ? yt_search::get_playlist (arg_query).entries ()
+                   : yt_search::search (arg_query).trackResults ();
 
-    if (has_cache_id)
+    if (!searches.size () && has_cache_id)
         {
             searches = search_cache::get (cache_id);
-        }
-
-    if (!searches.size ())
-        {
-            searches = playlist
-                           ? yt_search::get_playlist (arg_query).entries ()
-                           : yt_search::search (arg_query).trackResults ();
-
-            if (has_cache_id)
-                search_cache::set (cache_id, searches);
         }
 
     if (searches.begin () == searches.end ())
