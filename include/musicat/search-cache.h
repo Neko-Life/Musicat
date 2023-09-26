@@ -7,7 +7,7 @@ namespace musicat
 {
 namespace search_cache
 {
-using track_v_t = std::vector<yt_search::YTrack>;
+using track_v_t = yt_search::YSearchResult;
 using search_cache_map_t = std::map<std::string, track_v_t>;
 
 track_v_t get (const std::string &id);

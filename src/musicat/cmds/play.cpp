@@ -288,21 +288,30 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
+    yt_search::YSearchResult search_result = {};
     // prioritize searching over cache
     std::vector<yt_search::YTrack> searches
         = playlist ? yt_search::get_playlist (arg_query).entries ()
-                   : yt_search::search (arg_query).trackResults ();
+                   : (search_result = yt_search::search (arg_query))
+                         .trackResults ();
 
-    if (has_cache_id)
+    if (has_cache_id && playlist)
         {
             if (!searches.size ())
                 {
-                    searches = search_cache::get (cache_id);
-                }
-            else
-                {
-                    // set/update cache of provided Id
-                    search_cache::set (cache_id, searches);
+                    search_result = search_cache::get (cache_id);
+
+                    // !TODO: get list from side player overlay from
+                    // search_result and assign all tracks to searches
+
+                    // wokraround for now
+                    if (search_result.raw.is_null ())
+                        {
+                            search_result = yt_search::search (cache_id);
+                            searches = search_result.trackResults ();
+                        }
+                    else
+                        searches = search_result.trackResults ();
                 }
         }
 
@@ -372,8 +381,8 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
-    if (!playlist && !has_cache_id)
-        search_cache::set (result.id (), searches);
+    if (!playlist && !search_result.raw.is_null ())
+        search_cache::set (result.id (), search_result);
 
     return { result, 0 };
 }
