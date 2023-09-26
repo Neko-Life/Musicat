@@ -116,12 +116,17 @@ slash_run (const dpp::slashcommand_t &event)
 
             auto download_result = play::track_exist (
                 fname, result.url (), player_manager, true, guild_id, true);
+
             bool dling = download_result.first;
 
             fullpath = get_music_folder_path () + fname;
 
             switch (download_result.second)
                 {
+                case 2:
+                    event.edit_response ("`[ERROR]` Unable to find track");
+
+                    return;
                 case 1:
                     if (dling)
                         {

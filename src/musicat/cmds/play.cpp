@@ -89,7 +89,7 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_id = event.command.guild_id;
     auto from = event.from;
     auto user_id = event.command.usr.id;
-    const dpp::snowflake sha_id = get_sha_id();
+    const dpp::snowflake sha_id = get_sha_id ();
 
     std::string arg_query = "";
     int64_t arg_top = 0;
@@ -375,6 +375,9 @@ track_exist (const std::string &fname, const std::string &url,
              player::player_manager_ptr player_manager, bool from_interaction,
              dpp::snowflake guild_id, bool no_download)
 {
+    if (!fname.length ())
+        return { false, 2 };
+
     bool dling = false;
     int status = 0;
 
@@ -454,12 +457,27 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
             player_manager->set_waiting_vc_ready (guild_id, fname);
         }
 
-    auto download_result = track_exist (fname, result.url (), player_manager,
+    const auto result_url = result.url ();
+
+    auto download_result = track_exist (fname, result_url, player_manager,
                                         from_interaction, guild_id);
     bool dling = download_result.first;
 
     switch (download_result.second)
         {
+        case 2:
+            if (from_interaction)
+                {
+                    event.edit_response ("`[ERROR]` Unable to find track");
+                }
+
+            if (debug)
+                fprintf (stderr,
+                         "[play::add_track ERROR] Unable to download track: "
+                         "`%s` `%s`\n",
+                         fname.c_str (), result_url.c_str ());
+
+            return;
         case 1:
             if (dling)
                 {
