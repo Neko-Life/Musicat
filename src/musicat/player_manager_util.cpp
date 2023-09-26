@@ -637,8 +637,9 @@ Manager::get_next_autoplay_track (const string &track_id,
     const string query = "https://www.youtube.com/watch?v=" + track_id
                          + "&list=RD" + track_id;
 
-    command::play::add_track (true, server_id, query, 0, true, NULL, 0,
-                              get_sha_id (), false, from);
+    command::play::add_track (
+        true, server_id, query, 0, true, NULL, 0, get_sha_id (), false, from,
+        dpp::interaction_create_t (NULL, "{}"), false, 0, track_id);
 }
 
 } // player

@@ -365,6 +365,9 @@ find_track (bool playlist, std::string &arg_query,
                 return { {}, 1 };
         }
 
+    if (!playlist && !has_cache_id)
+        search_cache::set (result.id (), searches);
+
     return { result, 0 };
 }
 
@@ -427,7 +430,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
            const dpp::snowflake channel_id, const dpp::snowflake sha_id,
            bool from_interaction, dpp::discord_client *from,
            const dpp::interaction_create_t event, bool continued,
-           int64_t arg_slip)
+           int64_t arg_slip, const std::string &cache_id)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
@@ -442,8 +445,9 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
 
     const bool debug = get_debug_state ();
 
-    auto find_result = find_track (playlist, arg_query, player_manager,
-                                   from_interaction, guild_id);
+    auto find_result
+        = find_track (playlist, arg_query, player_manager, from_interaction,
+                      guild_id, false, cache_id);
 
     switch (find_result.second)
         {

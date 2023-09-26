@@ -104,6 +104,7 @@ track_exist (const std::string &fname, const std::string &url,
  * @param from Discord client used to reconnect/join voice channel
  * @param event Can be incomplete type or filled if from interaction
  * @param continued Whether marker to initialize playback has been inserted
+ * @param cache_id Id to search in cache
  */
 void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
@@ -111,7 +112,7 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 bool from_interaction, dpp::discord_client *from,
                 const dpp::interaction_create_t event
                 = dpp::interaction_create_t (NULL, "{}"),
-                bool continued = false, int64_t arg_slip = 0);
+                bool continued = false, int64_t arg_slip = 0, const std::string &cache_id = "");
 
 /**
  * @brief Decide whether the client need to play or not at its current state
