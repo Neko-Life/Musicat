@@ -364,8 +364,16 @@ find_track (bool playlist, std::string &arg_query,
 std::string
 get_filename_from_result (yt_search::YTrack &result)
 {
-    return std::regex_replace (result.title () + std::string ("-")
-                                   + result.id () + std::string (".opus"),
+    const auto sid = result.id ();
+    const auto st = result.title ();
+
+    // ignore title for now, this is definitely problematic
+    // if we want to support other track fetching method eg. radio url
+    if (!sid.length()/* || !st.length()*/) 
+        return "";
+
+    return std::regex_replace (st + std::string ("-")
+                                   + sid + std::string (".opus"),
                                std::regex ("/"), "",
                                std::regex_constants::match_any);
 }
