@@ -85,7 +85,7 @@ apt upgrade
 * Install
 
 ```sh
-apt install build-essential pkg-config cmake make zlib1g-dev autoconf automake libtool libcurl4-openssl-dev libssl-dev libsodium-dev libopus-dev libogg-dev ffmpeg postgresql
+apt install build-essential pkg-config cmake make zlib1g-dev autoconf automake libtool libcurl4-openssl-dev libssl-dev libsodium-dev libopus-dev libogg-dev ffmpeg postgresql libpq-dev
 ```
 
 ## Compiling
