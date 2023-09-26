@@ -293,9 +293,17 @@ find_track (bool playlist, std::string &arg_query,
         = playlist ? yt_search::get_playlist (arg_query).entries ()
                    : yt_search::search (arg_query).trackResults ();
 
-    if (!searches.size () && has_cache_id)
+    if (has_cache_id)
         {
-            searches = search_cache::get (cache_id);
+            if (!searches.size ())
+                {
+                    searches = search_cache::get (cache_id);
+                }
+            else
+                {
+                    // set/update cache of provided Id
+                    search_cache::set (cache_id, searches);
+                }
         }
 
     if (searches.begin () == searches.end ())
