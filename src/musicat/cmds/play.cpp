@@ -289,6 +289,7 @@ find_track (bool playlist, std::string &arg_query,
         }
 
     yt_search::YSearchResult search_result = {};
+    // !TODO: as of today yt-search update, caching no longer needed. REMOVE IT!
     // prioritize searching over cache
     std::vector<yt_search::YTrack> searches
         = playlist ? yt_search::get_playlist (arg_query).entries ()
