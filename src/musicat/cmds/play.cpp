@@ -267,8 +267,8 @@ find_track (bool playlist, std::string &arg_query,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
-    const bool debug = get_debug_state ();
-    const bool has_cache_id = cache_id.length ();
+    bool debug = get_debug_state ();
+    bool has_cache_id = cache_id.length ();
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
@@ -289,32 +289,44 @@ find_track (bool playlist, std::string &arg_query,
         }
 
     yt_search::YSearchResult search_result = {};
-    // !TODO: as of today yt-search update, caching no longer needed. REMOVE IT!
-    // prioritize searching over cache
-    std::vector<yt_search::YTrack> searches
-        = playlist ? yt_search::get_playlist (arg_query).entries ()
-                   : (search_result = yt_search::search (arg_query))
-                         .trackResults ();
 
-    if (has_cache_id && playlist)
+    // prioritize cache over searching
+    std::vector<yt_search::YTrack> searches;
+
+    if (has_cache_id)
+        searches = search_cache::get (cache_id);
+
+    size_t searches_size = has_cache_id ? searches.size () : 0;
+    // quick decide to remove when no result found instead of looking up in the
+    // cache map
+    size_t cached_size = has_cache_id ? searches_size : 0;
+
+    bool searched = false;
+
+    // cache not found or no cache Id provided, lets search
+    if (!searches_size)
         {
-            if (!searches.size ())
-                {
-                    search_result = search_cache::get (cache_id);
+            searches = playlist
+                           ? yt_search::get_playlist (arg_query).entries ()
+                           : (search_result = yt_search::search (arg_query))
+                                 .trackResults ();
 
-                    // !TODO: get list from side player overlay from
-                    // search_result and assign all tracks to searches
+            searches_size = searches.size ();
 
-                    // wokraround for now
-                    if (search_result.raw.is_null ())
-                        {
-                            search_result = yt_search::search (cache_id);
-                            searches = search_result.trackResults ();
-                        }
-                    else
-                        searches = search_result.trackResults ();
-                }
+            if (!playlist && !searches_size)
+                // desperate to get a track
+                // get_playlist already do this if no track from default
+                // result found
+                searches = search_result.sideTrackPlaylist ();
+
+            searched = true;
         }
+
+    searches_size = searches.size ();
+
+    // save the result to cache
+    if (searched && has_cache_id && searches_size)
+        search_cache::set (cache_id, searches);
 
     if (searches.begin () == searches.end ())
         {
@@ -330,14 +342,15 @@ find_track (bool playlist, std::string &arg_query,
         result = searches.front ();
     else if (!no_check_history)
         {
-            const size_t gphs = guild_player->history.size ();
+            size_t gphs = guild_player->history.size ();
 
             // find entry that wasn't played before
             for (const auto &i : searches)
                 {
-                    const auto iid = i.id ();
+                    auto iid = i.id ();
                     bool br = false;
 
+                    // lookup in current queue
                     for (const auto &a : guild_player->queue)
                         {
                             if (a.id () != iid)
@@ -349,6 +362,7 @@ find_track (bool playlist, std::string &arg_query,
 
                     if (gphs && !br)
                         {
+                            // lookup in history
                             for (const auto &a : guild_player->history)
                                 {
                                     if (a != iid)
@@ -359,6 +373,9 @@ find_track (bool playlist, std::string &arg_query,
                                 }
                         }
 
+                    // current entry is in the queue or has ever been played in
+                    // the last N history
+                    // don't pick it
                     if (br)
                         continue;
 
@@ -375,15 +392,12 @@ find_track (bool playlist, std::string &arg_query,
             if (result.raw.is_null ())
                 {
                     // invalidate cache if Id provided
-                    if (has_cache_id)
+                    if (has_cache_id && cached_size)
                         search_cache::remove (cache_id);
 
                     return { {}, 1 };
                 }
         }
-
-    if (!playlist && !search_result.raw.is_null ())
-        search_cache::set (result.id (), search_result);
 
     return { result, 0 };
 }
