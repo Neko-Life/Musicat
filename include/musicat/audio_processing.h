@@ -42,6 +42,12 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+struct helper_chain_option_t
+{
+    // !TODO: to be implemented
+    int test;
+};
+
 // update create_options impl below when changing this struct
 struct processor_options_t
 {
@@ -55,6 +61,9 @@ struct processor_options_t
     int volume;
     std::string id;
     std::string guild_id;
+
+    // chain of effects
+    std::deque<helper_chain_option_t> helper_chain;
 };
 
 processor_options_t create_options ();

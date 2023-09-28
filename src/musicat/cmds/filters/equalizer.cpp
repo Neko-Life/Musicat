@@ -103,7 +103,8 @@ setup_subcommand (dpp::slashcommand &slash)
     constexpr size_t arg_size = (sizeof (eq_options) / sizeof (*eq_options));
     constexpr int argpc = 18;
 
-    for (size_t i = 0; i < (arg_size / argpc); i++)
+    constexpr size_t igoal = (arg_size / argpc);
+    for (size_t i = 0; i < igoal; i++)
         {
             dpp::command_option eqsubcmd (dpp::co_sub_command, "equalizer",
                                           "Apply 18 band equalizer");
@@ -111,11 +112,12 @@ setup_subcommand (dpp::slashcommand &slash)
             eqsubcmd.add_option (
                 dpp::command_option (dpp::co_string, "action",
                                      "What you wanna do?", false)
-                    .add_choice (dpp::command_option_choice ("Set", "set"))
-                    .add_choice (dpp::command_option_choice ("Balance", "balance"))
-                    .add_choice (dpp::command_option_choice ("Reset", "reset")));
+                    .add_choice (dpp::command_option_choice ("Set", "0"))
+                    .add_choice (dpp::command_option_choice ("Balance", "1"))
+                    .add_choice (dpp::command_option_choice ("Reset", "2")));
 
-            for (size_t j = i * argpc; j < ((i+1) * argpc) && j < arg_size; j++)
+            size_t jgoal = (i + 1) * argpc;
+            for (size_t j = i * argpc; j < jgoal && j < arg_size; j++)
                 {
                     eqsubcmd.add_option (
                         dpp::command_option (dpp::co_integer, eq_options[j][0],
@@ -130,9 +132,9 @@ setup_subcommand (dpp::slashcommand &slash)
 
 static inline constexpr const command_handlers_map_t action_handlers
     = { { "", show },
-        { "set", set },
-        { "balance", balance },
-        { "reset", reset },
+        { "0", set },
+        { "1", balance },
+        { "2", reset },
         { NULL, NULL } };
 
 void

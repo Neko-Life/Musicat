@@ -104,6 +104,12 @@ read_command (processor_options_t &options)
 static ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 {
+    // !TODO
+    // helper_processor::run_through_chain (buffer, size)
+
+    if (*size == 0)
+        return 0;
+
     ssize_t written = 0;
     ssize_t current_written = 0;
     while (((current_written
@@ -337,7 +343,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 processor_options_t
 create_options ()
 {
-    return { "", false, false, "", 100, "", "" };
+    return { "", false, false, "", 100, "", "", {} };
 }
 
 processor_options_t
@@ -1204,6 +1210,9 @@ run_processor (child::command::command_options_t &process_options)
             read_command (options);
             if (options.panic_break)
                 break;
+
+            // !TODO
+            // helper_processor::manage_processor (options, current_options);
 
             // recreate ffmpeg process to update filter chain
             if (options.seek_to.length ())
