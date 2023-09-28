@@ -12,23 +12,23 @@ namespace command
 {
 
 // update worker::execute and related routines when changing this
-static inline constexpr const struct
+static inline const struct
 {
-    const char *create_audio_processor = "cap";
-    const char *shutdown = "shut";
+    const std::string create_audio_processor = "cap";
+    const std::string shutdown = "shut";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
-static inline constexpr const struct
+static inline const struct
 {
-    const char *command = "cmd";  // str
-    const char *file_path = "fp"; // str
-    const char *debug = "dbg";    // bool
-    const char *id = "id";        // str
-    const char *guild_id = "gid"; // str
-    const char *ready = "rdy";    // bool
-    const char *seek = "sk";      // bool
-    const char *volume = "vl";    // bool
+    const std::string command = "cmd";  // str
+    const std::string file_path = "fp"; // str
+    const std::string debug = "dbg";    // bool
+    const std::string id = "id";        // str
+    const std::string guild_id = "gid"; // str
+    const std::string ready = "rdy";    // bool
+    const std::string seek = "sk";      // bool
+    const std::string volume = "vl";    // bool
 
     /**
      * Effect chain per helper processor as ffmpeg
@@ -38,7 +38,7 @@ static inline constexpr const struct
      * processor will severely add delay buffer
      * to audio playback
      */
-    const char *helper_chain = "ehl"; // str
+    const std::string helper_chain = "ehl"; // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
