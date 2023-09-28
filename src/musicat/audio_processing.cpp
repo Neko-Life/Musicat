@@ -2,6 +2,7 @@
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/config.h"
+#include "musicat/helper_processor.h"
 #include "musicat/musicat.h"
 #include <assert.h>
 #include <chrono>
@@ -104,8 +105,7 @@ read_command (processor_options_t &options)
 static ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, int write_fifo)
 {
-    // !TODO
-    // helper_processor::run_through_chain (buffer, size)
+    helper_processor::run_through_chain (buffer, size);
 
     if (*size == 0)
         return 0;
@@ -1030,6 +1030,9 @@ run_processor (child::command::command_options_t &process_options)
     uint8_t rest_buffer[BUFFER_SIZE];
 
     processor_options_t current_options = copy_options (options);
+    parse_helper_chain_option (process_options, options);
+
+    helper_processor::manage_processor (options, current_options);
 
     int write_fifo
         = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY),
@@ -1211,8 +1214,7 @@ run_processor (child::command::command_options_t &process_options)
             if (options.panic_break)
                 break;
 
-            // !TODO
-            // helper_processor::manage_processor (options, current_options);
+            helper_processor::manage_processor (options, current_options);
 
             // recreate ffmpeg process to update filter chain
             if (options.seek_to.length ())

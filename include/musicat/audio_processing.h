@@ -44,8 +44,11 @@ struct track_data_t
 
 struct helper_chain_option_t
 {
+    std::string raw_args;
+    bool parsed;
+
     // !TODO: to be implemented
-    int test;
+    // std::string i18_band_equalizer;
 };
 
 // update create_options impl below when changing this struct
@@ -70,8 +73,47 @@ processor_options_t create_options ();
 
 processor_options_t copy_options (processor_options_t &opts);
 
-// this should be called
-// inside the streaming thread
+/*
+@hello@@t@
+0123456789
+0+1,6;7+1,9
+1,6-1;8,9-8
+1, 5 ;8, 1
+*/
+
+static inline int
+parse_helper_chain_option (
+    const child::command::command_options_t &command_options,
+    processor_options_t &processor_options)
+{
+    size_t co_length = command_options.helper_chain.length ();
+    size_t start_d = 0;
+    for (size_t i = 0; i < co_length; i++)
+        {
+            if (command_options.helper_chain[i] != '@')
+                continue;
+
+            if (start_d == 0)
+                {
+                    start_d = i + 1;
+                    continue;
+                }
+
+            int64_t res = i - start_d;
+
+            start_d = 0;
+
+            if (res <= 0)
+                continue;
+
+            processor_options.helper_chain.push_back (
+                { command_options.helper_chain.substr (start_d, res), false });
+        }
+
+    return 0;
+}
+
+// this should be called inside the streaming thread
 // returns 1 if vclient terminating or null
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient,
@@ -79,7 +121,6 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
                         bool no_wait = false);
 
 // should be run as a child process
-// !TODO: adjust signature to actual needed data
 run_processor_error_t
 run_processor (child::command::command_options_t &process_options);
 

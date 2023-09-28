@@ -12,23 +12,33 @@ namespace command
 {
 
 // update worker::execute and related routines when changing this
-static inline const struct
+static inline constexpr const struct
 {
-    const std::string create_audio_processor = "cap";
-    const std::string shutdown = "shut";
+    const char *create_audio_processor = "cap";
+    const char *shutdown = "shut";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
-static inline const struct
+static inline constexpr const struct
 {
-    const std::string command = "cmd";  // str
-    const std::string file_path = "fp"; // str
-    const std::string debug = "dbg";    // bool
-    const std::string id = "id";        // str
-    const std::string guild_id = "gid"; // str
-    const std::string ready = "rdy";    // bool
-    const std::string seek = "sk";      // bool
-    const std::string volume = "vl";    // bool
+    const char *command = "cmd";  // str
+    const char *file_path = "fp"; // str
+    const char *debug = "dbg";    // bool
+    const char *id = "id";        // str
+    const char *guild_id = "gid"; // str
+    const char *ready = "rdy";    // bool
+    const char *seek = "sk";      // bool
+    const char *volume = "vl";    // bool
+
+    /**
+     * Effect chain per helper processor as ffmpeg
+     * audio effect command, can be provided more than once
+     *
+     * Careful as creating too many helper
+     * processor will severely add delay buffer
+     * to audio playback
+     */
+    const char *helper_chain = "ehl"; // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -56,13 +66,18 @@ struct command_options_t
     std::string audio_stream_stdin_path;
     std::string audio_stream_stdout_path;
     int volume;
+    /**
+     * A list with format `@effect_args@` without separator
+     * Need to be parsed to processor_options_t helper_chain list
+     */
+    std::string helper_chain;
 };
 
 static inline command_options_t
 create_command_options ()
 {
-    return { "", "", false, "",    -1, -1, -1, -1,
-             -1, "", "",    false, "", "", "", 100 };
+    return { "", "", false, "", -1, -1, -1,  -1, -1,
+             "", "", false, "", "", "", 100, "" };
 }
 
 void command_queue_routine ();

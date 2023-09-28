@@ -15,6 +15,8 @@ int manage_processor (const audio_processing::processor_options_t &options,
 // run buffer through chain
 ssize_t run_through_chain (uint8_t *buffer, ssize_t *size);
 
+int shutdown_chain ();
+
 } // helper_processor
 } // musicat
 

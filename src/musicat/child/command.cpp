@@ -89,6 +89,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.volume = atoi (value.c_str ());
         }
+    else if (opt == command_options_keys_t.helper_chain)
+        {
+            options.helper_chain += '@' + value + '@';
+        }
 
     return 0;
 }
