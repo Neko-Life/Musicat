@@ -9,8 +9,22 @@ namespace musicat
 namespace helper_processor
 {
 
+struct helper_chain_t
+{
+    int write_fd;
+    int read_fd;
+    int child_write_fd;
+    int child_read_fd;
+    pid_t pid;
+
+    audio_processing::helper_chain_option_t options;
+    // stream state
+};
+
+void close_all_helper_fds ();
+
 int manage_processor (const audio_processing::processor_options_t &options,
-                      audio_processing::processor_options_t &current_options);
+                      void (*on_fork) ());
 
 // run buffer through chain
 ssize_t run_through_chain (uint8_t *buffer, ssize_t *size);

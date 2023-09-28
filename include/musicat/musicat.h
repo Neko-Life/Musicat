@@ -307,6 +307,8 @@ dpp::channel *vcs_setting_get_cache (dpp::snowflake channel_id);
 
 bool is_voice_channel (dpp::channel_type channel_type);
 
+void close_valid_fd (int *i);
+
 } // musicat
 
 #endif
