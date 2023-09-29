@@ -22,7 +22,12 @@ namespace audio_processing
 {
 
 // need to make this global to close it on worker fork
-int write_fifo, preadfd, pwritefd;
+// processor audio stream out
+int write_fifo,
+    // ffmpeg stdout
+    preadfd,
+    // ffmpeg runtime command/stdin
+    pwritefd;
 
 int
 read_command (processor_options_t &options)
@@ -1129,9 +1134,10 @@ run_processor (child::command::command_options_t &process_options)
         }
 
     close (cwritefd); /* Close unused write end */
-    close (creadfd);  /* Close unused write end */
+    close (creadfd);  /* Close unused read end */
 
     cwritefd = -1;
+    creadfd = -1;
 
     // prepare required data for polling
     prfds[0].events = POLLIN;
@@ -1228,6 +1234,7 @@ run_processor (child::command::command_options_t &process_options)
                 {
                     close (pwritefd);
 
+                    // signal ffmpeg to stop keep reading input file
                     kill (p_info.cpid, SIGTERM);
 
                     // read the rest of data before closing current instance
@@ -1235,11 +1242,12 @@ run_processor (child::command::command_options_t &process_options)
                     // cuz if the pipe isn't really empty by the time
                     // read fd closed (cuz late data), the to be created new
                     // pipe will have POLLHUP and can't be recovered
-                    read_has_event = poll (prfds, 1, 1000);
-                    read_ready
-                        = (read_has_event > 0) && (prfds[0].revents & POLLIN);
-                    while (read_ready
-                           && (input_read_size
+                    //
+                    // read_has_event = poll (prfds, 1, 1000);
+                    // read_ready
+                    //     = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+                    while (/*read_ready
+                           && */(input_read_size
                                = read (preadfd, rest_buffer, BUFFER_SIZE))
                                   > 0)
                         {
@@ -1250,10 +1258,16 @@ run_processor (child::command::command_options_t &process_options)
                                     break;
                                 };
 
-                            read_has_event = poll (prfds, 1, 1000);
-                            read_ready = (read_has_event > 0)
-                                         && (prfds[0].revents & POLLIN);
+                            // read_has_event = poll (prfds, 1, 1000);
+                            // read_ready = (read_has_event > 0)
+                            //              && (prfds[0].revents & POLLIN);
                         }
+
+                    // wait for child to finish transferring data
+                    waitpid (p_info.cpid, &cstatus, 0);
+                    if (options.debug)
+                        fprintf (stderr, "processor child status: %d\n",
+                                 cstatus);
 
                     // close read fd
                     close (preadfd);
@@ -1261,11 +1275,6 @@ run_processor (child::command::command_options_t &process_options)
                     preadfd = -1;
 
                     cstatus = 0;
-
-                    // wait for child to finish transferring data
-                    waitpid (p_info.cpid, &cstatus, 0);
-                    if (options.debug)
-                        fprintf (stderr, "child status: %d\n", cstatus);
 
                     // do the same setup routine as startup
                     if (pipe (p_info.ppipefd) == -1)
@@ -1348,8 +1357,15 @@ run_processor (child::command::command_options_t &process_options)
         }
 
     // exiting, clean up
+    // fds to close: preadfd pwritefd write_fifo
+    close_valid_fd (&pwritefd);
+
+    // signal ffmpeg to stop keep reading input file
+    kill (p_info.cpid, SIGTERM);
 
     // read the rest of data before closing ffmpeg stdout
+    // as it was signaled to terminate, we can read until its stdout is done
+    // transferring data and finally closed
     while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE)) > 0)
         {
             if (write_stdout (rest_buffer, &last_read_size) == -1)
@@ -1358,17 +1374,6 @@ run_processor (child::command::command_options_t &process_options)
                     break;
                 };
         }
-
-    if (preadfd > -1)
-        close (preadfd);
-
-    close (write_fifo);
-
-    preadfd = -1;
-    write_fifo = -1;
-
-    if (options.debug)
-        fprintf (stderr, "fds closed\n");
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
@@ -1379,7 +1384,13 @@ run_processor (child::command::command_options_t &process_options)
 
     waitpid (p_info.cpid, &cstatus, 0); /* Wait for child */
     if (options.debug)
-        fprintf (stderr, "cchild status: %d\n", cstatus);
+        fprintf (stderr, "processor child status: %d\n", cstatus);
+
+    close_valid_fd (&preadfd);
+    close_valid_fd (&write_fifo);
+
+    if (options.debug)
+        fprintf (stderr, "fds closed\n");
 
     return error_status;
 
