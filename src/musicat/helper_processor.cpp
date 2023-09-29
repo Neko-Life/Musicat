@@ -1,7 +1,10 @@
 #include "musicat/helper_processor.h"
+#include "musicat/audio_processing.h"
 #include "musicat/child/worker.h"
 #include "musicat/musicat.h"
+#include <sys/poll.h>
 #include <sys/prctl.h>
+#include <sys/wait.h>
 
 namespace musicat
 {
@@ -163,10 +166,132 @@ err1:
 }
 
 void
-stop_chain (helper_chain_t &options)
+handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri,
+                         bool is_last_p)
 {
-    // !TODO: close child stdin, read until its stdout closes and wait its pid
-    close_valid_fd (&options.write_fd);
+    close_valid_fd (&hci->write_fd);
+
+    ssize_t buf_size = 0;
+    uint8_t buf[BUFFER_SIZE];
+    while ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0)
+        {
+            // is also last
+            if (is_last_p)
+                {
+                    // write read buffer to stdout
+                    audio_processing::write_stdout (buf, &buf_size, true);
+                    continue;
+                }
+
+            // is first but not also last
+            // pipe it to the next processor
+            const helper_chain_t &nhc = active_helpers[ri + 1];
+
+            write (nhc.write_fd, buf, buf_size);
+        }
+
+    // reap zombie chain process
+    int status = 0;
+    waitpid (hci->pid, &status, 0);
+
+    if (hci->options.debug)
+        fprintf (stderr,
+                 "[helper_processor::manage_processor] chain "
+                 "status: "
+                 "%d `%s`\n",
+                 status, hci->options.raw_args.c_str ());
+}
+
+void
+handle_middle_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri)
+{
+    // poll and pipe it to the next processor
+    const helper_chain_t &nhc = active_helpers[ri + 1];
+
+    struct pollfd prfds[1];
+    prfds[0].events = POLLIN;
+    prfds[0].fd = hci->read_fd;
+
+    bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+
+    ssize_t buf_size = 0;
+    uint8_t buf[BUFFER_SIZE];
+    while (read_ready
+           && ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0))
+        {
+            write (nhc.write_fd, buf, buf_size);
+
+            read_ready
+                = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+        }
+}
+
+void
+handle_last_chain_stop (std::deque<helper_chain_t>::iterator hci)
+{
+    // drain polled output while writing to stdout
+    struct pollfd prfds[1];
+    prfds[0].events = POLLIN;
+    prfds[0].fd = hci->read_fd;
+
+    bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+
+    ssize_t buf_size = 0;
+    uint8_t buf[BUFFER_SIZE];
+    while (read_ready
+           && ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0))
+        {
+            audio_processing::write_stdout (buf, &buf_size, true);
+
+            read_ready
+                = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+        }
+}
+
+void
+stop_first_chain ()
+{
+    // loop through current active chain to deplete the first chain's buffer
+    // then we can proceed to remove it after
+    size_t max_idx = active_helpers.size () - 1;
+    for (size_t ri = max_idx; ri >= 0; ri--)
+        {
+            bool is_last_p = ri == max_idx;
+            bool is_first_p = ri == 0;
+
+            std::deque<helper_chain_t>::iterator hci
+                = active_helpers.begin () + ri;
+
+            // is first
+            //
+            // close write fd and based on case:
+            // 1. is also last processor:
+            //      - drain output to stdout without polling
+            // 2. is not last:
+            //      - drain output while piping it to the next
+            //        processor
+            if (is_first_p)
+                {
+                    handle_first_chain_stop (hci, ri, is_last_p);
+
+                    // make sure to break at the end of loop
+                    // as this is the index 0 (final index)
+                    break;
+                }
+
+            // neither last nor first
+            else if (!is_last_p)
+                {
+                    // pipe polled output to next processor
+                    handle_middle_chain_stop (hci, ri);
+
+                    continue;
+                }
+
+            // is last
+            // drain polled output while writing to stdout
+            handle_last_chain_stop (hci);
+        }
 }
 
 /*
@@ -232,53 +357,9 @@ manage_processor (const audio_processing::processor_options_t &options,
     while (hci != active_helpers.end ())
         {
             // error or not, every active helper should die
-            /* stop_chain (*hci); */
+            stop_first_chain ();
 
-            // !TODO: have a while loop that check the first chain is dead
-            size_t max_idx = (current_chain_size = active_helpers.size ()) - 1;
-            for (size_t ri = max_idx; ri >= 0; ri--)
-                {
-                    bool is_last_p = ri == max_idx;
-                    bool is_first_p = ri == 0;
-
-                    // is first
-                    //
-                    // close write fd and based on case:
-                    // 1. is also last processor:
-                    //      - drain output to stdout without polling
-                    // 2. is not last:
-                    //      - drain output while piping it to the next
-                    //        processor
-                    if (is_first_p)
-                        {
-                            // is not also last
-                            if (!is_last_p)
-                                {
-                                    // pipe it to the next processor
-                                }
-                            // is also last
-                            else
-                                {
-                                    // write read buffer to stdout
-                                }
-
-                            // make sure to break at the end of loop
-                            // as this is the index 0 (final index)
-                            break;
-                        }
-
-                    // neither last nor first
-                    else if (!is_last_p)
-                        {
-                            // pipe polled output to next processor
-
-                            continue;
-                        }
-
-                    // is last
-                    // drain polled output while writing to stdout
-                }
-
+            // erase the exited chain
             hci = active_helpers.erase (hci);
         }
 

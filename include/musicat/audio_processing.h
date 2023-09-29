@@ -16,7 +16,7 @@
 #else
 
 #define USING_FORMAT FORMAT_USING_OPUS
-#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_OPUs
+#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_OPUS
 #define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
 
 #endif
@@ -30,7 +30,7 @@ inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
 inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
 inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
-inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUs = BUFSIZ / 2;
+inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUS = BUFSIZ / 2;
 
 namespace musicat
 {
