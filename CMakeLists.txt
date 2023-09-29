@@ -12,6 +12,10 @@ option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" OFF)
 set(MUSICAT_CXX_STANDARD 17)
 set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
 
+if (NOT CMAKE_C_COMPILER)
+	set(CMAKE_C_COMPILER CC)
+endif()
+
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
 # You can also add any other libs you want to use
