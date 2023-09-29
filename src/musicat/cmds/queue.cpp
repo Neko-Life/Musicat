@@ -17,12 +17,6 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
 
-    const bool debug = get_debug_state ();
-    if (debug)
-        fprintf (stderr,
-                 "[queue::handle_option] Locked player::t_mutex: %ld\n",
-                 guild_player->guild_id);
-
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     guild_player->reset_shifted ();
 
@@ -198,10 +192,6 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
             event.edit_response ("Option not yet supported and is still in "
                                  "development");
         }
-    if (debug)
-        fprintf (stderr,
-                 "[queue::handle_option] Should unlock player::t_mutex: %ld\n",
-                 guild_player->guild_id);
 }
 
 // =================== PRIVATE END ===================

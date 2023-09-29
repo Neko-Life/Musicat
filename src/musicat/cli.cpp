@@ -104,11 +104,8 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
             return 0;
         }
 
-    fprintf (
-        stderr,
-        (std::string (rm ? "Deleting" : "Registering") + " commands in %ld\n")
-            .c_str (),
-        gid);
+    std::cerr << (rm ? "Deleting" : "Registering") << " commands in " << gid
+              << '\n';
 
     if (rm)
         {

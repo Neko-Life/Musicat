@@ -30,8 +30,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
 
     if (debug)
-        fprintf (stderr, "Handling voice marker: \"%s\" in guild %ld\n",
-                 event.track_meta.c_str (), event.voice_client->server_id);
+        std::cerr << "Handling voice marker: \"" << event.track_meta
+                  << "\" in guild " << event.voice_client->server_id << '\n';
 
     this->clear_manually_paused (event.voice_client->server_id);
 
@@ -56,10 +56,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     clear_stream_stopping (event.voice_client->server_id);
 
     if (debug)
-        fprintf (
-            stderr,
-            "[Manager::handle_on_track_marker] Locked player::t_mutex: %ld\n",
-            guild_player->guild_id);
+        std::cerr
+            << "[Manager::handle_on_track_marker] Locked player::t_mutex: "
+            << guild_player->guild_id << '\n';
 
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
@@ -118,10 +117,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             guild_player->queue.pop_front ();
 
             if (debug)
-                fprintf (stderr,
-                         "[Manager::handle_on_track_marker rm] Track removed "
-                         "in guild: `%s` %ld\n",
-                         removed_title.c_str (), guild_player->guild_id);
+                std::cerr
+                    << "[Manager::handle_on_track_marker rm] Track removed "
+                       "in guild: `"
+                    << removed_title << "` " << guild_player->guild_id << '\n';
 
             return false;
         }
@@ -161,10 +160,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             if (!has_listener (&c.second))
                 {
                     if (debug)
-                        fprintf (stderr,
-                                 "[Manager::handle_on_track_marker] No "
-                                 "listener in voice channel: %ld (%ld)\n",
-                                 c.first->id, guild_player->guild_id);
+                        std::cerr << "[Manager::handle_on_track_marker] No "
+                                     "listener in voice channel: "
+                                  << c.first->id << " ("
+                                  << guild_player->guild_id << ")\n";
 
                     return false;
                 }
@@ -390,10 +389,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             return true;
         }
     else
-        fprintf (stderr,
-                 "[Manager::handle_on_track_marker WARN] Voice "
-                 "client not present or already playing: %ld\n",
-                 guild_player->guild_id);
+        std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
+                     "client not present or already playing: "
+                  << guild_player->guild_id << "\n";
 
     if (debug)
         {
@@ -475,10 +473,11 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
                                                 event.state.guild_id);
 
                                             if (debug)
-                                                fprintf (stderr,
-                                                         "Paused %ld as no "
-                                                         "user in vc\n",
-                                                         event.state.guild_id);
+                                                std::cerr
+                                                    << "Paused "
+                                                    << event.state.guild_id
+                                                    << " as no "
+                                                       "user in vc\n";
                                         }
                                 }
                             catch (const char *e)
@@ -713,11 +712,9 @@ Manager::prepare_play_stage_channel_routine (
         {
             if (debug)
                 {
-                    fprintf (stderr,
-                             "[request_to_speak] "
-                             "Requesting speak in "
-                             "%ld\n",
-                             i->second.channel_id);
+                    std::cerr << "[request_to_speak] "
+                                 "Requesting speak in "
+                              << i->second.channel_id << '\n';
                 }
 
             voice_client->creator->current_user_set_voice_state (
@@ -725,12 +722,10 @@ Manager::prepare_play_stage_channel_routine (
         }
     else if (debug)
         {
-            fprintf (stderr,
-                     "[request_to_speak] "
-                     "No "
-                     "request_to_speak in "
-                     "%ld\n",
-                     i->second.channel_id);
+            std::cerr << "[request_to_speak] "
+                         "No "
+                         "request_to_speak in "
+                      << i->second.channel_id << '\n';
         }
 }
 

@@ -266,12 +266,11 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
             states.track.current_byte += read_bytes;
 
             if (states.debug)
-                fprintf (stderr,
-                         "[Manager::stream] "
-                         "[guild_id] [size] "
-                         "[chunk] [read_bytes]: "
-                         "%ld %ld %ld\n",
-                         states.server_id, states.track.filesize, read_bytes);
+                std::cerr << "[Manager::stream] "
+                             "[guild_id] [size] "
+                             "[chunk] [read_bytes]: "
+                          << states.server_id << ' ' << states.track.filesize
+                          << ' ' << read_bytes << '\n';
 
             while ((states.running_state = get_running_state ()) && states.v
                    && !states.v->terminating
@@ -622,7 +621,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             notification_fd = -1;
 
             if (debug)
-                fprintf (stderr, "Exiting %ld\n", server_id);
+                std::cerr << "Exiting " << server_id << '\n';
 
             cc::send_command (exit_cmd);
 

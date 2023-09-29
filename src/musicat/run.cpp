@@ -669,8 +669,8 @@ run (int argc, const char *argv[])
         dpp::user me = from->creator->me;
 
         fprintf (stderr, "[READY] Shard: %d\n", from->shard_id);
-        fprintf (stderr, "Logged in as %s#%d (%ld)\n", me.username.c_str (),
-                 me.discriminator, me.id);
+        std::cerr << "Logged in as " << me.username << '#' << me.discriminator
+                  << " (" << me.id << ")\n";
     });
 
     client.on_message_create ([] (const dpp::message_create_t &event) {
@@ -805,8 +805,8 @@ run (int argc, const char *argv[])
 
     client.on_form_submit ([] (const dpp::form_submit_t &event) {
         if (get_debug_state ())
-            fprintf (stderr, "[FORM] %s %ld\n", event.custom_id.c_str (),
-                     event.command.message_id);
+            std::cerr << "[FORM] " << event.custom_id << ' '
+                      << event.command.message_id << "\n";
 
         if (event.custom_id == "modal_p")
             {
@@ -924,12 +924,9 @@ run (int argc, const char *argv[])
         if (player_manager->has_ignore_marker (event.voice_client->server_id))
             {
                 if (get_debug_state ())
-                    fprintf (
-                        stderr,
-                        "[PLAYER_MANAGER] Meta \"%s\" is ignored in guild "
-                        "%ld\n",
-                        event.track_meta.c_str (),
-                        event.voice_client->server_id);
+                    std::cerr << "[PLAYER_MANAGER] Meta \"" << event.track_meta
+                              << "\" is ignored in guild "
+                              << event.voice_client->server_id << "\n";
 
                 return;
             }
@@ -991,8 +988,7 @@ run (int argc, const char *argv[])
                              event.track_meta.c_str ());
 
                     if (event.voice_client)
-                        fprintf (stderr, " in %ld",
-                                 event.voice_client->server_id);
+                        std::cerr << " in " << event.voice_client->server_id;
 
                     fprintf (stderr, "\n");
                 }
@@ -1057,8 +1053,8 @@ run (int argc, const char *argv[])
 
                         // rejoin channel
                         if (debug)
-                            fprintf (stderr, "[update_rtc_region] %ld\n",
-                                     cached->id);
+                            std::cerr << "[update_rtc_region] " << cached->id
+                                      << '\n';
 
                         auto *from = event.from;
                         dpp::snowflake channel_id = event.updated->id;
@@ -1096,7 +1092,7 @@ run (int argc, const char *argv[])
 
         if (get_debug_state ())
             fprintf (stderr,
-                     "[on_voice_buffer_send] size current_byte: %ld %ld\n",
+                     "[on_voice_buffer_send] size current_byte: %d %ld\n",
                      event.buffer_size, player->current_track.current_byte);
     });
 

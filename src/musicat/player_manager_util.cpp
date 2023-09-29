@@ -31,7 +31,7 @@ void
 Manager::clear_disconnecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        fprintf (stderr, "[EVENT] on_voice_state_leave: %ld\n", guild_id);
+        std::cerr << "[EVENT] on_voice_state_leave: " << guild_id << '\n';
 
     std::lock_guard<std::mutex> lk (this->dc_m);
 
@@ -174,7 +174,8 @@ Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
         return;
 
     if (get_debug_state ())
-        fprintf (stderr, "Waiting for ready state: %ld\n", guild_id);
+        std::cerr << "[Manager::wait_for_vc_ready] Waiting for ready state: "
+                  << guild_id << '\n';
 
     std::unique_lock<std::mutex> lk (this->wd_m);
     this->dl_cv.wait (lk, [this, &guild_id] () {
@@ -187,7 +188,7 @@ int
 Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        fprintf (stderr, "[Manager::clear_wait_vc_ready]: %ld\n", guild_id);
+        std::cerr << "[Manager::clear_wait_vc_ready]: " << guild_id << '\n';
 
     const int err = this->clear_connecting (guild_id);
 
@@ -209,7 +210,7 @@ int
 Manager::clear_connecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        fprintf (stderr, "[Manager::clear_connecting]: %ld\n", guild_id);
+        std::cerr << "[Manager::clear_connecting]: " << guild_id << '\n';
 
     std::lock_guard<std::mutex> lk (this->c_m);
 
@@ -308,13 +309,12 @@ Manager::voice_ready (const dpp::snowflake &guild_id,
                                      && uservc.first->id != c.first->id)
                                 {
                                     if (get_debug_state ())
-                                        fprintf (stderr,
-                                                 "Disconnecting as it "
-                                                 "seems I just got moved "
-                                                 "to different vc and "
-                                                 "connection not updated "
-                                                 "yet: %ld\n",
-                                                 guild_id);
+                                        std::cerr << "Disconnecting as it "
+                                                     "seems I just got moved "
+                                                     "to different vc and "
+                                                     "connection not updated "
+                                                     "yet: "
+                                                  << guild_id << '\n';
 
                                     this->set_disconnecting (
                                         guild_id, f->second->channel_id);

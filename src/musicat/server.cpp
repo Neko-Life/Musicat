@@ -58,11 +58,11 @@ _util_deque_find (std::deque<T> *_deq, T _find)
     return i;
 }
 
-size_t
+int
 _util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
 {
-    size_t idx = -1;
-    size_t count = 0;
+    int idx = -1;
+    int count = 0;
     for (auto i = deq.begin (); i != deq.end ();)
         {
             if (*i == val)
@@ -81,8 +81,8 @@ _util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
     return idx;
 }
 
-size_t _remove_nonce (const std::string &nonce);
-size_t _remove_oauth_state (const std::string &state);
+int _remove_nonce (const std::string &nonce);
+int _remove_oauth_state (const std::string &state);
 
 void
 _util_create_remove_thread (
@@ -122,7 +122,7 @@ _generate_nonce ()
     return nonce;
 }
 
-size_t
+int
 _remove_nonce (const std::string &nonce)
 {
     return _util_remove_string_deq (nonce, _nonces);
@@ -159,7 +159,7 @@ _generate_oauth_state ()
     return state;
 }
 
-size_t
+int
 _remove_oauth_state (const std::string &state)
 {
     return _util_remove_string_deq (state, _oauth_states);

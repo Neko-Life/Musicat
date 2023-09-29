@@ -203,10 +203,10 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                                     = player->info_message;
 
                                 if (debug)
-                                    fprintf (stderr,
-                                             "[MANAGER::SEND_INFO_EMBED] New "
-                                             "message info: %ld\n",
-                                             player->info_message->id);
+                                    std::cerr
+                                        << "[MANAGER::SEND_INFO_EMBED] New "
+                                           "message info: "
+                                        << player->info_message->id << '\n';
                             }
                     }
             }
@@ -250,10 +250,10 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             mn.embeds.push_back (e);
 
             if (debug)
-                fprintf (stderr,
-                         "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
-                         "Edit: %ld %ld\n",
-                         mn.channel_id, mn.id);
+                std::cerr
+                    << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
+                       "Edit: "
+                    << mn.channel_id << " " << mn.id << '\n';
 
             if (event)
                 {
@@ -310,10 +310,9 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
     auto cid = player->info_message->channel_id;
 
     if (get_debug_state ())
-        fprintf (
-            stderr,
-            "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: %ld\n",
-            cid);
+        std::cerr
+            << "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: "
+            << cid << '\n';
 
     this->cluster->message_delete (
         mid, cid,
