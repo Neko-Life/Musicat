@@ -1,7 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
-#include "musicat/config.h"
 #include "musicat/helper_processor.h"
 #include "musicat/musicat.h"
 #include <assert.h>
@@ -16,28 +15,6 @@
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
-
-#ifdef MUSICAT_USE_PCM
-
-#define USING_FORMAT FORMAT_USING_PCM
-#define BUFFER_SIZE processing_buffer_size_pcm
-#define READ_CHUNK_SIZE READ_CHUNK_SIZE_PCM
-
-#else
-
-#define USING_FORMAT FORMAT_USING_OPUS
-#define BUFFER_SIZE processing_buffer_size_opus
-#define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
-
-#endif
-
-#define FORMAT_USING_OPUS "-f", "opus", "-b:a", "128k"
-#define FORMAT_USING_PCM "-f", "s16le"
-
-#define OUT_CMD "pipe:1"
-
-inline constexpr long READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
-inline constexpr long READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
 namespace musicat
 {
@@ -111,10 +88,11 @@ read_command (processor_options_t &options)
     return 0;
 }
 
-static ssize_t
-write_stdout (uint8_t *buffer, ssize_t *size)
+ssize_t
+write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 {
-    helper_processor::run_through_chain (buffer, size);
+    if (!no_effect_chain)
+        helper_processor::run_through_chain (buffer, size);
 
     if (*size == 0)
         return 0;

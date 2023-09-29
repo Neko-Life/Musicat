@@ -2,17 +2,40 @@
 #define MUSICAT_AUDIO_PROCESSING_H
 
 #include "musicat/child/command.h"
+#include "musicat/config.h"
 #include "musicat/player.h"
 #include <fcntl.h>
 #include <stdio.h>
+
+#ifdef MUSICAT_USE_PCM
+
+#define USING_FORMAT FORMAT_USING_PCM
+#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_PCM
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_PCM
+
+#else
+
+#define USING_FORMAT FORMAT_USING_OPUS
+#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_OPUs
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
+
+#endif
+
+#define FORMAT_USING_OPUS "-f", "opus", "-b:a", "128k"
+#define FORMAT_USING_PCM "-f", "s16le"
+
+#define OUT_CMD "pipe:1"
+
+inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
+inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
+
+inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
+inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUs = BUFSIZ / 2;
 
 namespace musicat
 {
 namespace audio_processing
 {
-inline constexpr size_t processing_buffer_size_pcm = BUFSIZ * 8;
-inline constexpr size_t processing_buffer_size_opus = BUFSIZ / 2;
-
 struct processor_states_t
 {
     // temp vars to create pipes
@@ -116,6 +139,9 @@ parse_helper_chain_option (
 
     return 0;
 }
+
+ssize_t write_stdout (uint8_t *buffer, ssize_t *size,
+                      bool no_effect_chain = false);
 
 // this should be called inside the streaming thread
 // returns 1 if vclient terminating or null

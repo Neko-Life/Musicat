@@ -12,14 +12,14 @@ namespace command
 {
 
 // update worker::execute and related routines when changing this
-static inline const struct
+inline const struct
 {
     const std::string create_audio_processor = "cap";
     const std::string shutdown = "shut";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
-static inline const struct
+inline const struct
 {
     const std::string command = "cmd";  // str
     const std::string file_path = "fp"; // str
@@ -93,7 +93,7 @@ void wake ();
 // default values are used in the main thread ONLY! You should specify
 // write_fd and caller in child processes
 void write_command (const std::string &cmd,
-                    const int write_fd = get_parent_write_fd (),
+                    const int write_fd = *get_parent_write_fd (),
                     const char *caller = "child::command");
 
 // should be called before send_command when setting value

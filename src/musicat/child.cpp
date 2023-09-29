@@ -13,14 +13,22 @@ namespace musicat
 namespace child
 {
 
-int pm_write_fd, pm_read_fd;
-pid_t cm_pid;
+static int pm_write_fd = -1;
+static int pm_read_fd = -1;
 
-int
+static pid_t cm_pid = -1;
+
+int *
 get_parent_write_fd ()
 {
-    return pm_write_fd;
-};
+    return &pm_write_fd;
+}
+
+int *
+get_parent_read_fd ()
+{
+    return &pm_read_fd;
+}
 
 int
 init ()

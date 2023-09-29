@@ -9,6 +9,8 @@ namespace musicat
 {
 namespace child
 {
+// this namespace is mostly still executed in main program/thread
+// with exception of some util function
 namespace command
 {
 
@@ -152,7 +154,9 @@ run_command_thread ()
         size_t read_size = 0;
 
         while (get_running_state ()
-               && ((read_size = read (pm_read_fd, read_buf, CMD_BUFSIZE)) > 0))
+               && ((read_size
+                    = read (*get_parent_read_fd (), read_buf, CMD_BUFSIZE))
+                   > 0))
             {
                 read_buf[CMD_BUFSIZE] = '\0';
 

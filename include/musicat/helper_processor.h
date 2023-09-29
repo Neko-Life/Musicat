@@ -6,6 +6,7 @@
 namespace musicat
 {
 // a manager instance for each slave child
+// only accept s16le input and output
 namespace helper_processor
 {
 
@@ -26,7 +27,7 @@ void close_all_helper_fds ();
 int manage_processor (const audio_processing::processor_options_t &options,
                       void (*on_fork) ());
 
-// run buffer through chain
+// run buffer through effect processor chain
 ssize_t run_through_chain (uint8_t *buffer, ssize_t *size);
 
 int shutdown_chain ();
