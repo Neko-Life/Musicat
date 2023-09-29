@@ -974,25 +974,25 @@ run_standalone (const processor_options_t &options,
             args[args_idx++] = (char *)options.seek_to.c_str ();
         }
 
-    char *rest_args[]
-        = { "-v",
-            "debug",
-            "-i",
-            (char *)file_path.c_str (),
-            "-af",
-            (char *)(std::string ("volume=")
-                     + std::to_string ((float)options.volume / (float)100))
-                .c_str (),
-            "-ac",
-            "2",
-            "-ar",
-            "48000",
-            /*"-preset", "ultrafast",*/ "-threads",
-            "1",
-            "-stdin",
-            USING_FORMAT,
-            OUT_CMD,
-            (char *)NULL };
+    std::string vol_arg
+        = "volume=" + std::to_string ((float)options.volume / (float)100);
+
+    char *rest_args[] = { "-v",
+                          "debug",
+                          "-i",
+                          (char *)file_path.c_str (),
+                          "-af",
+                          (char *)vol_arg.c_str (),
+                          "-ac",
+                          "2",
+                          "-ar",
+                          "48000",
+                          /*"-preset", "ultrafast",*/ "-threads",
+                          "1",
+                          "-stdin",
+                          USING_FORMAT,
+                          OUT_CMD,
+                          (char *)NULL };
 
     for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0]));
          i++)
@@ -1245,11 +1245,13 @@ run_processor (child::command::command_options_t &process_options)
                     //
                     // read_has_event = poll (prfds, 1, 1000);
                     // read_ready
-                    //     = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+                    //     = (read_has_event > 0) && (prfds[0].revents &
+                    //     POLLIN);
                     while (/*read_ready
-                           && */(input_read_size
-                               = read (preadfd, rest_buffer, BUFFER_SIZE))
-                                  > 0)
+                           && */
+                           (input_read_size
+                            = read (preadfd, rest_buffer, BUFFER_SIZE))
+                           > 0)
                         {
                             if (write_stdout (rest_buffer, &input_read_size)
                                 == -1)
