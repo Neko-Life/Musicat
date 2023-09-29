@@ -42,8 +42,11 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+// be sure to update parse_helper_chain_option below
+// when updating this
 struct helper_chain_option_t
 {
+    bool debug;
     std::string raw_args;
     bool parsed;
 
@@ -107,7 +110,8 @@ parse_helper_chain_option (
                 continue;
 
             processor_options.helper_chain.push_back (
-                { command_options.helper_chain.substr (start_d, res), false });
+                { command_options.debug,
+                  command_options.helper_chain.substr (start_d, res), false });
         }
 
     return 0;

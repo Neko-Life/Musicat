@@ -1,6 +1,7 @@
 #include "musicat/helper_processor.h"
 #include "musicat/child/worker.h"
 #include "musicat/musicat.h"
+#include <sys/prctl.h>
 
 namespace musicat
 {
@@ -18,6 +19,90 @@ close_all_helper_fds ()
             close_valid_fd (&i.write_fd);
             close_valid_fd (&i.read_fd);
         }
+}
+
+void
+helper_main (helper_chain_t &options)
+{
+    // request kernel to kill little self when parent dies
+    if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+        {
+            perror ("helper_processor::helper_main prctl");
+            _exit (EXIT_FAILURE);
+        }
+
+    int status;
+    status = dup2 (options.child_write_fd, STDOUT_FILENO);
+    close_valid_fd (&options.child_write_fd);
+    if (status == -1)
+        {
+            perror ("helper_processor::helper_main dout");
+            _exit (EXIT_FAILURE);
+        }
+
+    status = dup2 (options.child_read_fd, STDIN_FILENO);
+    close_valid_fd (&options.child_read_fd);
+    if (status == -1)
+        {
+            perror ("helper_processor::helper_main din");
+            _exit (EXIT_FAILURE);
+        }
+
+    // redirect ffmpeg stderr to /dev/null
+    if (!options.options.debug)
+        {
+            // redirect ffmpeg stderr to /dev/null
+            int dnull = open ("/dev/null", O_WRONLY);
+            dup2 (dnull, STDERR_FILENO);
+            close (dnull);
+        }
+
+    char *args[64] = {
+        "ffmpeg",
+    };
+    int args_idx = 1;
+
+    char *rest_args[] = { "-v",
+                          "debug",
+                          "-f",
+                          "s16le",
+                          "-ac",
+                          "2",
+                          "-ar",
+                          "48000",
+                          "-i",
+                          "-",
+                          "-af",
+                          (char *)options.options.raw_args.c_str (),
+                          "-f",
+                          "s16le",
+                          "-ac",
+                          "2",
+                          "-ar",
+                          "48000",
+                          /*"-preset", "ultrafast",*/ "-threads",
+                          "1",
+                          "-nostdin",
+                          "-",
+                          (char *)NULL };
+
+    for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0]));
+         i++)
+        args[args_idx++] = rest_args[i];
+
+    if (options.options.debug)
+        for (unsigned long i = 0; i < (sizeof (args) / sizeof (args[0])); i++)
+            {
+                if (!args[i])
+                    break;
+
+                fprintf (stderr, "%s\n", args[i]);
+            }
+
+    execvp ("ffmpeg", args);
+
+    perror ("helper_processor::helper_main exit");
+    _exit (EXIT_FAILURE);
 }
 
 int
@@ -62,7 +147,7 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
             // close every unrelated fds
             on_fork ();
 
-            // !TODO: run ffmpeg process with provided helper_options
+            helper_main (helper_process);
         }
 
     // close child fds
