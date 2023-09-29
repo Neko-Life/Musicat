@@ -294,7 +294,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
     const string &fname = track.filename;
 
     dpp::snowflake server_id = 0;
-    std::chrono::_V2::system_clock::time_point start_time;
+    std::chrono::system_clock::time_point start_time;
 
     const string music_folder_path = get_music_folder_path ();
     const string file_path = music_folder_path + fname;
