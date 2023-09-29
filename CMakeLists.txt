@@ -13,7 +13,7 @@ set(MUSICAT_CXX_STANDARD 17)
 set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
 
 if (NOT CMAKE_C_COMPILER)
-	set(CMAKE_C_COMPILER CC)
+	set(CMAKE_C_COMPILER gcc)
 endif()
 
 # Add DPP as dependency
