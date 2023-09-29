@@ -156,7 +156,7 @@ endif()
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
 	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined ${MUSICAT_COMPILE_OPTIONS})
-	set(DPP_COMPILE_OPTIONS -g -fsanitize=address,undefined ${DPP_COMPILE_OPTIONS})
+	set(DPP_COMPILE_OPTIONS -g -fsanitize=address,undefined ${DPP_COMPILE_OPTIONS} -lasan -lubsan)
 endif()
 
 if (DPP_COMPILE_OPTIONS)
