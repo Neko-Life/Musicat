@@ -57,38 +57,30 @@ helper_main (helper_chain_t &options)
             close (dnull);
         }
 
-    char *args[64] = {
-        "ffmpeg",
-    };
-    int args_idx = 1;
-
-    char *rest_args[] = { "-v",
-                          "debug",
-                          "-f",
-                          "s16le",
-                          "-ac",
-                          "2",
-                          "-ar",
-                          "48000",
-                          "-i",
-                          "-",
-                          "-af",
-                          (char *)options.options.raw_args.c_str (),
-                          "-f",
-                          "s16le",
-                          "-ac",
-                          "2",
-                          "-ar",
-                          "48000",
-                          /*"-preset", "ultrafast",*/ "-threads",
-                          "1",
-                          "-nostdin",
-                          "-",
-                          (char *)NULL };
-
-    for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0]));
-         i++)
-        args[args_idx++] = rest_args[i];
+    char *args[] = { "ffmpeg",
+                     "-v",
+                     "debug",
+                     "-f",
+                     "s16le",
+                     "-ac",
+                     "2",
+                     "-ar",
+                     "48000",
+                     "-i",
+                     "-",
+                     "-af",
+                     (char *)options.options.raw_args.c_str (),
+                     "-f",
+                     "s16le",
+                     "-ac",
+                     "2",
+                     "-ar",
+                     "48000",
+                     /*"-preset", "ultrafast",*/ "-threads",
+                     "1",
+                     "-nostdin",
+                     "-",
+                     (char *)NULL };
 
     if (options.options.debug)
         for (unsigned long i = 0; i < (sizeof (args) / sizeof (args[0])); i++)
@@ -170,6 +162,13 @@ err1:
     return -1;
 }
 
+void
+stop_chain (helper_chain_t &options)
+{
+    // !TODO: close child stdin, read until its stdout closes and wait its pid
+    close_valid_fd (&options.write_fd);
+}
+
 /*
 
 Cases that can happen:
@@ -197,15 +196,118 @@ manage_processor (const audio_processing::processor_options_t &options,
     if (!required_chain_size && !current_chain_size)
         return 0;
 
-    for (size_t i = 0; i < required_chain_size; i++)
+    bool need_stop = false;
+
+    if (required_chain_size == current_chain_size)
         {
-            const audio_processing::helper_chain_option_t &hco
-                = options.helper_chain[i];
-            // check the order of active_helpers
-            //
+            for (size_t i = 0; i < required_chain_size; i++)
+                {
+                    const audio_processing::helper_chain_option_t &hco
+                        = options.helper_chain[i];
+                    const audio_processing::helper_chain_option_t &chco
+                        = active_helpers[i].options;
+
+                    // check if there's order/args difference
+                    // !TODO: check for debug too? is it worth restarting just
+                    // for debug mode?
+                    if (hco.raw_args != chco.raw_args)
+                        {
+                            need_stop = true;
+                            break;
+                        }
+                }
+        }
+    // length difference, should stop/restart all chain
+    else
+        need_stop = true;
+
+    if (!need_stop)
+        {
+            // nothing needs to be done
+            return 0;
         }
 
-    return 0;
+    // stop all active chain, hci is automatically end if no entry in deque
+    auto hci = active_helpers.begin ();
+    while (hci != active_helpers.end ())
+        {
+            // error or not, every active helper should die
+            /* stop_chain (*hci); */
+
+            // !TODO: have a while loop that check the first chain is dead
+            size_t max_idx = (current_chain_size = active_helpers.size ()) - 1;
+            for (size_t ri = max_idx; ri >= 0; ri--)
+                {
+                    bool is_last_p = ri == max_idx;
+                    bool is_first_p = ri == 0;
+
+                    // is first
+                    //
+                    // close write fd and based on case:
+                    // 1. is also last processor:
+                    //      - drain output to stdout without polling
+                    // 2. is not last:
+                    //      - drain output while piping it to the next
+                    //        processor
+                    if (is_first_p)
+                        {
+                            // is not also last
+                            if (!is_last_p)
+                                {
+                                    // pipe it to the next processor
+                                }
+                            // is also last
+                            else
+                                {
+                                    // write read buffer to stdout
+                                }
+
+                            // make sure to break at the end of loop
+                            // as this is the index 0 (final index)
+                            break;
+                        }
+
+                    // neither last nor first
+                    else if (!is_last_p)
+                        {
+                            // pipe polled output to next processor
+
+                            continue;
+                        }
+
+                    // is last
+                    // drain polled output while writing to stdout
+                }
+
+            hci = active_helpers.erase (hci);
+        }
+
+    bool need_start = required_chain_size > 0;
+
+    if (!need_start)
+        {
+            // nothing needs to be done
+            return 0;
+        }
+
+    // start all required chain
+    int status = 0;
+    for (const audio_processing::helper_chain_option_t &i :
+         options.helper_chain)
+        {
+            if ((status = create_helper (i, on_fork)) != 0)
+                {
+                    fprintf (stderr,
+                             "[helper_processor::manage_processor ERROR] "
+                             "Failed creating effect chain: %d `%s`\n",
+                             status, i.raw_args.c_str ());
+
+                    return status;
+                }
+        }
+
+    // guaranteed zero status (success) if it got here
+    return status;
 }
 
 ssize_t

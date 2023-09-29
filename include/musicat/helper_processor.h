@@ -12,10 +12,15 @@ namespace helper_processor
 
 struct helper_chain_t
 {
+    // parent write connected to child_read_fd (child stdin)
     int write_fd;
+    // parent read connected to child_write_fd (child stdout)
     int read_fd;
+    // child write (child stdout) connected to parent read_fd
     int child_write_fd;
+    // child read (child stdin) connected to parent write_fd
     int child_read_fd;
+    // child pid
     pid_t pid;
 
     audio_processing::helper_chain_option_t options;
