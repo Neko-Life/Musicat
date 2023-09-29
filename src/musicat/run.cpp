@@ -38,7 +38,7 @@ using string = std::string;
 
 json sha_cfg;
 
-bool running = false;
+std::atomic<bool> running = false;
 bool debug = false;
 std::mutex main_mutex;
 
@@ -1178,7 +1178,6 @@ run (int argc, const char *argv[])
     client.shutdown ();
 
     client_ptr = nullptr;
-    player_manager = nullptr;
 
     thread_manager::join_all ();
     database::shutdown ();
