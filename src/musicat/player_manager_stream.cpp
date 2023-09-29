@@ -5,6 +5,7 @@
 #include "musicat/config.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include <memory>
 #include <oggz/oggz.h>
 #include <oggz/oggz_seek.h>
 #include <sys/poll.h>
@@ -79,14 +80,12 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
     if (track_seek_queried)
         {
-            const std::string cmd_seek
-                = cc::command_options_keys_t.command + '='
-                  + cc::command_options_keys_t.seek + ';'
-                  + cc::command_options_keys_t.seek + '='
-                  + states.track.seek_to + ';';
+            const std::string cmd = cc::command_options_keys_t.command + '='
+                                    + cc::command_options_keys_t.seek + ';'
+                                    + cc::command_options_keys_t.seek + '='
+                                    + states.track.seek_to + ';';
 
-            cc::write_command (cmd_seek, states.command_fd, "Manager::stream");
-            std::this_thread::sleep_for (std::chrono::milliseconds (20));
+            cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             states.track.seek_to = "";
 
@@ -124,40 +123,66 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
     if (volume_queried)
         {
-            const std::string cmd_volume
+            const std::string cmd
                 = cc::command_options_keys_t.command + '='
                   + cc::command_options_keys_t.volume + ';'
                   + cc::command_options_keys_t.volume + '='
                   + std::to_string (states.guild_player->set_volume) + ';';
 
-            cc::write_command (cmd_volume, states.command_fd,
-                               "Manager::stream");
-            std::this_thread::sleep_for (std::chrono::milliseconds (20));
+            cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             states.guild_player->volume = states.guild_player->set_volume;
             states.guild_player->set_volume = -1;
         }
 
-    const bool queried_cmd = track_seek_queried || volume_queried;
+    const bool equalizer_queried
+        = states.guild_player->set_equalizer.length () != 0;
+
+    if (equalizer_queried)
+        {
+            const std::string new_equalizer
+                = states.guild_player->set_equalizer == "0"
+                      ? ""
+                      : states.guild_player->set_equalizer;
+
+            const std::string cmd = cc::command_options_keys_t.command + '='
+                                    + cc::command_options_keys_t.helper_chain
+                                    + ';'
+                                    + cc::command_options_keys_t.helper_chain
+                                    + '=' + new_equalizer + ';';
+
+            cc::write_command (cmd, states.command_fd, "Manager::stream");
+
+            states.guild_player->equalizer = new_equalizer;
+            states.guild_player->set_equalizer = "";
+        }
+
+    const bool queried_cmd
+        = track_seek_queried || volume_queried || equalizer_queried;
 
     if (!queried_cmd)
         {
             return;
         }
 
-    ssize_t drain_size = 0;
-    bool less_buffer_encountered = false;
-
-    // drain current output
-    struct pollfd pfds[1];
-    pfds[0].events = POLLIN;
-    pfds[0].fd = states.read_fd;
-
-    int has_event = poll (pfds, 1, 1000);
-    bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+    //////////////////////////////////////////////////
 
     if (no_send)
         {
+            //////////////////////////////////////////////////
+            ssize_t drain_size = 0;
+            bool less_buffer_encountered = false;
+
+            // drain current output
+            struct pollfd pfds[1];
+            pfds[0].events = POLLIN;
+            pfds[0].fd = states.read_fd;
+
+            int has_event = poll (pfds, 1, 1000);
+            bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+
+            //////////////////////////////////////////////////
+
             // have some patient and wait for 1000 ms each poll
             // cuz if the pipe isn't really empty we will not have a smooth
             // seek
@@ -450,8 +475,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                         = v->get_secs_remaining ())
                                        > DPP_AUDIO_BUFFER_LENGTH_SECOND))
                                 {
-                                    // isn't very pretty for the terminal, disable for now
-                                    // if ((debug = get_debug_state ()))
+                                    // isn't very pretty for the terminal,
+                                    // disable for now if ((debug =
+                                    // get_debug_state ()))
                                     //     {
                                     //         static std::chrono::time_point
                                     //             start_time
@@ -460,10 +486,12 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     //                     now ();
 
                                     //         auto end_time = std::chrono::
-                                    //             high_resolution_clock::now ();
+                                    //             high_resolution_clock::now
+                                    //             ();
 
                                     //         auto done
-                                    //             = std::chrono::duration_cast<
+                                    //             =
+                                    //             std::chrono::duration_cast<
                                     //                 std::chrono::
                                     //                     milliseconds> (
                                     //                 end_time - start_time);
@@ -474,8 +502,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                     //             stderr,
                                     //             "[audio_processing::send_"
                                     //             "audio_routine] "
-                                    //             "outbuf_duration: %f > %f\n",
-                                    //             outbuf_duration,
+                                    //             "outbuf_duration: %f >
+                                    //             %f\n", outbuf_duration,
                                     //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
 
                                     //         fprintf (stderr,

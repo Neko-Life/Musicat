@@ -6,6 +6,7 @@
 #include "musicat/util.h"
 #include <dpp/dpp.h>
 #include <map>
+#include <memory>
 #include <stdio.h>
 #include <string>
 #include <variant>

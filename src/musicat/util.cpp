@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string>
 
+#include <memory>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/ucnv.h>

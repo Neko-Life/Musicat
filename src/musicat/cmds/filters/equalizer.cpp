@@ -152,12 +152,35 @@ set (const dpp::slashcommand_t &event)
 void
 balance (const dpp::slashcommand_t &event)
 {
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    const std::string new_equalizer
+        = "superequalizer=1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
+          "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
+          "17b=0.5:18b=0.5";
+
+    ftp.guild_player->set_equalizer = new_equalizer;
+
     event.reply ("balance");
 }
 
 void
 reset (const dpp::slashcommand_t &event)
 {
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    const std::string new_equalizer
+        = "superequalizer=1b=1:2b=1:3b=1:4b=1:5b=1:6b=1:7b=1:8b=1:9b=1:10b=1:"
+          "11b=1:12b=1:13b=1:14b=1:15b=1:16b=1:17b=1:18b=1";
+
+    ftp.guild_player->set_equalizer = new_equalizer;
+
     event.reply ("reset");
 }
 
@@ -176,3 +199,5 @@ slash_run (const dpp::slashcommand_t &event)
 } // filters
 } // command
 } // musicat
+
+// 1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b=0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:17b=0.5:18b=0.5

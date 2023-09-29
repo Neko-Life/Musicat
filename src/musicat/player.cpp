@@ -1,6 +1,7 @@
 #include "musicat/player.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
+#include <memory>
 
 namespace musicat
 {
@@ -46,6 +47,8 @@ Player::init ()
     this->saved_config_loaded = false;
     this->volume = 100;
     this->set_volume = -1;
+    this->equalizer = "";
+    this->set_equalizer = "";
 }
 
 Player::Player () { this->init (); }

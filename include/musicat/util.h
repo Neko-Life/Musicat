@@ -3,6 +3,7 @@
 
 #include "musicat/player.h"
 #include <dpp/dpp.h>
+#include <memory>
 #include <string>
 #include <vector>
 

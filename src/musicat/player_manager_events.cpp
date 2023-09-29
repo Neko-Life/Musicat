@@ -1,9 +1,9 @@
-#include "channel.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
+#include <memory>
 
 namespace musicat
 {

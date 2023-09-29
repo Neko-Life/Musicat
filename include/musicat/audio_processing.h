@@ -5,6 +5,7 @@
 #include "musicat/config.h"
 #include "musicat/player.h"
 #include <fcntl.h>
+#include <memory>
 #include <stdio.h>
 
 #ifdef MUSICAT_USE_PCM

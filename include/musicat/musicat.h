@@ -4,6 +4,7 @@
 #include "musicat/player.h"
 #include "nekos-best++.hpp"
 #include <dpp/dpp.h>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>

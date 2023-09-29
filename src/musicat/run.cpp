@@ -20,6 +20,7 @@
 #include <cstring>
 #include <dpp/dpp.h>
 #include <libpq-fe.h>
+#include <memory>
 #include <mutex>
 #include <regex>
 #include <stdio.h>

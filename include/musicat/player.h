@@ -6,6 +6,7 @@
 #include <deque>
 #include <dpp/dpp.h>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -172,6 +173,15 @@ class Player
 
     int volume;
     int set_volume;
+
+    /**
+     * @brief Equalizer raw ffmpeg opt
+     */
+    std::string equalizer;
+    /**
+     * @brief Equalizer raw ffmpeg opt
+     */
+    std::string set_equalizer;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the

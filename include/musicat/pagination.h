@@ -3,6 +3,7 @@
 
 #include "musicat/player.h"
 #include <any>
+#include <memory>
 #include <string>
 
 namespace musicat

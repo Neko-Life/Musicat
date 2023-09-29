@@ -3,6 +3,7 @@
 #include "musicat/thread_manager.h"
 #include <chrono>
 #include <dirent.h>
+#include <memory>
 #include <regex>
 #include <sys/stat.h>
 #include <thread>

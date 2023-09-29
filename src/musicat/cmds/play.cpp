@@ -8,6 +8,7 @@
 #include "musicat/util.h"
 #include "yt-search/yt-playlist.h"
 #include "yt-search/yt-search.h"
+#include <memory>
 #include <regex>
 #include <vector>
 
