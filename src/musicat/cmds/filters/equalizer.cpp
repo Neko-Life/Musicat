@@ -86,9 +86,9 @@ struct equalizer_fx_t
 equalizer_fx_t
 create_equalizer_fx_t ()
 {
-    return { 50,
-             { 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-               100, 100, 100, 100, 100 } };
+    return { 100,
+             { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
+               50, 50 } };
 }
 
 std::string
@@ -100,7 +100,7 @@ band_to_str (float v)
 std::string
 vol_to_str (float v)
 {
-    return std::to_string (v / (float)50);
+    return std::to_string (v / (float)100);
 }
 
 std::string
@@ -288,7 +288,7 @@ balance (const dpp::slashcommand_t &event)
     constexpr const char *new_equalizer
         = "superequalizer=1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
           "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
-          "17b=0.5:18b=0.5,volume=2"; // volume of 2 is 100%
+          "17b=0.5:18b=0.5,volume=1"; // volume of 1 is 100%
 
     ftp.guild_player->set_equalizer = new_equalizer;
 
