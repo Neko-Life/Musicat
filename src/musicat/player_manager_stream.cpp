@@ -354,6 +354,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                    + cc::command_options_keys_t.volume + '='
                    + std::to_string (guild_player->volume) + ';';
 
+            if (guild_player->equalizer.length ())
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value (guild_player->equalizer)
+                       + ';';
+
             // !TODO: convert current byte to timestamp string
             // + cc::command_options_keys_t.seek + '=' +
             // track.current_byte
