@@ -75,8 +75,70 @@ namespace filters
 {
 namespace equalizer
 {
+// !TODO: create a struct for this
+
+struct equalizer_fx_t
+{
+    int volume;
+    int bands[18];
+};
+
+equalizer_fx_t
+create_equalizer_fx_t ()
+{
+    return { 100, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } };
+}
+
+std::string
+band_to_str (float v)
+{
+    return std::to_string (v / (float)100);
+}
+
+std::string
+vol_to_str (float v)
+{
+    return std::to_string (v / (float)50);
+}
+
+std::string
+equalizer_fx_t_to_str (const equalizer_fx_t &eq)
+{
+    return "superequalizer="
+           "1b="
+           + band_to_str ((float)eq.bands[0])
+           + ":2b=" + band_to_str ((float)eq.bands[1])
+           + ":3b=" + band_to_str ((float)eq.bands[2])
+           + ":4b=" + band_to_str ((float)eq.bands[3])
+           + ":5b=" + band_to_str ((float)eq.bands[4])
+           + ":6b=" + band_to_str ((float)eq.bands[5])
+           + ":7b=" + band_to_str ((float)eq.bands[6])
+           + ":8b=" + band_to_str ((float)eq.bands[7])
+           + ":9b=" + band_to_str ((float)eq.bands[8])
+           + ":10b=" + band_to_str ((float)eq.bands[9])
+           + ":11b=" + band_to_str ((float)eq.bands[10])
+           + ":12b=" + band_to_str ((float)eq.bands[11])
+           + ":13b=" + band_to_str ((float)eq.bands[12])
+           + ":14b=" + band_to_str ((float)eq.bands[13])
+           + ":15b=" + band_to_str ((float)eq.bands[14])
+           + ":16b=" + band_to_str ((float)eq.bands[15])
+           + ":17b=" + band_to_str ((float)eq.bands[16])
+           + ":18b=" + band_to_str ((float)eq.bands[17])
+           + ",volume=" + vol_to_str ((float)eq.volume);
+}
+
+equalizer_fx_t
+str_to_equalizer_fx_t (const std::string &str)
+{
+    equalizer_fx_t ret;
+
+    // !TODO:
+
+    return ret;
+}
 
 static inline constexpr const char *eq_options[][2] = {
+    { "volume", "Set filter volume" },
     { "band-1", "Set 65Hz band gain" },
     { "band-2", "Set 92Hz band gain" },
     { "band-3", "Set 131Hz band gain" },
@@ -123,7 +185,7 @@ setup_subcommand (dpp::slashcommand &slash)
                         dpp::command_option (dpp::co_integer, eq_options[j][0],
                                              eq_options[j][1], false)
                             .set_min_value (1)
-                            .set_max_value (150));
+                            .set_max_value (200));
                 }
 
             slash.add_option (eqsubcmd);
@@ -140,13 +202,33 @@ static inline constexpr const command_handlers_map_t action_handlers
 void
 show (const dpp::slashcommand_t &event)
 {
-    event.reply ("show");
+    event.reply ("show: This command is still under construction...");
 }
 
 void
 set (const dpp::slashcommand_t &event)
 {
-    event.reply ("Setting equalizer: ");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    // !TODO: parse current setting to preserve undefined arg value
+    equalizer_fx_t arg = create_equalizer_fx_t ();
+
+    get_inter_param (event, "volume", (int64_t *)&arg.volume);
+
+    for (int i = 0; i < 18; i++)
+        {
+            get_inter_param (event, "band-" + std::to_string (i + 1),
+                             (int64_t *)&arg.bands[i]);
+        }
+
+    std::string arg_str = equalizer_fx_t_to_str (arg);
+
+    ftp.guild_player->set_equalizer = arg_str;
+
+    event.reply ("Setting equalizer with args: " + arg_str);
 }
 
 void
@@ -160,7 +242,7 @@ balance (const dpp::slashcommand_t &event)
     constexpr const char *new_equalizer
         = "superequalizer=1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
           "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
-          "17b=0.5:18b=0.5";
+          "17b=0.5:18b=0.5,volume=2"; // volume of 2 is 100%
 
     ftp.guild_player->set_equalizer = new_equalizer;
 
