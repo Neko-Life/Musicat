@@ -96,8 +96,25 @@ read_command (processor_options_t &options)
 ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 {
+    // this is wrong but whatever for now
+    bool debug = get_debug_state ();
+
+    if (debug)
+        fprintf (stderr,
+                 "[audio_processing::write_stdout] size, will go to chain: "
+                 "%ld %d\n",
+                 *size, !no_effect_chain);
+
     if (!no_effect_chain)
-        helper_processor::run_through_chain (buffer, size);
+        {
+            helper_processor::run_through_chain (buffer, size);
+
+            if (debug)
+                fprintf (
+                    stderr,
+                    "[audio_processing::write_stdout] size after chain: %ld\n",
+                    *size);
+        }
 
     if (*size == 0)
         return 0;
@@ -1344,6 +1361,7 @@ run_processor (child::command::command_options_t &process_options)
                     options.seek_to = "";
                 }
 
+            // !TODO: put volume to always in the last chain
             // runtime effects here
             if (options.volume != current_options.volume)
                 {
@@ -1376,6 +1394,8 @@ run_processor (child::command::command_options_t &process_options)
                     break;
                 };
         }
+
+    helper_processor::shutdown_chain ();
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies

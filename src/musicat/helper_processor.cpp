@@ -172,8 +172,8 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
     close_valid_fd (&hci->write_fd);
 
     ssize_t buf_size = 0;
-    uint8_t buf[BUFFER_SIZE];
-    while ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0)
+    uint8_t buf[PROCESSOR_BUFFER_SIZE];
+    while ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0)
         {
             // is also last
             if (is_last_p)
@@ -216,9 +216,10 @@ handle_middle_chain (std::deque<helper_chain_t>::iterator hci)
     bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
 
     ssize_t buf_size = 0;
-    uint8_t buf[BUFFER_SIZE];
-    while (read_ready
-           && ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0))
+    uint8_t buf[PROCESSOR_BUFFER_SIZE];
+    while (
+        read_ready
+        && ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0))
         {
             write (nhc.write_fd, buf, buf_size);
 
@@ -235,17 +236,19 @@ handle_last_chain_stop (std::deque<helper_chain_t>::iterator hci)
     prfds[0].events = POLLIN;
     prfds[0].fd = hci->read_fd;
 
-    bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+    bool read_ready
+        = (poll (prfds, 1, 100) > 0) && (prfds[0].revents & POLLIN);
 
     ssize_t buf_size = 0;
-    uint8_t buf[BUFFER_SIZE];
-    while (read_ready
-           && ((buf_size = read (hci->read_fd, buf, BUFFER_SIZE)) > 0))
+    uint8_t buf[PROCESSOR_BUFFER_SIZE];
+    while (
+        read_ready
+        && ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0))
         {
             audio_processing::write_stdout (buf, &buf_size, true);
 
             read_ready
-                = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+                = (poll (prfds, 1, 0) > 100) && (prfds[0].revents & POLLIN);
         }
 }
 
@@ -352,15 +355,7 @@ manage_processor (const audio_processing::processor_options_t &options,
         }
 
     // stop all active chain, hci is automatically end if no entry in deque
-    auto hci = active_helpers.begin ();
-    while (hci != active_helpers.end ())
-        {
-            // error or not, every active helper should die
-            stop_first_chain ();
-
-            // erase the exited chain
-            hci = active_helpers.erase (hci);
-        }
+    shutdown_chain ();
 
     bool need_start = required_chain_size > 0;
 
@@ -421,31 +416,31 @@ run_through_chain (uint8_t *buffer, ssize_t *size)
                     // whatever happens, this should never fail
                     // not the best way but should work for now
 
-					/*
-                    struct pollfd prfds[1];
-                    prfds[0].events = POLLOUT;
-                    prfds[0].fd = hci->write_fd;
+                    /*
+struct pollfd prfds[1];
+prfds[0].events = POLLOUT;
+prfds[0].fd = hci->write_fd;
 
-                    bool write_ready = (poll (prfds, 1, 1) > 0)
-                                       && (prfds[0].revents & POLLOUT);
+bool write_ready = (poll (prfds, 1, 1) > 0)
+                   && (prfds[0].revents & POLLOUT);
 
-                    ssize_t wrote = 0, current_w = 0;
-                    while (write_ready && wrote < *size
-                           && ((current_w // 	s16le stereo minimal frame size
-                                = write (hci->write_fd, buffer + wrote, 4))
-                               > 0))
-                        {
-                            wrote += current_w;
+ssize_t wrote = 0, current_w = 0;
+while (write_ready && wrote < *size
+       && ((current_w // 	s16le stereo minimal frame size
+            = write (hci->write_fd, buffer + wrote, 4))
+           > 0))
+    {
+        wrote += current_w;
 
-                            write_ready = (poll (prfds, 1, 1) > 0)
-                                          && (prfds[0].revents & POLLOUT);
-                        }
-					*/
+        write_ready = (poll (prfds, 1, 1) > 0)
+                      && (prfds[0].revents & POLLOUT);
+    }
+                    */
 
-					// sleep for 2 ms
-					usleep(2000);
+                    // sleep for 0.2 ms
+                    usleep (200);
 
-					write (hci->write_fd, buffer, *size);
+                    write (hci->write_fd, buffer, *size);
 
                     *size = 0;
 
@@ -479,6 +474,16 @@ run_through_chain (uint8_t *buffer, ssize_t *size)
 int
 shutdown_chain ()
 {
+    // stop all active chain, hci is automatically end if no entry in deque
+    auto hci = active_helpers.begin ();
+    while (hci != active_helpers.end ())
+        {
+            // error or not, every active helper should die
+            stop_first_chain ();
+
+            // erase the exited chain
+            hci = active_helpers.erase (hci);
+        }
 
     return 0;
 }

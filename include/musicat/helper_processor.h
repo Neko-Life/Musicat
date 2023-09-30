@@ -3,6 +3,10 @@
 
 #include "musicat/audio_processing.h"
 
+#define PROCESSOR_BUFFER_SIZE processor_buffer_size
+
+inline constexpr size_t processor_buffer_size = BUFSIZ / 2;
+
 namespace musicat
 {
 // a manager instance for each slave child
