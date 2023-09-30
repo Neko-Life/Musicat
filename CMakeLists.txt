@@ -155,7 +155,7 @@ endif()
 
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
-	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined -static-libasan ${MUSICAT_COMPILE_OPTIONS})
+	set(MUSICAT_COMPILE_OPTIONS -g ${MUSICAT_COMPILE_OPTIONS})
 	set(DPP_COMPILE_OPTIONS -g ${DPP_COMPILE_OPTIONS})
 endif()
 
@@ -179,8 +179,6 @@ target_link_libraries(Shasha
 	z
 	ssl
 	crypto
-	asan
-	ubsan
 	# Add any other libs you want to use here
 	)
 
