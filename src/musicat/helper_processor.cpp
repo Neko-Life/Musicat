@@ -167,7 +167,7 @@ err1:
 
 void
 handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
-                         bool is_last_p)
+                         bool is_last_p, bool discard_output)
 {
     close_valid_fd (&hci->write_fd);
 
@@ -178,8 +178,10 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
             // is also last
             if (is_last_p)
                 {
-                    // write read buffer to stdout
-                    audio_processing::write_stdout (buf, &buf_size, true);
+                    if (!discard_output)
+                        // write read buffer to stdout
+                        audio_processing::write_stdout (buf, &buf_size, true);
+
                     continue;
                 }
 
@@ -253,7 +255,7 @@ handle_last_chain_stop (std::deque<helper_chain_t>::iterator hci)
 }
 
 void
-stop_first_chain ()
+stop_first_chain (bool discard_output)
 {
     // loop through current active chain to deplete the first chain's buffer
     // then we can proceed to remove it after
@@ -275,7 +277,7 @@ stop_first_chain ()
             //        processor
             if (is_first_p)
                 {
-                    handle_first_chain_stop (hci, is_last_p);
+                    handle_first_chain_stop (hci, is_last_p, discard_output);
 
                     // make sure to break at the end of loop
                     // as this is the index 0 (final index)
@@ -472,14 +474,14 @@ while (write_ready && wrote < *size
 }
 
 int
-shutdown_chain ()
+shutdown_chain (bool discard_output)
 {
     // stop all active chain, hci is automatically end if no entry in deque
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
             // error or not, every active helper should die
-            stop_first_chain ();
+            stop_first_chain (discard_output);
 
             // erase the exited chain
             hci = active_helpers.erase (hci);

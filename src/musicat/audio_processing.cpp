@@ -1282,6 +1282,8 @@ run_processor (child::command::command_options_t &process_options)
                             //              && (prfds[0].revents & POLLIN);
                         }
 
+                    helper_processor::shutdown_chain (true);
+
                     // wait for child to finish transferring data
                     waitpid (p_info.cpid, &cstatus, 0);
                     if (options.debug)
@@ -1356,6 +1358,9 @@ run_processor (child::command::command_options_t &process_options)
                     // update fd to poll
                     prfds[0].fd = preadfd;
                     pwfds[0].fd = pwritefd;
+
+                    helper_processor::manage_processor (options,
+                                                        handle_helper_fork);
 
                     // mark changes done
                     options.seek_to = "";
