@@ -86,7 +86,9 @@ struct equalizer_fx_t
 equalizer_fx_t
 create_equalizer_fx_t ()
 {
-    return { 100, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } };
+    return { 50,
+             { 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+               100, 100, 100, 100, 100 } };
 }
 
 std::string
