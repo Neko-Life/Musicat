@@ -12,10 +12,6 @@ option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" OFF)
 set(MUSICAT_CXX_STANDARD 17)
 set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
 
-if (NOT CMAKE_C_COMPILER)
-	set(CMAKE_C_COMPILER gcc)
-endif()
-
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
 # You can also add any other libs you want to use
@@ -134,7 +130,7 @@ add_custom_target(uWebSockets
 	DEPENDS ${USOCKETS_OBJECT_FILES})
 
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
-	COMMAND CC=${CMAKE_C_COMPILER} WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
+	COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 WITH_PROXY=1 WITH_ASAN=1 make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
 	DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
 
@@ -142,7 +138,7 @@ add_custom_target(deps
 	DEPENDS ShashaDeps)
 
 add_custom_command(OUTPUT ShashaDeps
-	COMMAND CC=${CMAKE_C_COMPILER} make
+	COMMAND make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 add_dependencies(Shasha deps uWebSockets)
@@ -159,7 +155,7 @@ endif()
 
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
-	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined -static-libasan ${MUSICAT_COMPILE_OPTIONS})
+	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined -static-libsan ${MUSICAT_COMPILE_OPTIONS})
 	set(DPP_COMPILE_OPTIONS -g ${DPP_COMPILE_OPTIONS})
 endif()
 
