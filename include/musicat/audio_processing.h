@@ -128,14 +128,17 @@ parse_helper_chain_option (
 
             int64_t res = i - start_d;
 
-            start_d = 0;
-
             if (res <= 0)
-                continue;
+                {
+                    start_d = 0;
+                    continue;
+                }
 
             processor_options.helper_chain.push_back (
                 { command_options.debug,
                   command_options.helper_chain.substr (start_d, res), false });
+
+            start_d = 0;
         }
 
     return 0;
