@@ -79,8 +79,8 @@ namespace equalizer
 
 struct equalizer_fx_t
 {
-    int volume;
-    int bands[18];
+    int64_t volume;
+    int64_t bands[18];
 };
 
 equalizer_fx_t
@@ -132,7 +132,7 @@ equalizer_fx_t_to_str (const equalizer_fx_t &eq)
 equalizer_fx_t
 str_to_equalizer_fx_t (const std::string &str)
 {
-    equalizer_fx_t ret;
+    equalizer_fx_t ret = create_equalizer_fx_t ();
 
     // !TODO:
 
@@ -216,14 +216,17 @@ set (const dpp::slashcommand_t &event)
         return;
 
     // !TODO: parse current setting to preserve undefined arg value
-    equalizer_fx_t arg = create_equalizer_fx_t ();
+    equalizer_fx_t arg
+        = ftp.guild_player->equalizer.empty ()
+              ? create_equalizer_fx_t ()
+              : str_to_equalizer_fx_t (ftp.guild_player->equalizer);
 
-    get_inter_param (event, "volume", (int64_t *)&arg.volume);
+    get_inter_param (event, "volume", &arg.volume);
 
     for (int i = 0; i < 18; i++)
         {
             get_inter_param (event, "band-" + std::to_string (i + 1),
-                             (int64_t *)&arg.bands[i]);
+                             (arg.bands + i));
         }
 
     std::string arg_str = equalizer_fx_t_to_str (arg);
