@@ -94,7 +94,7 @@ slash_run (const dpp::slashcommand_t &event)
     // path to file
     std::string fullpath = "";
 
-    if (filename.length ())
+    if (!filename.empty ())
         {
             auto find_result = play::find_track (
                 false, filename, player_manager, true, guild_id, true);

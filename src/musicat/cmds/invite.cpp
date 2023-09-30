@@ -17,7 +17,7 @@ void
 slash_run (const dpp::slashcommand_t &event)
 {
     std::string invite = get_invite_link ();
-    event.reply (invite.length () ? "** [ ❤️ "
+    event.reply (!invite.empty () ? "** [ ❤️ "
                                     "](" + invite
                                         + ") **"
                                   : "I don't have invite link configured");

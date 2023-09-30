@@ -27,7 +27,7 @@ query (const dpp::autocomplete_t &event, std::string param,
 
     std::vector<std::pair<std::string, std::string> > avail = {};
 
-    const bool no_len = !param.length ();
+    const bool no_len = param.empty ();
 
     std::vector<std::string> get
         = player_manager->get_available_tracks (no_len ? 25U : 0U);
@@ -199,7 +199,7 @@ slash_run (const dpp::slashcommand_t &event)
         }
 
     bool resumed = false;
-    const bool no_query = arg_query.length () == 0;
+    const bool no_query = arg_query.empty ();
 
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
@@ -256,8 +256,7 @@ find_track (bool playlist, std::string &arg_query,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
-    bool debug = get_debug_state ();
-    bool has_cache_id = cache_id.length ();
+    bool has_cache_id = !cache_id.empty ();
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
@@ -393,7 +392,7 @@ get_filename_from_result (yt_search::YTrack &result)
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
-    if (!sid.length () /* || !st.length()*/)
+    if (sid.empty () /* || !st.length()*/)
         return "";
 
     return std::regex_replace (
@@ -406,7 +405,7 @@ track_exist (const std::string &fname, const std::string &url,
              player::player_manager_ptr player_manager, bool from_interaction,
              dpp::snowflake guild_id, bool no_download)
 {
-    if (!fname.length ())
+    if (fname.empty ())
         return { false, 2 };
 
     bool dling = false;

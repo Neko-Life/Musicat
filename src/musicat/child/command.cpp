@@ -328,7 +328,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
             temp_str += c;
         }
 
-    if (temp_str.length ())
+    if (!temp_str.empty ())
         {
             std::string opt_str
                 = command::sanitize_command_key_value (temp_str);

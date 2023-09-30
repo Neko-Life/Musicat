@@ -17,7 +17,7 @@ type (const dpp::autocomplete_t &event, std::string param)
 
     std::vector<std::pair<std::string, std::string> > avail = {};
 
-    const bool no_len = !param.length ();
+    const bool no_len = param.empty ();
 
     const auto endpoints = get_cached_nekos_best_endpoints ();
     avail.reserve (endpoints.size ());
@@ -53,7 +53,7 @@ slash_run (const dpp::slashcommand_t &event)
     std::string img_type = "";
     get_inter_param (event, "type", &img_type);
     
-    if (!img_type.length ())
+    if (img_type.empty ())
         {
             event.reply ("Provide `type`");
             return;
@@ -72,7 +72,7 @@ slash_run (const dpp::slashcommand_t &event)
 
     const nekos_best::Meta &metadata = data.results.at(0);
 
-    if (!metadata.url.length ())
+    if (metadata.url.empty ())
     {
         event.edit_response("`[ERROR]` Empty result");
         return;

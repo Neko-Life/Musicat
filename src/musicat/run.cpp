@@ -255,7 +255,7 @@ get_invite_oauth_base_url ()
 {
     const std::string sha_id_str = std::to_string (get_sha_id ());
 
-    if (!sha_id_str.length ())
+    if (sha_id_str.empty ())
         return "";
 
     return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
@@ -288,7 +288,7 @@ get_default_oauth_params ()
 std::string
 construct_permissions_param (const std::string permissions)
 {
-    if (!permissions.length ())
+    if (permissions.empty ())
         return "";
 
     return "&permissions=" + permissions;
@@ -297,7 +297,7 @@ construct_permissions_param (const std::string permissions)
 std::string
 construct_scopes_param (const std::string scopes)
 {
-    if (!scopes.length ())
+    if (scopes.empty ())
         return "";
 
     return "&scope=" + encodeURIComponent (scopes);
@@ -310,7 +310,7 @@ get_invite_link ()
         = construct_permissions_param (get_invite_permissions ())
           + construct_scopes_param (get_invite_scopes ());
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + append_str;
@@ -322,7 +322,7 @@ get_oauth_link ()
     const std::string append_str
         = construct_scopes_param (get_oauth_scopes ());
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + get_default_oauth_params ()
@@ -337,11 +337,11 @@ get_oauth_invite ()
 
     const std::string append_str
         = construct_permissions_param (get_invite_permissions ())
-          + ((invite_scopes.length () && oauth_scopes.length ())
+          + ((!invite_scopes.empty () && !oauth_scopes.empty ())
                  ? construct_scopes_param (invite_scopes + " " + oauth_scopes)
                  : "");
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + get_default_oauth_params ()
@@ -416,8 +416,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     {
         if (!comp.value.index ())
             return;
+
         string q = std::get<string> (comp.value);
-        if (!q.length ())
+        if (q.empty ())
             return;
 
         sscanf (q.c_str (), "%ld", &pos);
@@ -431,8 +432,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         {
             if (!comp_2.value.index ())
                 return;
+
             string q = std::get<string> (comp_2.value);
-            if (!q.length ())
+            if (q.empty ())
                 return;
 
             sscanf (q.c_str (), "%ld", &arg_slip);
@@ -578,7 +580,7 @@ run (int argc, const char *argv[])
     set_debug_state (get_config_value<bool> ("DEBUG", false));
 
     const std::string sha_token = get_sha_token ();
-    if (!sha_token.length ())
+    if (sha_token.empty ())
         {
             fprintf (stderr, "[ERROR] No token provided\n");
             return -1;
@@ -684,17 +686,19 @@ run (int argc, const char *argv[])
         const size_t fsub = event.custom_id.find ("/");
         const string cmd = event.custom_id.substr (0, fsub);
 
-        if (!cmd.length ())
+        if (cmd.empty ())
             return;
 
         if (cmd == "page_queue")
             {
                 const string param = event.custom_id.substr (fsub + 1, 1);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (
                             stderr,
                             "[WARN] command \"page_queue\" have no param\n");
+
                         return;
                     }
                 // event.reply (dpp::ir_deferred_update_message, "");
@@ -705,7 +709,8 @@ run (int argc, const char *argv[])
             {
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (stderr,
                                  "[WARN] command \"modal_p\" have no param\n");
@@ -734,7 +739,8 @@ run (int argc, const char *argv[])
             {
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (
                             stderr,
@@ -759,7 +765,7 @@ run (int argc, const char *argv[])
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
 
-                if (!param.length ())
+                if (param.empty ())
                     {
                         fprintf (stderr,
                                  "[WARN] command \"playnow\" have no param\n");
@@ -863,7 +869,7 @@ run (int argc, const char *argv[])
                 eopts = sub.options;
             }
 
-        if (opt.length ())
+        if (!opt.empty ())
             {
                 if (cmd == "play")
                     {

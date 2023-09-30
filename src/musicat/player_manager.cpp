@@ -254,7 +254,7 @@ Manager::download (const string &fname, const string &url,
                    const dpp::snowflake &guild_id)
 {
     const string yt_dlp = get_ytdlp_exe ();
-    if (!yt_dlp.length ())
+    if (yt_dlp.empty ())
         {
             fprintf (stderr,
                      "[ERROR Manager::download] yt-dlp executable isn't "
@@ -376,7 +376,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                                     else if (e == 1)
                                         msg = "No connection";
 
-                                    if (msg.length ())
+                                    if (!msg.empty ())
                                         {
                                             const dpp::message m (channel_id,
                                                                   msg);

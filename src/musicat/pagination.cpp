@@ -423,14 +423,17 @@ _construct_desc (std::deque<player::MCTrack> &queue,
 
             if (totald)
                 fot += format_duration (totald);
+
             if (qs)
                 {
-                    if (fot.length ())
+                    if (!fot.empty ())
                         fot += " | ";
+
                     fot += std::to_string (qs) + " track"
                            + (qs > 1 ? "s" : "");
                 }
-            if (fot.length ())
+
+            if (!fot.empty ())
                 embed.set_footer (fot, "");
 
             embeds.emplace_back (embed);

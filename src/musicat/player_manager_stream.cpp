@@ -76,7 +76,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     // do not send drain buffer
     bool no_send = false;
 
-    const bool track_seek_queried = states.track.seek_to.length () > 0;
+    const bool track_seek_queried = !states.track.seek_to.empty ();
 
     if (track_seek_queried)
         {
@@ -136,7 +136,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     const bool equalizer_queried
-        = states.guild_player->set_equalizer.length () != 0;
+        = !states.guild_player->set_equalizer.empty ();
 
     if (equalizer_queried)
         {
@@ -354,7 +354,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                    + cc::command_options_keys_t.volume + '='
                    + std::to_string (guild_player->volume) + ';';
 
-            if (guild_player->equalizer.length ())
+            if (!guild_player->equalizer.empty ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (guild_player->equalizer)
                        + ';';

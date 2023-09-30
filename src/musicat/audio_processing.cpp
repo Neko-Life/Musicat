@@ -961,7 +961,7 @@ run_standalone (const processor_options_t &options,
 
     const std::string file_path = options.file_path;
 
-    const bool need_seek = options.seek_to.length () > 0;
+    const bool need_seek = !options.seek_to.empty ();
 
     char *args[64] = {
         "ffmpeg",
@@ -1230,7 +1230,7 @@ run_processor (child::command::command_options_t &process_options)
             helper_processor::manage_processor (options, handle_helper_fork);
 
             // recreate ffmpeg process to update filter chain
-            if (options.seek_to.length ())
+            if (!options.seek_to.empty ())
                 {
                     close (pwritefd);
 
