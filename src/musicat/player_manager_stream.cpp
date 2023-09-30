@@ -145,11 +145,11 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                       ? ""
                       : states.guild_player->set_equalizer;
 
-            const std::string cmd = cc::command_options_keys_t.command + '='
-                                    + cc::command_options_keys_t.helper_chain
-                                    + ';'
-                                    + cc::command_options_keys_t.helper_chain
-                                    + '=' + new_equalizer + ';';
+            const std::string cmd
+                = cc::command_options_keys_t.command + '='
+                  + cc::command_options_keys_t.helper_chain + ';'
+                  + cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (new_equalizer) + ';';
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 

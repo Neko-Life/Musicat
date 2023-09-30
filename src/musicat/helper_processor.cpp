@@ -313,7 +313,6 @@ int
 manage_processor (const audio_processing::processor_options_t &options,
                   void (*on_fork) ())
 {
-    return 0;
     size_t required_chain_size = options.helper_chain.size (),
            current_chain_size = active_helpers.size ();
 
