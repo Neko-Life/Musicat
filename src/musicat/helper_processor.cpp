@@ -70,7 +70,7 @@ helper_main (helper_chain_t &options)
                      "-ar",
                      "48000",
                      "-i",
-                     "-",
+                     "pipe:0",
                      "-af",
                      (char *)options.options.raw_args.c_str (),
                      "-f",
@@ -82,7 +82,7 @@ helper_main (helper_chain_t &options)
                      /*"-preset", "ultrafast",*/ "-threads",
                      "1",
                      "-nostdin",
-                     "-",
+                     "pipe:1",
                      (char *)NULL };
 
     if (options.options.debug)
@@ -166,7 +166,7 @@ err1:
 }
 
 void
-handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri,
+handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
                          bool is_last_p)
 {
     close_valid_fd (&hci->write_fd);
@@ -185,7 +185,7 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri,
 
             // is first but not also last
             // pipe it to the next processor
-            const helper_chain_t &nhc = active_helpers[ri + 1];
+            const helper_chain_t &nhc = *(hci + 1);
 
             write (nhc.write_fd, buf, buf_size);
         }
@@ -202,11 +202,12 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri,
                  status, hci->options.raw_args.c_str ());
 }
 
+// shutting down and streaming have the same exact routine
 void
-handle_middle_chain_stop (std::deque<helper_chain_t>::iterator hci, size_t ri)
+handle_middle_chain (std::deque<helper_chain_t>::iterator hci)
 {
     // poll and pipe it to the next processor
-    const helper_chain_t &nhc = active_helpers[ri + 1];
+    const helper_chain_t &nhc = *(hci + 1);
 
     struct pollfd prfds[1];
     prfds[0].events = POLLIN;
@@ -254,13 +255,12 @@ stop_first_chain ()
     // loop through current active chain to deplete the first chain's buffer
     // then we can proceed to remove it after
     size_t max_idx = active_helpers.size () - 1;
-    for (size_t ri = max_idx; ri >= 0; ri--)
+    for (size_t i = max_idx; i >= 0; i--)
         {
-            bool is_last_p = ri == max_idx;
-            bool is_first_p = ri == 0;
+            bool is_last_p = i == max_idx;
+            bool is_first_p = i == 0;
 
-            std::deque<helper_chain_t>::iterator hci
-                = active_helpers.begin () + ri;
+            auto hci = active_helpers.begin () + i;
 
             // is first
             //
@@ -272,7 +272,7 @@ stop_first_chain ()
             //        processor
             if (is_first_p)
                 {
-                    handle_first_chain_stop (hci, ri, is_last_p);
+                    handle_first_chain_stop (hci, is_last_p);
 
                     // make sure to break at the end of loop
                     // as this is the index 0 (final index)
@@ -283,7 +283,7 @@ stop_first_chain ()
             else if (!is_last_p)
                 {
                     // pipe polled output to next processor
-                    handle_middle_chain_stop (hci, ri);
+                    handle_middle_chain (hci);
 
                     continue;
                 }
@@ -393,14 +393,95 @@ manage_processor (const audio_processing::processor_options_t &options,
 ssize_t
 run_through_chain (uint8_t *buffer, ssize_t *size)
 {
-    /*
     if (*size == 0)
         return 0;
-*/
-    // !TODO
+
+    // ssize_t SET_BUF_SIZE = *size;
+
+    size_t current_chain_size = active_helpers.size ();
+
+    if (current_chain_size == 0)
+        return 0;
+
+    size_t max_idx = current_chain_size - 1;
+
+    auto hcb = active_helpers.begin ();
+    for (size_t i = 0; i <= max_idx; i++)
+        {
+            bool is_last_p = i == max_idx;
+            bool is_first_p = i == 0;
+
+            auto hci = hcb + i;
+
+            if (is_first_p)
+                {
+                    // handle_first_chain_stream (hci);
+
+                    // pass buffer to processor without polling
+                    // whatever happens, this should never fail
+                    // not the best way but should work for now
+
+					/*
+                    struct pollfd prfds[1];
+                    prfds[0].events = POLLOUT;
+                    prfds[0].fd = hci->write_fd;
+
+                    bool write_ready = (poll (prfds, 1, 1) > 0)
+                                       && (prfds[0].revents & POLLOUT);
+
+                    ssize_t wrote = 0, current_w = 0;
+                    while (write_ready && wrote < *size
+                           && ((current_w // 	s16le stereo minimal frame size
+                                = write (hci->write_fd, buffer + wrote, 4))
+                               > 0))
+                        {
+                            wrote += current_w;
+
+                            write_ready = (poll (prfds, 1, 1) > 0)
+                                          && (prfds[0].revents & POLLOUT);
+                        }
+					*/
+
+					// sleep for 2 ms
+					usleep(2000);
+
+					write (hci->write_fd, buffer, *size);
+
+                    *size = 0;
+
+                    // if there's deadlock we know where to look
+                }
+
+            // not the last chain
+            if (!is_last_p)
+                {
+                    // pipe polled output to next processor
+                    handle_middle_chain (hci);
+
+                    continue;
+                }
+
+            // is last
+            // read polled output to fill out buffer once
+            // handle_last_chain_stream (hci);
+
+            struct pollfd prfds[1];
+            prfds[0].events = POLLIN;
+            prfds[0].fd = hci->read_fd;
+
+            if ((poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN))
+                *size = read (hci->read_fd, buffer, BUFFER_SIZE);
+        }
 
     return 0;
-};
+}
+
+int
+shutdown_chain ()
+{
+
+    return 0;
+}
 
 } // helper_processor
 } // musicat
