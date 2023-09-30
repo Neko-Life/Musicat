@@ -10,7 +10,7 @@ option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
 option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
-set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
+set(MUSICAT_COMPILE_OPTIONS ${MUSICAT_COMPILE_OPTIONS} -Wall -Wextra -Wpedantic)
 
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
@@ -155,7 +155,7 @@ endif()
 
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
-	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined -static-libsan ${MUSICAT_COMPILE_OPTIONS})
+	set(MUSICAT_COMPILE_OPTIONS -g -fsanitize=address,undefined -static-libasan ${MUSICAT_COMPILE_OPTIONS})
 	set(DPP_COMPILE_OPTIONS -g ${DPP_COMPILE_OPTIONS})
 endif()
 
