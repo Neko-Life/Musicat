@@ -132,15 +132,43 @@ equalizer_fx_t_to_str (const equalizer_fx_t &eq)
 equalizer_fx_t
 str_to_equalizer_fx_t (const std::string &str)
 {
-    equalizer_fx_t ret = create_equalizer_fx_t ();
+    equalizer_fx_t ret;
 
-    // !TODO:
+    /*
+superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.000000:7b=1.000000:8b=0.010000:9b=0.010000:10b=0.010000:11b=0.010000:12b=0.010000:13b=0.010000:14b=0.010000:15b=0.010000:16b=0.010000:17b=0.010000:18b=1.000000,volume=2.000000
+    */
+
+    constexpr const char *searches[]
+        = { "volume=", "1b=",  "2b=",  "3b=",  "4b=",  "5b=",  "6b=",
+            "7b=",     "8b=",  "9b=",  "10b=", "11b=", "12b=", "13b=",
+            "14b=",    "15b=", "16b=", "17b=", "18b=" };
+
+    int idx = 0;
+    for (const char *search : searches)
+        {
+            auto i = str.find (search);
+            auto e = str.find (":", i + 1);
+
+            auto t = i + strlen (search) - 1;
+
+            float val = std::stof (str.substr (t, e - t));
+
+            if (!idx)
+                {
+                    ret.volume = (int64_t)(val * 50);
+                }
+            else
+                {
+                    ret.bands[idx - 1] = (int64_t)(val * 100);
+                }
+
+            idx++;
+        }
 
     return ret;
 }
 
 static inline constexpr const char *eq_options[][2] = {
-    { "volume", "Set filter volume" },
     { "band-1", "Set 65Hz band gain" },
     { "band-2", "Set 92Hz band gain" },
     { "band-3", "Set 131Hz band gain" },
@@ -150,6 +178,7 @@ static inline constexpr const char *eq_options[][2] = {
     { "band-7", "Set 523Hz band gain" },
     { "band-8", "Set 740Hz band gain" },
     { "band-9", "Set 1047Hz band gain" },
+    { "volume", "Set filter volume" },
     { "band-10", "Set 1480Hz band gain" },
     { "band-11", "Set 2093Hz band gain" },
     { "band-12", "Set 2960Hz band gain" },
@@ -165,7 +194,8 @@ void
 setup_subcommand (dpp::slashcommand &slash)
 {
     constexpr size_t arg_size = (sizeof (eq_options) / sizeof (*eq_options));
-    constexpr int argpc = 18;
+    // 18 + volume
+    constexpr int argpc = 19;
 
     constexpr size_t igoal = (arg_size / argpc);
     for (size_t i = 0; i < igoal; i++)
