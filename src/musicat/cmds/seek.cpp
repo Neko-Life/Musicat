@@ -26,7 +26,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 char
 _valid_number (std::string &numstr)
 {
-    if (!numstr.length ())
+    if (numstr.empty ())
         return -1;
 
     static const char *numbers = "1234567890";
@@ -199,7 +199,7 @@ parse_arg_to (const std::string &str)
                     temp += *j;
                 }
 
-            if (!temp.length ())
+            if (temp.empty ())
                 {
                     break;
                 }
@@ -212,7 +212,7 @@ parse_arg_to (const std::string &str)
             int subt = -1;
             if (sc_count == 2)
                 {
-                    if (!list[0].length ())
+                    if (list[0].empty ())
                         return result;
 
                     result.hour = stoll (list[0], NULL, 10);
@@ -224,7 +224,7 @@ parse_arg_to (const std::string &str)
                     if (subt == -1)
                         subt = 1;
 
-                    if (!list[1 - subt].length ())
+                    if (list[1 - subt].empty ())
                         return result;
 
                     result.minute = stoll (list[1 - subt], NULL, 10);
@@ -233,14 +233,14 @@ parse_arg_to (const std::string &str)
             if (subt == -1)
                 subt = 2;
 
-            if (!list[2 - subt].length ())
+            if (list[2 - subt].empty ())
                 return result;
 
             result.second = stoll (list[2 - subt], NULL, 10);
 
             if (dot_count == 1)
                 {
-                    if (!list[3 - subt].length ())
+                    if (list[3 - subt].empty ())
                         return result;
 
                     result.ms = stoll (list[3 - subt], NULL, 10);

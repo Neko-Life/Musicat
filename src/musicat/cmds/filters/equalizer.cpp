@@ -75,6 +75,99 @@ namespace filters
 {
 namespace equalizer
 {
+// !TODO: create a struct for this
+
+struct equalizer_fx_t
+{
+    int64_t volume;
+    int64_t bands[18];
+};
+
+equalizer_fx_t
+create_equalizer_fx_t ()
+{
+    return { 100,
+             { 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
+               50, 50 } };
+}
+
+std::string
+band_to_str (float v)
+{
+    return std::to_string (v / (float)100);
+}
+
+std::string
+vol_to_str (float v)
+{
+    return std::to_string (v / (float)100);
+}
+
+std::string
+equalizer_fx_t_to_str (const equalizer_fx_t &eq)
+{
+    return "superequalizer="
+           "1b="
+           + band_to_str ((float)eq.bands[0])
+           + ":2b=" + band_to_str ((float)eq.bands[1])
+           + ":3b=" + band_to_str ((float)eq.bands[2])
+           + ":4b=" + band_to_str ((float)eq.bands[3])
+           + ":5b=" + band_to_str ((float)eq.bands[4])
+           + ":6b=" + band_to_str ((float)eq.bands[5])
+           + ":7b=" + band_to_str ((float)eq.bands[6])
+           + ":8b=" + band_to_str ((float)eq.bands[7])
+           + ":9b=" + band_to_str ((float)eq.bands[8])
+           + ":10b=" + band_to_str ((float)eq.bands[9])
+           + ":11b=" + band_to_str ((float)eq.bands[10])
+           + ":12b=" + band_to_str ((float)eq.bands[11])
+           + ":13b=" + band_to_str ((float)eq.bands[12])
+           + ":14b=" + band_to_str ((float)eq.bands[13])
+           + ":15b=" + band_to_str ((float)eq.bands[14])
+           + ":16b=" + band_to_str ((float)eq.bands[15])
+           + ":17b=" + band_to_str ((float)eq.bands[16])
+           + ":18b=" + band_to_str ((float)eq.bands[17])
+           + ",volume=" + vol_to_str ((float)eq.volume);
+}
+
+equalizer_fx_t
+str_to_equalizer_fx_t (const std::string &str)
+{
+    equalizer_fx_t ret;
+
+    /*
+superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.000000:7b=1.000000:8b=0.010000:9b=0.010000:10b=0.010000:11b=0.010000:12b=0.010000:13b=0.010000:14b=0.010000:15b=0.010000:16b=0.010000:17b=0.010000:18b=1.000000,volume=2.000000
+    */
+
+    constexpr const char *searches[]
+        = { "volume=", "1b=",  "2b=",  "3b=",  "4b=",  "5b=",  "6b=",
+            "7b=",     "8b=",  "9b=",  "10b=", "11b=", "12b=", "13b=",
+            "14b=",    "15b=", "16b=", "17b=", "18b=" };
+
+    int idx = 0;
+    for (const char *search : searches)
+        {
+            auto i = str.find (search);
+            auto e = str.find (":", i + 1);
+
+            auto t = i + strlen (search);
+
+            float val = std::stof (
+                str.substr (t, e == std::string::npos ? e : e - t));
+
+            if (!idx)
+                {
+                    ret.volume = (int64_t)(val * 50);
+                }
+            else
+                {
+                    ret.bands[idx - 1] = (int64_t)(val * 100);
+                }
+
+            idx++;
+        }
+
+    return ret;
+}
 
 static inline constexpr const char *eq_options[][2] = {
     { "band-1", "Set 65Hz band gain" },
@@ -86,6 +179,7 @@ static inline constexpr const char *eq_options[][2] = {
     { "band-7", "Set 523Hz band gain" },
     { "band-8", "Set 740Hz band gain" },
     { "band-9", "Set 1047Hz band gain" },
+    { "volume", "Set filter volume" },
     { "band-10", "Set 1480Hz band gain" },
     { "band-11", "Set 2093Hz band gain" },
     { "band-12", "Set 2960Hz band gain" },
@@ -101,9 +195,11 @@ void
 setup_subcommand (dpp::slashcommand &slash)
 {
     constexpr size_t arg_size = (sizeof (eq_options) / sizeof (*eq_options));
-    constexpr int argpc = 18;
+    // 18 + volume
+    constexpr int argpc = 19;
 
-    for (size_t i = 0; i < (arg_size / argpc); i++)
+    constexpr size_t igoal = (arg_size / argpc);
+    for (size_t i = 0; i < igoal; i++)
         {
             dpp::command_option eqsubcmd (dpp::co_sub_command, "equalizer",
                                           "Apply 18 band equalizer");
@@ -111,17 +207,18 @@ setup_subcommand (dpp::slashcommand &slash)
             eqsubcmd.add_option (
                 dpp::command_option (dpp::co_string, "action",
                                      "What you wanna do?", false)
-                    .add_choice (dpp::command_option_choice ("Set", "set"))
-                    .add_choice (dpp::command_option_choice ("Balance", "balance"))
-                    .add_choice (dpp::command_option_choice ("Reset", "reset")));
+                    .add_choice (dpp::command_option_choice ("Set", "0"))
+                    .add_choice (dpp::command_option_choice ("Balance", "1"))
+                    .add_choice (dpp::command_option_choice ("Reset", "2")));
 
-            for (size_t j = i * argpc; j < ((i+1) * argpc) && j < arg_size; j++)
+            size_t jgoal = (i + 1) * argpc;
+            for (size_t j = i * argpc; j < jgoal && j < arg_size; j++)
                 {
                     eqsubcmd.add_option (
                         dpp::command_option (dpp::co_integer, eq_options[j][0],
                                              eq_options[j][1], false)
                             .set_min_value (1)
-                            .set_max_value (150));
+                            .set_max_value (200));
                 }
 
             slash.add_option (eqsubcmd);
@@ -130,33 +227,90 @@ setup_subcommand (dpp::slashcommand &slash)
 
 static inline constexpr const command_handlers_map_t action_handlers
     = { { "", show },
-        { "set", set },
-        { "balance", balance },
-        { "reset", reset },
+        { "0", set },
+        { "1", balance },
+        { "2", reset },
         { NULL, NULL } };
 
 void
 show (const dpp::slashcommand_t &event)
 {
-    event.reply ("show");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    if (ftp.guild_player->equalizer.empty ())
+        return event.reply ("Equalizer not set");
+
+    event.reply ("show: This command is still under construction...\nHere's "
+                 "what you want anyway: "
+                 + ftp.guild_player->equalizer);
 }
 
 void
 set (const dpp::slashcommand_t &event)
 {
-    event.reply ("set");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    // !TODO: parse current setting to preserve undefined arg value
+    equalizer_fx_t arg
+        = ftp.guild_player->equalizer.empty ()
+              ? create_equalizer_fx_t ()
+              : str_to_equalizer_fx_t (ftp.guild_player->equalizer);
+
+    get_inter_param (event, "volume", &arg.volume);
+
+    for (int i = 0; i < 18; i++)
+        {
+            get_inter_param (event, "band-" + std::to_string (i + 1),
+                             (arg.bands + i));
+        }
+
+    std::string arg_str = equalizer_fx_t_to_str (arg);
+
+    ftp.guild_player->set_equalizer = arg_str;
+
+    event.reply ("Setting equalizer with args: " + arg_str);
 }
 
 void
 balance (const dpp::slashcommand_t &event)
 {
-    event.reply ("balance");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    constexpr const char *new_equalizer
+        = "superequalizer=1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
+          "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
+          "17b=0.5:18b=0.5,volume=1"; // volume of 1 is 100%
+
+    ftp.guild_player->set_equalizer = new_equalizer;
+
+    event.reply ("Balancing...");
 }
 
 void
 reset (const dpp::slashcommand_t &event)
 {
-    event.reply ("reset");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    // const std::string new_equalizer
+    //     =
+    //     "superequalizer=1b=1:2b=1:3b=1:4b=1:5b=1:6b=1:7b=1:8b=1:9b=1:10b=1:"
+    //       "11b=1:12b=1:13b=1:14b=1:15b=1:16b=1:17b=1:18b=1";
+
+    ftp.guild_player->set_equalizer = "0"; // new_equalizer;
+
+    event.reply ("Resetting...");
 }
 
 void
@@ -174,3 +328,5 @@ slash_run (const dpp::slashcommand_t &event)
 } // filters
 } // command
 } // musicat
+
+// 1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b=0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:17b=0.5:18b=0.5

@@ -203,10 +203,10 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                                     = player->info_message;
 
                                 if (debug)
-                                    fprintf (stderr,
-                                             "[MANAGER::SEND_INFO_EMBED] New "
-                                             "message info: %ld\n",
-                                             player->info_message->id);
+                                    std::cerr
+                                        << "[MANAGER::SEND_INFO_EMBED] New "
+                                           "message info: "
+                                        << player->info_message->id << '\n';
                             }
                     }
             }
@@ -250,10 +250,10 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             mn.embeds.push_back (e);
 
             if (debug)
-                fprintf (stderr,
-                         "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
-                         "Edit: %ld %ld\n",
-                         mn.channel_id, mn.id);
+                std::cerr
+                    << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
+                       "Edit: "
+                    << mn.channel_id << " " << mn.id << '\n';
 
             if (event)
                 {
@@ -310,10 +310,9 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
     auto cid = player->info_message->channel_id;
 
     if (get_debug_state ())
-        fprintf (
-            stderr,
-            "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: %ld\n",
-            cid);
+        std::cerr
+            << "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: "
+            << cid << '\n';
 
     this->cluster->message_delete (
         mid, cid,
@@ -401,16 +400,16 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
             break;
         }
 
-    string eaname = u.nickname.length () ? u.nickname : uc->username;
+    string eaname = !u.nickname.empty () ? u.nickname : uc->username;
 
     dpp::embed_author ea;
     ea.name = eaname;
 
     auto ua = u.get_avatar_url (4096);
     auto uca = uc->get_avatar_url (4096);
-    if (ua.length ())
+    if (!ua.empty ())
         ea.icon_url = ua;
-    else if (uca.length ())
+    else if (!uca.empty ())
         ea.icon_url = uca;
 
     static const char *l_mode[]
@@ -457,8 +456,9 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                 && con->voiceclient->get_secs_remaining () > 0.05f)
                 {
                     has_p = true;
-                    if (ft.length ())
+                    if (!ft.empty ())
                         ft += " | ";
+
                     if (con->voiceclient->is_paused ())
                         ft += p_mode[0];
                     else
@@ -468,23 +468,27 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     if (force_playing_status && !has_p)
         {
-            if (ft.length ())
+            if (!ft.empty ())
                 ft += " | ";
+
             ft += p_mode[1];
         }
 
     if (guild_player->loop_mode)
         {
-            if (ft.length ())
+            if (!ft.empty ())
                 ft += " | ";
+
             ft += l_mode[guild_player->loop_mode - 1];
         }
 
     if (guild_player->auto_play)
         {
-            if (ft.length ())
+            if (!ft.empty ())
                 ft += " | ";
+
             ft += "Autoplay";
+
             if (guild_player->max_history_size)
                 ft += string (" (")
                       + std::to_string (guild_player->max_history_size) + ")";
@@ -492,19 +496,20 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     if (tinfo)
         {
-            if (ft.length ())
+            if (!ft.empty ())
                 ft += " | ";
+
             ft += string ("[") + std::to_string (track.info.average_bitrate ())
                   + "]";
         }
 
-    if (ft.length ())
+    if (!ft.empty ())
         e.set_footer (ft, "");
 
     if (color)
         e.set_color (color);
 
-    if (et.length ())
+    if (!et.empty ())
         e.set_image (et);
 
     /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock

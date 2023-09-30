@@ -20,7 +20,9 @@ fileHasError (const dpp::interaction_create_t &event,
                      "[download::slash_run ERROR] Read failure to "
                      "upload: '%s'\n",
                      fullpath.c_str ());
+
             event.edit_response ("`[ERROR]` Read failure");
+
             return true;
         }
 
@@ -30,7 +32,9 @@ fileHasError (const dpp::interaction_create_t &event,
                      "[download::slash_run ERROR] Invalid file "
                      "type to upload: '%d'\n",
                      filestat.st_mode);
+
             event.edit_response ("`[FATAL]` Invalid file type");
+
             return true;
         }
 
@@ -90,7 +94,7 @@ slash_run (const dpp::slashcommand_t &event)
     // path to file
     std::string fullpath = "";
 
-    if (filename.length ())
+    if (!filename.empty ())
         {
             auto find_result = play::find_track (
                 false, filename, player_manager, true, guild_id, true);
@@ -161,12 +165,6 @@ slash_run (const dpp::slashcommand_t &event)
                 return e_re_no_track (event);
 
             auto conn = event.from->get_voice (guild_id);
-            const bool debug = get_debug_state ();
-
-            if (debug)
-                fprintf (stderr,
-                         "[download::slash_run] Locked player::t_mutex: %ld\n",
-                         guild_player->guild_id);
 
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
@@ -177,11 +175,6 @@ slash_run (const dpp::slashcommand_t &event)
                         ->is_playing ()) // if there's no currently playing
                                          // track
                 {
-                    if (debug)
-                        fprintf (stderr,
-                                 "[download::slash_run] Should unlock "
-                                 "player::t_mutex: %ld\n",
-                                 guild_player->guild_id);
 
                     return e_re_no_track (event);
                 }

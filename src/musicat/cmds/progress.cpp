@@ -52,7 +52,7 @@ struct _processed_t
 _processed_t
 _create_processed_t (std::string error_msg = "")
 {
-    return { {}, 0, 0, error_msg.length () ? true : false, error_msg };
+    return { {}, 0, 0, !error_msg.empty (), error_msg };
 }
 
 _processed_t

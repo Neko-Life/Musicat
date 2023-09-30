@@ -20,6 +20,7 @@
 #include <cstring>
 #include <dpp/dpp.h>
 #include <libpq-fe.h>
+#include <memory>
 #include <mutex>
 #include <regex>
 #include <stdio.h>
@@ -37,7 +38,7 @@ using string = std::string;
 
 json sha_cfg;
 
-bool running = false;
+std::atomic<bool> running = false;
 bool debug = false;
 std::mutex main_mutex;
 
@@ -254,7 +255,7 @@ get_invite_oauth_base_url ()
 {
     const std::string sha_id_str = std::to_string (get_sha_id ());
 
-    if (!sha_id_str.length ())
+    if (sha_id_str.empty ())
         return "";
 
     return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
@@ -287,7 +288,7 @@ get_default_oauth_params ()
 std::string
 construct_permissions_param (const std::string permissions)
 {
-    if (!permissions.length ())
+    if (permissions.empty ())
         return "";
 
     return "&permissions=" + permissions;
@@ -296,7 +297,7 @@ construct_permissions_param (const std::string permissions)
 std::string
 construct_scopes_param (const std::string scopes)
 {
-    if (!scopes.length ())
+    if (scopes.empty ())
         return "";
 
     return "&scope=" + encodeURIComponent (scopes);
@@ -309,7 +310,7 @@ get_invite_link ()
         = construct_permissions_param (get_invite_permissions ())
           + construct_scopes_param (get_invite_scopes ());
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + append_str;
@@ -321,7 +322,7 @@ get_oauth_link ()
     const std::string append_str
         = construct_scopes_param (get_oauth_scopes ());
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + get_default_oauth_params ()
@@ -336,11 +337,11 @@ get_oauth_invite ()
 
     const std::string append_str
         = construct_permissions_param (get_invite_permissions ())
-          + ((invite_scopes.length () && oauth_scopes.length ())
+          + ((!invite_scopes.empty () && !oauth_scopes.empty ())
                  ? construct_scopes_param (invite_scopes + " " + oauth_scopes)
                  : "");
 
-    if (!append_str.length ())
+    if (append_str.empty ())
         return "";
 
     return get_invite_oauth_base_url () + get_default_oauth_params ()
@@ -415,8 +416,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     {
         if (!comp.value.index ())
             return;
+
         string q = std::get<string> (comp.value);
-        if (!q.length ())
+        if (q.empty ())
             return;
 
         sscanf (q.c_str (), "%ld", &pos);
@@ -430,8 +432,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         {
             if (!comp_2.value.index ())
                 return;
+
             string q = std::get<string> (comp_2.value);
-            if (!q.length ())
+            if (q.empty ())
                 return;
 
             sscanf (q.c_str (), "%ld", &arg_slip);
@@ -577,7 +580,7 @@ run (int argc, const char *argv[])
     set_debug_state (get_config_value<bool> ("DEBUG", false));
 
     const std::string sha_token = get_sha_token ();
-    if (!sha_token.length ())
+    if (sha_token.empty ())
         {
             fprintf (stderr, "[ERROR] No token provided\n");
             return -1;
@@ -668,8 +671,8 @@ run (int argc, const char *argv[])
         dpp::user me = from->creator->me;
 
         fprintf (stderr, "[READY] Shard: %d\n", from->shard_id);
-        fprintf (stderr, "Logged in as %s#%d (%ld)\n", me.username.c_str (),
-                 me.discriminator, me.id);
+        std::cerr << "Logged in as " << me.username << '#' << me.discriminator
+                  << " (" << me.id << ")\n";
     });
 
     client.on_message_create ([] (const dpp::message_create_t &event) {
@@ -683,17 +686,19 @@ run (int argc, const char *argv[])
         const size_t fsub = event.custom_id.find ("/");
         const string cmd = event.custom_id.substr (0, fsub);
 
-        if (!cmd.length ())
+        if (cmd.empty ())
             return;
 
         if (cmd == "page_queue")
             {
                 const string param = event.custom_id.substr (fsub + 1, 1);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (
                             stderr,
                             "[WARN] command \"page_queue\" have no param\n");
+
                         return;
                     }
                 // event.reply (dpp::ir_deferred_update_message, "");
@@ -704,7 +709,8 @@ run (int argc, const char *argv[])
             {
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (stderr,
                                  "[WARN] command \"modal_p\" have no param\n");
@@ -733,7 +739,8 @@ run (int argc, const char *argv[])
             {
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
-                if (!param.length ())
+
+                if (param.empty ())
                     {
                         fprintf (
                             stderr,
@@ -758,7 +765,7 @@ run (int argc, const char *argv[])
                 const string param
                     = event.custom_id.substr (fsub + 1, string::npos);
 
-                if (!param.length ())
+                if (param.empty ())
                     {
                         fprintf (stderr,
                                  "[WARN] command \"playnow\" have no param\n");
@@ -804,8 +811,8 @@ run (int argc, const char *argv[])
 
     client.on_form_submit ([] (const dpp::form_submit_t &event) {
         if (get_debug_state ())
-            fprintf (stderr, "[FORM] %s %ld\n", event.custom_id.c_str (),
-                     event.command.message_id);
+            std::cerr << "[FORM] " << event.custom_id << ' '
+                      << event.command.message_id << "\n";
 
         if (event.custom_id == "modal_p")
             {
@@ -862,7 +869,7 @@ run (int argc, const char *argv[])
                 eopts = sub.options;
             }
 
-        if (opt.length ())
+        if (!opt.empty ())
             {
                 if (cmd == "play")
                     {
@@ -923,12 +930,9 @@ run (int argc, const char *argv[])
         if (player_manager->has_ignore_marker (event.voice_client->server_id))
             {
                 if (get_debug_state ())
-                    fprintf (
-                        stderr,
-                        "[PLAYER_MANAGER] Meta \"%s\" is ignored in guild "
-                        "%ld\n",
-                        event.track_meta.c_str (),
-                        event.voice_client->server_id);
+                    std::cerr << "[PLAYER_MANAGER] Meta \"" << event.track_meta
+                              << "\" is ignored in guild "
+                              << event.voice_client->server_id << "\n";
 
                 return;
             }
@@ -990,8 +994,7 @@ run (int argc, const char *argv[])
                              event.track_meta.c_str ());
 
                     if (event.voice_client)
-                        fprintf (stderr, " in %ld",
-                                 event.voice_client->server_id);
+                        std::cerr << " in " << event.voice_client->server_id;
 
                     fprintf (stderr, "\n");
                 }
@@ -1056,8 +1059,8 @@ run (int argc, const char *argv[])
 
                         // rejoin channel
                         if (debug)
-                            fprintf (stderr, "[update_rtc_region] %ld\n",
-                                     cached->id);
+                            std::cerr << "[update_rtc_region] " << cached->id
+                                      << '\n';
 
                         auto *from = event.from;
                         dpp::snowflake channel_id = event.updated->id;
@@ -1095,7 +1098,7 @@ run (int argc, const char *argv[])
 
         if (get_debug_state ())
             fprintf (stderr,
-                     "[on_voice_buffer_send] size current_byte: %ld %ld\n",
+                     "[on_voice_buffer_send] size current_byte: %d %ld\n",
                      event.buffer_size, player->current_track.current_byte);
     });
 
@@ -1177,7 +1180,6 @@ run (int argc, const char *argv[])
     client.shutdown ();
 
     client_ptr = nullptr;
-    player_manager = nullptr;
 
     thread_manager::join_all ();
     database::shutdown ();

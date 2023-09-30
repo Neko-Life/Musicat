@@ -58,11 +58,11 @@ _util_deque_find (std::deque<T> *_deq, T _find)
     return i;
 }
 
-size_t
+int
 _util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
 {
-    size_t idx = -1;
-    size_t count = 0;
+    int idx = -1;
+    int count = 0;
     for (auto i = deq.begin (); i != deq.end ();)
         {
             if (*i == val)
@@ -81,8 +81,8 @@ _util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
     return idx;
 }
 
-size_t _remove_nonce (const std::string &nonce);
-size_t _remove_oauth_state (const std::string &state);
+int _remove_nonce (const std::string &nonce);
+int _remove_oauth_state (const std::string &state);
 
 void
 _util_create_remove_thread (
@@ -122,7 +122,7 @@ _generate_nonce ()
     return nonce;
 }
 
-size_t
+int
 _remove_nonce (const std::string &nonce)
 {
     return _util_remove_string_deq (nonce, _nonces);
@@ -159,7 +159,7 @@ _generate_oauth_state ()
     return state;
 }
 
-size_t
+int
 _remove_oauth_state (const std::string &state)
 {
     return _util_remove_string_deq (state, _oauth_states);
@@ -302,14 +302,14 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                             }
 
                         std::string redirect = data.get<std::string> ();
-                        if (!redirect.length ())
+                        if (redirect.empty ())
                             {
                                 _set_resd_error (resd, "Bad request");
                                 break;
                             }
 
                         std::string oauth = get_oauth_link ();
-                        if (!oauth.length ())
+                        if (oauth.empty ())
                             {
                                 _set_resd_error (resd, "No OAuth configured");
                                 break;
@@ -328,14 +328,14 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                             }
 
                         std::string redirect = data.get<std::string> ();
-                        if (!redirect.length ())
+                        if (redirect.empty ())
                             {
                                 _set_resd_error (resd, "Bad request");
                                 break;
                             }
 
                         std::string oauth = get_oauth_invite ();
-                        if (!oauth.length ())
+                        if (oauth.empty ())
                             {
                                 _set_resd_error (resd, "No OAuth configured");
                                 break;
@@ -398,7 +398,7 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
             const std::string code = d.value ("code", "");
 
             if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
-                || !code.length ())
+                || code.empty ())
                 {
                     _set_resd_error (resd, "Invalid operation");
                     break;
@@ -414,7 +414,7 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
             std::string secret = get_sha_secret ();
 
-            if (!secret.length ())
+            if (secret.empty ())
                 {
                     _set_resd_error (resd, "No OAuth configured");
                     break;
@@ -621,7 +621,7 @@ run ()
                                std::string (msg).c_str ());
                   }
 
-              if (!msg.length ())
+              if (msg.empty ())
                   return;
 
               if (msg == "0")
@@ -656,7 +656,7 @@ run ()
                       const std::string payload_type
                           = json_payload.value ("type", "");
 
-                      if (payload_type.length ())
+                      if (!payload_type.empty ())
                           {
                               nlohmann::json d = json_payload["d"];
 
@@ -786,7 +786,7 @@ run ()
     // serve webapp
     /* !TODO: this is not working, need fix
     std::string webapp_dir = get_webapp_dir ();
-    if (webapp_dir.length ()) {
+    if (!webapp_dir.empty ()) {
         AsyncFileStreamer asyncFileStreamer(webapp_dir);
 
         app.get("/*", [&asyncFileStreamer](auto *res, auto *req) {

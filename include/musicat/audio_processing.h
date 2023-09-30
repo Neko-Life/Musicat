@@ -2,17 +2,41 @@
 #define MUSICAT_AUDIO_PROCESSING_H
 
 #include "musicat/child/command.h"
+#include "musicat/config.h"
 #include "musicat/player.h"
 #include <fcntl.h>
+#include <memory>
 #include <stdio.h>
+
+#ifdef MUSICAT_USE_PCM
+
+#define USING_FORMAT FORMAT_USING_PCM
+#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_PCM
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_PCM
+
+#else
+
+#define USING_FORMAT FORMAT_USING_OPUS
+#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_OPUS
+#define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
+
+#endif
+
+#define FORMAT_USING_OPUS "-f", "opus", "-b:a", "128k"
+#define FORMAT_USING_PCM "-f", "s16le"
+
+#define OUT_CMD "pipe:1"
+
+inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
+inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
+
+inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
+inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUS = BUFSIZ / 2;
 
 namespace musicat
 {
 namespace audio_processing
 {
-inline constexpr size_t processing_buffer_size_pcm = BUFSIZ * 8;
-inline constexpr size_t processing_buffer_size_opus = BUFSIZ / 2;
-
 struct processor_states_t
 {
     // temp vars to create pipes
@@ -42,6 +66,18 @@ struct track_data_t
     dpp::discord_voice_client *vclient;
 };
 
+// be sure to update parse_helper_chain_option below
+// when updating this
+struct helper_chain_option_t
+{
+    bool debug;
+    std::string raw_args;
+    bool parsed;
+
+    // !TODO: to be implemented
+    // std::string i18_band_equalizer;
+};
+
 // update create_options impl below when changing this struct
 struct processor_options_t
 {
@@ -55,14 +91,63 @@ struct processor_options_t
     int volume;
     std::string id;
     std::string guild_id;
+
+    // chain of effects
+    std::deque<helper_chain_option_t> helper_chain;
 };
 
 processor_options_t create_options ();
 
 processor_options_t copy_options (processor_options_t &opts);
 
-// this should be called
-// inside the streaming thread
+/*
+@hello@@t@
+0123456789
+0+1,6;7+1,9
+1,6-1;8,9-8
+1, 5 ;8, 1
+*/
+
+static inline int
+parse_helper_chain_option (
+    const child::command::command_options_t &command_options,
+    processor_options_t &processor_options)
+{
+    size_t co_length = command_options.helper_chain.length ();
+    size_t start_d = 0;
+    for (size_t i = 0; i < co_length; i++)
+        {
+            if (command_options.helper_chain[i] != '@')
+                continue;
+
+            if (start_d == 0)
+                {
+                    start_d = i + 1;
+                    continue;
+                }
+
+            int64_t res = i - start_d;
+
+            if (res <= 0)
+                {
+                    start_d = 0;
+                    continue;
+                }
+
+            processor_options.helper_chain.push_back (
+                { command_options.debug,
+                  command_options.helper_chain.substr (start_d, res), false });
+
+            start_d = 0;
+        }
+
+    return 0;
+}
+
+ssize_t write_stdout (uint8_t *buffer, ssize_t *size,
+                      bool no_effect_chain = false);
+
+// this should be called inside the streaming thread
 // returns 1 if vclient terminating or null
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient,
@@ -70,7 +155,6 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
                         bool no_wait = false);
 
 // should be run as a child process
-// !TODO: adjust signature to actual needed data
 run_processor_error_t
 run_processor (child::command::command_options_t &process_options);
 

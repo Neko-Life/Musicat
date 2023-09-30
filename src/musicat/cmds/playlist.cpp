@@ -7,6 +7,7 @@
 #include "musicat/util.h"
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
+#include <memory>
 
 namespace musicat
 {
@@ -176,7 +177,9 @@ slash_run (const dpp::slashcommand_t &event)
 
     event.thinking ();
 
-    const bool view = event.command.get_command_interaction ().options.at (0).name == "view";
+    const bool view
+        = event.command.get_command_interaction ().options.at (0).name
+          == "view";
 
     std::pair<PGresult *, ExecStatusType> res = database::get_user_playlist (
         event.command.usr.id, p_id, database::gup_raw_only);
@@ -407,8 +410,8 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (inter.options.begin () == inter.options.end ())
         {
-            fprintf (stderr,
-                     "[command::playlist::slash_run ERROR] !!! No options for command 'playlist' !!!\n");
+            fprintf (stderr, "[command::playlist::slash_run ERROR] !!! No "
+                             "options for command 'playlist' !!!\n");
 
             event.reply ("I don't have that command, how'd you get that?? "
                          "Please report this to my developer");

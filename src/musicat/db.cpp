@@ -201,8 +201,9 @@ reconnect (const bool &force, const std::string &_conninfo)
 {
     if (conn == nullptr || force)
         {
-            if (_conninfo.length ())
+            if (!_conninfo.empty ())
                 conninfo = _conninfo;
+
             shutdown ();
 
             return init (conninfo);

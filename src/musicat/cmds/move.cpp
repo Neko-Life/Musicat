@@ -33,12 +33,6 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    const bool debug = get_debug_state ();
-
-    if (debug)
-        fprintf (stderr, "[move::slash_run] Locked player::t_mutex: %ld\n",
-                 guild_player->guild_id);
-
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
     size_t queue_siz = guild_player->queue.size ();
@@ -46,11 +40,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (2 > max_to)
         {
             event.reply ("No moveable track in the queue");
-            if (debug)
-                fprintf (
-                    stderr,
-                    "[move::slash_run] Should unlock player::t_mutex: %ld\n",
-                    guild_player->guild_id);
+
             return;
         }
 
@@ -98,11 +88,6 @@ slash_run (const dpp::slashcommand_t &event)
 
     event.reply (std::string ("Moved ") + track.title () + " to position "
                  + std::to_string (to));
-
-    if (debug)
-        fprintf (stderr,
-                 "[move::slash_run] Should unlock player::t_mutex: %ld\n",
-                 guild_player->guild_id);
 }
 } // move
 } // command

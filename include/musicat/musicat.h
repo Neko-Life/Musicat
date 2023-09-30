@@ -4,6 +4,7 @@
 #include "musicat/player.h"
 #include "nekos-best++.hpp"
 #include <dpp/dpp.h>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -198,7 +199,7 @@ void
 get_inter_param (const E &event, std::string param_name, T *param)
 {
     auto p = event.get_parameter (param_name);
-    if (p.index ())
+    if (std::holds_alternative<T> (p))
         *param = std::get<T> (p);
 }
 
@@ -306,6 +307,8 @@ int vcs_setting_handle_disconnected (const dpp::channel *channel);
 dpp::channel *vcs_setting_get_cache (dpp::snowflake channel_id);
 
 bool is_voice_channel (dpp::channel_type channel_type);
+
+void close_valid_fd (int *i);
 
 } // musicat
 

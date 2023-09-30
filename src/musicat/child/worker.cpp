@@ -3,6 +3,7 @@
 #include "musicat/child/command.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker_command.h"
+#include "musicat/musicat.h"
 #include <condition_variable>
 #include <deque>
 #include <map>
@@ -20,7 +21,8 @@ namespace worker
 {
 // !TODO: message_queue
 
-int read_fd, write_fd;
+static int read_fd = -1;
+static int write_fd = -1;
 
 int
 execute (command::command_options_t &options)
@@ -90,6 +92,19 @@ set_fds (int r, int w)
 {
     read_fd = r;
     write_fd = w;
+}
+
+void
+close_fds ()
+{
+    close_valid_fd (&read_fd);
+    close_valid_fd (&write_fd);
+}
+
+void
+handle_worker_fork ()
+{
+    close_fds ();
 }
 
 void

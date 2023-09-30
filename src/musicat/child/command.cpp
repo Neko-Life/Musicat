@@ -9,6 +9,8 @@ namespace musicat
 {
 namespace child
 {
+// this namespace is mostly still executed in main program/thread
+// with exception of some util function
 namespace command
 {
 
@@ -89,6 +91,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.volume = atoi (value.c_str ());
         }
+    else if (opt == command_options_keys_t.helper_chain)
+        {
+            options.helper_chain += '@' + value + '@';
+        }
 
     return 0;
 }
@@ -148,7 +154,9 @@ run_command_thread ()
         size_t read_size = 0;
 
         while (get_running_state ()
-               && ((read_size = read (pm_read_fd, read_buf, CMD_BUFSIZE)) > 0))
+               && ((read_size
+                    = read (*get_parent_read_fd (), read_buf, CMD_BUFSIZE))
+                   > 0))
             {
                 read_buf[CMD_BUFSIZE] = '\0';
 
@@ -320,7 +328,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
             temp_str += c;
         }
 
-    if (temp_str.length ())
+    if (!temp_str.empty ())
         {
             std::string opt_str
                 = command::sanitize_command_key_value (temp_str);

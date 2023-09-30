@@ -139,7 +139,8 @@ has_listener_fetch (dpp::cluster *client,
                             continue;
                         }
                 }
-            else */ if (u->is_bot ())
+            else */
+            if (u->is_bot ())
                 continue;
 
             return true;
@@ -301,4 +302,16 @@ join_voice (dpp::discord_client *from,
     else
         return 4;
 }
+
+void
+close_valid_fd (int *i)
+{
+    if (*i == -1)
+        return;
+
+    close (*i);
+
+    *i = -1;
+}
+
 } // musicat

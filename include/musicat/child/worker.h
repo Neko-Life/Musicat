@@ -10,13 +10,17 @@ namespace child
 namespace worker
 {
 
-static const struct
+inline constexpr const struct
 {
     const int SUCCESS = 0;
     const int ERR_SLAVE_EXIST = 875;
 } ready_status_t;
 
 void set_fds (int r, int w);
+
+void close_fds ();
+
+void handle_worker_fork ();
 
 void run ();
 

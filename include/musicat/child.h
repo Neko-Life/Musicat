@@ -7,8 +7,6 @@ namespace musicat
 {
 namespace child
 {
-extern int pm_write_fd, pm_read_fd;
-
 enum child_error_t
 {
     SUCCESS,
@@ -18,7 +16,8 @@ enum child_error_t
 
 int init ();
 
-int get_parent_write_fd ();
+int *get_parent_write_fd ();
+int *get_parent_read_fd ();
 
 void shutdown ();
 

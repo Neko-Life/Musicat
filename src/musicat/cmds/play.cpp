@@ -8,6 +8,7 @@
 #include "musicat/util.h"
 #include "yt-search/yt-playlist.h"
 #include "yt-search/yt-search.h"
+#include <memory>
 #include <regex>
 #include <vector>
 
@@ -26,7 +27,7 @@ query (const dpp::autocomplete_t &event, std::string param,
 
     std::vector<std::pair<std::string, std::string> > avail = {};
 
-    const bool no_len = !param.length ();
+    const bool no_len = param.empty ();
 
     std::vector<std::string> get
         = player_manager->get_available_tracks (no_len ? 25U : 0U);
@@ -140,10 +141,10 @@ slash_run (const dpp::slashcommand_t &event)
             if (from->connecting_voice_channels.find (guild_id)
                 != from->connecting_voice_channels.end ())
                 {
-                    fprintf (stderr,
-                             "Disconnecting as not in vc but connected state "
-                             "still in cache: %ld\n",
-                             guild_id);
+                    std::cerr
+                        << "Disconnecting as not in vc but connected state "
+                           "still in cache: "
+                        << guild_id << '\n';
 
                     from->disconnect_voice (guild_id);
                 }
@@ -154,10 +155,9 @@ slash_run (const dpp::slashcommand_t &event)
     if (vcclient_cont && v && v->channel_id != vcclient.first->id)
         {
             vcclient_cont = false;
-            fprintf (stderr,
-                     "Disconnecting as it seems I just got moved to "
-                     "different vc and connection not updated yet: %ld\n",
-                     guild_id);
+            std::cerr << "Disconnecting as it seems I just got moved to "
+                         "different vc and connection not updated yet: "
+                      << guild_id << "\n";
 
             player_manager->set_disconnecting (guild_id, vcclient.first->id);
 
@@ -174,11 +174,11 @@ slash_run (const dpp::slashcommand_t &event)
 
             if (v)
                 {
-                    fprintf (
-                        stderr,
-                        "Disconnecting as no member in vc: %ld connecting "
-                        "to %ld\n",
-                        guild_id, vcuser.first->id);
+                    std::cerr
+                        << "Disconnecting as no member in vc: " << guild_id
+                        << " connecting "
+                           "to "
+                        << vcuser.first->id << '\n';
 
                     if (v && v->voiceclient
                         && v->voiceclient->get_secs_remaining () > 0.05f)
@@ -199,7 +199,7 @@ slash_run (const dpp::slashcommand_t &event)
         }
 
     bool resumed = false;
-    const bool no_query = arg_query.length () == 0;
+    const bool no_query = arg_query.empty ();
 
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
@@ -217,11 +217,6 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_player = player_manager->get_player (event.command.guild_id);
     if (guild_player)
         {
-            if (debug)
-                fprintf (stderr,
-                         "[play::slash_run] Locked player::t_mutex: %ld\n",
-                         guild_player->guild_id);
-
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
             if (v && v->voiceclient && guild_player->queue.size ()
                 && !v->voiceclient->is_paused ()
@@ -231,12 +226,6 @@ slash_run (const dpp::slashcommand_t &event)
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
-
-            if (debug)
-                fprintf (
-                    stderr,
-                    "[play::slash_run] Should unlock player::t_mutex: %ld\n",
-                    guild_player->guild_id);
         }
 
     if (resumed)
@@ -267,8 +256,7 @@ find_track (bool playlist, std::string &arg_query,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
-    bool debug = get_debug_state ();
-    bool has_cache_id = cache_id.length ();
+    bool has_cache_id = !cache_id.empty ();
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
@@ -383,12 +371,6 @@ find_track (bool playlist, std::string &arg_query,
                     break;
                 }
 
-            if (debug)
-                fprintf (
-                    stderr,
-                    "[play::find_track] Should unlock player::t_mutex: %ld\n",
-                    guild_player->guild_id);
-
             if (result.raw.is_null ())
                 {
                     // invalidate cache if Id provided
@@ -410,7 +392,7 @@ get_filename_from_result (yt_search::YTrack &result)
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
-    if (!sid.length () /* || !st.length()*/)
+    if (sid.empty () /* || !st.length()*/)
         return "";
 
     return std::regex_replace (
@@ -423,7 +405,7 @@ track_exist (const std::string &fname, const std::string &url,
              player::player_manager_ptr player_manager, bool from_interaction,
              dpp::snowflake guild_id, bool no_download)
 {
-    if (!fname.length ())
+    if (fname.empty ())
         return { false, 2 };
 
     bool dling = false;

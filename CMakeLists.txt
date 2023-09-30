@@ -10,7 +10,7 @@ option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
 option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
-set(MUSICAT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic)
+set(MUSICAT_COMPILE_OPTIONS ${MUSICAT_COMPILE_OPTIONS} -Wall -Wextra -Wpedantic)
 
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
@@ -36,6 +36,7 @@ add_executable(Shasha
 	include/musicat/child.h
 	include/musicat/function_macros.h
 	include/musicat/search-cache.h
+	include/musicat/helper_processor.h
 	include/musicat/child/worker.h
 	include/musicat/child/command.h
 	include/musicat/child/worker_command.h
@@ -70,6 +71,7 @@ add_executable(Shasha
 	src/musicat/command.cpp
 	src/musicat/child.cpp
 	src/musicat/search-cache.cpp
+	src/musicat/helper_processor.cpp
 	src/musicat/child/worker.cpp
 	src/musicat/child/command.cpp
 	src/musicat/child/worker_command.cpp

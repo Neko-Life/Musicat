@@ -24,10 +24,9 @@ dispatch (std::thread &t)
 {
     if (!get_running_state ())
         {
-            fprintf (stderr,
-                     "[ERROR] Shouldn't spawn new thread when exiting, "
-                     "detaching this one while you fix the code! %ld\n",
-                     t.get_id ());
+            std::cerr << "[ERROR] Shouldn't spawn new thread when exiting, "
+                         "detaching this one while you fix the code! "
+                      << t.get_id () << '\n';
 
             t.detach ();
 
@@ -39,7 +38,7 @@ dispatch (std::thread &t)
 
     if (debug)
         {
-            fprintf (stderr, "[INFO] New thread spawned: %ld\n", t.get_id ());
+            std::cerr << "[INFO] New thread spawned: " << t.get_id () << "\n";
         }
 
     thread_data td = { std::move (t), false };
@@ -79,7 +78,7 @@ set_done ()
 
     if (get_debug_state ())
         {
-            fprintf (stderr, "[INFO] Thread done: %ld\n", id);
+            std::cerr << "[INFO] Thread done: " << id << "\n";
             print_total_thread ();
         }
 }

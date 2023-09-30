@@ -3,6 +3,7 @@
 #include "musicat/thread_manager.h"
 #include <chrono>
 #include <dirent.h>
+#include <memory>
 #include <regex>
 #include <sys/stat.h>
 #include <thread>
@@ -160,11 +161,6 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     guild_player->reset_shifted ();
 
-    const bool debug = get_debug_state ();
-    if (debug)
-        fprintf (stderr, "[Manager::skip] Locked player::t_mutex: %ld\n",
-                 guild_player->guild_id);
-
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
     try
         {
@@ -250,11 +246,6 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     if (remove && !guild_player->stopped && v && v->voiceclient)
         v->voiceclient->insert_marker ("rm");
 
-    if (debug)
-        fprintf (stderr,
-                 "[Manager::skip] Should unlock player::t_mutex: %ld\n",
-                 guild_player->guild_id);
-
     return { removed_tracks, a.second };
 }
 
@@ -263,7 +254,7 @@ Manager::download (const string &fname, const string &url,
                    const dpp::snowflake &guild_id)
 {
     const string yt_dlp = get_ytdlp_exe ();
-    if (!yt_dlp.length ())
+    if (yt_dlp.empty ())
         {
             fprintf (stderr,
                      "[ERROR Manager::download] yt-dlp executable isn't "
@@ -350,10 +341,9 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     auto voice_channel_id = v->channel_id;
 
                     if (debug)
-                        fprintf (
-                            stderr,
-                            "[Manager::play] Attempt to stream: %ld %ld\n",
-                            server_id, voice_channel_id);
+                        std::cerr << "[Manager::play] Attempt to stream: "
+                                  << server_id << ' ' << voice_channel_id
+                                  << '\n';
 
                     try
                         {
@@ -386,7 +376,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                                     else if (e == 1)
                                         msg = "No connection";
 
-                                    if (msg.length ())
+                                    if (!msg.empty ())
                                         {
                                             const dpp::message m (channel_id,
                                                                   msg);

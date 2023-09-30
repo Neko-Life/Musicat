@@ -6,6 +6,7 @@
 #include "musicat/util.h"
 #include <dpp/dpp.h>
 #include <map>
+#include <memory>
 #include <stdio.h>
 #include <string>
 #include <variant>
@@ -63,10 +64,12 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
             fprintf (stderr,
                      "[ERROR PAGINATE EDIT_CB]:\nmes: %s\ncode: %d\nerr:\n",
                      cb.get_error ().message.c_str (), cb.get_error ().code);
+
             for (const auto &i : cb.get_error ().errors)
                 fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
                          i.code.c_str (), i.field.c_str (), i.object.c_str (),
                          i.reason.c_str ());
+
             return;
         }
     if (new_current == std::string::npos)
@@ -271,19 +274,20 @@ get_inter_reply_cb (const dpp::interaction_create_t &event, bool paginate,
 
                     const bool debug = get_debug_state ();
                     if (debug)
-                        fprintf (stderr,
-                                 "[PAGINATE GET_INTER_REPLY_CB] PAGINATED ID: "
-                                 "%ld\nLEN: %ld\n",
-                                 m->id, paginated_messages.size ());
+                        std::cerr
+                            << "[PAGINATE GET_INTER_REPLY_CB] PAGINATED ID: "
+                            << m->id << "\nLEN: " << paginated_messages.size ()
+                            << '\n';
 
                     if (has_v)
                         {
                             storage::set (m->id, storage_data);
                             if (debug)
-                                fprintf (stderr,
-                                         "[PAGINATE GET_INTER_REPLY_CB] "
-                                         "STORAGE ID: %ld\nLEN: %ld\n",
-                                         m->id, storage::size ());
+                                std::cerr << "[PAGINATE GET_INTER_REPLY_CB] "
+                                             "STORAGE ID: "
+                                          << m->id
+                                          << "\nLEN: " << storage::size ()
+                                          << '\n';
                         }
                 });
             }
@@ -351,8 +355,8 @@ gc (bool clear)
             if (clear || (t - (time_t)L) > ONE_HOUR_SECOND)
                 {
                     if (debug)
-                        fprintf (stderr, "Deleting %ld: %ld\n", ++d,
-                                 i->second.message->id);
+                        std::cerr << "Deleting " << ++d << ": "
+                                  << i->second.message->id << '\n';
 
                     storage::remove (i->first);
                     i = paginated_messages.erase (i);
@@ -419,14 +423,17 @@ _construct_desc (std::deque<player::MCTrack> &queue,
 
             if (totald)
                 fot += format_duration (totald);
+
             if (qs)
                 {
-                    if (fot.length ())
+                    if (!fot.empty ())
                         fot += " | ";
+
                     fot += std::to_string (qs) + " track"
                            + (qs > 1 ? "s" : "");
                 }
-            if (fot.length ())
+
+            if (!fot.empty ())
                 embed.set_footer (fot, "");
 
             embeds.emplace_back (embed);

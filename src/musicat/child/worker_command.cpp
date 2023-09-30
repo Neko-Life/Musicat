@@ -1,4 +1,5 @@
 #include "musicat/audio_processing.h"
+#include "musicat/child.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker.h"
 #include <sys/stat.h>
@@ -73,6 +74,8 @@ create_audio_processor (command::command_options_t &options)
 
     if (status == 0)
         {
+            worker::handle_worker_fork ();
+
             close (read_fd);
 
             options.child_write_fd = write_fd;
