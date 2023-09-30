@@ -149,9 +149,10 @@ superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.
             auto i = str.find (search);
             auto e = str.find (":", i + 1);
 
-            auto t = i + strlen (search) - 1;
+            auto t = i + strlen (search);
 
-            float val = std::stof (str.substr (t, e - t));
+            float val = std::stof (
+                str.substr (t, e == std::string::npos ? e : e - t));
 
             if (!idx)
                 {
@@ -234,7 +235,17 @@ static inline constexpr const command_handlers_map_t action_handlers
 void
 show (const dpp::slashcommand_t &event)
 {
-    event.reply ("show: This command is still under construction...");
+    filters_perquisite_t ftp;
+
+    if (perquisite (event, &ftp))
+        return;
+
+    if (ftp.guild_player->equalizer.empty ())
+        return event.reply ("Equalizer not set");
+
+    event.reply ("show: This command is still under construction...\nHere's "
+                 "what you want anyway: "
+                 + ftp.guild_player->equalizer);
 }
 
 void
