@@ -81,12 +81,21 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
     size_t siz = 0;
     {
         if (track.info.raw.is_null ())
-            {
-                track.info.raw = yt_search::get_track_info (track.url ())
-                                     .audio_info (251)
-                                     .raw;
-                track.thumbnails ();
-            }
+            try
+                {
+                    track.info.raw = yt_search::get_track_info (track.url ())
+                                         .audio_info (251)
+                                         .raw;
+
+                    track.thumbnails ();
+                }
+            catch (std::exception &e)
+                {
+                    std::cerr << "[Player::add_track ERROR] " << this->guild_id
+                              << ':' << e.what () << '\n';
+
+                    return *this;
+                }
 
         siz = this->queue.size ();
 

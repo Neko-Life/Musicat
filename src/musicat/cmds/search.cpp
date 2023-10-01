@@ -79,8 +79,22 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "query", &query);
 
     event.thinking ();
+    yt_search::YSearchResult res;
 
-    auto res = yt_search::search (query);
+    try
+        {
+            res = yt_search::search (query);
+        }
+    catch (std::exception &e)
+        {
+            std::cerr << "[command::search::slash_run ERROR] "
+                      << event.command.guild_id << ':' << e.what () << '\n';
+
+            event.edit_response ("`[FATAL]` Error while searching for query");
+
+            return;
+        }
+
     auto tracks = res.trackResults ();
 
     size_t pl_siz = tracks.size ();

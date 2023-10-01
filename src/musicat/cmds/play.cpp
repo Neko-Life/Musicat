@@ -294,20 +294,31 @@ find_track (bool playlist, std::string &arg_query,
     // cache not found or no cache Id provided, lets search
     if (!searches_size)
         {
-            searches = playlist
-                           ? yt_search::get_playlist (arg_query).entries ()
-                           : (search_result = yt_search::search (arg_query))
-                                 .trackResults ();
+            try
+                {
+                    searches
+                        = playlist
+                              ? yt_search::get_playlist (arg_query).entries ()
+                              : (search_result = yt_search::search (arg_query))
+                                    .trackResults ();
 
-            searches_size = searches.size ();
+                    searches_size = searches.size ();
 
-            if (!playlist && !searches_size)
-                // desperate to get a track
-                // get_playlist already do this if no track from default
-                // result found
-                searches = search_result.sideTrackPlaylist ();
+                    if (!playlist && !searches_size)
+                        // desperate to get a track
+                        // get_playlist already do this if no track from
+                        // default result found
+                        searches = search_result.sideTrackPlaylist ();
 
-            searched = true;
+                    searched = true;
+                }
+            catch (std::exception &e)
+                {
+                    std::cerr << "[command::play::find_track ERROR] "
+                              << guild_id << ':' << e.what () << '\n';
+
+                    return { {}, 1 };
+                }
         }
 
     searches_size = searches.size ();
