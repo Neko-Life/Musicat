@@ -194,13 +194,23 @@ bool
 has_listener_fetch (dpp::cluster *client,
                     std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
 
+/**
+ * @brief Get interaction argument param
+ * @return int -1 if not found, 0 if found and output set
+ */
 template <typename T, typename E>
-void
+int
 get_inter_param (const E &event, std::string param_name, T *param)
 {
     auto p = event.get_parameter (param_name);
+
     if (std::holds_alternative<T> (p))
-        *param = std::get<T> (p);
+        {
+            *param = std::get<T> (p);
+            return 0;
+        }
+
+    return -1;
 }
 
 class exception : std::exception
