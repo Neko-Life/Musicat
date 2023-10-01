@@ -91,16 +91,18 @@ create_equalizer_fx_t ()
                50, 50 } };
 }
 
+constexpr int64_t percent_to_dec_base = 100;
+
 std::string
 band_to_str (float v)
 {
-    return std::to_string (v / (float)100);
+    return std::to_string (v / (float)percent_to_dec_base);
 }
 
 std::string
 vol_to_str (float v)
 {
-    return std::to_string (v / (float)100);
+    return std::to_string (v / (float)percent_to_dec_base);
 }
 
 std::string
@@ -156,11 +158,11 @@ superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.
 
             if (!idx)
                 {
-                    ret.volume = (int64_t)(val * 50);
+                    ret.volume = (int64_t)(val * percent_to_dec_base);
                 }
             else
                 {
-                    ret.bands[idx - 1] = (int64_t)(val * 100);
+                    ret.bands[idx - 1] = (int64_t)(val * percent_to_dec_base);
                 }
 
             idx++;
@@ -168,6 +170,13 @@ superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.
 
     return ret;
 }
+
+static inline constexpr const struct
+{
+    const char *set = "0";
+    const char *balance = "1";
+    const char *reset = "2";
+} action_t_e;
 
 static inline constexpr const char *eq_options[][2] = {
     { "band-1", "Set 65Hz band gain" },
@@ -191,14 +200,22 @@ static inline constexpr const char *eq_options[][2] = {
     { "band-18", "Set 20000Hz band gain" },
 };
 
+static inline constexpr const size_t eq_options_size
+    = (sizeof (eq_options) / sizeof (*eq_options));
+
+static inline constexpr const int min_num_opt_val = 1;
+static inline constexpr const int max_num_opt_val = 200;
+
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
-    constexpr size_t arg_size = (sizeof (eq_options) / sizeof (*eq_options));
-    // 18 + volume
-    constexpr int argpc = 19;
+    // this code was made under the impression that slash command can't have
+    // 18+ arguments and so implemented in the code to "divide" the arguments
+    // into few command, which adjusted after the above was proved to be false,
+    // refactor this sometime
+    constexpr int argpc = eq_options_size;
 
-    constexpr size_t igoal = (arg_size / argpc);
+    constexpr size_t igoal = (eq_options_size / argpc);
     for (size_t i = 0; i < igoal; i++)
         {
             dpp::command_option eqsubcmd (dpp::co_sub_command, "equalizer",
@@ -207,18 +224,21 @@ setup_subcommand (dpp::slashcommand &slash)
             eqsubcmd.add_option (
                 dpp::command_option (dpp::co_string, "action",
                                      "What you wanna do?", false)
-                    .add_choice (dpp::command_option_choice ("Set", "0"))
-                    .add_choice (dpp::command_option_choice ("Balance", "1"))
-                    .add_choice (dpp::command_option_choice ("Reset", "2")));
+                    .add_choice (
+                        dpp::command_option_choice ("Set", action_t_e.set))
+                    .add_choice (dpp::command_option_choice (
+                        "Balance", action_t_e.balance))
+                    .add_choice (dpp::command_option_choice (
+                        "Reset", action_t_e.reset)));
 
             size_t jgoal = (i + 1) * argpc;
-            for (size_t j = i * argpc; j < jgoal && j < arg_size; j++)
+            for (size_t j = i * argpc; j < jgoal && j < eq_options_size; j++)
                 {
                     eqsubcmd.add_option (
                         dpp::command_option (dpp::co_integer, eq_options[j][0],
                                              eq_options[j][1], false)
-                            .set_min_value (1)
-                            .set_max_value (200));
+                            .set_min_value (min_num_opt_val)
+                            .set_max_value (max_num_opt_val));
                 }
 
             slash.add_option (eqsubcmd);
@@ -227,9 +247,9 @@ setup_subcommand (dpp::slashcommand &slash)
 
 static inline constexpr const command_handlers_map_t action_handlers
     = { { "", show },
-        { "0", set },
-        { "1", balance },
-        { "2", reset },
+        { action_t_e.set, set },
+        { action_t_e.balance, balance },
+        { action_t_e.reset, reset },
         { NULL, NULL } };
 
 void
@@ -303,11 +323,6 @@ reset (const dpp::slashcommand_t &event)
     if (perquisite (event, &ftp))
         return;
 
-    // const std::string new_equalizer
-    //     =
-    //     "superequalizer=1b=1:2b=1:3b=1:4b=1:5b=1:6b=1:7b=1:8b=1:9b=1:10b=1:"
-    //       "11b=1:12b=1:13b=1:14b=1:15b=1:16b=1:17b=1:18b=1";
-
     ftp.guild_player->set_equalizer = "0"; // new_equalizer;
 
     event.reply ("Resetting...");
@@ -316,9 +331,25 @@ reset (const dpp::slashcommand_t &event)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    // argument
     std::string arg_action = "";
     get_inter_param (event, "action", &arg_action);
+
+    // automatically fallback to "Set" if any argument other than action
+    // provided
+    if (arg_action.empty ())
+        {
+            int64_t temp = 0;
+            for (size_t i = 0; i < eq_options_size; i++)
+                {
+                    // if param isn't provided
+                    if (get_inter_param (event, eq_options[i][0], &temp) != 0)
+                        continue;
+
+                    // param provided, set action and break
+                    arg_action = action_t_e.set;
+                    break;
+                }
+        }
 
     handle_command ({ arg_action, action_handlers, event });
 }
