@@ -95,6 +95,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.helper_chain += '@' + value + '@';
         }
+    else if (opt == command_options_keys_t.force)
+        {
+            options.force = value == "1";
+        }
 
     return 0;
 }
@@ -201,30 +205,28 @@ wake ()
     command_cv.notify_all ();
 }
 
+inline constexpr const char *wcwffmt
+    = "[%s child::command::write_command ERROR] Invalid fd %d\n";
+inline constexpr const char *wccfmt
+    = "[%s child::command::write_command ERROR] Command size bigger than read "
+      "buffer size: %ld > %d\n";
+inline constexpr const char *wccfmt2
+    = "[%s child::command::write_command ERROR] Dropping command: %s\n";
+
 void
 write_command (const std::string &cmd, const int write_fd, const char *caller)
 {
     if (write_fd < 0)
         {
-            fprintf (
-                stderr,
-                "[%s child::command::write_command ERROR] Invalid fd %d\n",
-                caller, write_fd);
+            fprintf (stderr, wcwffmt, caller, write_fd);
+            return;
         }
 
     const size_t cmd_size = cmd.size ();
     if (cmd_size > CMD_BUFSIZE)
         {
-            fprintf (stderr,
-                     "[%s child::command::write_command ERROR] Command size "
-                     "bigger than read "
-                     "buffer size: %ld > %d\n",
-                     caller, cmd_size, CMD_BUFSIZE);
-
-            fprintf (stderr,
-                     "[%s child::command::write_command ERROR] Dropping "
-                     "command: %s\n",
-                     caller, cmd.c_str ());
+            fprintf (stderr, wccfmt, caller, cmd_size, CMD_BUFSIZE);
+            fprintf (stderr, wccfmt2, caller, cmd.c_str ());
             return;
         }
 

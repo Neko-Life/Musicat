@@ -18,7 +18,7 @@ int delete_slave (std::string &id);
 
 int shutdown (std::string &id);
 
-int wait (std::string &id);
+int wait (std::string &id, bool force_kill);
 
 int clean_up (std::string &id);
 

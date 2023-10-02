@@ -54,7 +54,7 @@ execute (command::command_options_t &options)
                 return slave_info.first;
 
             slave_manager::shutdown (options.id);
-            slave_manager::wait (options.id);
+            slave_manager::wait (options.id, options.force);
             slave_manager::clean_up (options.id);
 
             return 0;

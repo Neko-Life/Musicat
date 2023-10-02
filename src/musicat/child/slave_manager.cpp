@@ -65,15 +65,26 @@ shutdown_routine (command::command_options_t &options)
     return 1;
 }
 
+inline constexpr const char *wrfkfmt
+    = "[child::slave_manager::wait_routine] KILL: %d (%s)\n";
+inline constexpr const char *wrefmt
+    = "[child::slave_manager::wait_routine] Child %s with "
+      "pid %d exited with status %d\n";
+
 int
-wait_routine (command::command_options_t &options)
+wait_routine (command::command_options_t &options, bool force_kill)
 {
+    if (force_kill)
+        {
+            fprintf (stderr, wrfkfmt, options.pid, options.id.c_str ());
+
+            kill (options.pid, SIGKILL);
+        }
+
     int status = 0;
     waitpid (options.pid, &status, 0);
-    fprintf (stderr,
-             "[child::slave_manager] Child %s with pid %d exited with "
-             "status %d\n",
-             options.id.c_str (), options.pid, status);
+
+    fprintf (stderr, wrefmt, options.id.c_str (), options.pid, status);
 
     return status;
 }
@@ -111,7 +122,7 @@ shutdown (std::string &id)
 }
 
 int
-wait (std::string &id)
+wait (std::string &id, bool force_kill)
 {
     auto i = slave_list.find (id);
     if (i == slave_list.end ())
@@ -119,7 +130,7 @@ wait (std::string &id)
             return 1;
         }
 
-    wait_routine (i->second);
+    wait_routine (i->second, force_kill);
 
     return 0;
 }
@@ -160,7 +171,7 @@ wait_all ()
     auto i = slave_list.begin ();
     while (i != slave_list.end ())
         {
-            wait_routine (i->second);
+            wait_routine (i->second, true);
 
             i++;
         }

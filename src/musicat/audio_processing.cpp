@@ -23,11 +23,22 @@ namespace audio_processing
 
 // need to make this global to close it on worker fork
 // processor audio stream out
-int write_fifo,
+int write_fifo = -1,
     // ffmpeg stdout
-    preadfd,
+    preadfd = -1,
     // ffmpeg runtime command/stdin
-    pwritefd;
+    pwritefd = -1;
+
+// whether current instance have notified parent that it's ready
+// through its stdout
+bool notified = false;
+
+inline constexpr const char audio_cmd_str[]
+    = "[audio_processing::read_command ";
+inline constexpr const size_t audio_cmd_str_size
+    = (sizeof (audio_cmd_str) / sizeof (*audio_cmd_str));
+
+inline constexpr const char *audio_cmd_str2 = "%s] Processor command: %s\n";
 
 int
 read_command (processor_options_t &options)
@@ -49,16 +60,10 @@ read_command (processor_options_t &options)
 
             if (options.debug)
                 {
-                    constexpr char audio_cmd_str[]
-                        = "[audio_processing::read_command ";
+                    write (STDERR_FILENO, audio_cmd_str, audio_cmd_str_size);
 
-                    write (STDERR_FILENO, audio_cmd_str,
-                           (sizeof (audio_cmd_str) / sizeof (*audio_cmd_str)));
-
-                    fprintf (stderr,
-                             "%s] Processor "
-                             "command: %s\n",
-                             options.guild_id.c_str (), cmd_buf);
+                    fprintf (stderr, audio_cmd_str2, options.guild_id.c_str (),
+                             cmd_buf);
                 }
 
             const std::string cmd (cmd_buf);
@@ -93,6 +98,11 @@ read_command (processor_options_t &options)
     return 0;
 }
 
+inline constexpr const char *idfmt
+    = "[audio_processing::write_stdout] size, will go to chain: %ld %d\n";
+inline constexpr const char *necdfmt
+    = "[audio_processing::write_stdout] size after chain: %ld\n";
+
 ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 {
@@ -100,24 +110,26 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
     bool debug = get_debug_state ();
 
     if (debug)
-        fprintf (stderr,
-                 "[audio_processing::write_stdout] size, will go to chain: "
-                 "%ld %d\n",
-                 *size, !no_effect_chain);
+        fprintf (stderr, idfmt, *size, !no_effect_chain);
 
     if (!no_effect_chain)
         {
             helper_processor::run_through_chain (buffer, size);
 
             if (debug)
-                fprintf (
-                    stderr,
-                    "[audio_processing::write_stdout] size after chain: %ld\n",
-                    *size);
+                fprintf (stderr, necdfmt, *size);
         }
 
     if (*size == 0)
         return 0;
+
+    if (!notified)
+        {
+            child::command::write_command ("0", STDOUT_FILENO,
+                                           "audio_processing::write_stdout");
+
+            notified = true;
+        }
 
     ssize_t written = 0;
     ssize_t current_written = 0;
@@ -1419,6 +1431,7 @@ run_processor (child::command::command_options_t &process_options)
     if (options.debug)
         fprintf (stderr, "fds closed\n");
 
+    close (STDOUT_FILENO);
     return error_status;
 
     // init error handling
@@ -1438,6 +1451,7 @@ err_sfifo1:
     // close (process_options.child_write_fd);
     // process_options.child_write_fd = -1;
 
+    close (STDOUT_FILENO);
     return init_error;
 } // run_processor
 

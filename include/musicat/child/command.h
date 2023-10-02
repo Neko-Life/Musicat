@@ -39,6 +39,7 @@ inline const struct
      * to audio playback
      */
     const std::string helper_chain = "ehl"; // str
+    const std::string force = "frc";        // bool
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -71,13 +72,19 @@ struct command_options_t
      * Need to be parsed to processor_options_t helper_chain list
      */
     std::string helper_chain;
+
+    /**
+     * Not every command support this flag
+     * Some will just ignore it
+     */
+    bool force;
 };
 
 static inline command_options_t
 create_command_options ()
 {
     return { "", "", false, "", -1, -1, -1,  -1, -1,
-             "", "", false, "", "", "", 100, "" };
+             "", "", false, "", "", "", 100, "", false };
 }
 
 void command_queue_routine ();

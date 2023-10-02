@@ -287,6 +287,9 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
         }
 }
 
+constexpr const char *msprrfmt
+    = "[Manager::stream ERROR] Processor not ready or exited: %s\n";
+
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
@@ -303,10 +306,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             bool debug = get_debug_state ();
 
             server_id = v->server_id;
-            auto player_manager = get_player_manager_ptr ();
-            auto guild_player = player_manager
-                                    ? player_manager->get_player (server_id)
-                                    : nullptr;
+            auto guild_player
+                = server_id ? this->get_player (server_id) : nullptr;
 
             if (!server_id || !guild_player)
                 throw 2;
@@ -375,9 +376,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
                 {
-                    cc::send_command (exit_cmd);
-                    // send_command (cmd);
-                    // status = wait_slave_ready (slave_id, 10);
+                    // status won't be 0 if this block is executed
+                    const std::string force_exit_cmd
+                        = exit_cmd + cc::command_options_keys_t.force + "=1;";
+
+                    cc::send_command (force_exit_cmd);
                 }
 
             if (status != 0)
@@ -416,17 +419,39 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     throw 2;
                 }
 
+            // wait for processor notification
+            char nbuf[CMD_BUFSIZE + 1];
+            size_t nread_size = read (notification_fd, nbuf, CMD_BUFSIZE);
+
+            bool processor_read_ready = false;
+            if (nread_size > 0)
+                {
+                    if (std::string (nbuf) == "0")
+                        {
+                            processor_read_ready = true;
+                        }
+                }
+
             handle_effect_chain_change_states_t effect_states
                 = { guild_player, track, command_fd, read_fd, NULL };
 
             int throw_error = 0;
             bool running_state = get_running_state (), is_stopping;
 
-            // I LOVE C++!!!
+            if (!processor_read_ready)
+                {
+                    fprintf (stderr, msprrfmt, slave_id.c_str ());
+                    close (read_fd);
+                    close (command_fd);
+                    close (notification_fd);
+                    throw 2;
+                }
 
-            // track.seekable = true;
+                // I LOVE C++!!!
 
-            // using raw pcm need to change ffmpeg output format to s16le!
+                // track.seekable = true;
+
+                // using raw pcm need to change ffmpeg output format to s16le!
 #ifdef MUSICAT_USE_PCM
             ssize_t read_size = 0;
             ssize_t last_read_size = 0;
@@ -456,7 +481,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                     last_read_size = read_size;
 
-                    // !TODO: calculate pcm duration based on size
                     if (read_size == STREAM_BUFSIZ)
                         {
                             total_read += read_size;
@@ -628,6 +652,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (debug)
                 std::cerr << "Exiting " << server_id << '\n';
 
+            // commented for testing purpose
             cc::send_command (exit_cmd);
 
             if (!running_state || is_stopping)
