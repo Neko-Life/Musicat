@@ -165,224 +165,204 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             return false;
         }
 
-    if (event.voice_client->get_secs_remaining () < 0.05f)
-        {
-            std::thread tj (
-                [this] (dpp::discord_voice_client *v, string meta,
-                        std::shared_ptr<Player> guild_player) {
-                    try
+    std::thread tj;
+
+    if (event.voice_client->get_secs_remaining () >= 0.05f)
+        goto end_err;
+
+    tj = std::thread (
+        [this] (dpp::discord_voice_client *v, string meta,
+                std::shared_ptr<Player> guild_player) {
+            thread_manager::DoneSetter tmds;
+            MCTrack &track = guild_player->current_track;
+            auto guild_id = v->server_id;
+
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+
+            // text channel to send embed
+            dpp::snowflake channel_id = guild_player->channel_id;
+
+            // std::thread tmt([this](bool* _v) {
+            //     int _w = 30;
+            //     while (_v && *_v == false && _w > 0)
+            //     {
+            //         sleep(1);
+            //         --_w;
+            //     }
+            //     if (_w) return;
+            //     if (_v)
+            //     {
+            //         *_v = true;
+            //         this->dl_cv.notify_all();
+            //     }
+            // }, &timed_out);
+            // tmt.detach();
+
+            this->wait_for_vc_ready (guild_id);
+
+            // channel for sending message
+            dpp::channel *c = dpp::find_channel (channel_id);
+            // guild
+            dpp::guild *g = dpp::find_guild (guild_id);
+
+            prepare_play_stage_channel_routine (v, g);
+
+            this->wait_for_download (track.filename);
+
+            // check for autoplay
+            const string track_id = track.id ();
+            std::thread at_t;
+            if (!guild_player->auto_play)
+                goto no_autoplay;
+
+            at_t = std::thread (
+                [this] (const std::string &track_id, dpp::discord_client *from,
+                        const dpp::snowflake &server_id) {
+                    thread_manager::DoneSetter tmds;
+
+                    this->get_next_autoplay_track (track_id, from, server_id);
+                },
+                track_id, guild_player->from, guild_player->guild_id);
+
+            thread_manager::dispatch (at_t);
+
+        no_autoplay:
+            if (guild_player->max_history_size)
+                {
+                    guild_player->history.push_back (track_id);
+
+                    while (guild_player->history.size ()
+                           > guild_player->max_history_size)
                         {
-                            MCTrack &track = guild_player->current_track;
-                            auto guild_id = v->server_id;
+                            guild_player->history.pop_front ();
+                        }
+                }
 
-                            std::lock_guard<std::mutex> lk (
-                                guild_player->t_mutex);
+            bool embed_perms
+                = has_permissions (g, &this->cluster->me, c,
+                                   { dpp::p_view_channel, dpp::p_send_messages,
+                                     dpp::p_embed_links });
 
-                            // text channel to send embed
-                            dpp::snowflake channel_id
-                                = guild_player->channel_id;
+            {
+                const string absolute_path
+                    = get_music_folder_path () + track.filename;
 
-                            // std::thread tmt([this](bool* _v) {
-                            //     int _w = 30;
-                            //     while (_v && *_v == false && _w > 0)
-                            //     {
-                            //         sleep(1);
-                            //         --_w;
-                            //     }
-                            //     if (_w) return;
-                            //     if (_v)
-                            //     {
-                            //         *_v = true;
-                            //         this->dl_cv.notify_all();
-                            //     }
-                            // }, &timed_out);
-                            // tmt.detach();
-
-                            this->wait_for_vc_ready (guild_id);
-
-                            // channel for sending message
-                            dpp::channel *c = dpp::find_channel (channel_id);
-                            // guild
-                            dpp::guild *g = dpp::find_guild (guild_id);
-
-                            prepare_play_stage_channel_routine (v, g);
-
-                            this->wait_for_download (track.filename);
-
-                            const string track_id = track.id ();
-                            if (guild_player->auto_play)
-                                {
-                                    std::thread at_t (
-                                        [this] (
-                                            const std::string &track_id,
-                                            dpp::discord_client *from,
-                                            const dpp::snowflake &server_id) {
-                                            try
-                                                {
-                                                    this->get_next_autoplay_track (
-                                                        track_id, from,
-                                                        server_id);
-                                                }
-                                            catch (...)
-                                                {
-                                                }
-
-                                            thread_manager::set_done ();
-                                        },
-                                        track_id, guild_player->from,
-                                        guild_player->guild_id);
-
-                                    thread_manager::dispatch (at_t);
-                                }
-
-                            if (guild_player->max_history_size)
-                                {
-                                    guild_player->history.push_back (track_id);
-
-                                    while (guild_player->history.size ()
-                                           > guild_player->max_history_size)
-                                        {
-                                            guild_player->history.pop_front ();
-                                        }
-                                }
-
-                            bool embed_perms = has_permissions (
-                                g, &this->cluster->me, c,
-                                { dpp::p_view_channel, dpp::p_send_messages,
-                                  dpp::p_embed_links });
-
-                            {
-                                const string music_folder_path
-                                    = get_music_folder_path ();
-
-                                std::ifstream test (
-                                    music_folder_path + track.filename,
+                std::ifstream test (absolute_path,
                                     std::ios_base::in | std::ios_base::binary);
 
-                                if (!test.is_open ())
-                                    {
-                                        if (v && !v->terminating)
-                                            {
-                                                this->remove_ignore_marker (
-                                                    guild_id);
+                if (test.is_open ())
+                    {
+                        test.close ();
+                        goto has_file;
+                    }
 
-                                                v->insert_marker ("e");
-                                            }
+                fprintf (stderr,
+                         "[Manager::handle_on_track_marker tj ERROR] "
+                         "Can't open audio file: %s\n",
+                         absolute_path.c_str ());
 
-                                        if (embed_perms)
-                                            {
-                                                const string m_content
-                                                    = "Can't play track: "
-                                                      + track.title ()
-                                                      + " (added by <@"
-                                                      + std::to_string (
-                                                          track.user_id)
-                                                      + ">)";
+                // file not found, might be download error or
+                // deleted
+                if (v && !v->terminating)
+                    {
+                        fprintf (stderr,
+                                 "[Manager::handle_on_track_marker tj ERROR] "
+                                 "Inserting `e` marker\n");
 
-                                                dpp::message m (channel_id,
-                                                                m_content);
+                        this->remove_ignore_marker (guild_id);
 
-                                                this->cluster->message_create (
-                                                    m);
-                                            }
+                        v->insert_marker ("e");
+                    }
 
-                                        thread_manager::set_done ();
-                                        return;
-                                    }
-                                else
-                                    test.close ();
-                            }
+                // can't notify user, what else to do?
+                if (!embed_perms)
+                    {
+                        return;
+                    }
 
-                            if (meta == "r")
-                                v->send_silence (60);
+                const string m_content
+                    = "Can't play track: " + track.title () + " (added by <@"
+                      + std::to_string (track.user_id) + ">)";
 
-                            // Send play info embed
-                            try
-                                {
-                                    this->play (v, track, channel_id);
+                dpp::message m (channel_id, m_content);
 
-                                    if (embed_perms)
-                                        {
-                                            // Update if last message is the
-                                            // info embed message
-                                            const bool should_update_embed
-                                                = c
-                                                  && guild_player->info_message
-                                                  && c->last_message_id
-                                                  && c->last_message_id
-                                                         == guild_player
-                                                                ->info_message
-                                                                ->id;
+                this->cluster->message_create (m);
 
-                                            if (should_update_embed)
-                                                {
-                                                    const bool
-                                                        not_repeating_song
-                                                        = (guild_player
-                                                               ->loop_mode
-                                                           != loop_mode_t::
-                                                               l_song)
-                                                          && (guild_player
-                                                                  ->loop_mode
-                                                              != loop_mode_t::
-                                                                  l_song_queue);
+                // no audio file
+                return;
+            }
 
-                                                    if (not_repeating_song)
-                                                        this->update_info_embed (
-                                                            guild_id, true);
-                                                }
-                                            else
-                                                {
-                                                    this->delete_info_embed (
-                                                        guild_id);
+        has_file:
+            if (meta == "r")
+                v->send_silence (60);
 
-                                                    this->send_info_embed (
-                                                        guild_id, false, true);
-                                                }
-                                        }
-                                    else
-                                        fprintf (
-                                            stderr,
-                                            "[EMBED_UPDATE] No channel or "
-                                            "permission to send info embed\n");
-                                }
-                            catch (const exception &e)
-                                {
-                                    fprintf (stderr,
-                                             "[ERROR EMBED_UPDATE] %s\n",
-                                             e.what ());
+            // Send play info embed
+            try
+                {
+                    this->play (v, track, channel_id);
 
-                                    auto cd = e.code ();
+                    bool should_update_embed = false,
+                         not_repeating_song = false;
 
-                                    if (!embed_perms || (cd != 1 && cd != 2))
-                                        {
-                                            thread_manager::set_done ();
-                                            return;
-                                        }
+                    if (!embed_perms)
+                        goto log_no_embed;
 
-                                    dpp::message m;
-                                    m.set_channel_id (channel_id)
-                                        .set_content (e.what ());
+                    // Update if last message is the
+                    // info embed message
+                    should_update_embed
+                        = c && guild_player->info_message && c->last_message_id
+                          && c->last_message_id
+                                 == guild_player->info_message->id;
 
-                                    this->cluster->message_create (m);
-                                }
-                        }
-                    catch (...)
-                        {
-                        }
+                    if (!should_update_embed)
+                        goto del_info_embed;
 
-                    thread_manager::set_done ();
-                },
-                event.voice_client, event.track_meta, guild_player);
+                    not_repeating_song
+                        = (guild_player->loop_mode != loop_mode_t::l_song)
+                          && (guild_player->loop_mode
+                              != loop_mode_t::l_song_queue);
 
-            thread_manager::dispatch (tj);
+                    if (not_repeating_song)
+                        this->update_info_embed (guild_id, true);
 
-            return true;
-        }
-    else
-        std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
-                     "client not present or already playing: "
-                  << guild_player->guild_id << "\n";
+                    return;
+
+                del_info_embed:
+                    this->delete_info_embed (guild_id);
+
+                    this->send_info_embed (guild_id, false, true);
+                    return;
+
+                log_no_embed:
+                    fprintf (stderr, "[EMBED_UPDATE] No channel or "
+                                     "permission to send info embed\n");
+                    return;
+                }
+            catch (const exception &e)
+                {
+                    fprintf (stderr, "[ERROR EMBED_UPDATE] %s\n", e.what ());
+
+                    auto cd = e.code ();
+
+                    if (!embed_perms || (cd != 1 && cd != 2))
+                        return;
+
+                    dpp::message m;
+                    m.set_channel_id (channel_id).set_content (e.what ());
+
+                    this->cluster->message_create (m);
+                }
+        },
+        event.voice_client, event.track_meta, guild_player);
+
+    thread_manager::dispatch (tj);
+
+    return true;
+
+end_err:
+    std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
+                 "client not present or already playing: "
+              << guild_player->guild_id << "\n";
 
     if (debug)
         {

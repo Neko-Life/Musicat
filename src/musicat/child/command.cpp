@@ -142,18 +142,20 @@ void
 run_command_thread ()
 {
     std::thread command_thread ([] () {
+        thread_manager::DoneSetter tmds;
+
         while (get_running_state ())
             {
                 command_queue_routine ();
                 wait_for_command ();
             }
-
-        thread_manager::set_done ();
     });
 
     // !TODO: create a thread to read from worker
     // and do stuff like notify cv
     std::thread notify_thread ([] () {
+        thread_manager::DoneSetter tmds;
+
         char read_buf[CMD_BUFSIZE + 1];
         size_t read_size = 0;
 
@@ -177,8 +179,6 @@ run_command_thread ()
                 // !TODO: handle options
                 handle_child_message (options);
             }
-
-        thread_manager::set_done ();
     });
 
     thread_manager::dispatch (command_thread);

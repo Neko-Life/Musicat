@@ -536,15 +536,8 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         }
 
     std::thread pjt ([player_manager, from, guild_id] () {
-        try
-            {
-                player_manager->reconnect (from, guild_id);
-            }
-        catch (...)
-            {
-            }
-
-        thread_manager::set_done ();
+        thread_manager::DoneSetter tmds;
+        player_manager->reconnect (from, guild_id);
     });
 
     thread_manager::dispatch (pjt);

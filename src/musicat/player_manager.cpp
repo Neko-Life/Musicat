@@ -262,60 +262,50 @@ Manager::download (const string &fname, const string &url,
 
     std::thread tj (
         [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id) {
-            try
+            thread_manager::DoneSetter tmds;
+            {
+                std::lock_guard<std::mutex> lk (this->dl_m);
+                this->waiting_file_download[fname] = guild_id;
+            }
+
+            const std::string music_folder_path = get_music_folder_path ();
+
+            {
+                struct stat buf;
+                if (stat (music_folder_path.c_str (), &buf) != 0)
+                    std::filesystem::create_directory (music_folder_path);
+            }
+
+            string cmd
+                = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
+                  + string ("' -x --audio-format opus --audio-quality "
+                            "0 -o '")
+                  + music_folder_path
+                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
+                                        std::regex_constants::match_any)
+                  + string ("'");
+
+            const bool debug = get_debug_state ();
+
+            if (debug)
                 {
-                    {
-                        std::lock_guard<std::mutex> lk (this->dl_m);
-                        this->waiting_file_download[fname] = guild_id;
-                    }
-
-                    const std::string music_folder_path
-                        = get_music_folder_path ();
-
-                    {
-                        struct stat buf;
-                        if (stat (music_folder_path.c_str (), &buf) != 0)
-                            std::filesystem::create_directory (
-                                music_folder_path);
-                    }
-
-                    string cmd
-                        = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
-                          + string ("' -x --audio-format opus --audio-quality "
-                                    "0 -o '")
-                          + music_folder_path
-                          + std::regex_replace (
-                              fname, std::regex ("(')"), "'\\''",
-                              std::regex_constants::match_any)
-                          + string ("'");
-
-                    const bool debug = get_debug_state ();
-
-                    if (debug)
-                        {
-                            fprintf (stderr, "DOWNLOAD: \"%s\" \"%s\"\n",
-                                     fname.c_str (), url.c_str ());
-                            fprintf (stderr, "CMD: %s\n", cmd.c_str ());
-                        }
-                    else
-                        cmd += " 1>/dev/null";
-
-                    // !TODO: probably move this operation to child
-                    // instead of using literal shell to run the command
-                    system (cmd.c_str ());
-
-                    {
-                        std::lock_guard<std::mutex> lk (this->dl_m);
-                        this->waiting_file_download.erase (fname);
-                    }
-
-                    this->dl_cv.notify_all ();
+                    fprintf (stderr, "DOWNLOAD: \"%s\" \"%s\"\n",
+                             fname.c_str (), url.c_str ());
+                    fprintf (stderr, "CMD: %s\n", cmd.c_str ());
                 }
-            catch (...)
-                {
-                }
+            else
+                cmd += " 1>/dev/null";
 
-            thread_manager::set_done ();
+            // !TODO: probably move this operation to child
+            // instead of using literal shell to run the command
+            system (cmd.c_str ());
+
+            {
+                std::lock_guard<std::mutex> lk (this->dl_m);
+                this->waiting_file_download.erase (fname);
+            }
+
+            this->dl_cv.notify_all ();
         },
         fname, url, guild_id);
 
