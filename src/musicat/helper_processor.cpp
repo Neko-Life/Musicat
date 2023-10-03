@@ -202,6 +202,8 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
                  "status: "
                  "%d `%s`\n",
                  status, hci->options.raw_args.c_str ());
+
+    close_valid_fd (&hci->read_fd);
 }
 
 // shutting down and streaming have the same exact routine
