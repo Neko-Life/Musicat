@@ -111,62 +111,62 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 // users who have added a track but not in the vc
                 std::vector<dpp::snowflake> l_user = {};
 
-                try
+                auto vc = get_voice_from_gid (event.command.guild_id, sha_id);
+
+                if (!vc.first)
                     {
-                        auto vc = get_voice_from_gid (event.command.guild_id,
-                                                      sha_id);
+                        event.edit_response (
+                            "`[ERROR]` Can't get current voice connection");
 
-                        // users in the vc that have been checked
-                        std::vector<dpp::snowflake> all_user = {};
-                        // check each track for missing owner
-                        for (auto i = guild_player->queue.begin ();
-                             i != guild_player->queue.end (); i++)
-                            {
-                                // whether the user of this track already
-                                // checked
-                                if (vector_find (&all_user, i->user_id)
-                                    != all_user.end ())
-                                    continue;
-
-                                // save as checked user
-                                all_user.push_back (i->user_id);
-
-                                // whether this track have its owner in vc
-                                bool cont = false;
-                                for (const auto &j : vc.second)
-                                    {
-                                        if (j.second.user_id == i->user_id)
-                                            {
-                                                cont = true;
-                                                break;
-                                            }
-                                    }
-                                // skip if it is
-                                if (cont)
-                                    continue;
-
-                                // add for delete candidate
-                                l_user.push_back (i->user_id);
-                            }
-
-                        // because it's modifying the queue, it should be in
-                        // different loop than above loop otherwise it will be
-                        // catastrophic
-                        for (const auto &i : l_user)
-                            rmed += guild_player->remove_track_by_user (i);
-                    }
-                catch (...)
-                    {
-                        event.edit_response ("`[ERROR]` Can't get current "
-                                             "voice connection");
                         break;
                     }
+
+                // users in the vc that have been checked
+                std::vector<dpp::snowflake> all_user = {};
+                // check each track for missing owner
+                for (auto i = guild_player->queue.begin ();
+                     i != guild_player->queue.end (); i++)
+                    {
+                        // whether the user of this track already
+                        // checked
+                        if (vector_find (&all_user, i->user_id)
+                            != all_user.end ())
+                            continue;
+
+                        // save as checked user
+                        all_user.push_back (i->user_id);
+
+                        // whether this track have its owner in vc
+                        bool cont = false;
+                        for (const auto &j : vc.second)
+                            {
+                                if (j.second.user_id == i->user_id)
+                                    {
+                                        cont = true;
+                                        break;
+                                    }
+                            }
+                        // skip if it is
+                        if (cont)
+                            continue;
+
+                        // add for delete candidate
+                        l_user.push_back (i->user_id);
+                    }
+
+                // because it's modifying the queue, it should be in
+                // different loop than above loop otherwise it will be
+                // catastrophic
+                for (const auto &i : l_user)
+                    rmed += guild_player->remove_track_by_user (i);
+
                 size_t usiz = l_user.size ();
                 if (!usiz)
                     {
                         event.edit_response ("No user left this session yet");
                         break;
                     }
+
                 player_manager->update_info_embed (event.command.guild_id);
 
                 event.edit_response (std::to_string (usiz) + " user"

@@ -295,6 +295,9 @@ slash_run (const dpp::slashcommand_t &event)
             event.edit_response (
                 util::response::reply_added_playlist (p_id, arg_top, count));
 
+            // !TODO: this is probably for connect and play when adding
+            // playlist but bot isn't in user vc
+            //
             // std::pair<dpp::channel*, std::map<dpp::snowflake,
             // dpp::voicestate>> c; bool has_c = false; bool no_vc = false; try
             // {

@@ -240,7 +240,7 @@ Player::reset_shifted ()
 }
 
 Player &
-Player::set_loop_mode (const int8_t mode)
+Player::set_loop_mode (int64_t mode)
 {
     loop_mode_t nm = this->loop_mode;
     switch (mode)
@@ -336,16 +336,13 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id) const
     auto v = from->get_voice (guild_id);
     if (v && !v->voiceclient->is_paused ())
         {
-            try
-                {
-                    auto u = get_voice_from_gid (guild_id, user_id);
-                    if (u.first->id != v->channel_id)
-                        throw exception ("You're not in my voice channel", 0);
-                }
-            catch (const char *e)
-                {
-                    throw exception ("You're not in a voice channel", 1);
-                }
+            // !TODO: refactor to use status code!
+            auto u = get_voice_from_gid (guild_id, user_id);
+            if (!u.first)
+                throw exception ("You're not in a voice channel", 1);
+
+            if (u.first->id != v->channel_id)
+                throw exception ("You're not in my voice channel", 0);
 
             v->voiceclient->pause_audio (true);
             // Paused

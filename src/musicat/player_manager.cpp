@@ -162,74 +162,70 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     guild_player->reset_shifted ();
 
     std::lock_guard<std::mutex> lk (guild_player->t_mutex);
-    try
-        {
-            auto u = get_voice_from_gid (guild_id, user_id);
-            if (u.first->id != v->channel_id)
-                throw exception ("You're not in my voice channel", 0);
 
-            // some vote logic here but decided to disable it
-            // cuz i remember someone told me it's incovenient
-            // also some logic is not handled properly
+    auto u = get_voice_from_gid (guild_id, user_id);
+    if (!u.first)
+        throw exception ("You're not in a voice channel", 1);
+    if (u.first->id != v->channel_id)
+        throw exception ("You're not in my voice channel", 0);
 
-            // unsigned siz = 0;
-            // for (auto &i : u.second)
-            //     {
-            //         auto &a = i.second;
-            //         if (a.is_deaf () || a.is_self_deaf ())
-            //             continue;
-            //         auto user = dpp::find_user (a.user_id);
-            //         if (user->is_bot ())
-            //             continue;
-            //         siz++;
-            //     }
+    // some vote logic here but decided to disable it
+    // cuz i remember someone told me it's incovenient
+    // also some logic is not handled properly
 
-            // if (siz > 1U)
-            // {
-            //     std::lock_guard<std::mutex> lk(guild_player->q_m);
-            //     auto& track = guild_player->queue.at(0);
-            //     auto& track = guild_player->current_track;
-            //     if (track.user_id != user_id && track.user_id !=
-            //     this->sha_id)
-            //     {
-            //         amount = 1;
-            //         bool exist = false;
-            //         for (const auto& i : track.skip_vote)
-            //         {
-            //             if (i == user_id)
-            //             {
-            //                 exist = true;
-            //                 break;
-            //             }
-            //         }
-            //         if (!exist)
-            //         {
-            //             track.skip_vote.push_back(user_id);
-            //         }
+    // unsigned siz = 0;
+    // for (auto &i : u.second)
+    //     {
+    //         auto &a = i.second;
+    //         if (a.is_deaf () || a.is_self_deaf ())
+    //             continue;
+    //         auto user = dpp::find_user (a.user_id);
+    //         if (user->is_bot ())
+    //             continue;
+    //         siz++;
+    //     }
 
-            //         unsigned ts = siz / 2U + 1U;
-            //         size_t ret = track.skip_vote.size();
-            //         if (ret < ts) return (int)ret;
-            //         else track.skip_vote.clear();
-            //     }
-            //     else if (amount > 1)
-            //     {
-            //         int64_t count = 0;
-            //         for (const auto& t : guild_player->queue)
-            //         {
-            //             if (t.user_id == user_id || t.user_id ==
-            //             this->sha_id) count++; else break;
+    // if (siz > 1U)
+    // {
+    //     std::lock_guard<std::mutex> lk(guild_player->q_m);
+    //     auto& track = guild_player->queue.at(0);
+    //     auto& track = guild_player->current_track;
+    //     if (track.user_id != user_id && track.user_id !=
+    //     this->sha_id)
+    //     {
+    //         amount = 1;
+    //         bool exist = false;
+    //         for (const auto& i : track.skip_vote)
+    //         {
+    //             if (i == user_id)
+    //             {
+    //                 exist = true;
+    //                 break;
+    //             }
+    //         }
+    //         if (!exist)
+    //         {
+    //             track.skip_vote.push_back(user_id);
+    //         }
 
-            //             if (amount == count) break;
-            //         }
-            //         if (amount > count) amount = count;
-            //     }
-            // }
-        }
-    catch (const char *e)
-        {
-            throw exception ("You're not in a voice channel", 1);
-        }
+    //         unsigned ts = siz / 2U + 1U;
+    //         size_t ret = track.skip_vote.size();
+    //         if (ret < ts) return (int)ret;
+    //         else track.skip_vote.clear();
+    //     }
+    //     else if (amount > 1)
+    //     {
+    //         int64_t count = 0;
+    //         for (const auto& t : guild_player->queue)
+    //         {
+    //             if (t.user_id == user_id || t.user_id ==
+    //             this->sha_id) count++; else break;
+
+    //             if (amount == count) break;
+    //         }
+    //         if (amount > count) amount = count;
+    //     }
+    // }
 
     auto removed_tracks = guild_player->skip_queue (amount, remove);
 
@@ -333,89 +329,76 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
                         dpp::snowflake channel_id) {
+            thread_manager::DoneSetter tmds;
+
+            const bool debug = get_debug_state ();
+
+            auto server_id = v->server_id;
+            auto voice_channel_id = v->channel_id;
+
+            if (debug)
+                std::cerr << "[Manager::play] Attempt to stream: " << server_id
+                          << ' ' << voice_channel_id << '\n';
+
             try
                 {
-                    const bool debug = get_debug_state ();
-
-                    auto server_id = v->server_id;
-                    auto voice_channel_id = v->channel_id;
-
-                    if (debug)
-                        std::cerr << "[Manager::play] Attempt to stream: "
-                                  << server_id << ' ' << voice_channel_id
-                                  << '\n';
-
-                    try
-                        {
-                            this->stream (v, track);
-                        }
-                    catch (int e)
-                        {
-                            fprintf (stderr,
-                                     "[ERROR Manager::play] Stream thrown "
-                                     "error with "
-                                     "code: %d\n",
-                                     e);
-
-                            const bool has_send_msg_perm
-                                = server_id && voice_channel_id
-                                  && has_permissions_from_ids (
-                                      server_id, this->cluster->me.id,
-                                      channel_id,
-                                      { dpp::p_view_channel,
-                                        dpp::p_send_messages });
-
-                            if (has_send_msg_perm)
-                                {
-                                    string msg = "";
-
-                                    // Maybe connect/reconnect here if there's
-                                    // connection error
-                                    if (e == 2)
-                                        msg = "Can't start playback";
-                                    else if (e == 1)
-                                        msg = "No connection";
-
-                                    if (!msg.empty ())
-                                        {
-                                            const dpp::message m (channel_id,
-                                                                  msg);
-
-                                            this->cluster->message_create (m);
-                                        }
-                                }
-                        }
-
-                    track.stopping = false;
-
-                    if (v && !v->terminating)
-                        {
-                            v->insert_marker ("e");
-                            thread_manager::set_done ();
-                            return;
-                        }
-
-                    try
-                        {
-                            get_voice_from_gid (server_id, get_sha_id ());
-                            thread_manager::set_done ();
-                            return;
-                        }
-                    catch (...)
-                        {
-                        }
-
-                    if (server_id && voice_channel_id)
-                        {
-                            this->set_connecting (server_id, voice_channel_id);
-                        }
-                    // if (v) v->~discord_voice_client();
+                    this->stream (v, track);
                 }
-            catch (...)
+            catch (int e)
                 {
+                    fprintf (stderr,
+                             "[ERROR Manager::play] Stream thrown "
+                             "error with "
+                             "code: %d\n",
+                             e);
+
+                    const bool has_send_msg_perm
+                        = server_id && voice_channel_id
+                          && has_permissions_from_ids (
+                              server_id, this->cluster->me.id, channel_id,
+                              { dpp::p_view_channel, dpp::p_send_messages });
+
+                    if (!has_send_msg_perm)
+                        goto skip_send_msg;
+
+                    string msg = "";
+
+                    // Maybe connect/reconnect here if there's
+                    // connection error
+                    if (e == 2)
+                        msg = "Can't start playback";
+                    else if (e == 1)
+                        msg = "No connection";
+
+                    if (!msg.empty ())
+                        {
+                            const dpp::message m (channel_id, msg);
+
+                            this->cluster->message_create (m);
+                        }
                 }
 
-            thread_manager::set_done ();
+        skip_send_msg:
+            track.stopping = false;
+
+            if (v && !v->terminating)
+                {
+                    v->insert_marker ("e");
+                    return;
+                }
+
+            auto vcc = get_voice_from_gid (server_id, get_sha_id ());
+
+            if (vcc.first)
+                {
+                    return;
+                }
+
+            if (server_id && voice_channel_id)
+                {
+                    this->set_connecting (server_id, voice_channel_id);
+                }
+            // if (v) v->~discord_voice_client();
         },
         v, channel_id);
 

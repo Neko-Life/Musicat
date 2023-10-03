@@ -528,7 +528,14 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
                         return;
 
                     vc->pause_audio (false);
-                    this->update_info_embed (e_guild_id);
+
+                    try
+                        {
+                            this->update_info_embed (e_guild_id);
+                        }
+                    catch (...)
+                        {
+                        }
                 },
                 v->voiceclient);
 
@@ -628,18 +635,20 @@ Manager::prepare_play_stage_channel_routine (
     if (!voice_channel || voice_channel->get_type () != dpp::CHANNEL_STAGE)
         return;
 
-    const bool debug = get_debug_state ();
-
     auto i = guild->voice_members.find (get_sha_id ());
 
+    // sha not in guild cache?? that's weird
     if (i == guild->voice_members.end ())
         return;
+
     // this will be true if you need to attempt to request speak
     const bool is_currently_suppressed = i->second.is_suppressed ();
 
     // return if not suppressed
     if (!is_currently_suppressed)
         return;
+
+    const bool debug = get_debug_state ();
 
     // try not suppress if has
     // MUTE_MEMBERS permission
@@ -649,7 +658,7 @@ Manager::prepare_play_stage_channel_routine (
               ? false
               : is_currently_suppressed;
 
-    // set request_to_speak
+    // set request_to_speak, if has request to speak permission
     time_t request_ts = 0;
     if (stay_suppress
         && has_permissions (guild, &voice_client->creator->me, voice_channel,
@@ -659,25 +668,28 @@ Manager::prepare_play_stage_channel_routine (
     const bool update_voice_state
         = request_ts || (stay_suppress != is_currently_suppressed);
 
-    if (update_voice_state)
+    if (!update_voice_state)
         {
             if (debug)
                 {
-                    std::cerr << "[request_to_speak] "
-                                 "Requesting speak in "
-                              << i->second.channel_id << '\n';
+                    std::cerr
+                        << "[Manager::prepare_play_stage_channel_routine] "
+                           "No request_to_speak in "
+                        << i->second.channel_id << '\n';
                 }
 
-            voice_client->creator->current_user_set_voice_state (
-                guild->id, i->second.channel_id, stay_suppress, request_ts);
+            return;
         }
-    else if (debug)
+
+    if (debug)
         {
-            std::cerr << "[request_to_speak] "
-                         "No "
-                         "request_to_speak in "
+            std::cerr << "[Manager::prepare_play_stage_channel_routine] "
+                         "Requesting speak in "
                       << i->second.channel_id << '\n';
         }
+
+    voice_client->creator->current_user_set_voice_state (
+        guild->id, i->second.channel_id, stay_suppress, request_ts);
 }
 
 } // player

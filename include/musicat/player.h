@@ -15,7 +15,8 @@ namespace musicat
 {
 namespace player
 {
-enum loop_mode_t : int8_t
+
+enum loop_mode_t
 {
     // No looping
     l_none,
@@ -245,7 +246,8 @@ class Player
      */
     bool reset_shifted ();
 
-    Player &set_loop_mode (const int8_t mode);
+    // int64 for compatibility with command argument type
+    Player &set_loop_mode (int64_t mode);
 
     /**
      * @brief Set player channel, used in playback infos.

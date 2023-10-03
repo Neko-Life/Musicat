@@ -253,52 +253,35 @@ join_voice (dpp::discord_client *from,
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > c,
         c2;
 
-    // client is connected to a voice channel
-    bool has_c2 = false;
+    c = get_voice_from_gid (guild_id, user_id);
 
-    try
-        {
-            c = get_voice_from_gid (guild_id, user_id);
+    // user isn't in voice channel
+    if (!c.first)
+        return 1;
 
-            // no channel cached
-            if (!c.first || !c.first->id)
-                return 3;
-        }
-    catch (...)
-        {
-            // user isn't in voice channel
-            return 1;
-        }
+    // no channel cached
+    if (!c.first->id)
+        return 3;
 
-    try
-        {
-            c2 = get_voice_from_gid (guild_id, sha_id);
+    // client voice state
+    c2 = get_voice_from_gid (guild_id, sha_id);
 
-            // client already in a guild session
-            if (has_listener (&c2.second))
-                return 2;
+    // client already in a guild session
+    if (has_listener (&c2.second))
+        return 2;
 
-            has_c2 = true;
-        }
-    catch (...)
-        {
-        }
-
-    if (has_permissions_from_ids (guild_id, sha_id, c.first->id,
-                                  { dpp::p_view_channel, dpp::p_connect }))
-        {
-            player_manager->full_reconnect (
-                from, guild_id,
-                (has_c2 && c2.first && c2.first->id) ? c2.first->id
-                                                     : (dpp::snowflake)0,
-                c.first->id);
-
-            // success dispatching join voice channel
-            return 0;
-        }
-    // no permission
-    else
+    if (!has_permissions_from_ids (guild_id, sha_id, c.first->id,
+                                   { dpp::p_view_channel, dpp::p_connect }))
+        // no permission
         return 4;
+
+    player_manager->full_reconnect (
+        from, guild_id,
+        (c2.first && c2.first->id) ? c2.first->id : dpp::snowflake (0),
+        c.first->id);
+
+    // success dispatching join voice channel
+    return 0;
 }
 
 void

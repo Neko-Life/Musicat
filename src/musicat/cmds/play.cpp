@@ -606,34 +606,25 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 {
     if (!from || !from->creator)
         return;
+
     const dpp::snowflake sha_id = from->creator->me.id;
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vu;
-    bool b = true;
+    vu = get_voice_from_gid (guild_id, sha_id);
 
-    try
-        {
-            vu = get_voice_from_gid (guild_id, sha_id);
-        }
-    catch (const char *e)
-        {
-            b = false;
-        }
+    if (!vu.first || continued || !has_listener (&vu.second))
+        return;
 
-    if (b && !continued)
-        {
-            dpp::voiceconn *v = from->get_voice (guild_id);
+    dpp::voiceconn *v = from->get_voice (guild_id);
 
-            if (has_listener (&vu.second) && v && v->voiceclient
-                && v->voiceclient->is_ready ())
+    if (!v || !v->voiceclient || !v->voiceclient->is_ready ())
+        return;
 
-                if ((!v->voiceclient->is_paused ()
-                     && !v->voiceclient->is_playing ())
-                    || v->voiceclient->get_secs_remaining () < 0.05f)
-
-                    v->voiceclient->insert_marker ("s");
-        }
+    if ((!v->voiceclient->is_paused () && !v->voiceclient->is_playing ())
+        || v->voiceclient->get_secs_remaining () < 0.05f)
+        v->voiceclient->insert_marker ("s");
 }
+
 } // play
 } // command
 } // musicat
