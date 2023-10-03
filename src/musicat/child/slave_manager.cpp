@@ -66,7 +66,7 @@ shutdown_routine (command::command_options_t &options)
 }
 
 inline constexpr const char *wrfkfmt
-    = "[child::slave_manager::wait_routine] KILL: %d (%s)\n";
+    = "[child::slave_manager::wait_routine] KILLING CHILDREN: %d (%s)\n";
 inline constexpr const char *wrefmt
     = "[child::slave_manager::wait_routine] Child %s with "
       "pid %d exited with status %d\n";
