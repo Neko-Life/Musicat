@@ -105,6 +105,7 @@ void
 handle_worker_fork ()
 {
     close_fds ();
+    slave_manager::handle_worker_fork ();
 }
 
 void

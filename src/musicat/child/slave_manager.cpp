@@ -1,5 +1,6 @@
 #include "musicat/child/worker.h"
 #include "musicat/child/worker_management.h"
+#include "musicat/musicat.h"
 #include <map>
 #include <string>
 #include <sys/wait.h>
@@ -188,6 +189,20 @@ clean_up_all ()
             clean_up_routine (i->second);
 
             i = slave_list.erase (i);
+        }
+
+    return 0;
+}
+
+int
+handle_worker_fork ()
+{
+    for (auto i = slave_list.begin (); i != slave_list.end (); i++)
+        {
+            close_valid_fd (&i->second.parent_read_fd);
+            close_valid_fd (&i->second.parent_write_fd);
+            close_valid_fd (&i->second.child_read_fd);
+            close_valid_fd (&i->second.child_write_fd);
         }
 
     return 0;

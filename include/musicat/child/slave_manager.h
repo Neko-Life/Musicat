@@ -28,6 +28,9 @@ int wait_all ();
 
 int clean_up_all ();
 
+// should be called whenever new child slave spawned
+int handle_worker_fork ();
+
 } // slave_manager
 } // child
 } // musicat
