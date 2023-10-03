@@ -950,17 +950,22 @@ run (int argc, const char *argv[])
                     const bool d_s = get_debug_state ();
                     short int count = 0;
                     int until_count;
+                    bool run_state = false;
 
-                    auto player = player_manager ? player_manager->get_player (
-                                      event.voice_client->server_id)
-                                                 : NULL;
+                    auto player = ((run_state = get_running_state ())
+                                   && player_manager)
+                                      ? player_manager->get_player (
+                                          event.voice_client->server_id)
+                                      : NULL;
 
                     if (!event.voice_client || event.voice_client->terminating
                         || !player)
                         goto gt_rm;
 
                     until_count = player->saved_queue_loaded ? 10 : 30;
-                    while (!event.voice_client->terminating
+                    while ((run_state = get_running_state ()) && player
+                           && player_manager && event.voice_client
+                           && !event.voice_client->terminating
                            && !event.voice_client->is_playing ()
                            && !event.voice_client->is_paused ())
                         {
@@ -973,8 +978,10 @@ run (int argc, const char *argv[])
                                 break;
                         }
 
-                    if (!event.voice_client || event.voice_client->terminating
-                        || !player_manager)
+                    if (!(run_state = get_running_state ())
+                        || !event.voice_client
+                        || event.voice_client->terminating || !player_manager
+                        || !player)
                         {
                             thread_manager::set_done ();
                             return;
