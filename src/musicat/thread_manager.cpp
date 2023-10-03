@@ -164,5 +164,8 @@ join_all ()
     _ns_mutex.unlock ();
 }
 
+DoneSetter::DoneSetter () {}
+DoneSetter::~DoneSetter () { set_done (); }
+
 } // thread_manager
 } // musicat

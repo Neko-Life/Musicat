@@ -61,8 +61,7 @@ get_voice (dpp::guild *guild, dpp::snowflake user_id)
                 }
         }
 
-    // !TODO: THROWING CHARS???
-    throw "User not in vc";
+    return { NULL, {} };
 }
 
 /**
@@ -80,8 +79,7 @@ get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id)
     if (g)
         return get_voice (g, user_id);
 
-    // !TODO: THROWING CHARS???
-    throw "Unknown guild";
+    return { NULL, {} };
 }
 
 bool

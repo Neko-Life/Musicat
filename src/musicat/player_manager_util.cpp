@@ -385,14 +385,13 @@ Manager::voice_ready (const dpp::snowflake &guild_id,
 void
 Manager::stop_stream (const dpp::snowflake &guild_id)
 {
-    auto guild_player = this->get_player (guild_id);
-    if (guild_player)
-        if (guild_player->current_track.filesize)
-            {
-                guild_player->current_track.stopping = true;
+    auto guild_player = get_voice_from_gid (guild_id, get_sha_id ());
+    if (guild_player &&)
+        {
+            guild_player->current_track.stopping = true;
 
-                set_stream_stopping (guild_id);
-            }
+            set_stream_stopping (guild_id);
+        }
 }
 
 bool
@@ -595,7 +594,7 @@ Manager::full_reconnect (dpp::discord_client *from,
         {
             auto m = get_voice_from_gid (guild_id, sha_id);
 
-            if (!has_listener (&m.second))
+            if (!m.first || !has_listener (&m.second))
                 return 0;
         }
 
@@ -605,15 +604,9 @@ Manager::full_reconnect (dpp::discord_client *from,
     from->disconnect_voice (guild_id);
 
     std::thread pjt ([this, from, guild_id] () {
-        try
-            {
-                this->reconnect (from, guild_id);
-            }
-        catch (...)
-            {
-            }
+        thread_manager::DoneSetter tmds;
 
-        thread_manager::set_done ();
+        this->reconnect (from, guild_id);
     });
 
     thread_manager::dispatch (pjt);
