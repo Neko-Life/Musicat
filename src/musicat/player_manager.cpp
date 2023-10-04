@@ -122,16 +122,16 @@ Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
 
     bool a = guild_player->pause (from, user_id);
 
-    if (a)
-        {
-            std::lock_guard<std::mutex> lk (mp_m);
+    if (!a)
+        return a;
 
-            if (vector_find (&this->manually_paused, guild_id)
-                == this->manually_paused.end ())
-                this->manually_paused.push_back (guild_id);
+    std::lock_guard<std::mutex> lk (mp_m);
 
-            this->update_info_embed (guild_id);
-        }
+    if (vector_find (&this->manually_paused, guild_id)
+        == this->manually_paused.end ())
+        this->manually_paused.push_back (guild_id);
+
+    this->update_info_embed (guild_id);
 
     return a;
 }
@@ -268,7 +268,7 @@ Manager::download (const string &fname, const string &url,
                 this->waiting_file_download[fname] = guild_id;
             }
 
-            const std::string music_folder_path = get_music_folder_path ();
+            const string music_folder_path = get_music_folder_path ();
 
             {
                 struct stat buf;
@@ -278,23 +278,23 @@ Manager::download (const string &fname, const string &url,
 
             string cmd
                 = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
-                  + string ("' -x --audio-format opus --audio-quality "
-                            "0 -o '")
+                  + string ("' -x --audio-format opus --audio-quality 0 -o '")
                   + music_folder_path
                   + std::regex_replace (fname, std::regex ("(')"), "'\\''",
                                         std::regex_constants::match_any)
                   + string ("'");
 
-            const bool debug = get_debug_state ();
+            bool debug = get_debug_state ();
 
-            if (debug)
-                {
-                    fprintf (stderr, "DOWNLOAD: \"%s\" \"%s\"\n",
-                             fname.c_str (), url.c_str ());
-                    fprintf (stderr, "CMD: %s\n", cmd.c_str ());
-                }
-            else
+            if (!debug)
                 cmd += " 1>/dev/null";
+
+            // always log these to easily spot problem in prod
+            fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n",
+                     fname.c_str (), url.c_str ());
+
+            fprintf (stderr, "[Manager::download] Command: %s\n",
+                     cmd.c_str ());
 
             // !TODO: probably move this operation to child
             // instead of using literal shell to run the command
@@ -321,7 +321,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                         dpp::snowflake channel_id) {
             thread_manager::DoneSetter tmds;
 
-            const bool debug = get_debug_state ();
+            bool debug = get_debug_state ();
 
             auto server_id = v->server_id;
             auto voice_channel_id = v->channel_id;

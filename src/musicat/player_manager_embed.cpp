@@ -31,6 +31,7 @@ set_processing_embed (const dpp::snowflake &guild_id)
     if (is_processing_embed (guild_id))
         return;
 
+    std::lock_guard<std::mutex> lk (pe_m);
     processing_embed.push_back (guild_id);
 }
 
@@ -52,6 +53,20 @@ clear_processing_embed (const dpp::snowflake &guild_id)
         }
 }
 
+class ProcessingEmbedClearer
+{
+    const dpp::snowflake guild_id;
+
+  public:
+    ProcessingEmbedClearer (const dpp::snowflake &guild_id)
+        : guild_id (guild_id)
+    {
+        set_processing_embed (this->guild_id);
+    };
+
+    ~ProcessingEmbedClearer () { clear_processing_embed (this->guild_id); };
+};
+
 bool
 Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                           const bool force_playing_status,
@@ -62,12 +77,11 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             return false;
         }
 
-    set_processing_embed (guild_id);
+    ProcessingEmbedClearer pec (guild_id);
 
     auto player = this->get_player (guild_id);
     if (!player)
         {
-            clear_processing_embed (guild_id);
             throw exception ("No player");
         }
 
@@ -75,8 +89,6 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
 
     if (update && !player->info_message)
         {
-            clear_processing_embed (guild_id);
-
             if (debug)
                 fprintf (stderr,
                          "[MANAGER:SEND_INFO_EMBED] No message to update\n");
@@ -110,7 +122,6 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         {
             if (!embed_perms)
                 {
-                    clear_processing_embed (guild_id);
                     throw exception ("No permission");
                 }
         }
@@ -122,40 +133,35 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         }
     catch (const exception &e)
         {
-            clear_processing_embed (guild_id);
-
             fprintf (stderr,
                      "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
                      "get_playing_info_embed: %s\n",
                      e.what ());
+
             return false;
         }
     catch (const dpp::exception &e)
         {
-            clear_processing_embed (guild_id);
-
             fprintf (stderr,
                      "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
                      "get_playing_info_embed [dpp::exception]: %s\n",
                      e.what ());
+
             return false;
         }
     catch (const std::logic_error &e)
         {
-            clear_processing_embed (guild_id);
-
             fprintf (stderr,
                      "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
                      "get_playing_info_embed [std::logic_error]: %s\n",
                      e.what ());
+
             return false;
         }
 
     auto m_cb = [this, player, debug] (dpp::confirmation_callback_t cb) {
         if (cb.is_error ())
             {
-                clear_processing_embed (player->guild_id);
-
                 fprintf (stderr,
                          "[ERROR MANAGER::SEND_INFO_EMBED] message_create "
                          "callback error:\nmes: %s\ncode: %d\nerr:\n",
@@ -174,8 +180,6 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             {
                 if (!player)
                     {
-                        clear_processing_embed (player->guild_id);
-
                         fprintf (stderr,
                                  "[ERROR MANAGER::SEND_INFO_EMBED] PLAYER "
                                  "GONE WTFF\n");
@@ -213,8 +217,6 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         else if (debug)
             fprintf (stderr,
                      "[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
-
-        clear_processing_embed (player->guild_id);
     };
 
     if (delete_original)
