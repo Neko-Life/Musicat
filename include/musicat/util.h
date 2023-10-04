@@ -52,7 +52,13 @@ rand_item (const std::vector<T> &vec)
     return vec.at (idx);
 }
 
-/////////////////////////////
+/**
+ * @brief Get member highest role
+ */
+dpp::role *get_user_highest_role (const dpp::snowflake &guild_id,
+                                  const dpp::snowflake &user_id);
+
+///////////////////////////////////////////////////////////////////////////////////////
 
 namespace response
 {
@@ -74,7 +80,6 @@ reply_skipped_track (std::deque<musicat::player::MCTrack> &removed_tracks);
 std::string str_mention_user (const dpp::snowflake &user_id);
 
 } // response
-
 } // util
 } // musicat
 

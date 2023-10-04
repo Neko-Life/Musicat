@@ -121,5 +121,55 @@ is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
                && guild_player->queue.begin () == guild_player->queue.end ());
 }
 
+dpp::role *
+get_user_highest_role (const dpp::snowflake &guild_id,
+                       const dpp::snowflake &user_id)
+{
+    dpp::guild_member o;
+    try
+        {
+            o = dpp::find_guild_member (guild_id, user_id);
+        }
+    catch (...)
+        {
+            // no guild member found
+            return nullptr;
+        }
+
+    std::vector<dpp::role *> role_list;
+    role_list.reserve (o.roles.size ());
+
+    for (const auto &i : o.roles)
+        {
+            auto r = dpp::find_role (i);
+            if (!r || !r->colour)
+                continue;
+
+            role_list.push_back (r);
+        }
+
+    dpp::role *highest_role = nullptr;
+    for (const auto i : role_list)
+        {
+            if (!i)
+                continue;
+
+            if (!highest_role)
+                {
+                    highest_role = i;
+                    continue;
+                }
+
+            if (highest_role->position > i->position)
+                {
+                    continue;
+                }
+
+            highest_role = i;
+        }
+
+    return highest_role;
+}
+
 } // util
 } // musicat

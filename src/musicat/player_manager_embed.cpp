@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/util.h"
 #include <variant>
 
 namespace musicat
@@ -100,6 +101,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
 
     auto g = dpp::find_guild (guild_id);
     auto c = dpp::find_channel (channel_id);
+
     bool embed_perms = has_permissions (
         g, &this->cluster->me, c,
         { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
@@ -118,12 +120,9 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                     delete_original = true;
                 }
         }
-    else
+    else if (!embed_perms)
         {
-            if (!embed_perms)
-                {
-                    throw exception ("No permission");
-                }
+            throw exception ("No permission");
         }
 
     dpp::embed e;
@@ -159,16 +158,20 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             return false;
         }
 
-    auto m_cb = [this, player, debug] (dpp::confirmation_callback_t cb) {
+    auto m_cb = [this, guild_id] (dpp::confirmation_callback_t cb) {
+        bool debug = get_debug_state ();
+
         if (cb.is_error ())
             {
-                fprintf (stderr,
-                         "[ERROR MANAGER::SEND_INFO_EMBED] message_create "
-                         "callback error:\nmes: %s\ncode: %d\nerr:\n",
-                         cb.get_error ().message.c_str (),
-                         cb.get_error ().code);
+                auto e_i = cb.get_error ();
 
-                for (const auto &i : cb.get_error ().errors)
+                fprintf (stderr,
+                         "[Manager::send_info_embed ERROR] "
+                         "message_create callback error:\n"
+                         "mes: %s\ncode: %d\nerr:\n",
+                         e_i.message.c_str (), e_i.code);
+
+                for (const auto &i : e_i.errors)
                     fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
                              i.code.c_str (), i.field.c_str (),
                              i.object.c_str (), i.reason.c_str ());
@@ -176,56 +179,65 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                 return;
             }
 
-        if (cb.value.index ())
+        if (!std::holds_alternative<dpp::message> (cb.value))
             {
-                if (!player)
-                    {
-                        fprintf (stderr,
-                                 "[ERROR MANAGER::SEND_INFO_EMBED] PLAYER "
+                if (debug)
+                    fprintf (stderr, "[Manager::send_info_embed] "
+                                     "No message_create cb size\n");
+
+                return;
+            }
+
+        auto player = this->get_player (guild_id);
+
+        if (!player)
+            {
+                fprintf (stderr, "[Manager::send_info_embed ERROR] PLAYER "
                                  "GONE WTFF\n");
 
-                        return;
-                    }
-
-                if (std::holds_alternative<dpp::message> (cb.value))
-                    {
-                        std::lock_guard<std::mutex> lk (this->imc_m);
-
-                        if (player->info_message)
-                            {
-                                auto id = player->info_message->id;
-                                this->info_messages_cache.erase (id);
-                            }
-
-                        player->info_message = std::make_shared<dpp::message> (
-                            std::get<dpp::message> (cb.value));
-
-                        if (player->info_message)
-                            {
-                                this->info_messages_cache[player->info_message
-                                                              ->id]
-                                    = player->info_message;
-
-                                if (debug)
-                                    std::cerr
-                                        << "[MANAGER::SEND_INFO_EMBED] New "
-                                           "message info: "
-                                        << player->info_message->id << '\n';
-                            }
-                    }
+                return;
             }
-        else if (debug)
-            fprintf (stderr,
-                     "[MANAGER::SEND_INFO_EMBED] No message_create cb size\n");
+
+        std::lock_guard<std::mutex> lk (this->imc_m);
+
+        dpp::snowflake id;
+
+        if (player->info_message)
+            {
+                id = player->info_message->id;
+                this->info_messages_cache.erase (id);
+            }
+
+        player->info_message = std::make_shared<dpp::message> (
+            std::get<dpp::message> (cb.value));
+
+        if (!player->info_message)
+            return;
+
+        id = player->info_message->id;
+
+        this->info_messages_cache[id] = player->info_message;
+
+        if (debug)
+            std::cerr << "[MANAGER::SEND_INFO_EMBED] New "
+                         "message info: "
+                      << id << '\n';
     };
 
     if (delete_original)
         {
+            // no return? sending delete while also edit under it?
+            //
+            // no. update will always be false when delete_original is true
+            // or at least it should
+
             this->delete_info_embed (guild_id);
         }
 
     // TODO: Refactor this horrendous `update` flag system and check for
     // existing info_message instead
+
+    // not update
     if (!update)
         {
             dpp::message m;
@@ -239,34 +251,41 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                     .set_style (dpp::cos_primary)));
 
             if (event)
-                event->reply (m, m_cb);
-            else
-                this->cluster->message_create (m, m_cb);
-        }
-    else if (player->info_message)
-        {
-            auto mn = *player->info_message;
-            if (!mn.embeds.empty ())
-                mn.embeds.pop_back ();
-
-            mn.embeds.push_back (e);
-
-            if (debug)
-                std::cerr
-                    << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
-                       "Edit: "
-                    << mn.channel_id << " " << mn.id << '\n';
-
-            if (event)
                 {
-                    dpp::interaction_response reply (dpp::ir_update_message,
-                                                     mn);
-                    event->from->creator->interaction_response_create (
-                        event->command.id, event->command.token, reply, m_cb);
+                    event->reply (m, m_cb);
+                    return true;
                 }
-            else
-                this->cluster->message_edit (mn, m_cb);
+
+            this->cluster->message_create (m, m_cb);
+            return true;
         }
+
+    // else update
+
+    if (!player->info_message)
+        // !TODO: shouldn't be false? is it safe to return false?
+        return true;
+
+    auto mn = *player->info_message;
+    if (!mn.embeds.empty ())
+        mn.embeds.pop_back ();
+
+    mn.embeds.push_back (e);
+
+    if (debug)
+        std::cerr << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
+                     "Edit: "
+                  << mn.channel_id << " " << mn.id << '\n';
+
+    if (!event)
+        {
+            this->cluster->message_edit (mn, m_cb);
+            return true;
+        }
+
+    dpp::interaction_response reply (dpp::ir_update_message, mn);
+    event->from->creator->interaction_response_create (
+        event->command.id, event->command.token, reply, m_cb);
 
     return true;
 }
@@ -292,14 +311,15 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
 
     auto retdel = [player, this] () {
         std::lock_guard<std::mutex> lk (this->imc_m);
+
         if (player->info_message)
             {
                 auto id = player->info_message->id;
                 this->info_messages_cache.erase (id);
                 return true;
             }
-        else
-            return false;
+
+        return false;
     };
 
     if (!player->info_message)
@@ -388,37 +408,53 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     }
 
     // one char variable name for 100x performance improvement!!!!!
-    dpp::guild_member o
-        = dpp::find_guild_member (guild_id, this->cluster->me.id);
-    dpp::guild_member u = dpp::find_guild_member (guild_id, track.user_id);
-    dpp::user *uc = dpp::find_user (u.user_id);
-    uint32_t color = 0;
-    for (auto i : o.roles)
+    dpp::guild_member u;
+    bool member_found = false;
+
+    try
         {
-            auto r = dpp::find_role (i);
-            if (!r || !r->colour)
-                continue;
-            color = r->colour;
-            break;
+            u = dpp::find_guild_member (guild_id, track.user_id);
+            member_found = true;
+        }
+    catch (...)
+        {
         }
 
-    string eaname = !u.nickname.empty () ? u.nickname : uc->username;
+    dpp::user *uc = dpp::find_user (track.user_id);
+
+    auto h_r = util::get_user_highest_role (guild_id, get_sha_id ());
+
+    uint32_t color = h_r ? h_r->colour : 0;
+
+    string eaname;
+
+    if (member_found && !u.nickname.empty ())
+        eaname = u.nickname;
+
+    if (!eaname.length () && uc)
+        eaname = uc->username;
+    else
+        eaname = "`[ERROR]` User not found";
 
     dpp::embed_author ea;
     ea.name = eaname;
 
-    auto ua = u.get_avatar_url (4096);
-    auto uca = uc->get_avatar_url (4096);
+    auto ua = member_found ? u.get_avatar_url (4096) : "";
+    auto uca = uc ? uc->get_avatar_url (4096) : "";
+
     if (!ua.empty ())
         ea.icon_url = ua;
+
     else if (!uca.empty ())
         ea.icon_url = uca;
 
     static const char *l_mode[]
         = { "Repeat one", "Repeat queue", "Repeat one/queue" };
+
     static const char *p_mode[] = { "Paused", "Playing" };
 
     string et = track.bestThumbnail ().url;
+
     dpp::embed e;
     e.set_description (track.snippetText ())
         .set_title (track.title ())
@@ -514,8 +550,6 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     if (!et.empty ())
         e.set_image (et);
 
-    /* if (debug) printf("[Manager::get_playing_info_embed] Should unlock
-     * player::t_mutex: %ld\n", guild_player->guild_id); */
     return e;
 }
 
