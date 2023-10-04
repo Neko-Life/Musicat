@@ -250,7 +250,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                     .set_type (dpp::cot_button)
                     .set_style (dpp::cos_primary)));
 
-            if (event)
+            if (event && !delete_original)
                 {
                     event->reply (m, m_cb);
                     return true;
