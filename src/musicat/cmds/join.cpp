@@ -28,6 +28,9 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_player = player_manager->create_player (event.command.guild_id);
     guild_player->from = event.from;
 
+    if (!guild_player->channel_id)
+        guild_player->set_channel (event.command.channel_id);
+
     int res = join_voice (event.from, player_manager, event.command.guild_id,
                           event.command.usr.id, event.from->creator->me.id);
 

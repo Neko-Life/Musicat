@@ -57,15 +57,32 @@ clear_processing_embed (const dpp::snowflake &guild_id)
 class ProcessingEmbedClearer
 {
     const dpp::snowflake guild_id;
+    bool no_clear;
 
   public:
-    ProcessingEmbedClearer (const dpp::snowflake &guild_id)
-        : guild_id (guild_id)
+    ProcessingEmbedClearer (const dpp::snowflake &guild_id,
+                            bool no_set_blocker = false)
+        : guild_id (guild_id), no_clear (false)
     {
+        if (no_set_blocker)
+            return;
+
         set_processing_embed (this->guild_id);
     };
 
-    ~ProcessingEmbedClearer () { clear_processing_embed (this->guild_id); };
+    void
+    set_no_clear (bool no_clear)
+    {
+        this->no_clear = no_clear;
+    }
+
+    ~ProcessingEmbedClearer ()
+    {
+        if (this->no_clear)
+            return;
+
+        clear_processing_embed (this->guild_id);
+    };
 };
 
 bool
@@ -159,7 +176,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         }
 
     auto m_cb = [this, guild_id] (dpp::confirmation_callback_t cb) {
-        bool debug = get_debug_state ();
+        ProcessingEmbedClearer pec (guild_id, true);
 
         if (cb.is_error ())
             {
@@ -178,6 +195,8 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
 
                 return;
             }
+
+        bool debug = get_debug_state ();
 
         if (!std::holds_alternative<dpp::message> (cb.value))
             {
@@ -250,6 +269,9 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                     .set_type (dpp::cot_button)
                     .set_style (dpp::cos_primary)));
 
+            // m_cb is used after here, set no_clear to clear it on callback
+            pec.set_no_clear (true);
+
             if (event && !delete_original)
                 {
                     event->reply (m, m_cb);
@@ -276,6 +298,9 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         std::cerr << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
                      "Edit: "
                   << mn.channel_id << " " << mn.id << '\n';
+
+    // m_cb is used after here, set no_clear to clear it on callback
+    pec.set_no_clear (true);
 
     if (!event)
         {

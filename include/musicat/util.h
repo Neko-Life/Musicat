@@ -53,10 +53,11 @@ rand_item (const std::vector<T> &vec)
 }
 
 /**
- * @brief Get member highest role
+ * @brief Get member highest role, with_color by default
  */
 dpp::role *get_user_highest_role (const dpp::snowflake &guild_id,
-                                  const dpp::snowflake &user_id);
+                                  const dpp::snowflake &user_id,
+                                  bool with_color = true);
 
 ///////////////////////////////////////////////////////////////////////////////////////
 

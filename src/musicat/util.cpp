@@ -123,7 +123,7 @@ is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
 
 dpp::role *
 get_user_highest_role (const dpp::snowflake &guild_id,
-                       const dpp::snowflake &user_id)
+                       const dpp::snowflake &user_id, bool with_color)
 {
     dpp::guild_member o;
     try
@@ -142,7 +142,7 @@ get_user_highest_role (const dpp::snowflake &guild_id,
     for (const auto &i : o.roles)
         {
             auto r = dpp::find_role (i);
-            if (!r || !r->colour)
+            if (!r || (with_color && !r->colour))
                 continue;
 
             role_list.push_back (r);
