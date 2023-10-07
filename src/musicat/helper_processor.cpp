@@ -442,7 +442,7 @@ while (write_ready && wrote < *size
                     */
 
                     // sleep for 0.2 ms
-                    usleep (200);
+                    // usleep (200);
 
                     write (hci->write_fd, buffer, *size);
 
