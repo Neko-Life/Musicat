@@ -90,18 +90,10 @@ _util_create_remove_thread (
     std::function<size_t (const std::string &)> remove_fn)
 {
     std::thread t ([val, second_sleep, remove_fn] () {
-        try
-            {
-                std::this_thread::sleep_for (
-                    std::chrono::seconds (second_sleep));
+        thread_manager::DoneSetter tdms;
+        std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
 
-                remove_fn (val);
-            }
-        catch (...)
-            {
-            }
-
-        thread_manager::set_done ();
+        remove_fn (val);
     });
 
     thread_manager::dispatch (t);
@@ -428,50 +420,43 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
             std::thread t (
                 [] (const std::string creds) {
+                    thread_manager::DoneSetter tmds;
+                    std::ostringstream os;
+
+                    curlpp::Easy req;
+
+                    req.setOpt (curlpp::options::Url (DISCORD_API_URL
+                                                      "/oauth2/token"));
+
+                    req.setOpt (curlpp::options::Header (
+                        "Content-Type: "
+                        "application/x-www-form-urlencoded"));
+
+                    req.setOpt (curlpp::options::PostFields (creds));
+                    req.setOpt (
+                        curlpp::options::PostFieldSize (creds.length ()));
+
+                    req.setOpt (curlpp::options::WriteStream (&os));
+
                     try
                         {
-                            std::ostringstream os;
-
-                            curlpp::Easy req;
-
-                            req.setOpt (curlpp::options::Url (
-                                DISCORD_API_URL "/oauth2/token"));
-
-                            req.setOpt (curlpp::options::Header (
-                                "Content-Type: "
-                                "application/x-www-form-urlencoded"));
-
-                            req.setOpt (curlpp::options::PostFields (creds));
-                            req.setOpt (curlpp::options::PostFieldSize (
-                                creds.length ()));
-
-                            req.setOpt (curlpp::options::WriteStream (&os));
-
-                            try
-                                {
-                                    req.perform ();
-                                }
-                            catch (const curlpp::LibcurlRuntimeError &e)
-                                {
-                                    fprintf (stderr,
-                                             "[ERROR] "
-                                             "LibcurlRuntimeError(%d): %s\n",
-                                             e.whatCode (), e.what ());
-                                    thread_manager::set_done ();
-                                    return;
-                                }
-
-                            // MAGIC INIT
-                            const std::string rawhttp = os.str ();
-
-                            fprintf (stderr, "%s\n", creds.c_str ());
-                            fprintf (stderr, "%s\n", rawhttp.c_str ());
+                            req.perform ();
                         }
-                    catch (...)
+                    catch (const curlpp::LibcurlRuntimeError &e)
                         {
+                            fprintf (stderr,
+                                     "[ERROR] "
+                                     "LibcurlRuntimeError(%d): %s\n",
+                                     e.whatCode (), e.what ());
+
+                            return;
                         }
 
-                    thread_manager::set_done ();
+                    // MAGIC INIT
+                    const std::string rawhttp = os.str ();
+
+                    fprintf (stderr, "%s\n", creds.c_str ());
+                    fprintf (stderr, "%s\n", rawhttp.c_str ());
                 },
                 data);
 

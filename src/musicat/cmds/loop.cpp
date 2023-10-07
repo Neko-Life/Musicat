@@ -36,6 +36,7 @@ slash_run (const dpp::slashcommand_t &event)
             event.reply ("Please wait while I'm getting ready to stream");
             return;
         }
+
     const dpp::snowflake sha_id = get_sha_id ();
     static const char *loop_message[]
         = { "Turned off repeat mode", "Set to repeat a song",
@@ -44,35 +45,23 @@ slash_run (const dpp::slashcommand_t &event)
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > uvc;
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > cvc;
-    try
-        {
-            uvc = get_voice_from_gid (event.command.guild_id,
-                                      event.command.usr.id);
-        }
-    catch (const char *e)
-        {
-            return event.reply ("You're not in a voice channel");
-        }
-    try
-        {
-            cvc = get_voice_from_gid (event.command.guild_id, sha_id);
-        }
-    catch (const char *e)
-        {
-            return event.reply ("I'm not playing anything right now");
-        }
+
+    uvc = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
+    if (!uvc.first)
+        return event.reply ("You're not in a voice channel");
+
+    cvc = get_voice_from_gid (event.command.guild_id, sha_id);
+    if (!cvc.first)
+        return event.reply ("I'm not playing anything right now");
+
     if (uvc.first->id != cvc.first->id)
         return event.reply ("You're not in my voice channel");
-    int64_t g_l = 0;
-    get_inter_param (event, "mode", &g_l);
 
-    int8_t a_l = (int8_t)g_l;
+    int64_t a_l = 0;
+    get_inter_param (event, "mode", &a_l);
 
     if (a_l < 0 || a_l > 3)
-        {
-            event.reply ("Invalid mode");
-            return;
-        }
+        return event.reply ("Invalid mode");
 
     auto guild_player = player_manager->create_player (event.command.guild_id);
     guild_player->from = event.from;
@@ -80,13 +69,11 @@ slash_run (const dpp::slashcommand_t &event)
         player_manager->load_guild_player_config (event.command.guild_id);
 
     if (guild_player->loop_mode == a_l)
-        {
-            event.reply ("Already set to that mode");
-            return;
-        }
+        return event.reply ("Already set to that mode");
 
     guild_player->set_loop_mode (a_l);
     event.reply (loop_message[a_l]);
+
     try
         {
             player_manager->update_info_embed (event.command.guild_id);

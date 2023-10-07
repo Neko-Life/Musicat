@@ -174,7 +174,6 @@ get_voice (dpp::guild *guild, dpp::snowflake user_id);
  * @param guild_id Guild Id the member in
  * @param user_id Target member
  * @return std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
- * @throw const char* Unknown guild or user isn't in vc
  */
 std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
 get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id);

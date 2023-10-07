@@ -19,41 +19,26 @@ slash_run (const dpp::slashcommand_t &event)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
-        {
-            return;
-        }
+        return;
 
     auto p = player_manager->get_player (event.command.guild_id);
     dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
 
     if (util::is_player_not_playing (p, v))
-        {
-            event.reply ("I'm not playing anything");
-            return;
-        }
+        return event.reply ("I'm not playing anything");
 
     if (!player_manager->voice_ready (event.command.guild_id, event.from,
                                       event.command.usr.id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
+        return event.reply ("Please wait while I'm getting ready to stream");
 
-    try
-        {
-            auto vcu = get_voice_from_gid (event.command.guild_id,
-                                           event.command.usr.id);
-            if (vcu.first->id != v->channel_id)
-                {
-                    event.reply ("You're not in my voice channel!");
-                    return;
-                }
-        }
-    catch (...)
-        {
-            event.reply ("You're not in a voice channel!");
-            return;
-        }
+    auto vcu
+        = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
+
+    if (!vcu.first)
+        return event.reply ("You're not in a voice channel!");
+
+    if (vcu.first->id != v->channel_id)
+        return event.reply ("You're not in my voice channel!");
 
     player_manager->stop_stream (event.command.guild_id);
 

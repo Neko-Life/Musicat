@@ -25,6 +25,16 @@ void join_done ();
 
 void join_all ();
 
+/**
+ * @brief RAII for set_done()
+ */
+class DoneSetter
+{
+  public:
+    DoneSetter ();
+    ~DoneSetter ();
+};
+
 } // thread_manager
 } // musicat
 

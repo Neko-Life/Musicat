@@ -458,6 +458,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     auto tracks = std::any_cast<std::vector<yt_search::YTrack> > (storage);
     if (tracks.size () < (size_t)pos)
         return;
+
     auto result = tracks.at (pos - 1);
 
     auto from = event.from;
@@ -505,36 +506,31 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
          edit_response] (const dpp::interaction_create_t event,
                          yt_search::YTrack result) {
-            try
-                {
-                    dpp::snowflake user_id = event.command.usr.id;
-                    auto guild_player
-                        = player_manager->create_player (guild_id);
-                    if (dling)
-                        {
-                            player_manager->wait_for_download (fname);
-                            event.edit_response (edit_response);
-                        }
-                    if (from)
-                        guild_player->from = from;
+            thread_manager::DoneSetter tmds;
 
-                    player::MCTrack t (result);
-                    t.filename = fname;
-                    t.user_id = user_id;
-                    guild_player->add_track (t, top ? true : false, guild_id,
-                                             dling, arg_slip);
+            dpp::snowflake user_id = event.command.usr.id;
+            auto guild_player = player_manager->create_player (guild_id);
 
-                    if (from)
-                        command::play::decide_play (from, guild_id, false);
-                    else if (get_debug_state ())
-                        fprintf (stderr, "[modal_p] No client to "
-                                         "decide play\n");
-                }
-            catch (...)
+            if (dling)
                 {
+                    player_manager->wait_for_download (fname);
+                    event.edit_response (edit_response);
                 }
 
-            thread_manager::set_done ();
+            if (from)
+                guild_player->from = from;
+
+            player::MCTrack t (result);
+            t.filename = fname;
+            t.user_id = user_id;
+            guild_player->add_track (t, top ? true : false, guild_id, dling,
+                                     arg_slip);
+
+            if (from)
+                command::play::decide_play (from, guild_id, false);
+            else if (get_debug_state ())
+                fprintf (stderr, "[modal_p] No client to "
+                                 "decide play\n");
         },
         event, result);
 
@@ -945,71 +941,62 @@ run (int argc, const char *argv[])
 
         // ignore marker remover
         std::thread t ([event] () {
-            try
+            thread_manager::DoneSetter tmds;
+
+            const bool d_s = get_debug_state ();
+            short int count = 0;
+            int until_count;
+            bool run_state = false;
+
+            auto player
+                = ((run_state = get_running_state ()) && player_manager)
+                      ? player_manager->get_player (
+                          event.voice_client->server_id)
+                      : NULL;
+
+            if (!event.voice_client || event.voice_client->terminating
+                || !player)
+                goto gt_rm;
+
+            until_count = player->saved_queue_loaded ? 10 : 30;
+            while ((run_state = get_running_state ()) && player
+                   && player_manager && event.voice_client
+                   && !event.voice_client->terminating
+                   && !event.voice_client->is_playing ()
+                   && !event.voice_client->is_paused ())
                 {
-                    const bool d_s = get_debug_state ();
-                    short int count = 0;
-                    int until_count;
-                    bool run_state = false;
+                    std::this_thread::sleep_for (
+                        std::chrono::milliseconds (500));
 
-                    auto player = ((run_state = get_running_state ())
-                                   && player_manager)
-                                      ? player_manager->get_player (
-                                          event.voice_client->server_id)
-                                      : NULL;
+                    count++;
 
-                    if (!event.voice_client || event.voice_client->terminating
-                        || !player)
-                        goto gt_rm;
-
-                    until_count = player->saved_queue_loaded ? 10 : 30;
-                    while ((run_state = get_running_state ()) && player
-                           && player_manager && event.voice_client
-                           && !event.voice_client->terminating
-                           && !event.voice_client->is_playing ()
-                           && !event.voice_client->is_paused ())
-                        {
-                            std::this_thread::sleep_for (
-                                std::chrono::milliseconds (500));
-
-                            count++;
-
-                            if (count == until_count)
-                                break;
-                        }
-
-                    if (!(run_state = get_running_state ())
-                        || !event.voice_client
-                        || event.voice_client->terminating || !player_manager
-                        || !player)
-                        {
-                            thread_manager::set_done ();
-                            return;
-                        }
-
-                gt_rm:
-                    player_manager->remove_ignore_marker (
-                        event.voice_client->server_id);
-
-                    if (!d_s)
-                        {
-                            thread_manager::set_done ();
-                            return;
-                        }
-
-                    fprintf (stderr, "Removed ignore marker for meta '%s'",
-                             event.track_meta.c_str ());
-
-                    if (event.voice_client)
-                        std::cerr << " in " << event.voice_client->server_id;
-
-                    fprintf (stderr, "\n");
-                }
-            catch (...)
-                {
+                    if (count == until_count)
+                        break;
                 }
 
-            thread_manager::set_done ();
+            if (!(run_state = get_running_state ()) || !event.voice_client
+                || event.voice_client->terminating || !player_manager
+                || !player)
+                {
+                    return;
+                }
+
+        gt_rm:
+            player_manager->remove_ignore_marker (
+                event.voice_client->server_id);
+
+            if (!d_s)
+                {
+                    return;
+                }
+
+            fprintf (stderr, "Removed ignore marker for meta '%s'",
+                     event.track_meta.c_str ());
+
+            if (event.voice_client)
+                std::cerr << " in " << event.voice_client->server_id;
+
+            fprintf (stderr, "\n");
         });
 
         thread_manager::dispatch (t);
@@ -1118,15 +1105,8 @@ run (int argc, const char *argv[])
 
     // start server
     std::thread server_thread ([] () {
-        try
-            {
-                server::run ();
-            }
-        catch (...)
-            {
-            }
-
-        thread_manager::set_done ();
+        thread_manager::DoneSetter tmds;
+        server::run ();
     });
 
     thread_manager::dispatch (server_thread);

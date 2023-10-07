@@ -91,7 +91,7 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_id = event.command.guild_id;
     auto from = event.from;
     auto user_id = event.command.usr.id;
-    const dpp::snowflake sha_id = get_sha_id ();
+    dpp::snowflake sha_id = get_sha_id ();
 
     std::string arg_query = "";
     int64_t arg_top = 0;
@@ -104,15 +104,10 @@ slash_run (const dpp::slashcommand_t &event)
     dpp::guild *g = dpp::find_guild (guild_id);
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
         vcuser;
-    try
-        {
-            vcuser = get_voice (g, user_id);
-        }
-    catch (const char *e)
-        {
-            event.reply ("Join a voice channel first you dummy");
-            return;
-        }
+
+    vcuser = get_voice (g, user_id);
+    if (!vcuser.first)
+        return event.reply ("Join a voice channel first you dummy");
 
     dpp::user *sha_user = dpp::find_user (sha_id);
 
@@ -129,25 +124,19 @@ slash_run (const dpp::slashcommand_t &event)
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
         vcclient;
-    // Whether client in vc and vcclient exist
-    bool vcclient_cont = true;
-    try
-        {
-            vcclient = get_voice (g, sha_id);
-        }
-    catch (const char *e)
-        {
-            vcclient_cont = false;
-            if (from->connecting_voice_channels.find (guild_id)
-                != from->connecting_voice_channels.end ())
-                {
-                    std::cerr
-                        << "Disconnecting as not in vc but connected state "
-                           "still in cache: "
-                        << guild_id << '\n';
 
-                    from->disconnect_voice (guild_id);
-                }
+    vcclient = get_voice (g, sha_id);
+    // Whether client in vc and vcclient exist
+    bool vcclient_cont = vcclient.first != nullptr;
+    if (!vcclient_cont
+        && from->connecting_voice_channels.find (guild_id)
+               != from->connecting_voice_channels.end ())
+        {
+            std::cerr << "Disconnecting as not in vc but connected state "
+                         "still in cache: "
+                      << guild_id << '\n';
+
+            from->disconnect_voice (guild_id);
         }
 
     // Client voice conn
@@ -547,15 +536,8 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         }
 
     std::thread pjt ([player_manager, from, guild_id] () {
-        try
-            {
-                player_manager->reconnect (from, guild_id);
-            }
-        catch (...)
-            {
-            }
-
-        thread_manager::set_done ();
+        thread_manager::DoneSetter tmds;
+        player_manager->reconnect (from, guild_id);
     });
 
     thread_manager::dispatch (pjt);
@@ -606,34 +588,25 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 {
     if (!from || !from->creator)
         return;
+
     const dpp::snowflake sha_id = from->creator->me.id;
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vu;
-    bool b = true;
+    vu = get_voice_from_gid (guild_id, sha_id);
 
-    try
-        {
-            vu = get_voice_from_gid (guild_id, sha_id);
-        }
-    catch (const char *e)
-        {
-            b = false;
-        }
+    if (!vu.first || continued || !has_listener (&vu.second))
+        return;
 
-    if (b && !continued)
-        {
-            dpp::voiceconn *v = from->get_voice (guild_id);
+    dpp::voiceconn *v = from->get_voice (guild_id);
 
-            if (has_listener (&vu.second) && v && v->voiceclient
-                && v->voiceclient->is_ready ())
+    if (!v || !v->voiceclient || !v->voiceclient->is_ready ())
+        return;
 
-                if ((!v->voiceclient->is_paused ()
-                     && !v->voiceclient->is_playing ())
-                    || v->voiceclient->get_secs_remaining () < 0.05f)
-
-                    v->voiceclient->insert_marker ("s");
-        }
+    if ((!v->voiceclient->is_paused () && !v->voiceclient->is_playing ())
+        || v->voiceclient->get_secs_remaining () < 0.05f)
+        v->voiceclient->insert_marker ("s");
 }
+
 } // play
 } // command
 } // musicat

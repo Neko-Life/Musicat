@@ -34,24 +34,31 @@ slash_run (const dpp::slashcommand_t &event)
     int res = join_voice (event.from, player_manager, event.command.guild_id,
                           event.command.usr.id, event.from->creator->me.id);
 
+    std::string msg;
+
     switch (res)
         {
         case 0:
-            event.reply ("Joining...");
-            return;
+            msg = "Joining...";
+            guild_player->set_channel (event.command.channel_id);
+            break;
         case 1:
-            event.reply ("Join a voice channel first you dummy");
-            return;
+            msg = "Join a voice channel first you dummy";
+            break;
         case 2:
-            event.reply ("I'm already in a voice channel");
-            return;
+            msg = "I'm already in a voice channel";
+            break;
         case 3:
-            event.reply ("`[ERROR]` No channel to join");
-            return;
+            msg = "`[ERROR]` No channel to join";
+            break;
         case 4:
-            event.reply ("I have no permission to join your voice channel");
-            return;
+            msg = "I have no permission to join your voice channel";
+            break;
+        default:
+            msg = "`[ERROR]` Unknown status code: " + std::to_string (res);
         }
+
+    return event.reply (msg);
 }
 } // join
 
@@ -75,56 +82,31 @@ slash_run (const dpp::slashcommand_t &event)
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > usc,
         vcc;
 
-    // user is in a voice
-    bool has_usc = false;
-    // client is in a voice
-    bool has_vcc = false;
-
-    try
+    usc = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
+    if (!usc.first)
         {
-            usc = get_voice_from_gid (event.command.guild_id,
-                                      event.command.usr.id);
-            has_usc = true;
-
-            vcc = get_voice_from_gid (event.command.guild_id,
-                                      event.from->creator->me.id);
-            has_vcc = true;
-
-            if (usc.first && usc.first->id)
-                {
-                    if (vcc.first && vcc.first->id
-                        && usc.first->id != vcc.first->id)
-                        {
-                            event.reply ("You're not in my voice channel");
-                            return;
-                        }
-
-                    player_manager->set_disconnecting (event.command.guild_id,
-                                                       usc.first->id);
-
-                    event.from->disconnect_voice (event.command.guild_id);
-                    event.reply ("Leaving...");
-                    return;
-                }
-        }
-    catch (...)
-        {
-            if (!has_usc)
-                {
-                    event.reply ("You're not in a voice channel");
-                    return;
-                }
-            if (!has_vcc)
-                {
-                    event.reply ("I'm not in a voice channel");
-                    return;
-                }
-
-            event.reply ("`[FATAL]` UNKNOWN ERROR");
+            event.reply ("You're not in a voice channel");
             return;
         }
 
-    event.reply ("`[ERROR]` Missing channel");
+    vcc = get_voice_from_gid (event.command.guild_id,
+                              event.from->creator->me.id);
+    if (!vcc.first)
+        {
+            event.reply ("I'm not in a voice channel");
+            return;
+        }
+
+    if (vcc.first && vcc.first->id && usc.first->id != vcc.first->id)
+        {
+            event.reply ("You're not in my voice channel");
+            return;
+        }
+
+    player_manager->set_disconnecting (event.command.guild_id, usc.first->id);
+
+    event.from->disconnect_voice (event.command.guild_id);
+    event.reply ("Leaving...");
 }
 } // leave
 } // command

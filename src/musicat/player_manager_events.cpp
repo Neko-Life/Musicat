@@ -152,246 +152,217 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         database::update_guild_current_queue (event.voice_client->server_id,
                                               guild_player->queue);
 
-    try
-        {
-            auto c
-                = get_voice_from_gid (event.voice_client->server_id, sha_id);
+    auto c = get_voice_from_gid (event.voice_client->server_id, sha_id);
 
-            if (!has_listener (&c.second))
-                {
-                    if (debug)
-                        std::cerr << "[Manager::handle_on_track_marker] No "
-                                     "listener in voice channel: "
-                                  << c.first->id << " ("
-                                  << guild_player->guild_id << ")\n";
-
-                    return false;
-                }
-        }
-    catch (...)
+    if (!c.first || !has_listener (&c.second))
         {
+            if (debug)
+                std::cerr << "[Manager::handle_on_track_marker] No "
+                             "listener in voice channel: "
+                          << event.voice_client->channel_id << " ("
+                          << guild_player->guild_id << ")\n";
 
             return false;
         }
 
-    if (event.voice_client->get_secs_remaining () < 0.05f)
-        {
-            std::thread tj (
-                [this, debug] (dpp::discord_voice_client *v, string meta,
-                               std::shared_ptr<Player> guild_player) {
-                    try
+    std::thread tj;
+
+    if (event.voice_client->get_secs_remaining () >= 0.05f)
+        goto end_err;
+
+    tj = std::thread (
+        [this] (dpp::discord_voice_client *v, string meta,
+                std::shared_ptr<Player> guild_player) {
+            thread_manager::DoneSetter tmds;
+            MCTrack &track = guild_player->current_track;
+            auto guild_id = v->server_id;
+
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+
+            // text channel to send embed
+            dpp::snowflake channel_id = guild_player->channel_id;
+
+            // std::thread tmt([this](bool* _v) {
+            //     int _w = 30;
+            //     while (_v && *_v == false && _w > 0)
+            //     {
+            //         sleep(1);
+            //         --_w;
+            //     }
+            //     if (_w) return;
+            //     if (_v)
+            //     {
+            //         *_v = true;
+            //         this->dl_cv.notify_all();
+            //     }
+            // }, &timed_out);
+            // tmt.detach();
+
+            this->wait_for_vc_ready (guild_id);
+
+            // channel for sending message
+            dpp::channel *c = dpp::find_channel (channel_id);
+            // guild
+            dpp::guild *g = dpp::find_guild (guild_id);
+
+            prepare_play_stage_channel_routine (v, g);
+
+            this->wait_for_download (track.filename);
+
+            // check for autoplay
+            const string track_id = track.id ();
+            std::thread at_t;
+            if (!guild_player->auto_play)
+                goto no_autoplay;
+
+            at_t = std::thread (
+                [this] (const std::string &track_id, dpp::discord_client *from,
+                        const dpp::snowflake &server_id) {
+                    thread_manager::DoneSetter tmds;
+
+                    this->get_next_autoplay_track (track_id, from, server_id);
+                },
+                track_id, guild_player->from, guild_player->guild_id);
+
+            thread_manager::dispatch (at_t);
+
+        no_autoplay:
+            if (guild_player->max_history_size)
+                {
+                    guild_player->history.push_back (track_id);
+
+                    while (guild_player->history.size ()
+                           > guild_player->max_history_size)
                         {
-                            MCTrack &track = guild_player->current_track;
-                            auto guild_id = v->server_id;
+                            guild_player->history.pop_front ();
+                        }
+                }
 
-                            std::lock_guard<std::mutex> lk (
-                                guild_player->t_mutex);
+            bool embed_perms
+                = has_permissions (g, &this->cluster->me, c,
+                                   { dpp::p_view_channel, dpp::p_send_messages,
+                                     dpp::p_embed_links });
 
-                            // text channel to send embed
-                            dpp::snowflake channel_id
-                                = guild_player->channel_id;
+            {
+                const string absolute_path
+                    = get_music_folder_path () + track.filename;
 
-                            // std::thread tmt([this](bool* _v) {
-                            //     int _w = 30;
-                            //     while (_v && *_v == false && _w > 0)
-                            //     {
-                            //         sleep(1);
-                            //         --_w;
-                            //     }
-                            //     if (_w) return;
-                            //     if (_v)
-                            //     {
-                            //         *_v = true;
-                            //         this->dl_cv.notify_all();
-                            //     }
-                            // }, &timed_out);
-                            // tmt.detach();
-
-                            this->wait_for_vc_ready (guild_id);
-
-                            // channel for sending message
-                            dpp::channel *c = dpp::find_channel (channel_id);
-                            // guild
-                            dpp::guild *g = dpp::find_guild (guild_id);
-
-                            prepare_play_stage_channel_routine (v, g);
-
-                            this->wait_for_download (track.filename);
-
-                            const string track_id = track.id ();
-                            if (guild_player->auto_play)
-                                {
-                                    std::thread at_t (
-                                        [this] (
-                                            const std::string &track_id,
-                                            dpp::discord_client *from,
-                                            const dpp::snowflake &server_id) {
-                                            try
-                                                {
-                                                    this->get_next_autoplay_track (
-                                                        track_id, from,
-                                                        server_id);
-                                                }
-                                            catch (...)
-                                                {
-                                                }
-
-                                            thread_manager::set_done ();
-                                        },
-                                        track_id, guild_player->from,
-                                        guild_player->guild_id);
-
-                                    thread_manager::dispatch (at_t);
-                                }
-
-                            if (guild_player->max_history_size)
-                                {
-                                    guild_player->history.push_back (track_id);
-
-                                    while (guild_player->history.size ()
-                                           > guild_player->max_history_size)
-                                        {
-                                            guild_player->history.pop_front ();
-                                        }
-                                }
-
-                            bool embed_perms = has_permissions (
-                                g, &this->cluster->me, c,
-                                { dpp::p_view_channel, dpp::p_send_messages,
-                                  dpp::p_embed_links });
-
-                            {
-                                const string music_folder_path
-                                    = get_music_folder_path ();
-
-                                std::ifstream test (
-                                    music_folder_path + track.filename,
+                std::ifstream test (absolute_path,
                                     std::ios_base::in | std::ios_base::binary);
 
-                                if (!test.is_open ())
-                                    {
-                                        if (v && !v->terminating)
-                                            {
-                                                this->remove_ignore_marker (
-                                                    guild_id);
+                if (test.is_open ())
+                    {
+                        test.close ();
+                        goto has_file;
+                    }
 
-                                                v->insert_marker ("e");
-                                            }
+                fprintf (stderr,
+                         "[Manager::handle_on_track_marker tj ERROR] "
+                         "Can't open audio file: %s\n",
+                         absolute_path.c_str ());
 
-                                        if (embed_perms)
-                                            {
-                                                const string m_content
-                                                    = "Can't play track: "
-                                                      + track.title ()
-                                                      + " (added by <@"
-                                                      + std::to_string (
-                                                          track.user_id)
-                                                      + ">)";
+                // file not found, might be download error or
+                // deleted
+                if (v && !v->terminating)
+                    {
+                        fprintf (stderr,
+                                 "[Manager::handle_on_track_marker tj ERROR] "
+                                 "Inserting `e` marker\n");
 
-                                                dpp::message m (channel_id,
-                                                                m_content);
+                        this->remove_ignore_marker (guild_id);
 
-                                                this->cluster->message_create (
-                                                    m);
-                                            }
+                        v->insert_marker ("e");
+                    }
 
-                                        thread_manager::set_done ();
-                                        return;
-                                    }
-                                else
-                                    test.close ();
-                            }
+                // can't notify user, what else to do?
+                if (!embed_perms)
+                    {
+                        return;
+                    }
 
-                            if (meta == "r")
-                                v->send_silence (60);
+                const string m_content
+                    = "Can't play track: " + track.title () + " (added by <@"
+                      + std::to_string (track.user_id) + ">)";
 
-                            // Send play info embed
-                            try
-                                {
-                                    this->play (v, track, channel_id);
+                dpp::message m (channel_id, m_content);
 
-                                    if (embed_perms)
-                                        {
-                                            // Update if last message is the
-                                            // info embed message
-                                            const bool should_update_embed
-                                                = c
-                                                  && guild_player->info_message
-                                                  && c->last_message_id
-                                                  && c->last_message_id
-                                                         == guild_player
-                                                                ->info_message
-                                                                ->id;
+                this->cluster->message_create (m);
 
-                                            if (should_update_embed)
-                                                {
-                                                    const bool
-                                                        not_repeating_song
-                                                        = (guild_player
-                                                               ->loop_mode
-                                                           != loop_mode_t::
-                                                               l_song)
-                                                          && (guild_player
-                                                                  ->loop_mode
-                                                              != loop_mode_t::
-                                                                  l_song_queue);
+                // no audio file
+                return;
+            }
 
-                                                    if (not_repeating_song)
-                                                        this->update_info_embed (
-                                                            guild_id, true);
-                                                }
-                                            else
-                                                {
-                                                    this->delete_info_embed (
-                                                        guild_id);
+        has_file:
+            if (meta == "r")
+                v->send_silence (60);
 
-                                                    this->send_info_embed (
-                                                        guild_id, false, true);
-                                                }
-                                        }
-                                    else
-                                        fprintf (
-                                            stderr,
-                                            "[EMBED_UPDATE] No channel or "
-                                            "permission to send info embed\n");
-                                }
-                            catch (const exception &e)
-                                {
-                                    fprintf (stderr,
-                                             "[ERROR EMBED_UPDATE] %s\n",
-                                             e.what ());
+            // Send play info embed
+            try
+                {
+                    this->play (v, track, channel_id);
 
-                                    auto cd = e.code ();
+                    bool should_update_embed = false,
+                         not_repeating_song = false;
 
-                                    if (!embed_perms || (cd != 1 && cd != 2))
-                                        {
-                                            thread_manager::set_done ();
-                                            return;
-                                        }
+                    if (!embed_perms)
+                        goto log_no_embed;
 
-                                    dpp::message m;
-                                    m.set_channel_id (channel_id)
-                                        .set_content (e.what ());
+                    // Update if last message is the
+                    // info embed message
+                    should_update_embed
+                        = c && guild_player->info_message && c->last_message_id
+                          && c->last_message_id
+                                 == guild_player->info_message->id;
 
-                                    this->cluster->message_create (m);
-                                }
-                        }
-                    catch (...)
-                        {
-                        }
+                    if (!should_update_embed)
+                        goto del_info_embed;
 
-                    thread_manager::set_done ();
-                },
-                event.voice_client, event.track_meta, guild_player);
+                    not_repeating_song
+                        = (guild_player->loop_mode != loop_mode_t::l_song)
+                          && (guild_player->loop_mode
+                              != loop_mode_t::l_song_queue);
 
-            thread_manager::dispatch (tj);
+                    if (not_repeating_song)
+                        this->update_info_embed (guild_id, true);
 
-            return true;
-        }
-    else
-        std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
-                     "client not present or already playing: "
-                  << guild_player->guild_id << "\n";
+                    return;
+
+                del_info_embed:
+                    this->delete_info_embed (guild_id);
+
+                    this->send_info_embed (guild_id, false, true);
+                    return;
+
+                log_no_embed:
+                    fprintf (stderr, "[EMBED_UPDATE] No channel or "
+                                     "permission to send info embed\n");
+                    return;
+                }
+            catch (const exception &e)
+                {
+                    fprintf (stderr, "[ERROR EMBED_UPDATE] %s\n", e.what ());
+
+                    auto cd = e.code ();
+
+                    if (!embed_perms || (cd != 1 && cd != 2))
+                        return;
+
+                    dpp::message m;
+                    m.set_channel_id (channel_id).set_content (e.what ());
+
+                    this->cluster->message_create (m);
+                }
+        },
+        event.voice_client, event.track_meta, guild_player);
+
+    thread_manager::dispatch (tj);
+
+    return true;
+
+end_err:
+    std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
+                 "client not present or already playing: "
+              << guild_player->guild_id << "\n";
 
     if (debug)
         {
@@ -424,228 +395,195 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
 void
 Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 {
-    const bool debug = get_debug_state ();
-    const auto sha_id = get_sha_id ();
+    bool debug = get_debug_state ();
+    dpp::snowflake sha_id = get_sha_id ();
+    dpp::snowflake e_user_id = event.state.user_id;
+    bool is_not_sha_event = e_user_id != sha_id;
+    dpp::snowflake e_channel_id = event.state.channel_id;
+    dpp::snowflake e_guild_id = event.state.guild_id;
 
-    // Non client's user code
-    if (event.state.user_id != sha_id)
+    // Non sha event
+    if (is_not_sha_event)
         {
-            dpp::voiceconn *v = event.from->get_voice (event.state.guild_id);
+            dpp::voiceconn *v = event.from->get_voice (e_guild_id);
 
-            if (!v || !v->channel_id || !v->voiceclient)
+            if (!v || !v->channel_id || !v->voiceclient
+                || v->voiceclient->terminating)
                 return;
 
+            bool is_playing_audio
+                = v->voiceclient->get_secs_remaining () > 0.05f;
+
+            if (!is_playing_audio)
+                return;
+
+            bool has_voice_session = v->channel_id == event.state.channel_id;
+            bool is_paused = v->voiceclient->is_paused ();
+
+            bool should_pause = !has_voice_session && !is_paused;
+            bool should_unpause = has_voice_session && is_paused;
+
+            // join user channel if no one listening in current channel
+            if (!should_pause && !should_unpause)
+                {
+                    if (!e_channel_id || has_voice_session)
+                        return;
+
+                    if (debug)
+                        fprintf (stderr, "// join user channel if no one "
+                                         "listening in current channel\n");
+
+                    this->full_reconnect (event.from, e_guild_id,
+                                          v->channel_id, e_channel_id, true);
+
+                    return;
+                }
+
+            bool is_manually_paused = this->is_manually_paused (e_guild_id);
+
             // Pause audio when no user listening in vc
-            if (v->channel_id != event.state.channel_id
-                && v->voiceclient->get_secs_remaining () > 0.05f
-                && !v->voiceclient->is_paused ())
+            if (should_pause)
                 {
-                    if (event.from
-                        && !this->is_manually_paused (event.state.guild_id))
+                    if (!event.from || is_manually_paused)
+                        return;
+
+                    auto voice
+                        = get_voice_from_gid (event.state.guild_id, sha_id);
+
+                    // check whether there's human listening in the vc
+                    if (!voice.first)
+                        goto exec_pause_audio;
+
+                    for (const auto &l : voice.second)
                         {
-                            try
-                                {
-                                    auto voice = get_voice_from_gid (
-                                        event.state.guild_id, sha_id);
-                                    // Whether there's human listening in the
-                                    // vc
-                                    bool p = false;
-                                    for (auto l : voice.second)
-                                        {
-                                            // This only check user in cache,
-                                            // if user not in cache then skip
-                                            auto a = dpp::find_user (l.first);
-                                            if (a)
-                                                {
-                                                    if (!a->is_bot ())
-                                                        {
-                                                            p = true;
-                                                            break;
-                                                        }
-                                                }
-                                        }
+                            // This only check user in cache,
+                            auto a = dpp::find_user (l.first);
 
-                                    if (!p)
-                                        {
-                                            v->voiceclient->pause_audio (true);
+                            // if user not in cache then skip
+                            if (!a)
+                                continue;
 
-                                            this->update_info_embed (
-                                                event.state.guild_id);
+                            // don't count bot as listener
+                            if (a->is_bot ())
+                                continue;
 
-                                            if (debug)
-                                                std::cerr
-                                                    << "Paused "
-                                                    << event.state.guild_id
-                                                    << " as no "
-                                                       "user in vc\n";
-                                        }
-                                }
-                            catch (const char *e)
-                                {
-                                    fprintf (stderr,
-                                             "[ERROR VOICE_STATE_UPDATE] %s\n",
-                                             e);
-                                }
+                            // has listening user, abort pause
+                            return;
                         }
-                }
-            else
-                {
-                    // unpause if the track was paused automatically
-                    if (v->channel_id == event.state.channel_id
-                        && v->voiceclient->get_secs_remaining () > 0.05f
-                        && v->voiceclient->is_paused ())
-                        {
-                            // Whether the track paused automatically
-                            if (!this->is_manually_paused (
-                                    event.state.guild_id))
-                                {
-                                    std::thread tj (
-                                        [this, event] (
-                                            dpp::discord_voice_client *vc) {
-                                            std::this_thread::sleep_for (
-                                                std::chrono::milliseconds (
-                                                    2500));
-                                            try
-                                                {
-                                                    auto a
-                                                        = get_voice_from_gid (
-                                                            event.state
-                                                                .guild_id,
-                                                            event.state
-                                                                .user_id);
 
-                                                    if (vc && !vc->terminating
-                                                        && a.first
-                                                        && a.first->id
-                                                               == event.state
-                                                                      .channel_id)
-                                                        {
-                                                            vc->pause_audio (
-                                                                false);
+                exec_pause_audio:
+                    v->voiceclient->pause_audio (true);
+                    this->update_info_embed (event.state.guild_id);
 
-                                                            this->update_info_embed (
-                                                                event.state
-                                                                    .guild_id);
-                                                        }
-                                                }
-                                            catch (...)
-                                                {
-                                                }
+                    if (!debug)
+                        return;
 
-                                            thread_manager::set_done ();
-                                        },
-                                        v->voiceclient);
+                    std::cerr << "Paused " << event.state.guild_id
+                              << " as no user in vc\n";
 
-                                    thread_manager::dispatch (tj);
-                                }
-                        }
-                    // join user channel if no one listening in current channel
-                    else if (event.state.channel_id
-                             && v->channel_id != event.state.channel_id)
-                        {
-                            try
-                                {
-                                    if (debug)
-                                        fprintf (
-                                            stderr,
-                                            "// join user channel if no one "
-                                            "listening in current channel\n");
-
-                                    this->full_reconnect (
-                                        event.from, event.state.guild_id,
-                                        v->channel_id, event.state.channel_id,
-                                        true);
-                                }
-                            catch (...)
-                                {
-                                }
-                        }
+                    return;
                 }
 
-            // End non client's user code
+            // unpause if the track was paused automatically
+
+            // Whether the track paused automatically
+            if (is_manually_paused)
+                // not manually paused
+                return;
+
+            // dispatch a thread to resume after a timeout
+            std::thread tj (
+                [this, e_guild_id, e_channel_id,
+                 e_user_id] (dpp::discord_voice_client *vc) {
+                    using ms = std::chrono::milliseconds;
+
+                    thread_manager::DoneSetter tmds;
+
+                    std::this_thread::sleep_for (ms (2500));
+
+                    auto a = get_voice_from_gid (e_guild_id, e_user_id);
+
+                    if (!vc || vc->terminating || !a.first
+                        || a.first->id != e_channel_id)
+                        return;
+
+                    vc->pause_audio (false);
+
+                    try
+                        {
+                            this->update_info_embed (e_guild_id);
+                        }
+                    catch (...)
+                        {
+                        }
+                },
+                v->voiceclient);
+
+            thread_manager::dispatch (tj);
+
+            // End non sha event
             return;
         }
 
     // Client user code -----------------------------------
 
     // left vc
-    if (!event.state.channel_id)
+    if (!e_channel_id)
         {
-            this->clear_disconnecting (event.state.guild_id);
+            this->clear_disconnecting (e_guild_id);
 
             // update vcs cache
-            vcs_setting_handle_disconnected (
-                dpp::find_channel (event.state.channel_id));
+            vcs_setting_handle_disconnected (dpp::find_channel (e_channel_id));
+            return;
         }
+
     // joined vc
-    else
+    this->clear_connecting (e_guild_id);
+
+    auto a = get_voice_from_gid (e_guild_id, e_user_id);
+    auto v = event.from->get_voice (e_guild_id);
+
+    if (v && v->voiceclient && v->voiceclient->is_ready ())
         {
-            this->clear_connecting (event.state.guild_id);
-
-            try
-                {
-                    auto a = get_voice_from_gid (event.state.guild_id,
-                                                 event.state.user_id);
-
-                    auto v = event.from->get_voice (event.state.guild_id);
-
-                    if (v && v->voiceclient && v->voiceclient->is_ready ())
-                        {
-                            this->clear_wait_vc_ready (event.state.guild_id);
-                        }
-
-                    if (v && v->channel_id && v->channel_id != a.first->id)
-                        {
-                            this->stop_stream (event.state.guild_id);
-
-                            if (v->voiceclient && !v->voiceclient->terminating)
-                                {
-                                    v->voiceclient->pause_audio (false);
-                                    v->voiceclient->skip_to_next_marker ();
-                                }
-
-                            this->set_disconnecting (event.state.guild_id,
-                                                     v->channel_id);
-
-                            event.from->disconnect_voice (
-                                event.state.guild_id);
-
-                            if (has_listener (&a.second))
-                                {
-                                    this->set_connecting (event.state.guild_id,
-                                                          a.first->id);
-
-                                    this->set_waiting_vc_ready (
-                                        event.state.guild_id);
-                                }
-
-                            std::thread tj ([this, event] () {
-                                try
-                                    {
-                                        std::this_thread::sleep_for (
-                                            std::chrono::seconds (1));
-
-                                        this->voice_ready (
-                                            event.state.guild_id, event.from);
-                                    }
-                                catch (...)
-                                    {
-                                    }
-
-                                thread_manager::set_done ();
-                            });
-
-                            thread_manager::dispatch (tj);
-                        }
-                }
-            catch (...)
-                {
-                }
-
-            // update vcs cache
-            vcs_setting_handle_connected (
-                dpp::find_channel (event.state.channel_id));
+            this->clear_wait_vc_ready (e_guild_id);
         }
+
+    if (v && v->channel_id && v->channel_id != a.first->id)
+        {
+            this->stop_stream (e_guild_id);
+
+            if (v->voiceclient && !v->voiceclient->terminating)
+                {
+                    v->voiceclient->pause_audio (false);
+                    v->voiceclient->skip_to_next_marker ();
+                }
+
+            this->set_disconnecting (e_guild_id, v->channel_id);
+
+            event.from->disconnect_voice (e_guild_id);
+
+            if (has_listener (&a.second))
+                {
+                    this->set_connecting (e_guild_id, a.first->id);
+
+                    this->set_waiting_vc_ready (e_guild_id);
+                }
+
+            std::thread tj (
+                [this, e_guild_id] (dpp::discord_client *from) {
+                    thread_manager::DoneSetter tmds;
+
+                    std::this_thread::sleep_for (std::chrono::seconds (1));
+
+                    this->voice_ready (e_guild_id, from);
+                },
+                event.from);
+
+            thread_manager::dispatch (tj);
+        }
+
+    // update vcs cache
+    vcs_setting_handle_connected (dpp::find_channel (e_channel_id));
     // if (muted) player_manager->pause(event.guild_id);
     // else player_manager->resume(guild_id);
 }
@@ -677,18 +615,20 @@ Manager::prepare_play_stage_channel_routine (
     if (!voice_channel || voice_channel->get_type () != dpp::CHANNEL_STAGE)
         return;
 
-    const bool debug = get_debug_state ();
-
     auto i = guild->voice_members.find (get_sha_id ());
 
+    // sha not in guild cache?? that's weird
     if (i == guild->voice_members.end ())
         return;
+
     // this will be true if you need to attempt to request speak
     const bool is_currently_suppressed = i->second.is_suppressed ();
 
     // return if not suppressed
     if (!is_currently_suppressed)
         return;
+
+    const bool debug = get_debug_state ();
 
     // try not suppress if has
     // MUTE_MEMBERS permission
@@ -698,7 +638,7 @@ Manager::prepare_play_stage_channel_routine (
               ? false
               : is_currently_suppressed;
 
-    // set request_to_speak
+    // set request_to_speak, if has request to speak permission
     time_t request_ts = 0;
     if (stay_suppress
         && has_permissions (guild, &voice_client->creator->me, voice_channel,
@@ -708,25 +648,28 @@ Manager::prepare_play_stage_channel_routine (
     const bool update_voice_state
         = request_ts || (stay_suppress != is_currently_suppressed);
 
-    if (update_voice_state)
+    if (!update_voice_state)
         {
             if (debug)
                 {
-                    std::cerr << "[request_to_speak] "
-                                 "Requesting speak in "
-                              << i->second.channel_id << '\n';
+                    std::cerr
+                        << "[Manager::prepare_play_stage_channel_routine] "
+                           "No request_to_speak in "
+                        << i->second.channel_id << '\n';
                 }
 
-            voice_client->creator->current_user_set_voice_state (
-                guild->id, i->second.channel_id, stay_suppress, request_ts);
+            return;
         }
-    else if (debug)
+
+    if (debug)
         {
-            std::cerr << "[request_to_speak] "
-                         "No "
-                         "request_to_speak in "
+            std::cerr << "[Manager::prepare_play_stage_channel_routine] "
+                         "Requesting speak in "
                       << i->second.channel_id << '\n';
         }
+
+    voice_client->creator->current_user_set_voice_state (
+        guild->id, i->second.channel_id, stay_suppress, request_ts);
 }
 
 } // player
