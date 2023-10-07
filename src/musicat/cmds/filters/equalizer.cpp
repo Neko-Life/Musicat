@@ -66,6 +66,7 @@ up the volume threshold to 500
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
+#include <string>
 
 namespace musicat
 {
@@ -106,7 +107,13 @@ vol_to_str (float v)
 }
 
 std::string
-equalizer_fx_t_to_str (const equalizer_fx_t &eq)
+band_vol_to_str_value (int64_t v)
+{
+    return std::to_string (v);
+}
+
+std::string
+equalizer_fx_t_to_af_args (const equalizer_fx_t &eq)
 {
     return "superequalizer="
            "1b="
@@ -131,8 +138,37 @@ equalizer_fx_t_to_str (const equalizer_fx_t &eq)
            + ",volume=" + vol_to_str ((float)eq.volume);
 }
 
+/*
+band-1: 150 band-2: 150 band-3: 120 band-4: 105 band-5: 80 band-6: 75
+band-13: 75 band-14: 75 band-15: 80 band-16: 80 band-17: 80 band-18: 80
+*/
+
+std::string
+equalizer_fx_t_to_slash_args (const equalizer_fx_t &eq)
+{
+    return "band-1: " + band_vol_to_str_value ((float)eq.bands[0])
+           + " band-2: " + band_vol_to_str_value ((float)eq.bands[1])
+           + " band-3: " + band_vol_to_str_value ((float)eq.bands[2])
+           + " band-4: " + band_vol_to_str_value ((float)eq.bands[3])
+           + " band-5: " + band_vol_to_str_value ((float)eq.bands[4])
+           + " band-6: " + band_vol_to_str_value ((float)eq.bands[5])
+           + " band-7: " + band_vol_to_str_value ((float)eq.bands[6])
+           + " band-8: " + band_vol_to_str_value ((float)eq.bands[7])
+           + " band-9: " + band_vol_to_str_value ((float)eq.bands[8])
+           + " volume: " + band_vol_to_str_value ((float)eq.volume)
+           + " band-10: " + band_vol_to_str_value ((float)eq.bands[9])
+           + " band-11: " + band_vol_to_str_value ((float)eq.bands[10])
+           + " band-12: " + band_vol_to_str_value ((float)eq.bands[11])
+           + " band-13: " + band_vol_to_str_value ((float)eq.bands[12])
+           + " band-14: " + band_vol_to_str_value ((float)eq.bands[13])
+           + " band-15: " + band_vol_to_str_value ((float)eq.bands[14])
+           + " band-16: " + band_vol_to_str_value ((float)eq.bands[15])
+           + " band-17: " + band_vol_to_str_value ((float)eq.bands[16])
+           + " band-18: " + band_vol_to_str_value ((float)eq.bands[17]);
+}
+
 equalizer_fx_t
-str_to_equalizer_fx_t (const std::string &str)
+af_args_to_equalizer_fx_t (const std::string &str)
 {
     equalizer_fx_t ret;
 
@@ -263,9 +299,14 @@ show (const dpp::slashcommand_t &event)
     if (ftp.guild_player->equalizer.empty ())
         return event.reply ("Equalizer not set");
 
-    event.reply ("show: This command is still under construction...\nHere's "
-                 "what you want anyway: "
-                 + ftp.guild_player->equalizer);
+    std::string rply
+        = "This command is still under construction...\n\n"
+          "Here's what you want anyway: ```md\n"
+          + equalizer_fx_t_to_slash_args (
+              af_args_to_equalizer_fx_t (ftp.guild_player->equalizer))
+          + "```";
+
+    event.reply (rply);
 }
 
 void
@@ -280,7 +321,7 @@ set (const dpp::slashcommand_t &event)
     equalizer_fx_t arg
         = ftp.guild_player->equalizer.empty ()
               ? create_equalizer_fx_t ()
-              : str_to_equalizer_fx_t (ftp.guild_player->equalizer);
+              : af_args_to_equalizer_fx_t (ftp.guild_player->equalizer);
 
     get_inter_param (event, "volume", &arg.volume);
 
@@ -290,11 +331,14 @@ set (const dpp::slashcommand_t &event)
                              (arg.bands + i));
         }
 
-    std::string arg_str = equalizer_fx_t_to_str (arg);
+    std::string set_str = equalizer_fx_t_to_af_args (arg);
 
-    ftp.guild_player->set_equalizer = arg_str;
+    ftp.guild_player->set_equalizer = set_str;
 
-    event.reply ("Setting equalizer with args: " + arg_str);
+    std::string rply = "Setting equalizer with args: ```md\n"
+                       + equalizer_fx_t_to_slash_args (arg) + "```";
+
+    event.reply (rply);
 }
 
 void
