@@ -136,10 +136,12 @@ get_user_highest_role (const dpp::snowflake &guild_id,
             return nullptr;
         }
 
-    std::vector<dpp::role *> role_list;
-    role_list.reserve (o.roles.size ());
+    const std::vector<dpp::snowflake> &oroles = o.get_roles ();
 
-    for (const auto &i : o.roles)
+    std::vector<dpp::role *> role_list;
+    role_list.reserve (oroles.size ());
+
+    for (const auto &i : oroles)
         {
             auto r = dpp::find_role (i);
             if (!r || (with_color && !r->colour))

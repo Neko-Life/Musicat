@@ -453,8 +453,15 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     string eaname;
 
-    if (member_found && !u.nickname.empty ())
-        eaname = u.nickname;
+    if (member_found)
+        {
+            std::string nick = u.get_nickname ();
+
+            if (!nick.empty ())
+                {
+                    eaname = nick;
+                }
+        }
 
     if (!eaname.length () && uc)
         eaname = uc->username;
@@ -464,14 +471,12 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     dpp::embed_author ea;
     ea.name = eaname;
 
-    auto ua = member_found ? u.get_avatar_url (4096) : "";
-    auto uca = uc ? uc->get_avatar_url (4096) : "";
+    auto ua = member_found ? u.get_avatar_url (4096)
+              : uc         ? uc->get_avatar_url (4096)
+                           : "";
 
     if (!ua.empty ())
         ea.icon_url = ua;
-
-    else if (!uca.empty ())
-        ea.icon_url = uca;
 
     static const char *l_mode[]
         = { "Repeat one", "Repeat queue", "Repeat one/queue" };
