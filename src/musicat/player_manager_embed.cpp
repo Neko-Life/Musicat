@@ -471,9 +471,10 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     dpp::embed_author ea;
     ea.name = eaname;
 
-    auto ua = member_found ? u.get_avatar_url (4096)
-              : uc         ? uc->get_avatar_url (4096)
-                           : "";
+    std::string ua = member_found ? u.get_avatar_url (4096) : "";
+
+    if (ua.empty () && uc)
+        ua = uc->get_avatar_url (4096);
 
     if (!ua.empty ())
         ea.icon_url = ua;
