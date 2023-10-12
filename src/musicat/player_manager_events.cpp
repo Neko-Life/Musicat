@@ -591,7 +591,7 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 void
 Manager::handle_on_message_delete (const dpp::message_delete_t &event)
 {
-    this->set_info_message_as_deleted (event.deleted->id);
+    this->set_info_message_as_deleted (event.id);
 }
 
 void

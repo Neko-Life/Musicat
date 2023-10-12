@@ -324,7 +324,7 @@ add_pagination_buttons (dpp::message *msg)
 void
 handle_on_message_delete (const dpp::message_delete_t &event)
 {
-    delete_page (event.deleted->id);
+    delete_page (event.id);
 }
 
 void
