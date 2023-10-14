@@ -608,28 +608,26 @@ run (int argc, const char *argv[])
 
     const bool no_db = sha_cfg["SHA_DB"].is_null ();
     std::string db_connect_param = "";
-    {
-        if (no_db)
-            {
-                fprintf (stderr,
-                         "[WARN] No database configured, some functionality "
-                         "might not work\n");
-            }
-        else
-            {
-                db_connect_param = get_sha_db_params ();
-                ConnStatusType status = database::init (db_connect_param);
-                if (status != CONNECTION_OK)
-                    {
-                        database::shutdown ();
-                        fprintf (stderr,
-                                 "[ERROR] Error initializing database, code: "
-                                 "%d\nSome functionality using database might "
-                                 "not work\n",
-                                 status);
-                    }
-            }
-    }
+
+    if (no_db)
+        {
+            fprintf (stderr, "[WARN] No database configured, some "
+                             "functionality might not work\n");
+        }
+    else
+        {
+            db_connect_param = get_sha_db_params ();
+            ConnStatusType status = database::init (db_connect_param);
+            if (status != CONNECTION_OK)
+                {
+                    database::shutdown ();
+                    fprintf (
+                        stderr,
+                        "[ERROR] Error initializing database, code: %d\n"
+                        "Some functionality using database might not work\n",
+                        status);
+                }
+        }
 
     // initialize cluster here since constructing cluster
     // also spawns threads
@@ -1062,33 +1060,6 @@ run (int argc, const char *argv[])
     on_channel_update_end:
         // update vc cache
         vcs_setting_handle_updated (event.updated);
-    });
-
-    client.on_voice_buffer_send ([] (const dpp::voice_buffer_send_t &event) {
-#ifndef MUSICAT_USE_PCM
-        return;
-#endif
-        auto manager = get_player_manager_ptr ();
-        auto player = manager
-                          ? manager->get_player (event.voice_client->server_id)
-                          : NULL;
-
-        if (!player)
-            return;
-
-        if (player->current_track.current_byte
-            >= (INT64_MAX - event.buffer_size))
-            return;
-
-        static constexpr const double ratio = 1.3067854;
-
-        player->current_track.current_byte
-            += round ((double)event.buffer_size * ratio);
-
-        if (get_debug_state ())
-            fprintf (stderr,
-                     "[on_voice_buffer_send] size current_byte: %d %ld\n",
-                     event.buffer_size, player->current_track.current_byte);
     });
 
 #ifdef MUSICAT_WS_P_ETF

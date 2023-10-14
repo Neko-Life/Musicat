@@ -197,9 +197,23 @@ init (const std::string &_conninfo)
 }
 
 ConnStatusType
-reconnect (const bool &force, const std::string &_conninfo)
+reconnect (bool force, const std::string &_conninfo)
 {
-    if (conn == nullptr || force)
+    bool should_reconnect = conn == nullptr || force;
+
+    if (!should_reconnect)
+        {
+            // check connection status
+            ConnStatusType status = PQstatus (conn);
+
+            if (status == CONNECTION_OK)
+                goto reconnect_end;
+
+            fprintf (stderr, "[DB ERROR] Connection BAD. Reconnecting...\n");
+            should_reconnect = true;
+        }
+
+    if (should_reconnect)
         {
             if (!_conninfo.empty ())
                 conninfo = _conninfo;
@@ -209,6 +223,7 @@ reconnect (const bool &force, const std::string &_conninfo)
             return init (conninfo);
         }
 
+reconnect_end:
     return CONNECTION_OK;
 }
 
@@ -239,27 +254,31 @@ cancel ()
 void
 shutdown ()
 {
-    const bool debug = get_debug_state ();
+    bool debug = get_debug_state ();
 
     if (debug)
         fprintf (stderr, "[DB] Shutting down...\n");
-    if (conn)
+
+    if (!conn)
         {
-            if (cancel ())
-                {
-                    if (debug)
-                        fprintf (stderr, "[DB] Latest query cancelled\n");
-                }
-            else if (debug)
-                fprintf (stderr, "[DB] No query cancelled\n");
+            if (debug)
+                fprintf (stderr, "[DB] No connection\n");
 
-            std::lock_guard<std::mutex> lk (conn_mutex);
+            return;
+        }
 
-            PQfinish (conn);
-            conn = nullptr;
+    if (cancel ())
+        {
+            if (debug)
+                fprintf (stderr, "[DB] Latest query cancelled\n");
         }
     else if (debug)
-        fprintf (stderr, "[DB] No connection\n");
+        fprintf (stderr, "[DB] No query cancelled\n");
+
+    std::lock_guard<std::mutex> lk (conn_mutex);
+
+    PQfinish (conn);
+    conn = nullptr;
 }
 
 const std::string
@@ -489,6 +508,7 @@ get_playlist_from_PGresult (PGresult *res)
         {
             if (j->is_null ())
                 continue;
+
             player::MCTrack t;
             t.raw = *j;
             t.filename = j->at ("filename").get<std::string> ();
