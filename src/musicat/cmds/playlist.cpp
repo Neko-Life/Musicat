@@ -8,6 +8,7 @@
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
 #include <memory>
+#include <variant>
 
 namespace musicat
 {
@@ -20,16 +21,20 @@ _get_nested_arg (const dpp::interaction_create_t &event, const size_t at,
 {
     dpp::command_interaction cmd = event.command.get_command_interaction ();
 
-    if (cmd.options.size ())
-        {
-            auto &command_options = cmd.options.at (0).options;
-            if (command_options.size () > at)
-                {
-                    dpp::command_value val = command_options.at (at).value;
-                    if (val.index ())
-                        *result = std::get<T> (val);
-                }
-        }
+    if (!cmd.options.size ())
+        return;
+
+    auto &command_options = cmd.options.at (0).options;
+
+    if (command_options.size () <= at)
+        return;
+
+    dpp::command_value val = command_options.at (at).value;
+
+    if (!std::holds_alternative<T> (val))
+        return;
+
+    *result = std::get<T> (val);
 }
 
 std::string

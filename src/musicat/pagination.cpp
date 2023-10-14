@@ -59,6 +59,7 @@ void
 pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 {
     std::lock_guard<std::mutex> lk (this->s_mutex);
+
     if (cb.is_error ())
         {
             fprintf (stderr,
@@ -72,17 +73,21 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 
             return;
         }
+
     if (new_current == std::string::npos)
         {
             delete_page (this->message->id);
             return;
         }
-    if (cb.value.index () && std::holds_alternative<dpp::message> (cb.value))
+
+    bool debug = get_debug_state ();
+
+    if (std::holds_alternative<dpp::message> (cb.value))
         {
             this->message = std::make_shared<dpp::message> (
                 std::get<dpp::message> (cb.value));
         }
-    else if (get_debug_state ())
+    else if (debug)
         fprintf (stderr, "[PAGES_T EDIT_CB] No edit_cb size\n");
 
     this->current = new_current;

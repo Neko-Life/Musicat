@@ -586,10 +586,10 @@ void
 decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
              const bool &continued)
 {
-    if (!from || !from->creator)
+    if (!from)
         return;
 
-    const dpp::snowflake sha_id = from->creator->me.id;
+    dpp::snowflake sha_id = get_sha_id ();
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vu;
     vu = get_voice_from_gid (guild_id, sha_id);

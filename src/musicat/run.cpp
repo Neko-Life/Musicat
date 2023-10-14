@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string>
 #include <unistd.h>
+#include <variant>
 #include <vector>
 
 static const std::string OAUTH_BASE_URL
@@ -34,7 +35,6 @@ static const std::string OAUTH_BASE_URL
 namespace musicat
 {
 using json = nlohmann::json;
-using string = std::string;
 
 json sha_cfg;
 
@@ -98,22 +98,22 @@ get_sha_id ()
     return sha_id;
 }
 
-string
+std::string
 get_sha_token ()
 {
-    return get_config_value<string> ("SHA_TKN", "");
+    return get_config_value<std::string> ("SHA_TKN", "");
 }
 
-string
+std::string
 get_sha_secret ()
 {
     return get_config_value<std::string> ("SHA_SECRET", "");
 }
 
-string
+std::string
 get_sha_db_params ()
 {
-    return get_config_value<string> ("SHA_DB", "");
+    return get_config_value<std::string> ("SHA_DB", "");
 }
 
 bool
@@ -372,6 +372,8 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+auto dpp_cout_logger = dpp::utility::cout_logger ();
+
 int _sigint_count = 0;
 
 void
@@ -414,10 +416,10 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
 {
     int64_t pos = 0;
     {
-        if (!comp.value.index ())
+        if (!std::holds_alternative<std::string> (comp.value))
             return;
 
-        string q = std::get<string> (comp.value);
+        std::string q = std::get<std::string> (comp.value);
         if (q.empty ())
             return;
 
@@ -430,16 +432,18 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     int64_t arg_slip = 0;
     if (second_input)
         {
-            if (!comp_2.value.index ())
+            if (!std::holds_alternative<std::string> (comp_2.value))
                 return;
 
-            string q = std::get<string> (comp_2.value);
+            std::string q = std::get<std::string> (comp_2.value);
             if (q.empty ())
                 return;
 
             sscanf (q.c_str (), "%ld", &arg_slip);
+
             if (arg_slip < 1)
                 return;
+
             if (arg_slip == 1)
                 top = true;
         }
@@ -464,17 +468,18 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     auto from = event.from;
     auto guild_id = event.command.guild_id;
 
-    const string prepend_name
+    const std::string prepend_name
         = util::response::str_mention_user (event.command.usr.id);
 
-    string edit_response = prepend_name
-                           + util::response::reply_added_track (
-                               result.title (), top ? 1 : arg_slip);
+    std::string edit_response = prepend_name
+                                + util::response::reply_added_track (
+                                    result.title (), top ? 1 : arg_slip);
 
     event.thinking ();
 
-    string fname = std::regex_replace (
-        result.title () + string ("-") + result.id () + string (".opus"),
+    std::string fname = std::regex_replace (
+        result.title () + std::string ("-") + result.id ()
+            + std::string (".opus"),
         std::regex ("/"), "", std::regex_constants::match_any);
 
     bool dling = false;
@@ -619,7 +624,7 @@ run (int argc, const char *argv[])
         runtime_cli::attach_listener ();
 
     const bool no_db = sha_cfg["SHA_DB"].is_null ();
-    string db_connect_param = "";
+    std::string db_connect_param = "";
     {
         if (no_db)
             {
@@ -652,14 +657,12 @@ run (int argc, const char *argv[])
 
     player_manager = std::make_shared<player::Manager> (&client);
 
-    std::function<void (const dpp::log_t &)> dpp_on_log_handler
-        = dpp::utility::cout_logger ();
-
-    client.on_log ([&dpp_on_log_handler] (const dpp::log_t &event) {
+    client.on_log ([] (const dpp::log_t &event) {
         if (!get_debug_state ())
             return;
 
-        dpp_on_log_handler (event);
+        dpp_cout_logger (event);
+        fprintf (stderr, "%s\n", event.raw_event.c_str ());
     });
 
     client.on_ready ([] (const dpp::ready_t &event) {
@@ -680,14 +683,14 @@ run (int argc, const char *argv[])
 
     client.on_button_click ([] (const dpp::button_click_t &event) {
         const size_t fsub = event.custom_id.find ("/");
-        const string cmd = event.custom_id.substr (0, fsub);
+        const std::string cmd = event.custom_id.substr (0, fsub);
 
         if (cmd.empty ())
             return;
 
         if (cmd == "page_queue")
             {
-                const string param = event.custom_id.substr (fsub + 1, 1);
+                const std::string param = event.custom_id.substr (fsub + 1, 1);
 
                 if (param.empty ())
                     {
@@ -703,8 +706,8 @@ run (int argc, const char *argv[])
             }
         else if (cmd == "modal_p")
             {
-                const string param
-                    = event.custom_id.substr (fsub + 1, string::npos);
+                const std::string param
+                    = event.custom_id.substr (fsub + 1, std::string::npos);
 
                 if (param.empty ())
                     {
@@ -733,8 +736,8 @@ run (int argc, const char *argv[])
             }
         else if (cmd == "progress")
             {
-                const string param
-                    = event.custom_id.substr (fsub + 1, string::npos);
+                const std::string param
+                    = event.custom_id.substr (fsub + 1, std::string::npos);
 
                 if (param.empty ())
                     {
@@ -758,8 +761,8 @@ run (int argc, const char *argv[])
             }
         else if (cmd == "playnow")
             {
-                const string param
-                    = event.custom_id.substr (fsub + 1, string::npos);
+                const std::string param
+                    = event.custom_id.substr (fsub + 1, std::string::npos);
 
                 if (param.empty ())
                     {
@@ -817,10 +820,10 @@ run (int argc, const char *argv[])
     });
 
     client.on_autocomplete ([] (const dpp::autocomplete_t &event) {
-        const string cmd = event.name;
-        string opt = "";
-        std::vector<string> sub_cmd = {};
-        string param = "";
+        const std::string cmd = event.name;
+        std::string opt = "";
+        std::vector<std::string> sub_cmd = {};
+        std::string param = "";
 
         bool sub_level = true;
 
@@ -830,8 +833,8 @@ run (int argc, const char *argv[])
                     continue;
 
                 opt = i.name;
-                if (i.value.index ())
-                    param = std::get<string> (i.value);
+                if (std::holds_alternative<std::string> (i.value))
+                    param = std::get<std::string> (i.value);
 
                 sub_level = false;
                 break;
@@ -852,8 +855,8 @@ run (int argc, const char *argv[])
                             continue;
 
                         opt = i.name;
-                        if (i.value.index ())
-                            param = std::get<string> (i.value);
+                        if (std::holds_alternative<std::string> (i.value))
+                            param = std::get<std::string> (i.value);
 
                         sub_level = false;
                         break;
@@ -896,7 +899,7 @@ run (int argc, const char *argv[])
         if (!event.command.guild_id)
             return;
 
-        const string cmd = event.command.get_command_name ();
+        const std::string cmd = event.command.get_command_name ();
 
         auto status
             = command::handle_command ({ cmd, command_handlers, event });
@@ -933,6 +936,9 @@ run (int argc, const char *argv[])
                 return;
             }
 
+        if (!get_running_state ())
+            return;
+
         if (event.track_meta != "rm")
             player_manager->set_ignore_marker (event.voice_client->server_id);
 
@@ -943,7 +949,7 @@ run (int argc, const char *argv[])
         std::thread t ([event] () {
             thread_manager::DoneSetter tmds;
 
-            const bool d_s = get_debug_state ();
+            bool debug = get_debug_state ();
             short int count = 0;
             int until_count;
             bool run_state = false;
@@ -956,7 +962,7 @@ run (int argc, const char *argv[])
 
             if (!event.voice_client || event.voice_client->terminating
                 || !player)
-                goto gt_rm;
+                goto marker_remover_end;
 
             until_count = player->saved_queue_loaded ? 10 : 30;
             while ((run_state = get_running_state ()) && player
@@ -981,11 +987,11 @@ run (int argc, const char *argv[])
                     return;
                 }
 
-        gt_rm:
+        marker_remover_end:
             player_manager->remove_ignore_marker (
                 event.voice_client->server_id);
 
-            if (!d_s)
+            if (!debug)
                 {
                     return;
                 }
@@ -1019,52 +1025,50 @@ run (int argc, const char *argv[])
 
         const bool debug = get_debug_state ();
 
-        dpp::voiceconn *v = event.from->get_voice (event.updated->guild_id);
+        dpp::snowflake guild_id = event.updated->guild_id;
+        dpp::snowflake channel_id = event.updated->id;
 
-        // reconnect if has different vc region
-        if (v && v->channel_id && (event.updated->id == v->channel_id))
-            {
-                dpp::channel *cached
-                    = vcs_setting_get_cache (event.updated->id);
+        dpp::voiceconn *v = event.from->get_voice (guild_id);
+        dpp::channel *cached = nullptr;
+        std::shared_ptr<player::Player> guild_player;
+        int64_t to_seek;
 
-                if (cached
-                    && (cached->rtc_region != event.updated->rtc_region))
-                    {
-                        dpp::snowflake guild_id = event.updated->guild_id;
+        // reconnect if has vc and different vc region
+        if (!v || !v->channel_id || (event.updated->id != v->channel_id))
+            goto on_channel_update_end;
 
-                        // set to seek to last position in the next playing
-                        // track !TODO: probably add this to player manager for
-                        // convenience?
-                        auto guild_player
-                            = player_manager->get_player (guild_id);
+        cached = vcs_setting_get_cache (event.updated->id);
 
-                        if (guild_player && guild_player->queue.size ())
-                            {
-                                int64_t to_seek
-                                    = guild_player->current_track.current_byte
-                                      - (BUFSIZ * 8);
+        // skip to end if region not changed
+        if (!cached || (cached->rtc_region == event.updated->rtc_region))
+            goto on_channel_update_end;
 
-                                if (to_seek < 0)
-                                    to_seek = 0;
+        // set to seek to last position in the next playing
+        // track
+        // !TODO: probably add this to player manager for
+        // convenience?
+        guild_player = player_manager->get_player (guild_id);
 
-                                guild_player->queue.front ().current_byte
-                                    = to_seek;
-                            }
+        // skip seeking when no player or no track
+        if (!guild_player || !guild_player->queue.size ())
+            goto on_channel_update_skip_to_rejoin;
 
-                        // rejoin channel
-                        if (debug)
-                            std::cerr << "[update_rtc_region] " << cached->id
-                                      << '\n';
+        to_seek = guild_player->current_track.current_byte - (BUFSIZ * 8);
 
-                        auto *from = event.from;
-                        dpp::snowflake channel_id = event.updated->id;
+        if (to_seek < 0)
+            to_seek = 0;
 
-                        player_manager->full_reconnect (
-                            from, guild_id, channel_id, channel_id);
-                    }
-                // !TODO: check for updated voice region
-            }
+        guild_player->queue.front ().current_byte = to_seek;
 
+    on_channel_update_skip_to_rejoin:
+        // rejoin channel
+        if (debug)
+            std::cerr << "[update_rtc_region] " << cached->id << '\n';
+
+        player_manager->full_reconnect (event.from, guild_id, channel_id,
+                                        channel_id);
+
+    on_channel_update_end:
         // update vc cache
         vcs_setting_handle_updated (event.updated);
     });
@@ -1120,16 +1124,18 @@ run (int argc, const char *argv[])
         {
             std::this_thread::sleep_for (std::chrono::seconds (1));
 
-            const bool r_s = get_running_state ();
-            const bool d_s = get_debug_state ();
+            bool r_s = get_running_state ();
+            bool debug = get_debug_state ();
+
             // GC
             if (!r_s || (time (NULL) - last_gc) > ONE_HOUR_SECOND)
                 {
-                    if (d_s)
+                    if (debug)
                         fprintf (stderr, "[GC] Starting scheduled gc\n");
 
                     auto start_time
                         = std::chrono::high_resolution_clock::now ();
+
                     // gc codes
                     paginate::gc (!running);
 
@@ -1140,7 +1146,7 @@ run (int argc, const char *argv[])
                     auto done = std::chrono::duration_cast<
                         std::chrono::milliseconds> (end_time - start_time);
 
-                    if (d_s)
+                    if (debug)
                         fprintf (stderr, "[GC] Ran for %ld ms\n",
                                  done.count ());
                 }
@@ -1152,7 +1158,7 @@ run (int argc, const char *argv[])
 
                     time (&last_recon);
 
-                    if (status != CONNECTION_OK && d_s)
+                    if (status != CONNECTION_OK && debug)
                         fprintf (stderr,
                                  "[ERROR DB_RECONNECT] Status code: %d\n",
                                  status);
