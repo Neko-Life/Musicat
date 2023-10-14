@@ -1,10 +1,7 @@
+#include "musicat/cmds/autoplay.h"
 #include "musicat/cmds.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace autoplay
+namespace musicat::command::autoplay
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -41,18 +38,21 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (guild_player->saved_config_loaded != true)
         player_manager->load_guild_player_config (event.command.guild_id);
+
     bool player_autoplay = guild_player->auto_play;
     size_t st = guild_player->max_history_size;
+
     std::string reply = "";
     if (arg_state > -1)
         {
+            bool new_state
+                = guild_player->set_auto_play (arg_state ? true : false)
+                      .auto_play;
+
             reply += std::string ("Autoplay ")
-                     + (guild_player->set_auto_play (arg_state ? true : false)
-                                .auto_play
-                            ? "enabled, add a track to initialize "
-                              "autoplay "
-                              "playlist"
-                            : "disabled")
+                     + (new_state ? "enabled, add a track to initialize "
+                                    "autoplay playlist"
+                                  : "disabled")
                      + "\n";
         }
     else
@@ -63,6 +63,7 @@ slash_run (const dpp::slashcommand_t &event)
         {
             if (arg_no_duplicate_threashold > 1000)
                 arg_no_duplicate_threashold = 1000;
+
             guild_player->set_max_history_size (arg_no_duplicate_threashold);
             reply += "Set No-Duplicate Threshold to "
                      + std::to_string (arg_no_duplicate_threashold);
@@ -71,7 +72,9 @@ slash_run (const dpp::slashcommand_t &event)
         {
             reply += "No-Duplicate Threshold is " + std::to_string (st);
         }
+
     event.reply (reply);
+
     if (player_autoplay != guild_player->auto_play
         || (guild_player->auto_play && st != guild_player->max_history_size))
         try
@@ -82,6 +85,4 @@ slash_run (const dpp::slashcommand_t &event)
             {
             }
 }
-} // autoplay
-} // command
-} // musicat
+} // musicat::command::autoplay

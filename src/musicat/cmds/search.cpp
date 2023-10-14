@@ -1,16 +1,12 @@
+#include "musicat/cmds/search.h"
 #include "musicat/cmds.h"
 #include "musicat/function_macros.h"
 #include "musicat/pagination.h"
 #include "musicat/util.h"
 #include "yt-search/yt-search.h"
-#include <dpp/message.h>
 #include <string>
 
-namespace musicat
-{
-namespace command
-{
-namespace search
+namespace musicat::command::search
 {
 // =============== PRIVATE ==================
 
@@ -167,6 +163,4 @@ slash_run (const dpp::slashcommand_t &event)
         m, paginate::get_inter_reply_cb (event, paginate, event.from->creator,
                                          embeds, storage_data));
 }
-} // search
-} // command
-} // musicat
+} // musicat::command::search

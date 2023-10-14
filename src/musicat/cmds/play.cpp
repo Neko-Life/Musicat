@@ -1,8 +1,8 @@
 // !TODO: REFACTOR THIS HORRIBLE FILE
 
+#include "musicat/cmds/play.h"
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
@@ -12,11 +12,7 @@
 #include <regex>
 #include <vector>
 
-namespace musicat
-{
-namespace command
-{
-namespace play
+namespace musicat::command::play
 {
 namespace autocomplete
 {
@@ -312,8 +308,10 @@ find_track (bool playlist, std::string &arg_query,
 
     searches_size = searches.size ();
 
+    // indicate if this cache is updated
+    bool update_cache = searched && has_cache_id && searches_size;
     // save the result to cache
-    if (searched && has_cache_id && searches_size)
+    if (update_cache)
         search_cache::set (cache_id, searches);
 
     if (searches.begin () == searches.end ())
@@ -380,6 +378,10 @@ find_track (bool playlist, std::string &arg_query,
                     return { {}, 1 };
                 }
         }
+
+    // save cache with key result id if update_cache is false
+    if (!update_cache && !result.raw.is_null ())
+        search_cache::set (result.id (), searches);
 
     return { result, 0 };
 }
@@ -607,6 +609,4 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
         v->voiceclient->insert_marker ("s");
 }
 
-} // play
-} // command
-} // musicat
+} // musicat::command::play

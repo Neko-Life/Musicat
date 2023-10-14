@@ -1,21 +1,17 @@
+#include "musicat/cmds/playlist.h"
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
-#include "musicat/player.h"
 #include "musicat/util.h"
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
 #include <memory>
 #include <variant>
 
-namespace musicat
-{
-namespace command
-{
 template <typename T>
-void
+static void
 _get_nested_arg (const dpp::interaction_create_t &event, const size_t at,
                  T *result)
 {
@@ -37,7 +33,7 @@ _get_nested_arg (const dpp::interaction_create_t &event, const size_t at,
     *result = std::get<T> (val);
 }
 
-std::string
+static std::string
 _get_id_arg (const dpp::interaction_create_t &event)
 {
     std::string ret = "";
@@ -45,7 +41,7 @@ _get_id_arg (const dpp::interaction_create_t &event)
     return ret;
 }
 
-int64_t
+static int64_t
 _get_top_arg (const dpp::interaction_create_t &event)
 {
     int64_t ret = 0;
@@ -53,7 +49,7 @@ _get_top_arg (const dpp::interaction_create_t &event)
     return ret;
 }
 
-namespace playlist
+namespace musicat::command::playlist
 {
 namespace autocomplete
 {
@@ -448,8 +444,6 @@ slash_run (const dpp::slashcommand_t &event)
                          "report this to my developer");
         }
 } // slash_run
-} // playlist
-} // command
-} // musicat
+} // musicat::command::playlist
 
 // vim: et ts=8 sw=4

@@ -1,12 +1,7 @@
+#include "musicat/cmds/join.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-#include "musicat/player.h"
-#include <dpp/dpp.h>
-#include <mutex>
 
-namespace musicat
-{
-namespace command
+namespace musicat::command
 {
 namespace join
 {
@@ -109,5 +104,5 @@ slash_run (const dpp::slashcommand_t &event)
     event.reply ("Leaving...");
 }
 } // leave
-} // command
-} // musicat
+
+} // musicat::command

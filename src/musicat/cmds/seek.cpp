@@ -1,12 +1,7 @@
-#include "musicat/musicat.h"
-#include <musicat/cmds.h>
-#include <string>
+#include "musicat/cmds/seek.h"
+#include "musicat/cmds.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace seek
+namespace musicat::command::seek
 {
 
 inline constexpr char valid_tokens[] = "0123456789:.";
@@ -513,6 +508,4 @@ slash_run (const dpp::slashcommand_t &event)
     */
 }
 
-} // seek
-} // command
-} // musicat
+} // musicat::command::seek

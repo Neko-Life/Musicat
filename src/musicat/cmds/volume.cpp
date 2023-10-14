@@ -1,3 +1,4 @@
+#include "musicat/cmds/volume.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
@@ -8,11 +9,7 @@
 #define MAX_PERCENTAGE 500
 #define MAX_PERCENTAGE_STR "500"
 
-namespace musicat
-{
-namespace command
-{
-namespace volume
+namespace musicat::command::volume
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -71,6 +68,4 @@ slash_run (const dpp::slashcommand_t &event)
                  + "%");
 }
 
-} // volume
-} // command
-} // musicat
+} // musicat::command::volume

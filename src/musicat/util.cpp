@@ -1,5 +1,6 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
+#include "musicat/cmds/play.h"
 #include <stdint.h>
 #include <string>
 

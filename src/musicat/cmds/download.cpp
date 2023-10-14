@@ -1,11 +1,9 @@
+#include "musicat/cmds/download.h"
 #include "musicat/cmds.h"
+#include "musicat/cmds/play.h"
 #include <sys/stat.h>
 
-namespace musicat
-{
-namespace command
-{
-namespace download
+namespace musicat::command::download
 {
 // ============ PRIVATE ============
 bool
@@ -191,6 +189,4 @@ slash_run (const dpp::slashcommand_t &event)
     msg.add_file (fname, dpp::utility::read_file (fullpath));
     event.edit_response (msg);
 }
-} // download
-} // command
-} // musicat
+} // musicat::command::download

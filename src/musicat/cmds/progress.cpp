@@ -1,13 +1,7 @@
-#include "dispatcher.h"
+#include "musicat/cmds/progress.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-#include "musicat/player.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace progress
+namespace musicat::command::progress
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -137,6 +131,4 @@ update_progress (const dpp::button_click_t &event)
         }
 }
 
-} // progress
-} // command
-} // musicat
+} // musicat::command::progress

@@ -1,11 +1,8 @@
+#include "musicat/cmds/queue.h"
 #include "musicat/cmds.h"
 #include "musicat/pagination.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace queue
+namespace musicat::command::queue
 {
 // =================== PRIVATE ===================
 
@@ -248,6 +245,4 @@ slash_run (const dpp::slashcommand_t &event)
 
     paginate::reply_paginated_playlist (event, queue, "Queue", true);
 }
-} // queue
-} // command
-} // musicat
+} // musicat::command::queue

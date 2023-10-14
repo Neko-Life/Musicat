@@ -1,13 +1,8 @@
+#include "musicat/cmds/filters.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-#include "musicat/util.h"
 
-namespace musicat
-{
-namespace command
-{
 // status, save, load, delete filters manage subcommand
-namespace filters
+namespace musicat::command::filters
 {
 static inline constexpr const command_handlers_map_t subcommand_handlers
     = { { "equalizer", equalizer::slash_run }, { NULL, NULL } };
@@ -78,6 +73,4 @@ slash_run (const dpp::slashcommand_t &event)
     handle_command ({ cmd, subcommand_handlers, event });
 }
 
-} // filters
-} // command
-} // musicat
+} // musicat::command::filters
