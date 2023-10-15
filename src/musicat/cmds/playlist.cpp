@@ -1,6 +1,5 @@
 #include "musicat/cmds/playlist.h"
 #include "musicat/autocomplete.h"
-#include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"

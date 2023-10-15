@@ -1,5 +1,4 @@
 #include "musicat/cmds/volume.h"
-#include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 

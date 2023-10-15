@@ -4,7 +4,6 @@
 #include "musicat/pagination.h"
 #include "musicat/util.h"
 #include "yt-search/yt-search.h"
-#include <string>
 
 namespace musicat::command::search
 {

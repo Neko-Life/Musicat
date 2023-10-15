@@ -2,7 +2,6 @@
 
 #include "musicat/cmds/play.h"
 #include "musicat/autocomplete.h"
-#include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"

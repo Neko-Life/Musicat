@@ -1,5 +1,4 @@
 #include "musicat/cmds/hello.h"
-#include "musicat/cmds.h"
 
 namespace musicat::command::hello
 {
