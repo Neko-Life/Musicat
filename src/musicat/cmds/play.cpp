@@ -3,6 +3,7 @@
 #include "musicat/cmds/play.h"
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
@@ -17,16 +18,19 @@ namespace musicat::command::play
 namespace autocomplete
 {
 void
-query (const dpp::autocomplete_t &event, std::string param,
-       player::player_manager_ptr player_manager)
+query (const dpp::autocomplete_t &event, std::string param)
 {
-
     std::vector<std::pair<std::string, std::string> > avail = {};
 
-    const bool no_len = param.empty ();
+    bool no_len = param.empty ();
 
-    std::vector<std::string> get
-        = player_manager->get_available_tracks (no_len ? 25U : 0U);
+    auto player_manager = get_player_manager_ptr ();
+
+    std::vector<std::string> get = {};
+
+    if (player_manager)
+        get = player_manager->get_available_tracks (no_len ? 25U : 0U);
+
     avail.reserve (get.size ());
 
     for (const std::string &i : get)
@@ -82,7 +86,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    const bool debug = get_debug_state ();
+    /* bool debug = get_debug_state (); */
 
     auto guild_id = event.command.guild_id;
     auto from = event.from;
@@ -237,7 +241,7 @@ slash_run (const dpp::slashcommand_t &event)
 
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr player_manager, bool from_interaction,
+            player::player_manager_ptr_t player_manager, bool from_interaction,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
@@ -404,8 +408,8 @@ get_filename_from_result (yt_search::YTrack &result)
 
 std::pair<bool, int>
 track_exist (const std::string &fname, const std::string &url,
-             player::player_manager_ptr player_manager, bool from_interaction,
-             dpp::snowflake guild_id, bool no_download)
+             player::player_manager_ptr_t player_manager,
+             bool from_interaction, dpp::snowflake guild_id, bool no_download)
 {
     if (fname.empty ())
         return { false, 2 };

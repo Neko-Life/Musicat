@@ -85,7 +85,7 @@ struct track_progress
 };
 
 class Manager;
-using player_manager_ptr = std::shared_ptr<Manager>;
+using player_manager_ptr_t = Manager *;
 
 class Player
 {

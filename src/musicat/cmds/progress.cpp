@@ -51,7 +51,7 @@ _create_processed_t (std::string error_msg = "")
 
 _processed_t
 _process_command (const dpp::interaction_create_t &event,
-                  player::player_manager_ptr player_manager)
+                  player::player_manager_ptr_t player_manager)
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
     if (!guild_player)

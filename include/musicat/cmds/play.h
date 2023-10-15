@@ -1,15 +1,14 @@
 #ifndef MUSICAT_COMMAND_PLAY_H
 #define MUSICAT_COMMAND_PLAY_H
 
-#include <dpp/dpp.h>
 #include "musicat/player.h"
+#include <dpp/dpp.h>
 
 namespace musicat::command::play
 {
 namespace autocomplete
 {
-void query (const dpp::autocomplete_t &event, std::string param,
-            player::player_manager_ptr player_manager);
+void query (const dpp::autocomplete_t &event, std::string param);
 } // autocomplete
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
@@ -17,16 +16,18 @@ void slash_run (const dpp::slashcommand_t &event);
 
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr player_manager, bool from_interaction,
+            player::player_manager_ptr_t player_manager, bool from_interaction,
             dpp::snowflake guild_id, bool no_check_history = false,
             const std::string &cache_id = "");
 
 std::string get_filename_from_result (yt_search::YTrack &result);
 
-std::pair<bool, int>
-track_exist (const std::string &fname, const std::string &url,
-             player::player_manager_ptr player_manager, bool from_interaction,
-             dpp::snowflake guild_id, bool no_download = false);
+std::pair<bool, int> track_exist (const std::string &fname,
+                                  const std::string &url,
+                                  player::player_manager_ptr_t player_manager,
+                                  bool from_interaction,
+                                  dpp::snowflake guild_id,
+                                  bool no_download = false);
 
 /**
  * @brief Search and add track to guild queue, can be used for interaction and

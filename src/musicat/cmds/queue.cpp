@@ -8,7 +8,7 @@ namespace musicat::command::queue
 
 void
 handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
-               player::player_manager_ptr player_manager,
+               player::player_manager_ptr_t player_manager,
                std::deque<player::MCTrack> &queue,
                const dpp::snowflake &sha_id)
 {

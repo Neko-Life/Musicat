@@ -9,7 +9,7 @@ namespace musicat::command::filters
 
 struct filters_perquisite_t
 {
-    player::player_manager_ptr player_manager;
+    player::player_manager_ptr_t player_manager;
     std::shared_ptr<player::Player> guild_player;
 };
 

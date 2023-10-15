@@ -22,7 +22,7 @@ int
 perquisite (const dpp::slashcommand_t &event, filters_perquisite_t *fpt)
 {
     // perquisite
-    player::player_manager_ptr player_manager = get_player_manager_ptr ();
+    player::player_manager_ptr_t player_manager = get_player_manager_ptr ();
 
     if (!player_manager)
         {

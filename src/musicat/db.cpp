@@ -157,7 +157,7 @@ _parse_loop_mode (const char *loop_mode)
 ConnStatusType
 init (const std::string &_conninfo)
 {
-    const bool debug = get_debug_state ();
+    bool debug = get_debug_state ();
     if (debug)
         fprintf (stderr, "[DB] Initializing...\n");
 
@@ -204,26 +204,23 @@ reconnect (bool force, const std::string &_conninfo)
     if (!should_reconnect)
         {
             // check connection status
+            std::lock_guard<std::mutex> lk (conn_mutex);
             ConnStatusType status = PQstatus (conn);
 
             if (status == CONNECTION_OK)
-                goto reconnect_end;
+                goto reconnect_ok;
 
             fprintf (stderr, "[DB ERROR] Connection BAD. Reconnecting...\n");
-            should_reconnect = true;
         }
 
-    if (should_reconnect)
-        {
-            if (!_conninfo.empty ())
-                conninfo = _conninfo;
+    if (!_conninfo.empty ())
+        conninfo = _conninfo;
 
-            shutdown ();
+    shutdown ();
 
-            return init (conninfo);
-        }
+    return init (conninfo);
 
-reconnect_end:
+reconnect_ok:
     return CONNECTION_OK;
 }
 
