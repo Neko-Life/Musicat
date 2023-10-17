@@ -1,12 +1,7 @@
-FROM archlinux:base-devel
-
-RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist
-
-# Install dependencies
-RUN pacman -S --needed --noconfirm git cmake libsodium opus libogg ffmpeg postgresql-libs
+FROM archlinux:base-devel as build
 
 # Build dependencies
-WORKDIR /root/Musicat
+WORKDIR /app
 
 # Copy source files
 COPY include ./include
@@ -14,14 +9,39 @@ COPY src ./src
 COPY libs ./libs
 COPY CMakeLists.txt ./
 
-# Build Musicat
-RUN mkdir -p exe build && cd build && \
-      cmake .. -DMUSICAT_WITH_CORO=OFF -DMUSICAT_DEBUG_SYMBOL=ON && make all -j12 && mv Shasha ../exe
+# Install dependencies
+RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+      pacman -S --needed --noconfirm libc++ git cmake libsodium opus libogg postgresql-libs clang && \
+      mkdir -p build && cd build && \
+      export CC=clang && \
+      export CXX=clang++ && \
+      export LDFLAGS='-flto -stdlib=libc++ -lc++' && \
+      export CFLAGS='-flto' && \
+      export CXXFLAGS='-flto -stdlib=libc++' && \
+      cmake .. && make all -j12
 
-# !TODO: clean up? need to move libs first after compile
+FROM archlinux:base as deploy
 
-VOLUME ["/root/music"]
+RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+      pacman -S --noconfirm libc++ libogg postgresql-libs libsodium opus ffmpeg && \
+      groupadd musicat && useradd -m -g musicat musicat
 
-WORKDIR /root/Musicat/exe
+USER musicat
+
+WORKDIR /home/musicat
+
+COPY --chown=musicat:musicat --from=build \
+             /app/build/Shasha \
+             /app/build/libs/DPP/library/libdpp.so* \
+             /app/libs/liboggz/build/lib/liboggz.so* \
+             /app/libs/curlpp/build/libcurlpp.so* \
+             /app/libs/yt-dlp/ \
+             /home/musicat
+
+ENV LD_LIBRARY_PATH=/home/musicat
+
+VOLUME ["/home/musicat/music"]
+
+# config for container create `-v` switch: /home/musicat/sha_conf.json
 
 CMD ./Shasha
