@@ -1,4 +1,5 @@
-LIBOGGZ_BUILD_DIR=$(PWD)/liboggz/build/
+LIBOGGZ_BUILD_DIR = $(PWD)/liboggz/build/
+LIBOGGZ_ENVS = CC=gcc LDFLAGS=-flto
 
 all: liboggz icu curlpp
 
@@ -18,4 +19,4 @@ curlpp/build/libcurlpp.so:
 liboggz: liboggz/build/lib/liboggz.so
 
 liboggz/build/lib/liboggz.so:
-	cd liboggz && ./autogen.sh && ./configure --prefix=$(LIBOGGZ_BUILD_DIR) && make install
+	cd liboggz && $(LIBOGGZ_ENVS) ./autogen.sh && $(LIBOGGZ_ENVS) ./configure --prefix=$(LIBOGGZ_BUILD_DIR) && $(LIBOGGZ_ENVS) make install

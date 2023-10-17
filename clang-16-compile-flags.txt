@@ -1,0 +1,5 @@
+export CC=clang-16
+export CXX=clang-16
+export LDFLAGS='-flto -stdlib=libc++ -lc++'
+export CFLAGS='-flto'
+export CXXFLAGS='-flto -stdlib=libc++'
