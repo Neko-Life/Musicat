@@ -35,8 +35,11 @@ COPY --chown=musicat:musicat --from=build \
              /app/build/libs/DPP/library/libdpp.so* \
              /app/libs/liboggz/build/lib/liboggz.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
-             /app/libs/yt-dlp/ \
              /home/musicat
+
+COPY --chown=musicat:musicat --from=build \
+             /app/libs/yt-dlp \
+             /home/musicat/yt-dlp/
 
 ENV LD_LIBRARY_PATH=/home/musicat
 
