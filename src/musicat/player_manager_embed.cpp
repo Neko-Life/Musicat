@@ -327,6 +327,21 @@ Manager::update_info_embed (const dpp::snowflake &guild_id,
 }
 
 bool
+delete_info_embed_retdel (Manager *m, std::shared_ptr<Player> player)
+{
+    std::lock_guard<std::mutex> lk (m->imc_m);
+
+    if (player->info_message)
+        {
+            auto id = player->info_message->id;
+            m->info_messages_cache.erase (id);
+            return true;
+        }
+
+    return false;
+}
+
+bool
 Manager::delete_info_embed (const dpp::snowflake &guild_id,
                             dpp::command_completion_event_t callback)
 {
@@ -334,24 +349,11 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
     if (!player)
         return false;
 
-    auto retdel = [player, this] () {
-        std::lock_guard<std::mutex> lk (this->imc_m);
-
-        if (player->info_message)
-            {
-                auto id = player->info_message->id;
-                this->info_messages_cache.erase (id);
-                return true;
-            }
-
-        return false;
-    };
-
     if (!player->info_message)
         return false;
 
     if (player->info_message->is_source_message_deleted ())
-        return retdel ();
+        return delete_info_embed_retdel (this, player);
 
     auto mid = player->info_message->id;
     auto cid = player->info_message->channel_id;
@@ -374,7 +376,7 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
             callback (res);
         });
 
-    return retdel ();
+    return delete_info_embed_retdel (this, player);
 }
 
 dpp::embed
