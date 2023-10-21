@@ -8,10 +8,20 @@ project(Musicat
 
 option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
 option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" ON)
+option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+
+set(WITH_COMPILE_GNUPLOT 0)
+
+if (COMPILE_GNUPLOT)
+	set(WITH_COMPILE_GNUPLOT 1)
+	set(GNUPLOT_VERSION 5.4.9)
+
+	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
+endif()
 
 file(GLOB_RECURSE MUSICAT_HEADER_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/include/musicat/*.h)
@@ -68,7 +78,7 @@ add_custom_target(deps
 	DEPENDS ShashaDeps)
 
 add_custom_command(OUTPUT ShashaDeps
-	COMMAND make
+	COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 add_dependencies(Shasha deps uWebSockets)

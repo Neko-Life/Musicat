@@ -1,12 +1,12 @@
 ICU_TGZ = $(PWD)/icu.tgz
 ICUDATA_SO = $(PWD)/icu/usr/local/lib/libicudata.so
+
 CURLPP_SO = $(PWD)/curlpp/build/libcurlpp.so
 
 LIBOGGZ_BUILD_DIR = $(PWD)/liboggz/build/
 LIBOGGZ_SO = $(LIBOGGZ_BUILD_DIR)lib/liboggz.so
 LIBOGGZ_BUILD_ENVS = CC=gcc LDFLAGS=-flto
 
-GNUPLOT_VERSION = 5.4.9
 GNUPLOT_DIR = gnuplot-$(GNUPLOT_VERSION)
 GNUPLOT_BUILD_DIR = $(PWD)/$(GNUPLOT_DIR)/build/
 GNUPLOT_BIN = $(GNUPLOT_BUILD_DIR)bin/gnuplot
@@ -17,7 +17,11 @@ GNUPLOT_BUILD_ENVS = CC=gcc LDFLAGS= CFLAGS=
 curl_dl = curl -L
 tar_extract = tar --skip-old-files -xf
 
-all: liboggz icu curlpp gnuplot
+ifeq ($(COMPILE_GNUPLOT),1)
+	override GNUPLOT_TARGET = gnuplot
+endif
+
+all: liboggz icu curlpp $(GNUPLOT_TARGET)
 
 icu: $(ICUDATA_SO)
 
@@ -46,4 +50,4 @@ $(GNUPLOT_CONFIGURE): $(GNUPLOT_TARFILE)
 	$(tar_extract) $(GNUPLOT_TARFILE)
 
 $(GNUPLOT_TARFILE):
-	$(curl_dl) https://zenlayer.dl.sourceforge.net/project/gnuplot/gnuplot/$(GNUPLOT_VERSION)/gnuplot-$(GNUPLOT_VERSION).tar.gz -o $(GNUPLOT_TARFILE)
+	$(curl_dl) https://zenlayer.dl.sourceforge.net/project/gnuplot/gnuplot/$(GNUPLOT_VERSION)/$(GNUPLOT_TARFILE) -o $(GNUPLOT_TARFILE)
