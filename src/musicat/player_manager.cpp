@@ -312,14 +312,32 @@ Manager::download (const string &fname, const string &url,
     thread_manager::dispatch (tj);
 }
 
-void
+int
 Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                const dpp::snowflake &channel_id)
 {
+    if (!v || v->terminating)
+        {
+            std::cerr << "[Manager::play ERROR] Voice client is null, "
+                         "unable to start streaming thread: '"
+                      << track.title () << "' (" << channel_id << ")\n";
+
+            return 1;
+        }
+
     std::thread tj (
         [this, &track] (dpp::discord_voice_client *v,
                         dpp::snowflake channel_id) {
             thread_manager::DoneSetter tmds;
+
+            if (!v || v->terminating)
+                {
+                    std::cerr
+                        << "[Manager::play ERROR] Voice client is null: '"
+                        << track.title () << "' (" << channel_id << ")\n";
+
+                    return;
+                }
 
             bool debug = get_debug_state ();
 
@@ -393,6 +411,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
         v, channel_id);
 
     thread_manager::dispatch (tj);
+
+    return 0;
 }
 
 size_t

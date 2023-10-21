@@ -454,7 +454,14 @@ class Manager
     void prepare_play_stage_channel_routine (
         dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
-    void play (dpp::discord_voice_client *v, player::MCTrack &track,
+    /**
+     * @brief Start streaming thread, plays `track` on `v`
+     * @param v voice client to stream on
+     * @param track track to play
+     * @param channel_id text channel for sending nowplaying embed
+     * @return int 0 on success, 1 on fail
+     */
+    int play (dpp::discord_voice_client *v, player::MCTrack &track,
                const dpp::snowflake &channel_id = 0);
 
     /**
