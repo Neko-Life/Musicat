@@ -107,17 +107,17 @@ ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 {
     // this is wrong but whatever for now
-    bool debug = get_debug_state ();
+    // bool debug = get_debug_state ();
 
-    if (debug)
-        fprintf (stderr, idfmt, *size, !no_effect_chain);
+    // if (debug)
+    //     fprintf (stderr, idfmt, *size, !no_effect_chain);
 
     if (!no_effect_chain)
         {
             helper_processor::run_through_chain (buffer, size);
 
-            if (debug)
-                fprintf (stderr, necdfmt, *size);
+            // if (debug)
+            //     fprintf (stderr, necdfmt, *size);
         }
 
     if (*size == 0)

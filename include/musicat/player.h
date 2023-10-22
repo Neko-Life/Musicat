@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <oggz/oggz.h>
 #include <string>
 #include <vector>
 
@@ -462,7 +463,7 @@ class Manager
      * @return int 0 on success, 1 on fail
      */
     int play (dpp::discord_voice_client *v, player::MCTrack &track,
-               const dpp::snowflake &channel_id = 0);
+              const dpp::snowflake &channel_id = 0);
 
     /**
      * @brief Try to send currently playing song info to player channel
@@ -599,6 +600,33 @@ class Manager
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
+
+struct handle_effect_chain_change_states_t
+{
+    std::shared_ptr<Player> &guild_player;
+    player::MCTrack &track;
+    int &command_fd;
+    int &read_fd;
+    OGGZ *track_og;
+};
+
+using effect_states_list_t
+    = std::vector<handle_effect_chain_change_states_t *>;
+
+extern std::mutex effect_states_list_m; // EXTERN_VARIABLE
+
+/**
+ * @brief Get guild effect states.
+ * Must lock `effect_states_list_m` until done using the returned ptr
+ */
+handle_effect_chain_change_states_t *
+get_effect_states (const dpp::snowflake &guild_id);
+
+/**
+ * @brief Get effect states list.
+ * Must lock `effect_states_list_m` until done using the returned ptr
+ */
+effect_states_list_t *get_effect_states_list ();
 
 } // player
 

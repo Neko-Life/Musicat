@@ -73,7 +73,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         }
     else if (opt == command_options_keys_t.debug)
         {
+            // !TODO: remove every struct having this member
+            // and use global debug state instead
             options.debug = value == "1";
+            set_debug_state (options.debug);
         }
     else if (opt == command_options_keys_t.guild_id)
         {

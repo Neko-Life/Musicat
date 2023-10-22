@@ -1,18 +1,17 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/musicat.h"
+#include "musicat/player.h"
 #include "musicat/thread_manager.h"
-#include <map>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/poll.h>
-#include <thread>
+
+using cmd_args_t = std::vector<std::string>;
 
 struct command_entry_t
 {
     const char *name;
     const char *alias;
     const char *description;
-    int (*const handler) ();
+    int (*const handler) (const cmd_args_t &args);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,7 +48,7 @@ static size_t padding_alias = 0;
 ////////////////////////////////////////////////////////////////////////////////
 
 static int
-help_cmd ()
+help_cmd (const cmd_args_t &args)
 {
     std::lock_guard lk (ns_mutex);
     if (!commands_ptr)
@@ -108,24 +107,53 @@ help_cmd ()
 }
 
 static int
-debug_cmd ()
+debug_cmd (const cmd_args_t &args)
 {
     set_debug_state (!get_debug_state ());
     return 0;
 }
 
 static int
-clear_cmd ()
+clear_cmd (const cmd_args_t &args)
 {
     system ("clear");
     return 0;
 }
 
 static int
-shutdown_cmd ()
+shutdown_cmd (const cmd_args_t &args)
 {
     fprintf (stderr, "Shutting down...\n");
     set_running_state (false);
+    return 0;
+}
+
+static int
+list_effect_states (const cmd_args_t &args)
+{
+    std::lock_guard lk (player::effect_states_list_m);
+
+    auto efs = player::get_effect_states_list ();
+
+    for (auto ef : *efs)
+        {
+            auto gid = ef->guild_player->guild_id;
+
+            auto g = dpp::find_guild (gid);
+            std::string gstr = g ? g->name : "[not_found]";
+
+            std::cerr << gstr << " (" << gid
+                      << "):\nTrack: " << ef->track.title () << '\n'
+                      << "Command fd: " << ef->command_fd << "\n==========\n";
+        }
+
+    return 0;
+}
+
+static int
+effect_states_send_command (const cmd_args_t &args)
+{
+
     return 0;
 }
 
@@ -138,6 +166,9 @@ shutdown_cmd ()
  *
  * description only means it's the continuation of above's description
  * handler only means to print new blank line
+ *
+ * !Always check and adjust aliases to not clash with one another, commands are
+ * matched using `starts_with`
  */
 static inline constexpr const command_entry_t commands[] = {
     { "command", "alias", "description", NULL },
@@ -146,6 +177,8 @@ static inline constexpr const command_entry_t commands[] = {
     { NULL, NULL, "Debug mode prints everything for debugging purpose", NULL },
     { "clear", "-c", "Clear console", clear_cmd },
     { "shutdown", NULL, "Shutdown Musicat", shutdown_cmd },
+    { "list effect states", "-ls es", "List currently active effect states",
+      list_effect_states },
     { NULL, NULL, NULL, NULL },
 };
 
@@ -164,6 +197,83 @@ set_attached_state (bool s)
     std::lock_guard lk (ns_mutex);
     attached = s;
     return attached;
+}
+
+/*
+'   inter   com iah h   '
+'inter  com iah h    '
+'inter  com iah h'
+'   inter com iah h'
+*/
+
+cmd_args_t
+parse_args_str (const std::string &args_str)
+{
+    cmd_args_t ret = {};
+
+    size_t max_i = args_str.length ();
+
+    // return early when no arg length
+    if (!max_i)
+        return ret;
+
+    // start index
+    size_t s_i = 0;
+    // valid char found
+    bool f = false;
+    for (size_t i = 0; i < args_str.length (); i++)
+        {
+            char c = args_str[i];
+
+            // valid char
+            if (c != ' ')
+                {
+                    // never had found valid char
+                    if (!f)
+                        {
+                            // set current index as the first valid char
+                            s_i = i;
+                            // set found valid char
+                            f = true;
+                        }
+
+                    continue;
+                }
+
+            // found space
+
+            // never got valid char, do nothing
+            if (!f)
+                continue;
+
+            // first valid char found
+            // push the word
+            ret.push_back (args_str.substr (s_i, i - s_i));
+            // reset found state
+            f = false;
+        }
+
+    // end of string
+    // check for valid char found
+    if (f)
+        {
+            // push word at the end of string
+            ret.push_back (args_str.substr (s_i));
+            // reset found state
+            // f = false;
+        }
+
+    // debug
+    /*
+    std::cerr << "args: ";
+    for (const auto &s : ret)
+        {
+            std::cerr << '`' << s << "` ";
+        }
+    std::cerr << "\n";
+    */
+
+    return ret;
 }
 
 void
@@ -186,18 +296,27 @@ handle_command (const std::string &cmd_str)
                     continue;
                 }
 
-            bool match = false;
+            bool match = false, is_alias = false;
 
             if (!no_alias)
-                match = cmd_str == command.alias;
+                {
+                    match = cmd_str.starts_with (command.alias);
+                    if (match)
+                        {
+                            is_alias = true;
+                        }
+                }
 
             if (!match && !no_name)
-                match = cmd_str == command.name;
+                match = cmd_str.starts_with (command.name);
 
             if (!match)
                 continue;
 
-            int status = command.handler ();
+            std::string args_str = cmd_str.substr (
+                is_alias ? strlen (command.alias) : strlen (command.name));
+
+            int status = command.handler (parse_args_str (args_str));
 
             if (status != 0)
                 {
@@ -222,6 +341,22 @@ void
 load_commands ()
 {
     commands_ptr = commands;
+
+    for (const command_entry_t &cmd : commands)
+        {
+            bool end = _cmd_end (cmd);
+            if (end)
+                break;
+
+            size_t len_command = (cmd.name ? strlen (cmd.name) : 0) + 1U;
+            size_t len_alias = (cmd.alias ? strlen (cmd.alias) : 0) + 2U;
+
+            if (len_command > padding_command)
+                padding_command = len_command;
+
+            if (len_alias > padding_alias)
+                padding_alias = len_alias;
+        }
 }
 
 int
@@ -244,22 +379,6 @@ attach_listener ()
     std::thread stdin_listener ([] () {
         thread_manager::DoneSetter tmds;
         AttachedReset ar;
-
-        for (const command_entry_t &cmd : commands)
-            {
-                bool end = _cmd_end (cmd);
-                if (end)
-                    break;
-
-                size_t len_command = (cmd.name ? strlen (cmd.name) : 0) + 1U;
-                size_t len_alias = (cmd.alias ? strlen (cmd.alias) : 0) + 2U;
-
-                if (len_command > padding_command)
-                    padding_command = len_command;
-
-                if (len_alias > padding_alias)
-                    padding_alias = len_alias;
-            }
 
         struct pollfd stdinpfds[1];
         stdinpfds[0].events = POLLIN;
@@ -303,7 +422,7 @@ attach_listener ()
                     = (read_has_event > 0) && (stdinpfds[0].revents & POLLIN);
 
                 if (read_ready)
-                    std::cin >> cmd_str;
+                    std::getline (std::cin, cmd_str);
                 else
                     continue;
 
