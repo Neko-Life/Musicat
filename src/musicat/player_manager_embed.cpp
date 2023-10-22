@@ -326,7 +326,7 @@ Manager::update_info_embed (const dpp::snowflake &guild_id,
     return this->send_info_embed (guild_id, true, force_playing_status, event);
 }
 
-bool
+static bool
 delete_info_embed_retdel (Manager *m, std::shared_ptr<Player> player)
 {
     std::lock_guard<std::mutex> lk (m->imc_m);

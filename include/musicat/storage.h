@@ -20,6 +20,8 @@ namespace storage
  * @brief Temporary data for messages container with any type, with message_id
  * as key. MUST be controlled (eg. delete when message is deleted) and keep in
  * check by gcs.
+ *
+ * EXTERN_VARIABLE
  */
 extern std::map<dpp::snowflake, std::any> messages_storage;
 

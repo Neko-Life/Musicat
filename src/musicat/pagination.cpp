@@ -16,7 +16,7 @@ namespace musicat
 {
 namespace paginate
 {
-std::map<dpp::snowflake, pages_t> paginated_messages = {}; // EXTERN VARIABLE
+std::map<dpp::snowflake, pages_t> paginated_messages = {}; // EXTERN_VARIABLE
 
 void
 delete_page (dpp::snowflake msg_id)

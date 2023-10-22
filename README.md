@@ -138,6 +138,7 @@ mv Shasha ../exe
 mkdir build
 cd build
 
+# remember to always export these variable whenever you recompile in a new shell
 export CC=clang
 export CXX=clang++
 export LDFLAGS='-flto -stdlib=libc++ -lc++'

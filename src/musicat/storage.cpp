@@ -5,7 +5,7 @@ namespace musicat
 {
 namespace storage
 {
-std::map<dpp::snowflake, std::any> messages_storage = {};
+std::map<dpp::snowflake, std::any> messages_storage = {}; // EXTERN_VARIABLE
 
 std::any
 get (dpp::snowflake id)

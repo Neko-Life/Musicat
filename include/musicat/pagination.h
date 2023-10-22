@@ -46,7 +46,7 @@ struct pages_t
     void home (const dpp::interaction_create_t &event);
 };
 
-extern std::map<dpp::snowflake, pages_t> paginated_messages;
+extern std::map<dpp::snowflake, pages_t> paginated_messages; // EXTERN_VARIABLE
 
 void update_page (dpp::snowflake msg_id, std::string param,
                   const dpp::interaction_create_t &event);

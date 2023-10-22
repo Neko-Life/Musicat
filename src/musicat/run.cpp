@@ -17,7 +17,7 @@ static const std::string OAUTH_BASE_URL
 
 namespace musicat
 {
-nlohmann::json sha_cfg;
+nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
 std::atomic<bool> running = false;
 bool debug = false;
@@ -513,7 +513,7 @@ run (int argc, const char *argv[])
                         std::chrono::milliseconds> (end_time - start_time);
 
                     if (debug)
-                        fprintf (stderr, "[GC] Ran for %ld ms\n",
+                        fprintf (stderr, "[GC] Ran for %lld ms\n",
                                  done.count ());
                 }
 

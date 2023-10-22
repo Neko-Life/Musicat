@@ -13,7 +13,7 @@
 
 namespace musicat
 {
-extern nlohmann::json sha_cfg;
+extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
 // Main
 int run (int argc, const char *argv[]);

@@ -25,7 +25,8 @@ struct SocketData
 {
 };
 
-// always lock this whenever calling publish()
+// always lock this whenever calling publish(),
+// EXTERN_VARIABLE
 extern std::mutex ns_mutex;
 
 bool get_running_state ();
