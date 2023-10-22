@@ -300,7 +300,7 @@ handle_command (const std::string &cmd_str)
 
             if (!no_alias)
                 {
-                    match = cmd_str.starts_with (command.alias);
+                    match = cmd_str.find (command.alias) == 0;
                     if (match)
                         {
                             is_alias = true;
@@ -308,7 +308,7 @@ handle_command (const std::string &cmd_str)
                 }
 
             if (!match && !no_name)
-                match = cmd_str.starts_with (command.name);
+                match = cmd_str.find (command.name) == 0;
 
             if (!match)
                 continue;
