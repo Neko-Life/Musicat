@@ -1,6 +1,7 @@
 #include "musicat/cmds/skip.h"
 #include "musicat/cmds.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 
 namespace musicat::command::skip
 {

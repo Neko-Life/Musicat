@@ -4,6 +4,7 @@
 #include "musicat/player.h"
 #include "musicat/storage.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 #include <dpp/dpp.h>
 #include <map>
 #include <memory>
@@ -103,8 +104,12 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
         {
             if (debug)
                 fprintf (stderr, "[RETURN PAGES_T EDIT] (current == c)\n");
+
+            event.reply ();
+
             return;
         }
+
     bool disable_components = false;
     {
         time_t t;
@@ -112,6 +117,7 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
         double L = this->message->get_creation_time ();
         disable_components = (t - (time_t)L) > ONE_HOUR_SECOND;
     }
+
     if (!has_permissions (dpp::find_guild (this->message->guild_id),
                           &this->client->me,
                           dpp::find_channel (this->message->channel_id),
@@ -119,6 +125,7 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
         {
             if (disable_components)
                 delete_page (this->message->id);
+
             return;
         }
 
@@ -130,13 +137,16 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
         {
             if (debug)
                 fprintf (stderr, "[PAGES_T EDIT] (t > 3600)\n");
+
             c = std::string::npos;
+
             for (auto &i : this->message->components)
                 for (auto &a : i.components)
                     a.set_disabled (true);
         }
 
     dpp::interaction_response reply (dpp::ir_update_message, *this->message);
+
     event.from->creator->interaction_response_create (
         event.command.id, event.command.token, reply,
         [this, c] (const dpp::confirmation_callback_t &cb) {
@@ -180,13 +190,17 @@ pages_t::home (const dpp::interaction_create_t &event)
 {
     if (this->current == 0)
         return;
+
     this->edit (0, event);
 }
 
 void
-update_page (dpp::snowflake msg_id, std::string param,
+update_page (const dpp::snowflake &msg_id, const std::string &param,
              const dpp::interaction_create_t &event)
 { //, dpp::message* msg)
+    if (param.empty ())
+        return;
+
     auto a = paginated_messages.find (msg_id);
     if (a == paginated_messages.end ())
         {
@@ -206,18 +220,18 @@ update_page (dpp::snowflake msg_id, std::string param,
             //     });
             // }
 
-            dpp::message m (util::rand_item<std::string> (
-                { "The book for this message is missing!",
-                  "Unfortunately, the pages for this message has been burned",
-                  "Sorry I can't find any information about pages for this "
-                  "message",
-                  "Can't", "I'm unable to flip the page...",
-                  "Try again after a rewrite", "A good day to be lazy",
-                  "The page for this message _might_ be processed in 3 to 5 "
-                  "business day" }));
-
-            m.flags |= dpp::m_ephemeral;
-            event.reply (m);
+            event.reply (
+                util::response::str_mention_user (event.command.usr.id)
+                + util::rand_item<std::string> (
+                    { "The book for this message is missing!",
+                      "Unfortunately, the pages for this message has been "
+                      "burned",
+                      "Sorry I can't find any information about pages for "
+                      "this message",
+                      "Can't", "I'm unable, to flip the page...",
+                      "Try again after a rewrite", "A good day to be lazy",
+                      "The page for this message _might_ be processed in 3 to "
+                      "5 business day" }));
 
             return;
         }
@@ -226,14 +240,75 @@ update_page (dpp::snowflake msg_id, std::string param,
     if (param == "n")
         {
             b.next (event);
+            return;
         }
     else if (param == "p")
         {
             b.previous (event);
+            return;
         }
     else if (param == "h")
         {
             b.home (event);
+            return;
+        }
+    else if (param == "j")
+        {
+            dpp::component input = util::response::create_short_text_input (
+                "Page number to jump to:", "j");
+
+            dpp::interaction_modal_response modal ("page_queue",
+                                                   "Jump to page");
+            modal.add_component (input);
+            event.dialog (modal);
+            return;
+        }
+
+    char invalid_char = util::valid_number (param);
+    if (invalid_char != 0)
+        {
+            event.reply (
+                util::response::str_mention_user (event.command.usr.id)
+                + util::rand_item<std::string> (
+                    { "That isn't a number!",
+                      "maybe some ppl never got to school, such sad :(",
+                      "wrong number, guess again!", "ur father",
+                      "maybe maybe maybe",
+                      "umm i have, that one thing for u to count.. what was "
+                      "the name again.. OH YEAH! KALKULATOR" }));
+
+            return;
+        }
+
+    try
+        {
+            int64_t pn = std::stoll (param) - 1;
+            int64_t psize = (int64_t)b.pages.size ();
+            int64_t max_psize = (psize - 1);
+
+            if (pn > max_psize)
+                {
+                    pn = max_psize;
+                }
+            else if (pn < 0)
+                {
+                    pn = 0;
+                }
+
+            b.edit (pn, event);
+            return;
+        }
+    catch (const std::out_of_range &e)
+        {
+            event.reply (
+                util::response::str_mention_user (event.command.usr.id)
+                + util::rand_item<std::string> (
+                    { "no", "don't be ridiculous", "smfh", "NO wtf", "don't",
+                      "you have no power here", "stop!!!", "No Way",
+                      "`FATAL ERROR` You have found the "
+                      "`!!!INTEGER_OVERFLOW!!!` vulnerability! "
+                      "Congratulations! Here's ur reward 🍰! I'm now gonna "
+                      "crash thanks to u 💔 💔" }));
         }
 }
 
@@ -248,6 +323,7 @@ get_inter_reply_cb (const dpp::interaction_create_t &event, bool paginate,
             {
                 fprintf (stderr, "[ERROR PAGINATE GET_INTER_REPLY_CB]: %s\n",
                          cb.get_error ().message.c_str ());
+
                 return;
             }
         bool has_v = storage_data.has_value ();

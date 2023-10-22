@@ -3,7 +3,7 @@
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
-#include "musicat/util.h"
+#include "musicat/util_response.h"
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
 #include <memory>

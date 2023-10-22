@@ -1,9 +1,5 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
-#include "musicat/cmds/play.h"
-#include <stdint.h>
-#include <string>
-
 #include <memory>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
@@ -12,9 +8,7 @@
 #include <unicode/ustring.h>
 #include <unicode/utypes.h>
 
-namespace musicat
-{
-namespace util
+namespace musicat::util
 {
 std::string
 join (const bool join, const std::string &str, const std::string &join_str)
@@ -74,7 +68,7 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
     bool match = true;
 
     auto i = str.begin ();
-    for (const char &sc : search)
+    for (char sc : search)
         {
             bool found = false;
 
@@ -174,5 +168,34 @@ get_user_highest_role (const dpp::snowflake &guild_id,
     return highest_role;
 }
 
-} // util
-} // musicat
+static inline constexpr const char numbers[] = "1234567890";
+static inline constexpr const size_t numbers_siz
+    = ((sizeof (numbers) / sizeof (*numbers)) - 1);
+
+char
+valid_number (const std::string &numstr)
+{
+    if (numstr.empty ())
+        return -1;
+
+    for (char c : numstr)
+        {
+            bool valid = false;
+            for (size_t i = 0; i < numbers_siz; i++)
+                {
+                    const char n = numbers[i];
+                    if (c == n)
+                        {
+                            valid = true;
+                            break;
+                        }
+                }
+
+            if (!valid)
+                return c;
+        }
+
+    return 0;
+}
+
+} // musicat::util

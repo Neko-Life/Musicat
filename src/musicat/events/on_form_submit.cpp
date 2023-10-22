@@ -1,9 +1,10 @@
 #include "musicat/events/on_form_submit.h"
 #include "musicat/cmds/play.h"
 #include "musicat/musicat.h"
+#include "musicat/pagination.h"
 #include "musicat/storage.h"
 #include "musicat/thread_manager.h"
-#include "musicat/util.h"
+#include "musicat/util_response.h"
 #include "yt-search/yt-search.h"
 #include <regex>
 
@@ -27,6 +28,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
         if (pos < 1)
             return;
     }
+
     bool top = comp.custom_id.find ("top") != std::string::npos;
 
     int64_t arg_slip = 0;
@@ -152,25 +154,59 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
 void
 _handle_form_modal_p (const dpp::form_submit_t &event)
 {
-    if (event.components.size ())
+    if (!event.components.size ())
         {
-            auto comp = event.components.at (0).components.at (0);
-            bool second_input = event.components.size () > 1;
-            dpp::component comp_2;
-
-            if (second_input)
-                comp_2 = event.components.at (1).components.at (0);
-
-            if (comp.custom_id.find ("que_s_track") != std::string::npos)
-                {
-                    _handle_modal_p_que_s_track (event, comp, comp_2,
-                                                 second_input);
-                }
-        }
-    else
-        {
-            fprintf (stderr, "[WARN] Form modal_p doesn't contain "
+            fprintf (stderr, "[events::_handle_form_modal_p WARN] Form "
+                             "`modal_p` doesn't contain "
                              "any components row\n");
+
+            return;
+        }
+
+    auto comp = event.components.at (0).components.at (0);
+    bool second_input = event.components.size () > 1;
+    dpp::component comp_2;
+
+    if (second_input)
+        comp_2 = event.components.at (1).components.at (0);
+
+    if (comp.custom_id.find ("que_s_track") != std::string::npos)
+        {
+            _handle_modal_p_que_s_track (event, comp, comp_2, second_input);
+        }
+}
+
+void
+_handle_page_queue_j (const dpp::form_submit_t &event,
+                      const dpp::component &comp)
+{
+    if (!std::holds_alternative<std::string> (comp.value))
+        return;
+
+    std::string q = std::get<std::string> (comp.value);
+    if (q.empty ())
+        return;
+
+    paginate::update_page (event.command.msg.id, q, event);
+}
+
+void
+_handle_form_page_queue (const dpp::form_submit_t &event)
+{
+    if (!event.components.size ())
+        {
+            fprintf (stderr, "[events::_handle_form_page_queue WARN] Form "
+                             "`page_queue` doesn't contain "
+                             "any components row\n");
+
+            return;
+        }
+
+    auto comp = event.components.at (0).components.at (0);
+
+    if (comp.custom_id == "j")
+        {
+            _handle_page_queue_j (event, comp);
         }
 }
 
@@ -185,6 +221,10 @@ on_form_submit (dpp::cluster *client)
         if (event.custom_id == "modal_p")
             {
                 _handle_form_modal_p (event);
+            }
+        else if (event.custom_id == "page_queue")
+            {
+                _handle_form_page_queue (event);
             }
     });
 }

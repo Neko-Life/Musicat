@@ -48,8 +48,9 @@ struct pages_t
 
 extern std::map<dpp::snowflake, pages_t> paginated_messages; // EXTERN_VARIABLE
 
-void update_page (dpp::snowflake msg_id, std::string param,
+void update_page (const dpp::snowflake &msg_id, const std::string &param,
                   const dpp::interaction_create_t &event);
+
 void delete_page (dpp::snowflake msg_id);
 
 dpp::command_completion_event_t

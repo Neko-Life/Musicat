@@ -28,8 +28,7 @@ on_button_click (dpp::cluster *client)
 
                         return;
                     }
-                // event.reply (dpp::ir_deferred_update_message, "");
-                // dpp::message* m = new dpp::message(event.command.msg);
+
                 paginate::update_page (event.command.msg.id, param, event);
             }
         else if (cmd == "modal_p")
