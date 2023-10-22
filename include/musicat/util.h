@@ -60,6 +60,9 @@ dpp::role *get_user_highest_role (const dpp::snowflake &guild_id,
  */
 char valid_number (const std::string &numstr);
 
+void log_confirmation_error (const dpp::confirmation_callback_t &e,
+                             const char *callee = "ERROR");
+
 } // musicat::util
 
 #endif // MUSICAT_UTIL_H

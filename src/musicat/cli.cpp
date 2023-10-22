@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/slash.h"
+#include "musicat/util.h"
 #include <regex>
 
 void
@@ -17,19 +18,8 @@ command_create_callback (const dpp::confirmation_callback_t &e)
 {
     if (e.is_error ())
         {
-            std::cerr << "ERROR:" << '\n';
-
-            dpp::error_info ev = e.get_error ();
-            for (auto eve : ev.errors)
-                {
-                    std::cerr << eve.code << '\n';
-                    std::cerr << eve.field << '\n';
-                    std::cerr << eve.reason << '\n';
-                    std::cerr << eve.object << '\n';
-                }
-
-            std::cerr << ev.code << '\n';
-            std::cerr << ev.message << '\n';
+            util::log_confirmation_error (
+                e, "[musicat::command_create_callback ERROR]");
         }
 
     set_running_state (false);

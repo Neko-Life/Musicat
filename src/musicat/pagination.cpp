@@ -105,7 +105,14 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
             if (debug)
                 fprintf (stderr, "[RETURN PAGES_T EDIT] (current == c)\n");
 
-            event.reply ();
+            event.reply ([] (const dpp::confirmation_callback_t &e) {
+                if (e.is_error ())
+                    {
+                        util::log_confirmation_error (
+                            e, "[pages_t::edit event.reply ERROR] "
+                               "(current == c)");
+                    }
+            });
 
             return;
         }

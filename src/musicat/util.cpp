@@ -198,4 +198,24 @@ valid_number (const std::string &numstr)
     return 0;
 }
 
+void
+log_confirmation_error (const dpp::confirmation_callback_t &e,
+                        const char *callee)
+{
+    std::cerr << callee << ':' << '\n';
+
+    dpp::error_info ev = e.get_error ();
+    for (auto eve : ev.errors)
+        {
+            std::cerr << eve.code << '\n';
+            std::cerr << eve.field << '\n';
+            std::cerr << eve.reason << '\n';
+            std::cerr << eve.object << '\n';
+        }
+
+    std::cerr << ev.code << '\n';
+    std::cerr << ev.message << '\n';
+    std::cerr << ev.human_readable << '\n';
+}
+
 } // musicat::util
