@@ -195,9 +195,6 @@ pages_t::previous (const dpp::interaction_create_t &event)
 void
 pages_t::home (const dpp::interaction_create_t &event)
 {
-    if (this->current == 0)
-        return;
-
     this->edit (0, event);
 }
 
