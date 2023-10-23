@@ -1,12 +1,7 @@
-#include "musicat/musicat.h"
-#include <musicat/cmds.h>
-#include <string>
+#include "musicat/cmds/seek.h"
+#include "musicat/cmds.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace seek
+namespace musicat::command::seek
 {
 
 inline constexpr char valid_tokens[] = "0123456789:.";
@@ -21,34 +16,6 @@ get_register_obj (const dpp::snowflake &sha_id)
                          "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
                          true)
                          .set_max_length (14));
-}
-
-char
-_valid_number (std::string &numstr)
-{
-    if (numstr.empty ())
-        return -1;
-
-    static const char *numbers = "1234567890";
-
-    for (const char c : numstr)
-        {
-            bool valid = false;
-            for (size_t i = 0; i < strlen (numbers); i++)
-                {
-                    const char n = numbers[i];
-                    if (c == n)
-                        {
-                            valid = true;
-                            break;
-                        }
-                }
-
-            if (!valid)
-                return c;
-        }
-
-    return 0;
 }
 
 bool
@@ -114,7 +81,7 @@ _pad0 (std::string str)
 }
 
 bool
-is_valid_char (const char &c)
+is_valid_char (char c)
 {
     for (size_t i = 0;
          i < ((sizeof (valid_tokens) / sizeof (valid_tokens[0])) - 1); i++)
@@ -129,7 +96,7 @@ is_valid_char (const char &c)
 bool
 is_valid_str (const std::string &str)
 {
-    for (const char &c : str)
+    for (char c : str)
         {
             if (!is_valid_char (c))
                 return false;
@@ -513,6 +480,4 @@ slash_run (const dpp::slashcommand_t &event)
     */
 }
 
-} // seek
-} // command
-} // musicat
+} // musicat::command::seek

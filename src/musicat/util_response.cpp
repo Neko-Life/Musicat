@@ -1,14 +1,8 @@
+#include "musicat/util_response.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
-#include "musicat/util.h"
 
-namespace musicat
+namespace musicat::util::response
 {
-namespace util
-{
-namespace response
-{
-
 std::string
 str_queue_position (const int64_t &position)
 {
@@ -83,6 +77,16 @@ str_mention_user (const dpp::snowflake &user_id)
     return std::string ("<@") + std::to_string (user_id) + std::string ("> ");
 }
 
-} // response
-} // util
-} // musicat
+dpp::component
+create_short_text_input (const std::string &label, const std::string &id)
+{
+    dpp::component component;
+    component.set_type (dpp::cot_text)
+        .set_label (label)
+        .set_id (id)
+        .set_text_style (dpp::text_short);
+
+    return component;
+}
+
+} // musicat::util::response

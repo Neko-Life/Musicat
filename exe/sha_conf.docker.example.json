@@ -5,7 +5,7 @@
     "SHA_DB": "dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat", // PostgreSQL connect configuration. See https://www.postgresql.org/docs/14/libpq-connect.html#LIBPQ-PARAMKEYWORDS
     "DEBUG": false, // Default debug mode state on boot
     "RUNTIME_CLI": false, // You better disable runtime cli since there will be no stdin for Musicat to read, else it will go full throttle in a read loop
-    "MUSIC_FOLDER": "/root/music/", // use music volume inside docker
+    "MUSIC_FOLDER": "/home/musicat/music/", // use music volume inside docker
 
     // used to construct invite link, oauth login and oauth invite
     "INVITE_PERMISSIONS": "416653036608",
@@ -15,5 +15,5 @@
     "DESCRIPTION": "My cool bot", // bot description
     "SERVER_PORT": 3000, // server port, default to 80
     "WEBAPP_DIR": "", // dashboard dist dir, leave this empty if you don't need dashboard
-    "YTDLP_EXE": "/root/Musicat/libs/yt-dlp/yt-dlp.sh" // use yt-dlp already included inside docker
+    "YTDLP_EXE": "/home/musicat/yt-dlp/yt-dlp.sh" // use yt-dlp already included inside docker
 }

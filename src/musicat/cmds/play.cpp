@@ -1,36 +1,36 @@
 // !TODO: REFACTOR THIS HORRIBLE FILE
 
+#include "musicat/cmds/play.h"
 #include "musicat/autocomplete.h"
-#include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 #include "yt-search/yt-playlist.h"
 #include "yt-search/yt-search.h"
 #include <memory>
 #include <regex>
 #include <vector>
 
-namespace musicat
-{
-namespace command
-{
-namespace play
+namespace musicat::command::play
 {
 namespace autocomplete
 {
 void
-query (const dpp::autocomplete_t &event, std::string param,
-       player::player_manager_ptr player_manager)
+query (const dpp::autocomplete_t &event, std::string param)
 {
-
     std::vector<std::pair<std::string, std::string> > avail = {};
 
-    const bool no_len = param.empty ();
+    bool no_len = param.empty ();
 
-    std::vector<std::string> get
-        = player_manager->get_available_tracks (no_len ? 25U : 0U);
+    auto player_manager = get_player_manager_ptr ();
+
+    std::vector<std::string> get = {};
+
+    if (player_manager)
+        get = player_manager->get_available_tracks (no_len ? 25U : 0U);
+
     avail.reserve (get.size ());
 
     for (const std::string &i : get)
@@ -86,7 +86,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    const bool debug = get_debug_state ();
+    /* bool debug = get_debug_state (); */
 
     auto guild_id = event.command.guild_id;
     auto from = event.from;
@@ -241,7 +241,7 @@ slash_run (const dpp::slashcommand_t &event)
 
 std::pair<yt_search::YTrack, int>
 find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr player_manager, bool from_interaction,
+            player::player_manager_ptr_t player_manager, bool from_interaction,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
@@ -312,8 +312,10 @@ find_track (bool playlist, std::string &arg_query,
 
     searches_size = searches.size ();
 
+    // indicate if this cache is updated
+    bool update_cache = searched && has_cache_id && searches_size;
     // save the result to cache
-    if (searched && has_cache_id && searches_size)
+    if (update_cache)
         search_cache::set (cache_id, searches);
 
     if (searches.begin () == searches.end ())
@@ -381,6 +383,10 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
+    // save cache with key result id if update_cache is false
+    if (!update_cache && !result.raw.is_null ())
+        search_cache::set (result.id (), searches);
+
     return { result, 0 };
 }
 
@@ -402,8 +408,8 @@ get_filename_from_result (yt_search::YTrack &result)
 
 std::pair<bool, int>
 track_exist (const std::string &fname, const std::string &url,
-             player::player_manager_ptr player_manager, bool from_interaction,
-             dpp::snowflake guild_id, bool no_download)
+             player::player_manager_ptr_t player_manager,
+             bool from_interaction, dpp::snowflake guild_id, bool no_download)
 {
     if (fname.empty ())
         return { false, 2 };
@@ -586,10 +592,10 @@ void
 decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
              const bool &continued)
 {
-    if (!from || !from->creator)
+    if (!from)
         return;
 
-    const dpp::snowflake sha_id = from->creator->me.id;
+    dpp::snowflake sha_id = get_sha_id ();
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vu;
     vu = get_voice_from_gid (guild_id, sha_id);
@@ -607,6 +613,4 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
         v->voiceclient->insert_marker ("s");
 }
 
-} // play
-} // command
-} // musicat
+} // musicat::command::play

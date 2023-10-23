@@ -131,3 +131,22 @@ mv Shasha ../exe
 # run the bot
 ./Shasha
 ```
+
+### Compiling with clang
+
+```sh
+mkdir build
+cd build
+
+# remember to always export these variable whenever you recompile in a new shell
+export CC=clang
+export CXX=clang++
+export LDFLAGS='-flto -stdlib=libc++ -lc++'
+export CFLAGS='-flto'
+export CXXFLAGS='-flto -stdlib=libc++'
+
+cmake ..
+
+# configure the `-j` flag according to your available RAM as needed
+make all -j$(nproc)
+```

@@ -1,13 +1,7 @@
-#include "dispatcher.h"
+#include "musicat/cmds/progress.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-#include "musicat/player.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace progress
+namespace musicat::command::progress
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -57,7 +51,7 @@ _create_processed_t (std::string error_msg = "")
 
 _processed_t
 _process_command (const dpp::interaction_create_t &event,
-                  player::player_manager_ptr player_manager)
+                  player::player_manager_ptr_t player_manager)
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
     if (!guild_player)
@@ -137,6 +131,4 @@ update_progress (const dpp::button_click_t &event)
         }
 }
 
-} // progress
-} // command
-} // musicat
+} // musicat::command::progress

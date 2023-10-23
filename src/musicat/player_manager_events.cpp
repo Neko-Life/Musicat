@@ -171,11 +171,31 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         goto end_err;
 
     tj = std::thread (
-        [this] (dpp::discord_voice_client *v, string meta,
-                std::shared_ptr<Player> guild_player) {
+        [this] (dpp::discord_voice_client *v, string meta) {
             thread_manager::DoneSetter tmds;
-            MCTrack &track = guild_player->current_track;
+
+            if (!v || v->terminating)
+                {
+                    std::cerr << "[Manager::handle_on_track_marker::tj ERROR] "
+                                 "Voice client is null: "
+                              << meta << '\n';
+
+                    return;
+                }
+
             auto guild_id = v->server_id;
+            auto guild_player = this->get_player (guild_id);
+
+            if (!guild_player)
+                {
+                    std::cerr << "[Manager::handle_on_track_marker::tj ERROR] "
+                                 "No player in guild: "
+                              << guild_id << '\n';
+
+                    return;
+                }
+
+            MCTrack &track = guild_player->current_track;
 
             std::lock_guard<std::mutex> lk (guild_player->t_mutex);
 
@@ -299,7 +319,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             // Send play info embed
             try
                 {
-                    this->play (v, track, channel_id);
+                    int pstatus = this->play (v, track, channel_id);
 
                     bool should_update_embed = false,
                          not_repeating_song = false;
@@ -353,7 +373,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                     this->cluster->message_create (m);
                 }
         },
-        event.voice_client, event.track_meta, guild_player);
+        event.voice_client, event.track_meta);
 
     thread_manager::dispatch (tj);
 

@@ -245,7 +245,7 @@ shuffle_indexes (size_t len)
 
 int
 join_voice (dpp::discord_client *from,
-            player::player_manager_ptr player_manager,
+            player::player_manager_ptr_t player_manager,
             const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
             const dpp::snowflake &sha_id)
 {

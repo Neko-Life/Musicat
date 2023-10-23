@@ -1,10 +1,6 @@
-#include "musicat/cmds.h"
+#include "musicat/cmds/bubble_wrap.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace bubble_wrap
+namespace musicat::command::bubble_wrap
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -46,6 +42,4 @@ slash_run (const dpp::slashcommand_t &event)
     event.reply (std::string ("YAY bubblewrap for stressed developers 😄\n")
                  + bubble_wrap);
 }
-}
-}
-}
+} // musicat::command::bubble_wrap

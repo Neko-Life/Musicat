@@ -13,7 +13,7 @@
 
 namespace musicat
 {
-extern nlohmann::json sha_cfg;
+extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
 // Main
 int run (int argc, const char *argv[]);
@@ -266,7 +266,7 @@ std::vector<size_t> shuffle_indexes (size_t len);
  * @return int 0 if request to connect sent
  */
 int join_voice (dpp::discord_client *from,
-                player::player_manager_ptr player_manager,
+                player::player_manager_ptr_t player_manager,
                 const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
                 const dpp::snowflake &sha_id);
 
@@ -291,7 +291,7 @@ std::string get_sha_secret ();
 /**
  * @brief Get player manager shared_ptr, won't be available in cli context
  */
-player::player_manager_ptr get_player_manager_ptr ();
+player::player_manager_ptr_t get_player_manager_ptr ();
 
 /**
  * @brief Handle bot connected to new vc event, updating _connected_vcs_setting

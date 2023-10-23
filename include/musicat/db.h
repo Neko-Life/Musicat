@@ -65,7 +65,7 @@ void shutdown ();
  * @return ConnStatusType Return CONNECTION_OK on success or not needing to
  * reconnect
  */
-ConnStatusType reconnect (const bool &force = false,
+ConnStatusType reconnect (bool force = false,
                           const std::string &_conninfo = "");
 
 /**

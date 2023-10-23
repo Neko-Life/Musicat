@@ -1,11 +1,9 @@
+#include "musicat/cmds/skip.h"
 #include "musicat/cmds.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace skip
+namespace musicat::command::skip
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -67,8 +65,6 @@ slash_run (const dpp::slashcommand_t &event)
             event.reply (e.what ());
         }
 }
-} // skip
-} // command
-} // musicat
+} // musicat::command::skip
 
 // vim: et sw=4 ts=8

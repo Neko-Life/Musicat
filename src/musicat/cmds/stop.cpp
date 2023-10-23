@@ -1,11 +1,8 @@
+#include "musicat/cmds/stop.h"
 #include "musicat/cmds.h"
 #include "musicat/util.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace stop
+namespace musicat::command::stop
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -50,6 +47,4 @@ slash_run (const dpp::slashcommand_t &event)
 
     event.reply ("Stopped");
 }
-} // stop
-} // command
-} // musicat
+} // musicat::command::stop

@@ -1,32 +1,13 @@
+#include "musicat/cmds/search.h"
 #include "musicat/cmds.h"
 #include "musicat/function_macros.h"
 #include "musicat/pagination.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 #include "yt-search/yt-search.h"
-#include <dpp/message.h>
-#include <string>
 
-namespace musicat
+namespace musicat::command::search
 {
-namespace command
-{
-namespace search
-{
-// =============== PRIVATE ==================
-
-dpp::component
-create_short_text_input (const std::string &label, const std::string &id)
-{
-    dpp::component component;
-    component.set_type (dpp::cot_text)
-        .set_label (label)
-        .set_id (id)
-        .set_text_style (dpp::text_short);
-    return component;
-}
-
-// =============== PRIVATE END ==================
-
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
@@ -38,7 +19,7 @@ get_register_obj (const dpp::snowflake &sha_id)
 dpp::interaction_modal_response
 modal_enqueue_searched_track ()
 {
-    dpp::component input = create_short_text_input (
+    dpp::component input = util::response::create_short_text_input (
         "Input track number to add to playback queue:", "que_s_track");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Track");
@@ -49,7 +30,7 @@ modal_enqueue_searched_track ()
 dpp::interaction_modal_response
 modal_enqueue_searched_track_top ()
 {
-    dpp::component input = create_short_text_input (
+    dpp::component input = util::response::create_short_text_input (
         "Input track number to add to top of queue:", "que_s_track_top");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Top");
@@ -60,9 +41,9 @@ modal_enqueue_searched_track_top ()
 dpp::interaction_modal_response
 modal_enqueue_searched_track_slip ()
 {
-    dpp::component input1 = create_short_text_input (
+    dpp::component input1 = util::response::create_short_text_input (
         "Input track number to add to playback queue:", "que_s_track");
-    dpp::component input2 = create_short_text_input (
+    dpp::component input2 = util::response::create_short_text_input (
         "Input position to slip into playback queue:", "que_s_track_slip");
 
     dpp::interaction_modal_response modal ("modal_p", "Add Slip");
@@ -167,6 +148,4 @@ slash_run (const dpp::slashcommand_t &event)
         m, paginate::get_inter_reply_cb (event, paginate, event.from->creator,
                                          embeds, storage_data));
 }
-} // search
-} // command
-} // musicat
+} // musicat::command::search

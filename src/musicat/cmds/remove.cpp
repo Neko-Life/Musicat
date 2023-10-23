@@ -1,11 +1,8 @@
+#include "musicat/cmds/remove.h"
 #include "musicat/cmds.h"
 #include "musicat/util.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace remove
+namespace musicat::command::remove
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -83,6 +80,4 @@ slash_run (const dpp::slashcommand_t &event)
             event.edit_response ("No track was removed");
         }
 }
-} // remove
-} // command
-} // musicat
+} // musicat::command::remove

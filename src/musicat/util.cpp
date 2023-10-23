@@ -1,8 +1,5 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
-#include <stdint.h>
-#include <string>
-
 #include <memory>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
@@ -11,9 +8,7 @@
 #include <unicode/ustring.h>
 #include <unicode/utypes.h>
 
-namespace musicat
-{
-namespace util
+namespace musicat::util
 {
 std::string
 join (const bool join, const std::string &str, const std::string &join_str)
@@ -73,7 +68,7 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
     bool match = true;
 
     auto i = str.begin ();
-    for (const char &sc : search)
+    for (char sc : search)
         {
             bool found = false;
 
@@ -173,5 +168,54 @@ get_user_highest_role (const dpp::snowflake &guild_id,
     return highest_role;
 }
 
-} // util
-} // musicat
+static inline constexpr const char numbers[] = "1234567890";
+static inline constexpr const size_t numbers_siz
+    = ((sizeof (numbers) / sizeof (*numbers)) - 1);
+
+char
+valid_number (const std::string &numstr)
+{
+    if (numstr.empty ())
+        return -1;
+
+    for (char c : numstr)
+        {
+            bool valid = false;
+            for (size_t i = 0; i < numbers_siz; i++)
+                {
+                    const char n = numbers[i];
+                    if (c == n)
+                        {
+                            valid = true;
+                            break;
+                        }
+                }
+
+            if (!valid)
+                return c;
+        }
+
+    return 0;
+}
+
+void
+log_confirmation_error (const dpp::confirmation_callback_t &e,
+                        const char *callee)
+{
+    std::cerr << callee << ':' << '\n';
+
+    dpp::error_info ev = e.get_error ();
+    for (auto eve : ev.errors)
+        {
+            std::cerr << eve.code << '\n';
+            std::cerr << eve.field << '\n';
+            std::cerr << eve.reason << '\n';
+            std::cerr << eve.object << '\n';
+        }
+
+    std::cerr << ev.code << '\n';
+    std::cerr << ev.message << '\n';
+    std::cerr << ev.human_readable << '\n';
+}
+
+} // musicat::util

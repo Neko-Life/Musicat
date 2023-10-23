@@ -30,7 +30,7 @@ set_option (command_options_t &options, std::string &cmd_option)
 
     bool filling_value = false;
     bool include_next_special = false;
-    for (const char &c : cmd_option)
+    for (char c : cmd_option)
         {
             if (!include_next_special)
                 {
@@ -73,7 +73,10 @@ set_option (command_options_t &options, std::string &cmd_option)
         }
     else if (opt == command_options_keys_t.debug)
         {
+            // !TODO: remove every struct having this member
+            // and use global debug state instead
             options.debug = value == "1";
+            set_debug_state (options.debug);
         }
     else if (opt == command_options_keys_t.guild_id)
         {
@@ -239,9 +242,9 @@ write_command (const std::string &cmd, const int write_fd, const char *caller)
 static const std::string to_sanitize_command_value ("\\=;");
 
 bool
-should_sanitize (const char &tc)
+should_sanitize (char tc)
 {
-    for (const char &c : to_sanitize_command_value)
+    for (char c : to_sanitize_command_value)
         {
             if (c == tc)
                 return true;
@@ -257,7 +260,7 @@ sanitize_command_value (const std::string &value)
     // fprintf (stderr, "value: %s\n", value.c_str ());
     std::string new_value = "";
 
-    for (const char &c : value)
+    for (char c : value)
         {
             if (should_sanitize (c))
                 {
@@ -279,7 +282,7 @@ sanitize_command_key_value (const std::string &key_value)
     std::string new_key_value = "";
 
     bool should_check = false;
-    for (const char &c : key_value)
+    for (char c : key_value)
         {
             if (should_check && should_sanitize (c))
                 {
@@ -304,7 +307,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
 {
     bool include_next_special = false;
     std::string temp_str = "";
-    for (const char &c : cmd)
+    for (char c : cmd)
         {
             if (!include_next_special)
                 {
@@ -319,6 +322,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
                             std::string opt_str
                                 = command::sanitize_command_key_value (
                                     temp_str);
+
                             set_option (options, opt_str);
                             temp_str = "";
                             continue;

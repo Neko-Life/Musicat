@@ -21,7 +21,7 @@ namespace server
 // update accordingly
 using MCWsApp = uWS::WebSocket<APP_WITH_SSL, true, SocketData>;
 
-std::mutex ns_mutex;
+std::mutex ns_mutex; // EXTERN_VARIABLE
 bool running = false;
 
 // assign null to these pointer on exit!

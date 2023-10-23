@@ -252,7 +252,7 @@ handle_last_chain_stop (std::deque<helper_chain_t>::iterator hci)
             audio_processing::write_stdout (buf, &buf_size, true);
 
             read_ready
-                = (poll (prfds, 1, 0) > 100) && (prfds[0].revents & POLLIN);
+                = (poll (prfds, 1, 100) > 0) && (prfds[0].revents & POLLIN);
         }
 }
 

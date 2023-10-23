@@ -107,17 +107,17 @@ ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 {
     // this is wrong but whatever for now
-    bool debug = get_debug_state ();
+    // bool debug = get_debug_state ();
 
-    if (debug)
-        fprintf (stderr, idfmt, *size, !no_effect_chain);
+    // if (debug)
+    //     fprintf (stderr, idfmt, *size, !no_effect_chain);
 
     if (!no_effect_chain)
         {
             helper_processor::run_through_chain (buffer, size);
 
-            if (debug)
-                fprintf (stderr, necdfmt, *size);
+            // if (debug)
+            //     fprintf (stderr, necdfmt, *size);
         }
 
     if (*size == 0)
@@ -299,6 +299,36 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
     if (!running_state || !vclient || vclient->terminating)
         {
             return 1;
+        }
+
+    // calculate duration
+    if ((*send_buffer_length > 0))
+        {
+            auto player_manager = get_player_manager_ptr ();
+            auto guild_player
+                = player_manager
+                      ? player_manager->get_player (vclient->server_id)
+                      : NULL;
+
+            if (guild_player && guild_player->current_track.filesize)
+                {
+                    const uint64_t duration
+                        = guild_player->current_track.info.duration ();
+
+                    float byte_per_ms
+                        = (float)guild_player->current_track.filesize
+                          / (float)duration;
+
+                    guild_player->current_track.current_byte
+                        // (buffer_size /
+                        // (sampling rate * channel *
+                        // (bit width(16) / bit per byte(8))
+                        // ) * 1 second in ms)
+                        // * opus byte_per_ms
+                        += (int64_t)((float)*send_buffer_length
+                                     / (48000 * 2 * 2) * 1000)
+                           * byte_per_ms;
+                }
         }
 
     try

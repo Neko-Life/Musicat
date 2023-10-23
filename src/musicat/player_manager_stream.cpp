@@ -7,7 +7,6 @@
 #include "musicat/player.h"
 #include <memory>
 #include <oggz/oggz.h>
-#include <oggz/oggz_seek.h>
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -36,11 +35,8 @@ inline constexpr long STREAM_BUFSIZ_OPUS = BUFSIZ / 8;
 inline constexpr long CHUNK_READ_OPUS = BUFSIZ / 2;
 inline constexpr long DRAIN_CHUNK_OPUS = BUFSIZ / 4;
 
-namespace musicat
+namespace musicat::player
 {
-namespace player
-{
-using string = std::string;
 namespace cc = child::command;
 
 struct mc_oggz_user_data
@@ -50,15 +46,7 @@ struct mc_oggz_user_data
     bool &debug;
 };
 
-struct handle_effect_chain_change_states_t
-{
-    std::shared_ptr<Player> &guild_player;
-    player::MCTrack &track;
-    int &command_fd;
-    int &read_fd;
-    OGGZ *track_og;
-};
-
+// !TODO: delete this
 struct run_stream_loop_states_t
 {
     dpp::discord_voice_client *&v;
@@ -69,6 +57,91 @@ struct run_stream_loop_states_t
     bool &is_stopping;
     bool &debug;
 };
+
+static effect_states_list_t effect_states_list = {};
+std::mutex effect_states_list_m; // EXTERN_VARIABLE
+
+class EffectStatesListing
+{
+    const dpp::snowflake guild_id;
+    bool already_exist;
+
+  public:
+    EffectStatesListing (
+        const dpp::snowflake &guild_id,
+        handle_effect_chain_change_states_t *effect_states_ptr)
+        : guild_id (guild_id), already_exist (false)
+    {
+        std::lock_guard lk (effect_states_list_m);
+
+        auto i = effect_states_list.begin ();
+        while (i != effect_states_list.end ())
+            {
+                if ((*i)->guild_player->guild_id != guild_id)
+                    {
+                        i++;
+                        continue;
+                    }
+
+                already_exist = true;
+                break;
+            }
+
+        if (!already_exist)
+            {
+                effect_states_list.push_back (effect_states_ptr);
+            }
+
+        else
+            std::cerr << "[musicat::player::EffectStatesListing ERROR] "
+                         "Effect States already exist: "
+                      << guild_id << '\n';
+    }
+
+    ~EffectStatesListing ()
+    {
+        if (already_exist)
+            return;
+
+        std::lock_guard lk (effect_states_list_m);
+
+        auto i = effect_states_list.begin ();
+        while (i != effect_states_list.end ())
+            {
+                if ((*i)->guild_player->guild_id != guild_id)
+                    {
+                        i++;
+                        continue;
+                    }
+
+                i = effect_states_list.erase (i);
+            }
+    }
+};
+
+handle_effect_chain_change_states_t *
+get_effect_states (const dpp::snowflake &guild_id)
+{
+    auto i = effect_states_list.begin ();
+    while (i != effect_states_list.end ())
+        {
+            if ((*i)->guild_player->guild_id != guild_id)
+                {
+                    i++;
+                    continue;
+                }
+
+            return *i;
+        }
+
+    return nullptr;
+}
+
+effect_states_list_t *
+get_effect_states_list ()
+{
+    return &effect_states_list;
+}
 
 void
 handle_effect_chain_change (handle_effect_chain_change_states_t &states)
@@ -293,13 +366,13 @@ constexpr const char *msprrfmt
 void
 Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 {
-    const string &fname = track.filename;
+    const std::string &fname = track.filename;
 
     dpp::snowflake server_id = 0;
     std::chrono::high_resolution_clock::time_point start_time;
 
-    const string music_folder_path = get_music_folder_path ();
-    const string file_path = music_folder_path + fname;
+    const std::string music_folder_path = get_music_folder_path ();
+    const std::string file_path = music_folder_path + fname;
 
     if (v && !v->terminating && v->is_ready ())
         {
@@ -447,11 +520,13 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     throw 2;
                 }
 
-                // I LOVE C++!!!
+            EffectStatesListing esl (server_id, &effect_states);
 
-                // track.seekable = true;
+            // I LOVE C++!!!
 
-                // using raw pcm need to change ffmpeg output format to s16le!
+            // track.seekable = true;
+
+            // using raw pcm need to change ffmpeg output format to s16le!
 #ifdef MUSICAT_USE_PCM
             ssize_t read_size = 0;
             ssize_t last_read_size = 0;
@@ -667,7 +742,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             if (debug)
                 {
-                    fprintf (stderr, "Done streaming for %ld milliseconds\n",
+                    fprintf (stderr, "Done streaming for %lld milliseconds\n",
                              done.count ());
                     // fprintf (stderr, "audio_processing status: %d\n",
                     // status);
@@ -759,5 +834,4 @@ Manager::is_processor_dead (std::string &server_id_str)
     return get_processor_state (server_id_str) & PROCESSOR_DEAD;
 }
 
-} // player
-} // musicat
+} // musicat::player

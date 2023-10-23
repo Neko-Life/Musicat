@@ -1,11 +1,7 @@
+#include "musicat/cmds/invite.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace invite
+namespace musicat::command::invite
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -22,6 +18,4 @@ slash_run (const dpp::slashcommand_t &event)
                                         + ") **"
                                   : "I don't have invite link configured");
 }
-} // invite
-} // command
-} // musicat
+} // musicat::command::invite

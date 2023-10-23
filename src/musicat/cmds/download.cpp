@@ -1,11 +1,9 @@
+#include "musicat/cmds/download.h"
 #include "musicat/cmds.h"
+#include "musicat/cmds/play.h"
 #include <sys/stat.h>
 
-namespace musicat
-{
-namespace command
-{
-namespace download
+namespace musicat::command::download
 {
 // ============ PRIVATE ============
 bool
@@ -58,12 +56,11 @@ e_re_no_track (const dpp::interaction_create_t &event)
 namespace autocomplete
 {
 void
-track (const dpp::autocomplete_t &event, std::string param,
-       player::player_manager_ptr player_manager)
+track (const dpp::autocomplete_t &event, std::string param)
 {
     // simply run the autocomplete of query argument of the play command
     // it's exactly the same expected result
-    play::autocomplete::query (event, param, player_manager);
+    play::autocomplete::query (event, param);
 }
 } // autocomplete
 
@@ -191,6 +188,4 @@ slash_run (const dpp::slashcommand_t &event)
     msg.add_file (fname, dpp::utility::read_file (fullpath));
     event.edit_response (msg);
 }
-} // download
-} // command
-} // musicat
+} // musicat::command::download

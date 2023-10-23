@@ -1,4 +1,5 @@
 #include "musicat/cmds.h"
+#include "musicat/cmds/play.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"

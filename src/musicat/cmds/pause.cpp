@@ -1,12 +1,7 @@
+#include "musicat/cmds/pause.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-#include "musicat/player.h"
 
-namespace musicat
-{
-namespace command
-{
-namespace pause
+namespace musicat::command::pause
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -42,6 +37,4 @@ slash_run (const dpp::slashcommand_t &event)
             event.reply (e.what ());
         }
 }
-} // pause
-} // command
-} // musicat
+} // musicat::command::pause

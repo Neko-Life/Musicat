@@ -62,11 +62,9 @@ action: set balance reset
 up the volume threshold to 500
 */
 
-#include "appcommand.h"
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
+#include "musicat/cmds/filters.h"
 #include "musicat/util.h"
-#include <string>
 
 namespace musicat
 {
