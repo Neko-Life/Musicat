@@ -463,7 +463,7 @@ run (int argc, const char *argv[])
         fprintf (stderr, "%s\n", event.raw_event.c_str ());
     });
 
-    events::load_events ();
+    events::load_events (client_ptr);
 
 #ifdef MUSICAT_WS_P_ETF
     client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);

@@ -15,10 +15,8 @@
 namespace musicat::events
 {
 int
-load_events ()
+load_events (dpp::cluster *client)
 {
-    auto client = get_client_ptr ();
-
     on_ready (client);
     on_message_create (client);
     on_button_click (client);
