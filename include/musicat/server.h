@@ -3,29 +3,15 @@
 
 #include <mutex>
 #include <string>
+#include <uWebSockets/src/App.h>
 
-namespace musicat
-{
-namespace server
-{
-enum ws_req_t
-{
-    bot_info = 1,
-    server_list = 2,
-    oauth_req = 3,
-    invite_req = 4,
-};
+#define SERVER_WITH_SSL false
+#define BOT_AVATAR_SIZE 480
 
-enum ws_event_t
+namespace musicat::server
 {
-    oauth = 1,
-};
 
-struct SocketData
-{
-};
-
-// always lock this whenever calling publish(),
+// always lock this whenever updating states
 // EXTERN_VARIABLE
 extern std::mutex ns_mutex;
 
@@ -41,7 +27,6 @@ int shutdown ();
 
 int run ();
 
-} // server
-} // musicat
+} // musicat::server
 
 #endif // MUSICAT_SERVER_H

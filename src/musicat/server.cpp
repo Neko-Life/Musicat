@@ -1,5 +1,6 @@
 #include "musicat/server.h"
 #include "musicat/musicat.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "yt-search/encode.h"
@@ -10,16 +11,11 @@
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/
 
-#define APP_WITH_SSL false
-#define BOT_AVATAR_SIZE 128
-
-namespace musicat
-{
-namespace server
+namespace musicat::server
 {
 // SSLApp would be <true, true, SocketData>
 // update accordingly
-using MCWsApp = uWS::WebSocket<APP_WITH_SSL, true, SocketData>;
+using MCWsApp = uWS::WebSocket<SERVER_WITH_SSL, true, ws::player::SocketData>;
 
 std::mutex ns_mutex; // EXTERN_VARIABLE
 bool running = false;
@@ -32,6 +28,7 @@ us_listen_socket_t *_listen_socket_ptr = nullptr;
 std::deque<std::string> _nonces = {};
 std::deque<std::string> _oauth_states = {};
 
+// !TODO: move all these to appropriate files
 void
 _log_err (MCWsApp *ws, const char *format, ...)
 {
@@ -85,12 +82,12 @@ int _remove_nonce (const std::string &nonce);
 int _remove_oauth_state (const std::string &state);
 
 void
-_util_create_remove_thread (
-    const int &second_sleep, const std::string &val,
-    std::function<size_t (const std::string &)> remove_fn)
+_util_create_remove_thread (int second_sleep, const std::string &val,
+                            int (*remove_fn) (const std::string &))
 {
     std::thread t ([val, second_sleep, remove_fn] () {
         thread_manager::DoneSetter tdms;
+
         std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
 
         remove_fn (val);
@@ -120,19 +117,20 @@ _remove_nonce (const std::string &nonce)
     return _util_remove_string_deq (nonce, _nonces);
 }
 
+inline constexpr const char token[]
+    = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+inline constexpr const int token_size = sizeof (token) - 1;
+
 std::string
 _generate_oauth_state ()
 {
-    static constexpr char token[]
-        = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    static constexpr int token_size = sizeof (token) - 1;
-
     std::string state = "";
 
     do
         {
-            const int r1 = util::get_random_number ();
-            const int len = ((r1 > 0) ? (r1 % 31) : 0) + 50;
+            int r1 = util::get_random_number ();
+            int len = ((r1 > 0) ? (r1 % 31) : 0) + 50;
             state = "";
 
             for (int i = 0; i < len; i++)
@@ -214,77 +212,9 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
         {
             const int64_t req = type.get<int64_t> ();
 
+            /*
             switch (req)
                 {
-                case ws_req_t::bot_info:
-                    {
-                        auto bot = get_client_ptr ();
-                        if (!bot)
-                            {
-                                _set_resd_error (resd, "Bot not running");
-                                break;
-                            }
-
-                        resd["avatarUrl"] = bot->me.get_avatar_url (
-                            BOT_AVATAR_SIZE, dpp::i_webp);
-                        resd["username"] = bot->me.username;
-                        resd["description"] = get_bot_description ();
-
-                        break;
-                    }
-
-                case ws_req_t::server_list:
-                    {
-                        auto *guild_cache = dpp::get_guild_cache ();
-                        if (!guild_cache)
-                            {
-                                _set_resd_error (resd, "No guild cached");
-                                break;
-                            }
-
-                        // lock cache mutex for thread safety
-                        std::shared_mutex &cache_mutex
-                            = guild_cache->get_mutex ();
-                        std::lock_guard<std::shared_mutex &> lk (cache_mutex);
-
-                        for (auto &pair : guild_cache->get_container ())
-                            {
-                                dpp::guild *guild = pair.second;
-                                if (!guild)
-                                    continue;
-
-                                nlohmann::json to_push;
-
-                                try
-                                    {
-                                        to_push = nlohmann::json::parse (
-                                            guild->build_json (true));
-                                    }
-                                catch (...)
-                                    {
-                                        fprintf (
-                                            stderr,
-                                            "[server::_handle_req ERROR] "
-                                            "Error building guild json\n");
-                                        continue;
-                                    }
-
-                                to_push["icon_url"]
-                                    = guild->get_icon_url (512, dpp::i_webp);
-                                to_push["banner_url"] = guild->get_banner_url (
-                                    1024, dpp::i_webp);
-                                to_push["splash_url"] = guild->get_splash_url (
-                                    1024, dpp::i_webp);
-                                to_push["discovery_splash_url"]
-                                    = guild->get_discovery_splash_url (
-                                        1024, dpp::i_webp);
-
-                                resd.push_back (to_push);
-                            }
-
-                        break;
-                    }
-
                 case ws_req_t::oauth_req:
                     {
                         if (!data.is_string ())
@@ -338,6 +268,7 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                         break;
                     }
                 }
+                */
         }
 
     _response (ws, nonce, resd);
@@ -382,6 +313,7 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
     nlohmann::json resd;
 
+    /*
     switch (event)
         {
         case ws_event_t::oauth:
@@ -540,6 +472,7 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
             //         break;
             //     }
         }
+*/
 
     /* fprintf (stderr, "%s\n", resd.dump (2).c_str ()); */
     /* if (emit) _emit_event (ws, event_name, resd); */
@@ -560,213 +493,50 @@ run ()
             return 1;
         }
 
+#if SERVER_WITH_SSL == true
+    uWS::SSLApp app;
+
+    // cert and key
+    //
+    //
+#else
     uWS::App app;
+#endif
 
     // initialize global pointers, assign null to these pointer on exit!
     _app_ptr = &app;
     _loop_ptr = uWS::Loop::get ();
 
-    const int PORT = get_server_port ();
+    int PORT = get_server_port ();
 
-    // define websocket behavior ======================================={
-    app.ws<SocketData> (
-        "/*",
-        { uWS::CompressOptions (uWS::DEDICATED_COMPRESSOR_4KB
-                                | uWS::DEDICATED_COMPRESSOR),
-          4 * 1024, 120, 1024 * 1024, false, false, false, 0,
-          // upgrade
-          // !TODO: handle upgrade (validate cookie, auth etc)
-          /*[](uWS::HttpResponse<false> * res, uWS::HttpRequest * req){
-            std::string_view header_cookie = req->getHeader("cookie");
-            if (header_cookie.empty()) return;
-          },*/
-          nullptr,
-          // open
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
+    app.ws<ws::player::SocketData> ("/ws/player/:server_id",
+                                    ws::player::get_behavior ());
 
-              if (debug)
-                  {
-                      fprintf (stderr, "[server OPEN] %lu\n", (uintptr_t)ws);
-                  }
+    app.get ("/", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
+                      uWS::HttpRequest *req) {
+        nlohmann::json r
+            = { { "success", true }, { "message", "API running!" } };
 
-              ws->subscribe ("bot_info_update");
-          },
-          // message
-          [] (auto *ws, std::string_view msg, uWS::OpCode code) {
-              const bool debug = get_debug_state ();
+        res->writeStatus ("200 OK")->end (r.dump ());
+    });
 
-              // std::string message(msg);
-              // std::string logmessage = std::string ("`") + message
-              //                       + "` " + std::to_string (code);
-              if (debug)
-                  {
-                      fprintf (stderr, "[server MESSAGE] %lu %d: %s\n",
-                               (uintptr_t)ws, code,
-                               std::string (msg).c_str ());
-                  }
-
-              if (msg.empty ())
-                  return;
-
-              if (msg == "0")
-                  {
-                      ws->send ("1");
-                      return;
-                  }
-
-              nlohmann::json json_payload;
-              bool is_json = true;
-
-              try
-                  {
-                      json_payload = nlohmann::json::parse (msg);
-                  }
-              catch (...)
-                  {
-                      is_json = false;
-                  }
-
-              if (is_json)
-                  {
-                      // guarantee payload is object
-                      if (!json_payload.is_object ())
-                          {
-                              _log_err (
-                                  ws,
-                                  "[server ERROR] Payload is not an object\n");
-                              return;
-                          }
-
-                      const std::string payload_type
-                          = json_payload.value ("type", "");
-
-                      if (!payload_type.empty ())
-                          {
-                              nlohmann::json d = json_payload["d"];
-
-                              if (d.is_null ())
-                                  {
-                                      _log_err (ws,
-                                                "[server ERROR] d is null\n");
-                                      return;
-                                  }
-
-                              const std::string nonce
-                                  = json_payload.value ("nonce", "");
-
-                              // else if train, no return anywere yet
-                              // vvvvvvvvvvvvvvvvvv
-                              if (payload_type == "req")
-                                  {
-                                      _handle_req (ws, nonce, d);
-                                  }
-                              else if (payload_type == "res")
-                                  {
-                                      _handle_res (ws, nonce, d);
-                                  }
-                              else if (payload_type == "e")
-                                  {
-                                      const int64_t event_type
-                                          = json_payload.value ("event", -1);
-
-                                      if (event_type == -1)
-                                          {
-                                              _log_err (
-                                                  ws, "[server ERROR] Invalid "
-                                                      "event\n");
-                                          }
-                                      else
-                                          {
-                                              _handle_event (ws, event_type,
-                                                             d);
-                                          }
-                                  }
-                              else
-                                  {
-                                      _log_err (ws,
-                                                "[server ERROR] Unknown "
-                                                "payload type: %s\n",
-                                                payload_type.c_str ());
-                                  }
-                              // else if train, no return anywere yet
-                              // ^^^^^^^^^^^^^^^^^^
-                          } // if json.type is string
-
-                      // !TODO: do smt
-                      return;
-                  } // if is_json
-              // else ws->send (message);
-          },
-          // drain
-          [] (auto *ws) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server DRAIN] %lu %u\n",
-                               (uintptr_t)ws, ws->getBufferedAmount ());
-                  }
-          },
-          // ping
-          [] (auto *ws, std::string_view msg) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server PING] %lu: %s\n",
-                               (uintptr_t)ws, std::string (msg).c_str ());
-                  }
-          },
-          // pong
-          [] (auto *ws, std::string_view msg) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server PONG] %lu: %s\n",
-                               (uintptr_t)ws, std::string (msg).c_str ());
-                  }
-          },
-          // subscription
-          [] (auto *ws, std::string_view topic, int idk1, int idk2) {
-              const bool debug = get_debug_state ();
-
-              if (debug)
-                  {
-                      fprintf (stderr,
-                               "[server SUBSCRIPTION] %lu, %d, %d: %s\n",
-                               (uintptr_t)ws, idk1, idk2,
-                               std::string (topic).c_str ());
-                  }
-          },
-          // close
-          [] (auto *ws, int code, std::string_view message) {
-              const bool debug = get_debug_state ();
-              // You may access ws->getUserData() here
-
-              if (debug)
-                  {
-                      fprintf (stderr, "[server CLOSE] %lu %d: %s\n",
-                               (uintptr_t)ws, code,
-                               std::string (message).c_str ());
-                  }
-          } });
-    // define websocket behavior =======================================}
-
-    // !TODO
     // define api routes ======================================={
-    app.post ("/login",
-              [] (uWS::HttpResponse<false> *res, uWS::HttpRequest *req) {
-                  // find user and verify email password
+    app.post ("/login", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
+                            uWS::HttpRequest *req) {
+        // find user and verify email password
 
-                  // set set-cookie header and end req
-              });
+        // set set-cookie header and end req
+    });
 
-    app.post ("/signup",
-              [] (uWS::HttpResponse<false> *res, uWS::HttpRequest *req) {
-                  // do signup stuff
-              });
+    app.post ("/signup", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
+                             uWS::HttpRequest *req) {
+        // do signup stuff
+    });
+
+    app.any ("/*", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
+                       uWS::HttpRequest *req) {
+        res->writeStatus ("404 Not Found")->end ();
+    });
 
     // serve webapp
     /* !TODO: this is not working, need fix
@@ -871,7 +641,7 @@ shutdown ()
 
         fprintf (stderr, "[server] Shutting down...\n");
 
-        us_listen_socket_close (APP_WITH_SSL, _listen_socket_ptr);
+        us_listen_socket_close (SERVER_WITH_SSL, _listen_socket_ptr);
         _listen_socket_ptr = nullptr;
     });
 
@@ -880,5 +650,4 @@ shutdown ()
     return 0;
 }
 
-} // server
-} // musicat
+} // musicat::server
