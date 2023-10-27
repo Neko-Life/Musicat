@@ -1,5 +1,6 @@
 #include "musicat/server.h"
 #include "musicat/musicat.h"
+#include "musicat/server/middlewares.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
@@ -10,6 +11,9 @@
 /*#include "uWebSockets/AsyncFileReader.h"
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/
+
+// a day
+#define CORS_VALID_FOR "86400"
 
 namespace musicat::server
 {
@@ -24,6 +28,8 @@ bool running = false;
 uWS::App *_app_ptr = nullptr;
 uWS::Loop *_loop_ptr = nullptr;
 us_listen_socket_t *_listen_socket_ptr = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////
 
 std::deque<std::string> _nonces = {};
 std::deque<std::string> _oauth_states = {};
@@ -509,11 +515,18 @@ run ()
 
     int PORT = get_server_port ();
 
+    middlewares::load_cors_enabled_origin ();
+
     app.ws<ws::player::SocketData> ("/ws/player/:server_id",
                                     ws::player::get_behavior ());
 
     app.get ("/", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
                       uWS::HttpRequest *req) {
+        int status;
+        status = middlewares::cors (res, req);
+        if (status)
+            return;
+
         nlohmann::json r
             = { { "success", true }, { "message", "API running!" } };
 
@@ -523,6 +536,10 @@ run ()
     // define api routes ======================================={
     app.post ("/login", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
                             uWS::HttpRequest *req) {
+        int status;
+        status = middlewares::cors (res, req);
+        if (status)
+            return;
         // find user and verify email password
 
         // set set-cookie header and end req
@@ -530,12 +547,36 @@ run ()
 
     app.post ("/signup", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
                              uWS::HttpRequest *req) {
+        int status;
+        status = middlewares::cors (res, req);
+        if (status)
+            return;
         // do signup stuff
     });
 
     app.any ("/*", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
                        uWS::HttpRequest *req) {
+        int status;
+        status = middlewares::cors (res, req);
+        if (status)
+            return;
+
         res->writeStatus ("404 Not Found")->end ();
+    });
+
+    // cors
+    app.options ("/*", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
+                           uWS::HttpRequest *req) {
+        int status;
+        status = middlewares::cors (
+            res, req,
+            { { "Access-Control-Max-Age", CORS_VALID_FOR },
+              { "Content-Length", "0" } });
+
+        if (status)
+            return;
+
+        res->writeStatus ("204 No Content")->end ();
     });
 
     // serve webapp
@@ -641,8 +682,7 @@ shutdown ()
 
         fprintf (stderr, "[server] Shutting down...\n");
 
-        us_listen_socket_close (SERVER_WITH_SSL, _listen_socket_ptr);
-        _listen_socket_ptr = nullptr;
+        _app_ptr->close ();
     });
 
     fprintf (stderr, "[server] Shutting down callback dispatched\n");

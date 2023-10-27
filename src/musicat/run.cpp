@@ -154,9 +154,9 @@ is_voice_channel (dpp::channel_type channel_type)
 }
 
 int
-load_config ()
+load_config (const std::string &config_file)
 {
-    std::ifstream scs ("sha_conf.json");
+    std::ifstream scs (config_file);
     if (!scs.is_open ())
         {
             fprintf (stderr, "[ERROR] No config file exist\n");
@@ -329,6 +329,33 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+std::vector<std::string>
+get_cors_enabled_origins ()
+{
+    std::vector<std::string> ret = {};
+
+    auto i_a = sha_cfg.find ("CORS_ENABLED_ORIGINS");
+
+    if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
+        return ret;
+
+    size_t i_a_siz = i_a->size ();
+
+    ret.reserve (i_a_siz);
+
+    for (size_t i = 0; i < i_a_siz; i++)
+        {
+            nlohmann::json entry = i_a->at (i);
+
+            if (!entry.is_string () || !entry.size ())
+                continue;
+
+            ret.push_back (entry.get<std::string> ());
+        }
+
+    return ret;
+}
+
 int _sigint_count = 0;
 
 void
@@ -373,7 +400,7 @@ run (int argc, const char *argv[])
     set_running_state (true);
 
     // load config file
-    const int config_status = load_config ();
+    int config_status = load_config ();
     if (config_status != 0)
         return config_status;
 

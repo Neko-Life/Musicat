@@ -19,6 +19,13 @@ extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 int run (int argc, const char *argv[]);
 
 /**
+ * @brief Load configuration file
+ * @param config_file path to config file relative to cwd or absolute path
+ * @return 0 on success, -1 on error
+ */
+int load_config (const std::string &config_file = "sha_conf.json");
+
+/**
  * @brief Get current running state
  */
 bool get_running_state ();
@@ -318,6 +325,8 @@ dpp::channel *vcs_setting_get_cache (dpp::snowflake channel_id);
 bool is_voice_channel (dpp::channel_type channel_type);
 
 void close_valid_fd (int *i);
+
+std::vector<std::string> get_cors_enabled_origins ();
 
 } // musicat
 
