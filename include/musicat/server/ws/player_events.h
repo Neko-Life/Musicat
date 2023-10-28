@@ -7,7 +7,7 @@
 namespace musicat::server::ws::player::events
 {
 
-void upgrade (uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
+void upgrade (APIResponse *res, APIRequest *req,
               struct us_socket_context_t *sock);
 
 void open (uws_ws_t *ws);

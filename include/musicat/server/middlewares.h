@@ -10,7 +10,7 @@ namespace musicat::server::middlewares
 void load_cors_enabled_origin ();
 
 int cors (
-    uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
+    APIResponse *res, APIRequest *req,
     const std::vector<std::pair<std::string, std::string> > &additional_headers
     = { { "Access-Control-Expose-Headers", "Content-Length,Content-Range" } });
 

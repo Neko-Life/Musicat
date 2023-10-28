@@ -17,14 +17,15 @@ handle_message (const socket_event_e e, const nlohmann::json &payload)
                             / sizeof (*socket_event_handlers));
          i++)
         {
-            if (socket_event_handlers[i].event == SOCKET_EVENT_ERROR
-                && !socket_event_handlers[i].handler)
+            const socket_event_handler_t *seh = &socket_event_handlers[i];
+
+            if (seh->event == SOCKET_EVENT_ERROR && !seh->handler)
                 break;
 
-            if (socket_event_handlers[i].event != e)
+            if (seh->event != e)
                 continue;
 
-            handler = socket_event_handlers[i].handler;
+            handler = seh->handler;
             break;
         }
 

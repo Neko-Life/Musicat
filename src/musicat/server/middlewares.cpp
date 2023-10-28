@@ -53,7 +53,7 @@ load_cors_enabled_origin ()
  */
 
 int
-cors (uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
+cors (APIResponse *res, APIRequest *req,
       const std::vector<std::pair<std::string, std::string> >
           &additional_headers)
 {
@@ -66,7 +66,7 @@ cors (uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
             auto m = req->getMethod ();
             if (m != "get" && m != "head")
                 {
-                    res->writeStatus ("400 Bad Request")
+                    res->writeStatus (http_status_t.BAD_REQUEST_400)
                         ->end ("Missing Origin header");
 
                     return 1;
@@ -99,7 +99,7 @@ cors (uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
 
     if (!allow)
         {
-            res->writeStatus ("403 Forbidden")->end ("Origin");
+            res->writeStatus (http_status_t.FORBIDDEN_403)->end ("Origin");
             return 2;
         }
 

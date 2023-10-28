@@ -1,6 +1,8 @@
 #include "musicat/server.h"
 #include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
+#include "musicat/server/routes.h"
+#include "musicat/server/ws.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
@@ -12,9 +14,6 @@
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/
 
-// a day
-#define CORS_VALID_FOR "86400"
-
 namespace musicat::server
 {
 // SSLApp would be <true, true, SocketData>
@@ -25,7 +24,7 @@ std::mutex ns_mutex; // EXTERN_VARIABLE
 bool running = false;
 
 // assign null to these pointer on exit!
-uWS::App *_app_ptr = nullptr;
+APIApp *_app_ptr = nullptr;
 uWS::Loop *_loop_ptr = nullptr;
 us_listen_socket_t *_listen_socket_ptr = nullptr;
 
@@ -499,14 +498,13 @@ run ()
             return 1;
         }
 
-#if SERVER_WITH_SSL == true
-    uWS::SSLApp app;
+    APIApp app;
 
+#if SERVER_WITH_SSL == true
     // cert and key
     //
     //
 #else
-    uWS::App app;
 #endif
 
     // initialize global pointers, assign null to these pointer on exit!
@@ -517,67 +515,10 @@ run ()
 
     middlewares::load_cors_enabled_origin ();
 
-    app.ws<ws::player::SocketData> ("/ws/player/:server_id",
-                                    ws::player::get_behavior ());
-
-    app.get ("/", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
-                      uWS::HttpRequest *req) {
-        int status;
-        status = middlewares::cors (res, req);
-        if (status)
-            return;
-
-        nlohmann::json r
-            = { { "success", true }, { "message", "API running!" } };
-
-        res->writeStatus ("200 OK")->end (r.dump ());
-    });
-
     // define api routes ======================================={
-    app.post ("/login", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
-                            uWS::HttpRequest *req) {
-        int status;
-        status = middlewares::cors (res, req);
-        if (status)
-            return;
-        // find user and verify email password
 
-        // set set-cookie header and end req
-    });
-
-    app.post ("/signup", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
-                             uWS::HttpRequest *req) {
-        int status;
-        status = middlewares::cors (res, req);
-        if (status)
-            return;
-        // do signup stuff
-    });
-
-    app.any ("/*", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
-                       uWS::HttpRequest *req) {
-        int status;
-        status = middlewares::cors (res, req);
-        if (status)
-            return;
-
-        res->writeStatus ("404 Not Found")->end ();
-    });
-
-    // cors
-    app.options ("/*", [] (uWS::HttpResponse<SERVER_WITH_SSL> *res,
-                           uWS::HttpRequest *req) {
-        int status;
-        status = middlewares::cors (
-            res, req,
-            { { "Access-Control-Max-Age", CORS_VALID_FOR },
-              { "Content-Length", "0" } });
-
-        if (status)
-            return;
-
-        res->writeStatus ("204 No Content")->end ();
-    });
+    routes::define_routes (&app);
+    ws::define_ws_routes (&app);
 
     // serve webapp
     /* !TODO: this is not working, need fix

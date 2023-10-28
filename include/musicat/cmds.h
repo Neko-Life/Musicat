@@ -14,7 +14,7 @@ namespace musicat::command
 struct command_handler_t
 {
     const char *name;
-    void (*handler) (const dpp::slashcommand_t &);
+    void (*const handler) (const dpp::slashcommand_t &);
 };
 
 using command_handlers_map_t = command_handler_t[];

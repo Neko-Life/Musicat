@@ -36,8 +36,8 @@ enum socket_event_e
 
 struct socket_event_handler_t
 {
-    socket_event_e event;
-    void (*handler) (const nlohmann::json &payload);
+    const socket_event_e event;
+    void (*const handler) (const nlohmann::json &payload);
 };
 
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;

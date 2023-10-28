@@ -11,6 +11,24 @@
 namespace musicat::server
 {
 
+#if SERVER_WITH_SSL == true
+using APIApp = uWS::SSLApp;
+#else
+using APIApp = uWS::App;
+#endif
+
+using APIResponse = uWS::HttpResponse<SERVER_WITH_SSL>;
+using APIRequest = uWS::HttpRequest;
+
+inline constexpr const struct
+{
+    const char *OK_200 = "200 OK";
+    const char *BAD_REQUEST_400 = "400 Bad Request";
+    const char *FORBIDDEN_403 = "403 Forbidden";
+    const char *NOT_FOUND_404 = "404 Not Found";
+    const char *NO_CONTENT_204 = "204 No Content";
+} http_status_t;
+
 // always lock this whenever updating states
 // EXTERN_VARIABLE
 extern std::mutex ns_mutex;
