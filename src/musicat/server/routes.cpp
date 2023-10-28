@@ -27,9 +27,11 @@ void
 options_cors (APIResponse *res, APIRequest *req)
 {
     int status;
-    status = middlewares::cors (res, req,
-                                { { "Access-Control-Max-Age", CORS_VALID_FOR },
-                                  { "Content-Length", "0" } });
+    status
+        = middlewares::cors (res, req,
+                             {
+                                 { "Access-Control-Max-Age", CORS_VALID_FOR },
+                             });
 
     if (status)
         return;
@@ -104,84 +106,84 @@ post_login (APIResponse *res, APIRequest *req)
 
     // set set-cookie header and end req
 
-            /* auto state_prop = d["state"];
-            auto redirect_uri_prop = d["redirect_uri"]; 
-            const std::string code = d.value ("code", "");
+    /* auto state_prop = d["state"];
+    auto redirect_uri_prop = d["redirect_uri"];
+    const std::string code = d.value ("code", "");
 
-            if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
-                || code.empty ())
+    if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
+        || code.empty ())
+        {
+            _set_resd_error (resd, "Invalid operation");
+            break;
+        }*/
+
+    /*
+    const std::string state = state_prop.get<std::string> ();
+
+    if (_remove_oauth_state (state) < 0)
+        {
+            _set_resd_error (resd, "Unauthorized");
+            break;
+        }
+
+    std::string secret = get_sha_secret ();
+
+    if (secret.empty ())
+        {
+            _set_resd_error (resd, "No OAuth configured");
+            break;
+        }
+
+    const std::string data
+        = "code=" + code + "&client_id="
+          + std::to_string (get_sha_id ()) + "&client_secret=" + secret
+          + "&grant_type=" + "authorization_code"
+          + "&redirect_uri=" + redirect_uri_prop.get<std::string> ();
+
+    std::thread t (
+        [] (const std::string creds) {
+            thread_manager::DoneSetter tmds;
+            std::ostringstream os;
+
+            curlpp::Easy req;
+
+            req.setOpt (curlpp::options::Url (DISCORD_API_URL
+                                              "/oauth2/token"));
+
+            req.setOpt (curlpp::options::Header (
+                "Content-Type: "
+                "application/x-www-form-urlencoded"));
+
+            req.setOpt (curlpp::options::PostFields (creds));
+            req.setOpt (
+                curlpp::options::PostFieldSize (creds.length ()));
+
+            req.setOpt (curlpp::options::WriteStream (&os));
+
+            try
                 {
-                    _set_resd_error (resd, "Invalid operation");
-                    break;
-                }*/
-
-            /*
-            const std::string state = state_prop.get<std::string> ();
-
-            if (_remove_oauth_state (state) < 0)
+                    req.perform ();
+                }
+            catch (const curlpp::LibcurlRuntimeError &e)
                 {
-                    _set_resd_error (resd, "Unauthorized");
-                    break;
+                    fprintf (stderr,
+                             "[ERROR] "
+                             "LibcurlRuntimeError(%d): %s\n",
+                             e.whatCode (), e.what ());
+
+                    return;
                 }
 
-            std::string secret = get_sha_secret ();
+            // MAGIC INIT
+            const std::string rawhttp = os.str ();
 
-            if (secret.empty ())
-                {
-                    _set_resd_error (resd, "No OAuth configured");
-                    break;
-                }
+            fprintf (stderr, "%s\n", creds.c_str ());
+            fprintf (stderr, "%s\n", rawhttp.c_str ());
+        },
+        data);
 
-            const std::string data
-                = "code=" + code + "&client_id="
-                  + std::to_string (get_sha_id ()) + "&client_secret=" + secret
-                  + "&grant_type=" + "authorization_code"
-                  + "&redirect_uri=" + redirect_uri_prop.get<std::string> ();
-
-            std::thread t (
-                [] (const std::string creds) {
-                    thread_manager::DoneSetter tmds;
-                    std::ostringstream os;
-
-                    curlpp::Easy req;
-
-                    req.setOpt (curlpp::options::Url (DISCORD_API_URL
-                                                      "/oauth2/token"));
-
-                    req.setOpt (curlpp::options::Header (
-                        "Content-Type: "
-                        "application/x-www-form-urlencoded"));
-
-                    req.setOpt (curlpp::options::PostFields (creds));
-                    req.setOpt (
-                        curlpp::options::PostFieldSize (creds.length ()));
-
-                    req.setOpt (curlpp::options::WriteStream (&os));
-
-                    try
-                        {
-                            req.perform ();
-                        }
-                    catch (const curlpp::LibcurlRuntimeError &e)
-                        {
-                            fprintf (stderr,
-                                     "[ERROR] "
-                                     "LibcurlRuntimeError(%d): %s\n",
-                                     e.whatCode (), e.what ());
-
-                            return;
-                        }
-
-                    // MAGIC INIT
-                    const std::string rawhttp = os.str ();
-
-                    fprintf (stderr, "%s\n", creds.c_str ());
-                    fprintf (stderr, "%s\n", rawhttp.c_str ());
-                },
-                data);
-
-            thread_manager::dispatch (t);
-            */
+    thread_manager::dispatch (t);
+    */
 }
 
 inline constexpr const route_handler_t route_handlers[]

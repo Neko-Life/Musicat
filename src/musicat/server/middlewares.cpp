@@ -6,12 +6,23 @@ namespace musicat::server::middlewares
 
 std::vector<std::string> _cors_enabled_origins;
 
-std::vector<std::pair<std::string, std::string> > _cors_headers = {
-    { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
-    { "Access-Control-Allow-Headers",
-      "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,"
-      "Content-Type,Range" },
-};
+std::vector<std::pair<std::string, std::string> >
+get_cors_headers (std::string_view req_allow_headers)
+{
+    std::string allow_headers = "DNT,User-Agent,X-Requested-With,If-Modified-"
+                                "Since,Cache-Control,Content-Type,Range";
+
+    if (!req_allow_headers.empty ())
+        {
+            allow_headers += ',';
+            allow_headers += req_allow_headers;
+        }
+
+    return {
+        { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
+        { "Access-Control-Allow-Headers", allow_headers },
+    };
+}
 
 void
 load_cors_enabled_origin ()
@@ -105,7 +116,11 @@ cors (APIResponse *res, APIRequest *req,
 
     res->writeHeader ("Access-Control-Allow-Origin", origin);
 
-    for (const std::pair<std::string, std::string> &s : _cors_headers)
+    std::string_view req_allow_headers
+        = req->getHeader ("access-control-request-headers");
+
+    for (const std::pair<std::string, std::string> &s :
+         get_cors_headers (req_allow_headers))
         {
             res->writeHeader (s.first, s.second);
         }
