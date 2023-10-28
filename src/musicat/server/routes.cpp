@@ -46,6 +46,7 @@ get_root (APIResponse *res, APIRequest *req)
 
     nlohmann::json r = { { "success", true }, { "message", "API running!" } };
 
+    middlewares::set_content_type_json (res);
     res->writeStatus (http_status_t.OK_200)->end (r.dump ());
 }
 

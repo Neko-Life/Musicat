@@ -14,6 +14,8 @@ int cors (
     const std::vector<std::pair<std::string, std::string> > &additional_headers
     = { { "Access-Control-Expose-Headers", "Content-Length,Content-Range" } });
 
+void set_content_type_json (APIResponse *res);
+
 } // musicat::server::middlewares
 
 #endif // MUSICAT_SERVER_MIDDLEWARES_H

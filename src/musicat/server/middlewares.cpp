@@ -118,4 +118,10 @@ cors (APIResponse *res, APIRequest *req,
     return 0;
 }
 
+void
+set_content_type_json (APIResponse *res)
+{
+    res->writeHeader ("Content-Type", "application/json");
+}
+
 } // musicat::server::middlewares
