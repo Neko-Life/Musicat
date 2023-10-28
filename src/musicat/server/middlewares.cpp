@@ -63,31 +63,39 @@ cors (uWS::HttpResponse<SERVER_WITH_SSL> *res, uWS::HttpRequest *req,
 
     if (!has_origin)
         {
-            if (req->getMethod () != "GET" || req->getMethod () != "HEAD")
+            auto m = req->getMethod ();
+            if (m != "get" && m != "head")
                 {
                     res->writeStatus ("400 Bad Request")
                         ->end ("Missing Origin header");
 
                     return 1;
                 }
+
+            // origin = "*";
+            // has_origin = true;
         }
 
     std::string_view host = req->getHeader ("host");
 
     bool has_host = !host.empty ();
 
-    bool allow
-        = has_origin ? (has_host ? (host.find (origin) == 0) : false) : true;
+    bool allow = has_origin ? has_host        ? (host.find (origin) == 0)
+                              : origin == "*" ? true
+                                              : false
+                            : true;
 
     if (!allow)
-        for (const std::string &s : _cors_enabled_origins)
-            {
-                if (origin == s)
-                    {
-                        allow = true;
-                        break;
-                    }
-            }
+        {
+            for (const std::string &s : _cors_enabled_origins)
+                {
+                    if (origin == s)
+                        {
+                            allow = true;
+                            break;
+                        }
+                }
+        }
 
     if (!allow)
         {
