@@ -27,6 +27,7 @@ inline constexpr const struct
     const char *FORBIDDEN_403 = "403 Forbidden";
     const char *NOT_FOUND_404 = "404 Not Found";
     const char *NO_CONTENT_204 = "204 No Content";
+    const char *INTERNAL_SERVER_ERROR_500 = "500 Internal Server Error";
 } http_status_t;
 
 // always lock this whenever updating states

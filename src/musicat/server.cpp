@@ -322,99 +322,12 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
     switch (event)
         {
         case ws_event_t::oauth:
-            auto state_prop = d["state"];
-            auto redirect_uri_prop = d["redirect_uri"];
-            const std::string code = d.value ("code", "");
-
-            if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
-                || code.empty ())
-                {
-                    _set_resd_error (resd, "Invalid operation");
-                    break;
-                }
-
-            const std::string state = state_prop.get<std::string> ();
-
-            if (_remove_oauth_state (state) < 0)
-                {
-                    _set_resd_error (resd, "Unauthorized");
-                    break;
-                }
-
-            std::string secret = get_sha_secret ();
-
-            if (secret.empty ())
-                {
-                    _set_resd_error (resd, "No OAuth configured");
-                    break;
-                }
-
-            const std::string data
-                = "code=" + code + "&client_id="
-                  + std::to_string (get_sha_id ()) + "&client_secret=" + secret
-                  + "&grant_type=" + "authorization_code"
-                  + "&redirect_uri=" + redirect_uri_prop.get<std::string> ();
-
-            std::thread t (
-                [] (const std::string creds) {
-                    thread_manager::DoneSetter tmds;
-                    std::ostringstream os;
-
-                    curlpp::Easy req;
-
-                    req.setOpt (curlpp::options::Url (DISCORD_API_URL
-                                                      "/oauth2/token"));
-
-                    req.setOpt (curlpp::options::Header (
-                        "Content-Type: "
-                        "application/x-www-form-urlencoded"));
-
-                    req.setOpt (curlpp::options::PostFields (creds));
-                    req.setOpt (
-                        curlpp::options::PostFieldSize (creds.length ()));
-
-                    req.setOpt (curlpp::options::WriteStream (&os));
-
-                    try
-                        {
-                            req.perform ();
-                        }
-                    catch (const curlpp::LibcurlRuntimeError &e)
-                        {
-                            fprintf (stderr,
-                                     "[ERROR] "
-                                     "LibcurlRuntimeError(%d): %s\n",
-                                     e.whatCode (), e.what ());
-
-                            return;
-                        }
-
-                    // MAGIC INIT
-                    const std::string rawhttp = os.str ();
-
-                    fprintf (stderr, "%s\n", creds.c_str ());
-                    fprintf (stderr, "%s\n", rawhttp.c_str ());
-                },
-                data);
-
-            thread_manager::dispatch (t);
 
             break;
 
             // ws_event_t::smt: _handle_event(d["d"]);
             // case ws_req_t::bot_info:
             //     {
-            //         auto bot = get_client_ptr ();
-            //         if (!bot)
-            //             {
-            //                 _set_resd_error (resd, "Bot not running");
-            //                 break;
-            //             }
-
-            //         resd["avatarUrl"] = bot->me.get_avatar_url (
-            //             BOT_AVATAR_SIZE, dpp::i_webp);
-            //         resd["username"] = bot->me.username;
-            //         resd["description"] = get_bot_description ();
 
             //         break;
             //     }
@@ -465,15 +378,6 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
 
             // case ws_req_t::oauth_state:
             //     {
-            //         std::string oauth_state = get_oauth_link ();
-            //         if (!oauth_state.length ())
-            //             {
-            //                 _set_resd_error (resd, "No OAuth configured");
-            //                 break;
-            //             }
-
-            //         resd = oauth_state
-            //                + "&state=" + _generate_oauth_state ();
             //         break;
             //     }
         }
