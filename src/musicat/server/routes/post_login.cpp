@@ -56,11 +56,11 @@ handle_post_login_creds (
     /*
         oauth:
         {
-          "token_type": "Bearer",
-          "access_token": "ubU1onM6j1Ng22dhMLROvxWUDCBTv3",
+          "token_type": string,
+          "access_token": string,
           "expires_in": 604800,
-          "refresh_token": "4Hclr8i7FTdvmydNnaDeGHONUyThLW",
-          "scope": "identify guilds"
+          "refresh_token": string,
+          "scope": string
 
 
         with guild:
@@ -146,6 +146,54 @@ handle_post_login_creds (
 
     /*
         {
+          "application": {
+            "id": "886636156337414156",
+            "name": "Musicat-alpha",
+            "icon": null,
+            "description": "",
+            "type": null,
+            "bot": {
+              "id": "886636156337414156",
+              "username": "Musicat-alpha",
+              "avatar": null,
+              "discriminator": "3640",
+              "public_flags": 0,
+              "premium_type": 0,
+              "flags": 0,
+              "bot": true,
+              "banner": null,
+              "accent_color": null,
+              "global_name": null,
+              "avatar_decoration_data": null,
+              "banner_color": null
+            },
+            "summary": "",
+            "bot_public": false,
+            "bot_require_code_grant": false,
+            "verify_key": string,
+            "flags": 8945664,
+            "hook": true,
+            "is_monetized": false
+          },
+          "expires": "2023-11-05T16:34:02.853000+00:00",
+          "scopes": [
+            "guilds",
+            "identify"
+          ],
+          "user": {
+            "id": "750335181285490760",
+            "username": "shasharina",
+            "avatar": "854a22c8cd3b532d80ca2382f0c5e668",
+            "discriminator": "0",
+            "public_flags": 4194368,
+            "premium_type": 2,
+            "flags": 4194368,
+            "banner": "641645c254a893beb35f1aecaa832509",
+            "accent_color": 9437439,
+            "global_name": "Shasha",
+            "avatar_decoration_data": null,
+            "banner_color": "#9000ff"
+          }
         }
      */
     nlohmann::json ume;
