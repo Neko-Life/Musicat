@@ -20,7 +20,8 @@ any_any (APIResponse *res, APIRequest *req)
     if (status)
         return;
 
-    res->writeStatus (http_status_t.NOT_FOUND_404)->end ();
+    res->writeStatus (http_status_t.NOT_FOUND_404);
+    res->end ();
 }
 
 // cors protocol
@@ -37,7 +38,8 @@ options_cors (APIResponse *res, APIRequest *req)
     if (status)
         return;
 
-    res->writeStatus (http_status_t.NO_CONTENT_204)->end ();
+    res->writeStatus (http_status_t.NO_CONTENT_204);
+    res->end ();
 }
 
 inline constexpr const route_handler_t route_handlers[]

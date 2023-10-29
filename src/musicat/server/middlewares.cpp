@@ -77,8 +77,8 @@ cors (APIResponse *res, APIRequest *req,
             auto m = req->getMethod ();
             if (m != "get" && m != "head")
                 {
-                    res->writeStatus (http_status_t.BAD_REQUEST_400)
-                        ->end ("Missing Origin header");
+                    res->writeStatus (http_status_t.BAD_REQUEST_400);
+                    res->end ("Missing Origin header");
 
                     return 1;
                 }
@@ -110,7 +110,8 @@ cors (APIResponse *res, APIRequest *req,
 
     if (!allow)
         {
-            res->writeStatus (http_status_t.FORBIDDEN_403)->end ("Origin");
+            res->writeStatus (http_status_t.FORBIDDEN_403);
+            res->end ("Origin");
             return 2;
         }
 

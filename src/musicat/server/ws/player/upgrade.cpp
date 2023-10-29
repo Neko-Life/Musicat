@@ -12,14 +12,16 @@ upgrade (APIResponse *res, APIRequest *req, struct us_socket_context_t *ctx)
     std::string server_id = std::string (req->getParameter (0));
     if (server_id.empty () || util::valid_number (server_id))
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)->end ();
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ();
             return;
         }
 
     dpp::guild *guild = dpp::find_guild (server_id);
     if (!guild)
         {
-            res->writeStatus (http_status_t.NOT_FOUND_404)->end ();
+            res->writeStatus (http_status_t.NOT_FOUND_404);
+            res->end ();
             return;
         }
 

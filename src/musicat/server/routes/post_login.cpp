@@ -15,7 +15,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     // bad request
     if (body.empty ())
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)->end ("body");
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ("body");
             return;
         }
 
@@ -43,7 +44,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
 
     if (!json_body.is_object ())
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)->end ("body");
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ("body");
             return;
         }
 
@@ -59,7 +61,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
 
     if (state.empty ())
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)->end ("state");
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ("state");
             return;
         }
 
@@ -73,7 +76,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
 
     if (code.empty ())
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)->end ("code");
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ("code");
             return;
         }
 
@@ -88,8 +92,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
 
     if (redirect_uri.empty ())
         {
-            res->writeStatus (http_status_t.BAD_REQUEST_400)
-                ->end ("redirect_uri");
+            res->writeStatus (http_status_t.BAD_REQUEST_400);
+            res->end ("redirect_uri");
             return;
         }
 
@@ -102,7 +106,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (status)
         {
             // invalid state
-            res->writeStatus (http_status_t.FORBIDDEN_403)->end ();
+            res->writeStatus (http_status_t.FORBIDDEN_403);
+            res->end ();
             return;
         }
 
@@ -117,8 +122,8 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
                      "[server::routes::post_login ERROR] No secret provided "
                      "in configuration file, can't process user login\n");
 
-            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500)
-                ->end ("config");
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            res->end ("config");
 
             return;
         }

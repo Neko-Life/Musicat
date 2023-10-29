@@ -31,7 +31,8 @@ get_root (APIResponse *res, APIRequest *req)
               { "username", bot->me.username },
               { "description", get_bot_description () } });
 
-    res->writeStatus (http_status)->end (r.dump ());
+    res->writeStatus (http_status);
+    res->end (r.dump ());
 }
 
 } // musicat::server::routes

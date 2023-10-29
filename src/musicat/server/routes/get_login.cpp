@@ -33,7 +33,8 @@ get_login (APIResponse *res, APIRequest *req)
             r = response::payload (oauth_state + "&state=" + state);
         }
 
-    res->writeStatus (http_status)->end (r.dump ());
+    res->writeStatus (http_status);
+    res->end (r.dump ());
 }
 
 } // musicat::server::routes
