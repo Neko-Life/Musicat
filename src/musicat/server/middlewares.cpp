@@ -111,7 +111,7 @@ cors (APIResponse *res, APIRequest *req,
     if (!allow)
         {
             res->writeStatus (http_status_t.FORBIDDEN_403);
-            res->end ("Origin");
+            res->end ("Disallowed Origin");
             return {};
         }
 
