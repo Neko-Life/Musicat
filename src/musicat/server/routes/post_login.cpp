@@ -1,10 +1,195 @@
 #include "musicat/server.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
+#include "musicat/server/services.h"
 #include "musicat/server/states.h"
+#include "musicat/thread_manager.h"
 
 namespace musicat::server::routes
 {
+
+void
+handle_post_login_creds (
+    APIResponse *res, std::string redirect,
+    std::vector<std::pair<std::string, std::string> > cors_headers,
+    std::string creds)
+{
+    thread_manager::DoneSetter tmds;
+
+    services::curlpp_response_t resp = services::discord_post_creds (creds);
+
+    if (resp.status != 200L)
+        {
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] POST "
+                     "/oauth2/token Status: %ld\n",
+                     resp.status);
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", creds.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", resp.response.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("POST /oauth2/token: ")
+                                           + std::to_string (resp.status))
+                          .dump ());
+
+            return;
+        }
+
+    std::string str_udata = resp.response.substr (resp.header_size).c_str ();
+
+    /*
+        oauth:
+        {
+          "token_type": "Bearer",
+          "access_token": "ubU1onM6j1Ng22dhMLROvxWUDCBTv3",
+          "expires_in": 604800,
+          "refresh_token": "4Hclr8i7FTdvmydNnaDeGHONUyThLW",
+          "scope": "identify guilds"
+
+
+        with guild:
+          "guild": Guild object
+        }
+     */
+    nlohmann::json udata;
+
+    try
+        {
+            udata = nlohmann::json::parse (str_udata);
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] %s\n",
+                     e.what ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", str_udata.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+        }
+
+    if (!udata.is_object ())
+        {
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       "POST /oauth2/token: Unknown response")
+                          .dump ());
+
+            return;
+        }
+
+    ////////////////////////////////////////////////////////////////////////////////
+
+    // get @me
+    services::curlpp_response_t resp_me = services::discord_get_me (
+        udata.find ("token_type")->get<std::string> (),
+        udata.find ("access_token")->get<std::string> ());
+
+    if (resp_me.status != 200L)
+        {
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] GET "
+                     "/oauth2/@me Status: %ld\n",
+                     resp_me.status);
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", udata.dump (2).c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", resp_me.response.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("GET /oauth2/@me: ")
+                                           + std::to_string (resp_me.status))
+                          .dump ());
+
+            return;
+        }
+
+    fprintf (stderr, "get @me:\n%s\n", resp_me.response.c_str ());
+
+    std::string str_ume
+        = resp_me.response.substr (resp_me.header_size).c_str ();
+
+    /*
+        {
+        }
+     */
+    nlohmann::json ume;
+
+    try
+        {
+            ume = nlohmann::json::parse (str_ume);
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] %s\n",
+                     e.what ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", str_ume.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+        }
+
+    if (!ume.is_object ())
+        {
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       "GET /oauth2/@me: Unknown response")
+                          .dump ());
+
+            return;
+        }
+
+    // save creds to db
+    // !TODO
+
+    // set set-cookie header and end req
+    // !TODO
+
+    res->writeStatus (http_status_t.OK_200);
+    middlewares::write_headers (res, cors_headers);
+    res->end (response::payload ({ "redirect", redirect }).dump ());
+}
 
 void
 handle_post_login_body (
@@ -136,16 +321,17 @@ handle_post_login_body (
             return;
         }
 
-    const std::string data
+    std::string creds
         = "code=" + code + "&client_id=" + std::to_string (get_sha_id ())
           + "&client_secret=" + secret + "&grant_type=" + "authorization_code"
           + "&redirect_uri=" + redirect_uri;
 
     // spawn thread to verify so the main thread isn't blocked
 
-    // !TODO
+    std::thread t (handle_post_login_creds, res, redirect, cors_headers,
+                   creds);
 
-    // set set-cookie header and end req
+    thread_manager::dispatch (t);
 }
 
 void
@@ -247,49 +433,6 @@ post_login (APIResponse *res, APIRequest *req)
         }
 
 
-    std::thread t (
-        [] (const std::string creds) {
-            thread_manager::DoneSetter tmds;
-            std::ostringstream os;
-
-            curlpp::Easy req;
-
-            req.setOpt (curlpp::options::Url (DISCORD_API_URL
-                                              "/oauth2/token"));
-
-            req.setOpt (curlpp::options::Header (
-                "Content-Type: "
-                "application/x-www-form-urlencoded"));
-
-            req.setOpt (curlpp::options::PostFields (creds));
-            req.setOpt (
-                curlpp::options::PostFieldSize (creds.length ()));
-
-            req.setOpt (curlpp::options::WriteStream (&os));
-
-            try
-                {
-                    req.perform ();
-                }
-            catch (const curlpp::LibcurlRuntimeError &e)
-                {
-                    fprintf (stderr,
-                             "[ERROR] "
-                             "LibcurlRuntimeError(%d): %s\n",
-                             e.whatCode (), e.what ());
-
-                    return;
-                }
-
-            // MAGIC INIT
-            const std::string rawhttp = os.str ();
-
-            fprintf (stderr, "%s\n", creds.c_str ());
-            fprintf (stderr, "%s\n", rawhttp.c_str ());
-        },
-        data);
-
-    thread_manager::dispatch (t);
     */
 }
 
