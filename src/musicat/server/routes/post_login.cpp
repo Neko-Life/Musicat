@@ -236,6 +236,7 @@ handle_post_login_creds (
 
     res->writeStatus (http_status_t.OK_200);
     middlewares::write_headers (res, cors_headers);
+    middlewares::set_content_type_json (res);
     res->end (response::payload ({ { "redirect", redirect } }).dump ());
 }
 
@@ -374,12 +375,7 @@ handle_post_login_body (
           + "&client_secret=" + secret + "&grant_type=" + "authorization_code"
           + "&redirect_uri=" + redirect_uri;
 
-    // spawn thread to verify so the main thread isn't blocked
-
-    std::thread t (handle_post_login_creds, res, redirect, cors_headers,
-                   creds);
-
-    thread_manager::dispatch (t);
+    handle_post_login_creds (res, redirect, cors_headers, creds);
 }
 
 void

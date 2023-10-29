@@ -334,7 +334,7 @@ run ()
 }
 
 int
-publish (const std::string &topic, const std::string &message)
+defer (std::function<void ()> cb)
 {
     if (!_app_ptr)
         {
@@ -346,7 +346,15 @@ publish (const std::string &topic, const std::string &message)
             return 2;
         }
 
-    _loop_ptr->defer ([topic, message] () {
+    _loop_ptr->defer (cb);
+
+    return 0;
+}
+
+int
+publish (const std::string &topic, const std::string &message)
+{
+    return defer ([topic, message] () {
         if (!_app_ptr)
             {
                 fprintf (
@@ -359,8 +367,6 @@ publish (const std::string &topic, const std::string &message)
 
         _app_ptr->publish (topic, message, uWS::OpCode::BINARY);
     });
-
-    return 0;
 }
 
 int

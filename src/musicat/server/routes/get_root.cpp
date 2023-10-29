@@ -11,8 +11,6 @@ get_root (APIResponse *res, APIRequest *req)
     if (cors_headers.empty ())
         return;
 
-    middlewares::set_content_type_json (res);
-
     const char *http_status = http_status_t.OK_200;
     nlohmann::json r;
 
@@ -32,6 +30,7 @@ get_root (APIResponse *res, APIRequest *req)
 
     res->writeStatus (http_status);
     middlewares::write_headers (res, cors_headers);
+    middlewares::set_content_type_json (res);
     res->end (r.dump ());
 }
 
