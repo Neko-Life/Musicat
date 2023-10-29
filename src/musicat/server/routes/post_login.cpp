@@ -168,7 +168,7 @@ post_login (APIResponse *res, APIRequest *req)
     }
 
     res->onData ([res, req, struct_body] (std::string_view chunk,
-                                          bool is_last) {
+                                          bool is_last) mutable {
         std::lock_guard lk (states::recv_body_cache_m);
         std::vector<states::recv_body_t>::iterator cache
             = get_recv_body_cache (struct_body);
