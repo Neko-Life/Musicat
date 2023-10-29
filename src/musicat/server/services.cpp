@@ -16,6 +16,7 @@ discord_post_creds (const std::string &creds)
     curlpp::Easy req;
 
     req.setOpt (curlpp::options::Url (DISCORD_API_URL "/oauth2/token"));
+    req.setOpt (curlpp::options::Header (1L));
 
     req.setOpt (curlpp::options::PostFields (creds));
     req.setOpt (curlpp::options::PostFieldSize (creds.length ()));
@@ -51,6 +52,7 @@ discord_get_me (const std::string &type, const std::string &token)
 
     std::string header = "Authorization: " + type + ' ' + token;
 
+    req.setOpt (curlpp::options::Header (1L));
     req.setOpt (curlpp::options::HttpHeader ({ header.c_str () }));
 
     req.setOpt (curlpp::options::Verbose (1L));
