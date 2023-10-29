@@ -15,12 +15,12 @@ namespace musicat::server::routes
 void
 any_any (APIResponse *res, APIRequest *req)
 {
-    int status;
-    status = middlewares::cors (res, req);
-    if (status)
+    auto cors_headers = middlewares::cors (res, req);
+    if (cors_headers.empty ())
         return;
 
     res->writeStatus (http_status_t.NOT_FOUND_404);
+    middlewares::write_headers (res, cors_headers);
     res->end ();
 }
 
@@ -28,17 +28,17 @@ any_any (APIResponse *res, APIRequest *req)
 void
 options_cors (APIResponse *res, APIRequest *req)
 {
-    int status;
-    status
+    auto cors_headers
         = middlewares::cors (res, req,
                              {
                                  { "Access-Control-Max-Age", CORS_VALID_FOR },
                              });
 
-    if (status)
+    if (cors_headers.empty ())
         return;
 
     res->writeStatus (http_status_t.NO_CONTENT_204);
+    middlewares::write_headers (res, cors_headers);
     res->end ();
 }
 

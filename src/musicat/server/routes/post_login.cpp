@@ -7,8 +7,9 @@ namespace musicat::server::routes
 {
 
 void
-handle_post_login_body (APIResponse *res, APIRequest *req,
-                        const std::string &body)
+handle_post_login_body (
+    APIResponse *res, APIRequest *req, const std::string &body,
+    const std::vector<std::pair<std::string, std::string> > &cors_headers)
 {
     // request might been aborted? or they actually sent empty body??
     // the former should never happen when it reaches here, so just reply with
@@ -16,6 +17,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (body.empty ())
         {
             res->writeStatus (http_status_t.BAD_REQUEST_400);
+            middlewares::write_headers (res, cors_headers);
             res->end ("body");
             return;
         }
@@ -45,6 +47,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (!json_body.is_object ())
         {
             res->writeStatus (http_status_t.BAD_REQUEST_400);
+            middlewares::write_headers (res, cors_headers);
             res->end ("body");
             return;
         }
@@ -62,6 +65,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (state.empty ())
         {
             res->writeStatus (http_status_t.BAD_REQUEST_400);
+            middlewares::write_headers (res, cors_headers);
             res->end ("state");
             return;
         }
@@ -77,6 +81,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (code.empty ())
         {
             res->writeStatus (http_status_t.BAD_REQUEST_400);
+            middlewares::write_headers (res, cors_headers);
             res->end ("code");
             return;
         }
@@ -93,6 +98,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
     if (redirect_uri.empty ())
         {
             res->writeStatus (http_status_t.BAD_REQUEST_400);
+            middlewares::write_headers (res, cors_headers);
             res->end ("redirect_uri");
             return;
         }
@@ -107,6 +113,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
         {
             // invalid state
             res->writeStatus (http_status_t.FORBIDDEN_403);
+            middlewares::write_headers (res, cors_headers);
             res->end ();
             return;
         }
@@ -123,6 +130,7 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
                      "in configuration file, can't process user login\n");
 
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
             res->end ("config");
 
             return;
@@ -143,13 +151,12 @@ handle_post_login_body (APIResponse *res, APIRequest *req,
 void
 post_login (APIResponse *res, APIRequest *req)
 {
-    int status;
-    status = middlewares::cors (res, req);
-    if (status)
+    auto cors_headers = middlewares::cors (res, req);
+    if (cors_headers.empty ())
         return;
 
     states::recv_body_t struct_body = states::create_recv_body_t (
-        "post_login", std::string (res->getRemoteAddressAsText ()));
+        "post_login", std::string (res->getRemoteAddressAsText ()), res, req);
 
     {
         std::lock_guard lk (states::recv_body_cache_m);
@@ -167,8 +174,8 @@ post_login (APIResponse *res, APIRequest *req)
             }
     }
 
-    res->onData ([res, req, struct_body] (std::string_view chunk,
-                                          bool is_last) mutable {
+    res->onData ([cors_headers, struct_body] (std::string_view chunk,
+                                              bool is_last) mutable {
         std::lock_guard lk (states::recv_body_cache_m);
         std::vector<states::recv_body_t>::iterator cache
             = get_recv_body_cache (struct_body);
@@ -183,13 +190,17 @@ post_login (APIResponse *res, APIRequest *req)
             {
                 if (!cache->body)
                     {
-                        handle_post_login_body (res, req, std::string (chunk));
+                        handle_post_login_body (cache->res, cache->req,
+                                                std::string (chunk),
+                                                cors_headers);
+
                         return;
                     }
 
                 cache->body->append (chunk);
 
-                handle_post_login_body (res, req, *cache->body);
+                handle_post_login_body (cache->res, cache->req, *cache->body,
+                                        cors_headers);
 
                 delete_recv_body_cache (cache);
 

@@ -1,6 +1,7 @@
 #ifndef MUSICAT_SERVER_STATES_H
 #define MUSICAT_SERVER_STATES_H
 
+#include "musicat/server.h"
 #include <mutex>
 #include <string>
 
@@ -13,6 +14,8 @@ struct recv_body_t
     const char *endpoint;
     std::string id;
     std::string *body;
+    APIResponse *res;
+    APIRequest *req;
 };
 
 extern std::mutex recv_body_cache_m; // EXTERN_VARIABLE
@@ -22,7 +25,8 @@ std::string generate_oauth_state (const std::string &redirect = "");
 int remove_oauth_state (const std::string &state,
                         std::string *redirect = NULL);
 
-recv_body_t create_recv_body_t (const char *endpoint, const std::string &id);
+recv_body_t create_recv_body_t (const char *endpoint, const std::string &id,
+                                APIResponse *res, APIRequest *req);
 
 /**
  * @brief Should acquire recv_body_cache_m lock before calling

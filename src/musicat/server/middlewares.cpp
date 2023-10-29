@@ -63,7 +63,7 @@ load_cors_enabled_origin ()
  }
  */
 
-int
+std::vector<std::pair<std::string, std::string> >
 cors (APIResponse *res, APIRequest *req,
       const std::vector<std::pair<std::string, std::string> >
           &additional_headers)
@@ -80,7 +80,7 @@ cors (APIResponse *res, APIRequest *req,
                     res->writeStatus (http_status_t.BAD_REQUEST_400);
                     res->end ("Missing Origin header");
 
-                    return 1;
+                    return {};
                 }
 
             // origin = "*";
@@ -112,10 +112,11 @@ cors (APIResponse *res, APIRequest *req,
         {
             res->writeStatus (http_status_t.FORBIDDEN_403);
             res->end ("Origin");
-            return 2;
+            return {};
         }
 
-    res->writeHeader ("Access-Control-Allow-Origin", origin);
+    std::vector<std::pair<std::string, std::string> > headers
+        = { { "Access-Control-Allow-Origin", std::string (origin) } };
 
     std::string_view req_allow_headers
         = req->getHeader ("access-control-request-headers");
@@ -123,21 +124,32 @@ cors (APIResponse *res, APIRequest *req,
     for (const std::pair<std::string, std::string> &s :
          get_cors_headers (req_allow_headers))
         {
-            res->writeHeader (s.first, s.second);
+            headers.push_back (s);
         }
 
     for (const std::pair<std::string, std::string> &s : additional_headers)
         {
-            res->writeHeader (s.first, s.second);
+            headers.push_back (s);
         }
 
-    return 0;
+    return headers;
 }
 
 void
 set_content_type_json (APIResponse *res)
 {
     res->writeHeader ("Content-Type", "application/json");
+}
+
+void
+write_headers (
+    APIResponse *res,
+    const std::vector<std::pair<std::string, std::string> > &headers)
+{
+    for (const std::pair<std::string, std::string> &s : headers)
+        {
+            res->writeHeader (s.first, s.second);
+        }
 }
 
 } // musicat::server::middlewares

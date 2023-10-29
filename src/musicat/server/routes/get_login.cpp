@@ -8,9 +8,8 @@ namespace musicat::server::routes
 void
 get_login (APIResponse *res, APIRequest *req)
 {
-    int status;
-    status = middlewares::cors (res, req);
-    if (status)
+    auto cors_headers = middlewares::cors (res, req);
+    if (cors_headers.empty ())
         return;
 
     middlewares::set_content_type_json (res);
@@ -34,6 +33,7 @@ get_login (APIResponse *res, APIRequest *req)
         }
 
     res->writeStatus (http_status);
+    middlewares::write_headers (res, cors_headers);
     res->end (r.dump ());
 }
 

@@ -6,6 +6,7 @@
 namespace musicat::server::ws::player::events
 {
 
+// !TODO: do we need to handle cors here?
 void
 upgrade (APIResponse *res, APIRequest *req, struct us_socket_context_t *ctx)
 {

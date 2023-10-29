@@ -137,13 +137,14 @@ generate_oauth_state (const std::string &redirect)
 }
 
 recv_body_t
-create_recv_body_t (const char *endpoint, const std::string &id)
+create_recv_body_t (const char *endpoint, const std::string &id,
+                    APIResponse *res, APIRequest *req)
 {
     long long ts = std::chrono::high_resolution_clock::now ()
                        .time_since_epoch ()
                        .count ();
 
-    return { ts, endpoint, id, nullptr };
+    return { ts, endpoint, id, nullptr, res, req };
 }
 
 std::vector<recv_body_t>::iterator
