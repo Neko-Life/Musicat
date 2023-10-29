@@ -236,7 +236,7 @@ handle_post_login_creds (
 
     res->writeStatus (http_status_t.OK_200);
     middlewares::write_headers (res, cors_headers);
-    res->end (response::payload ({ "redirect", redirect }).dump ());
+    res->end (response::payload ({ { "redirect", redirect } }).dump ());
 }
 
 void
