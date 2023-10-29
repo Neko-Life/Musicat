@@ -30,136 +30,7 @@ us_listen_socket_t *_listen_socket_ptr = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::deque<std::string> _nonces = {};
-std::deque<std::string> _oauth_states = {};
-
-// !TODO: move all these to appropriate files
-void
-_log_err (MCWsApp *ws, const char *format, ...)
-{
-    fprintf (stderr, "[server ERROR] ws %lu vvvvvvvvvvv\n", (uintptr_t)ws);
-
-    va_list argptr;
-    va_start (argptr, format);
-    vfprintf (stderr, format, argptr);
-    va_end (argptr);
-
-    fprintf (stderr, "[server ERROR] ws %lu ^^^^^^^^^^^\n", (uintptr_t)ws);
-}
-
-template <typename T>
-typename std::deque<T>::iterator
-_util_deque_find (std::deque<T> *_deq, T _find)
-{
-    auto i = _deq->begin ();
-    for (; i != _deq->end (); i++)
-        {
-            if (*i == _find)
-                return i;
-        }
-    return i;
-}
-
-int
-_util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
-{
-    int idx = -1;
-    int count = 0;
-    for (auto i = deq.begin (); i != deq.end ();)
-        {
-            if (*i == val)
-                {
-                    deq.erase (i);
-                    idx = count;
-                    break;
-                }
-            else
-                {
-                    i++;
-                    count++;
-                }
-        }
-
-    return idx;
-}
-
-int _remove_nonce (const std::string &nonce);
-int _remove_oauth_state (const std::string &state);
-
-void
-_util_create_remove_thread (int second_sleep, const std::string &val,
-                            int (*remove_fn) (const std::string &))
-{
-    std::thread t ([val, second_sleep, remove_fn] () {
-        thread_manager::DoneSetter tdms;
-
-        std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
-
-        remove_fn (val);
-    });
-
-    thread_manager::dispatch (t);
-}
-
-std::string
-_generate_nonce ()
-{
-    std::string nonce = std::to_string (
-        std::chrono::duration_cast<std::chrono::milliseconds> (
-            std::chrono::high_resolution_clock::now ().time_since_epoch ())
-            .count ());
-
-    _nonces.push_back (nonce);
-
-    _util_create_remove_thread (3, nonce, _remove_nonce);
-
-    return nonce;
-}
-
-int
-_remove_nonce (const std::string &nonce)
-{
-    return _util_remove_string_deq (nonce, _nonces);
-}
-
-inline constexpr const char token[]
-    = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-inline constexpr const int token_size = sizeof (token) - 1;
-
-std::string
-_generate_oauth_state ()
-{
-    std::string state = "";
-
-    do
-        {
-            int r1 = util::get_random_number ();
-            int len = ((r1 > 0) ? (r1 % 31) : 0) + 50;
-            state = "";
-
-            for (int i = 0; i < len; i++)
-                {
-                    const int r2 = util::get_random_number ();
-                    state += token[(r2 > 0) ? (r2 % token_size) : 0];
-                }
-        }
-    while (_util_deque_find<std::string> (&_oauth_states, state)
-           != _oauth_states.end ());
-
-    _oauth_states.push_back (state);
-
-    _util_create_remove_thread (600, state, _remove_oauth_state);
-
-    return state;
-}
-
-int
-_remove_oauth_state (const std::string &state)
-{
-    return _util_remove_string_deq (state, _oauth_states);
-}
-
+/*
 void
 _request (MCWsApp *ws, nlohmann::json &reqd)
 {
@@ -273,7 +144,7 @@ _handle_req (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
                         break;
                     }
                 }
-                */
+                *
         }
 
     _response (ws, nonce, resd);
@@ -299,9 +170,9 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
     /* if (d.is_string ())
     {
         const std::string res
-    } */
+    } *
 }
-
+*/
 /**
  * @brief `d` is guaranteed object
  */
