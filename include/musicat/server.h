@@ -46,6 +46,8 @@ int shutdown ();
 
 int run ();
 
+void main_loop_routine ();
+
 } // musicat::server
 
 #endif // MUSICAT_SERVER_H

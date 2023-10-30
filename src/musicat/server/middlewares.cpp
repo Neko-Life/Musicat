@@ -95,10 +95,9 @@ cors (APIResponse *res, APIRequest *req,
 
     bool has_host = !host.empty ();
 
-    bool allow = has_origin ? has_host        ? (host.find (origin) == 0)
-                              : origin == "*" ? true
-                                              : false
-                            : true;
+    bool allow = has_origin
+                     ? has_host ? (host.find (origin) == 0) : origin == "*"
+                     : true;
 
     if (!allow)
         {

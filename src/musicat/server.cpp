@@ -425,4 +425,8 @@ shutdown ()
     return 0;
 }
 
+void main_loop_routine() {
+    // !TODO
+}
+
 } // musicat::server
