@@ -401,44 +401,46 @@ post_login (APIResponse *res, APIRequest *req)
             }
     }
 
-    res->onData ([res, req, cors_headers, struct_body] (std::string_view chunk,
-                                                        bool is_last) {
-        std::lock_guard lk (states::recv_body_cache_m);
-        std::vector<states::recv_body_t>::iterator cache
-            = get_recv_body_cache (struct_body);
+    res->onData (
+        [cors_headers, struct_body] (std::string_view chunk, bool is_last) {
+            std::lock_guard lk (states::recv_body_cache_m);
+            std::vector<states::recv_body_t>::iterator cache
+                = get_recv_body_cache (struct_body);
 
-        if (is_recv_body_cache_end_iterator (cache))
-            {
-                // request aborted, returns now
-                return;
-            }
+            if (is_recv_body_cache_end_iterator (cache))
+                {
+                    // request aborted, returns now
+                    return;
+                }
 
-        if (is_last)
-            {
-                if (!cache->body)
-                    {
-                        handle_post_login_body (res, req, std::string (chunk),
-                                                cors_headers);
+            if (is_last)
+                {
+                    if (!cache->body)
+                        {
+                            handle_post_login_body (cache->res, cache->req,
+                                                    std::string (chunk),
+                                                    cors_headers);
 
-                        delete_recv_body_cache (cache);
+                            delete_recv_body_cache (cache);
 
-                        return;
-                    }
+                            return;
+                        }
 
-                cache->body->append (chunk);
+                    cache->body->append (chunk);
 
-                handle_post_login_body (res, req, *cache->body, cors_headers);
+                    handle_post_login_body (cache->res, cache->req,
+                                            *cache->body, cors_headers);
 
-                delete_recv_body_cache (cache);
+                    delete_recv_body_cache (cache);
 
-                return;
-            }
+                    return;
+                }
 
-        if (!cache->body)
-            cache->body = new std::string ();
+            if (!cache->body)
+                cache->body = new std::string ();
 
-        cache->body->append (chunk);
-    });
+            cache->body->append (chunk);
+        });
 
     res->onAborted ([struct_body] () {
         std::lock_guard lk (states::recv_body_cache_m);

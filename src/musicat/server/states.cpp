@@ -1,4 +1,5 @@
 #include "musicat/server/states.h"
+#include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include <deque>
@@ -10,8 +11,8 @@
 namespace musicat::server::states
 {
 
-std::deque<std::string> _nonces = {};
 std::map<std::string, std::string> _oauth_states = {};
+std::mutex _oauth_states_m;
 
 // !TODO: reserve from somewhere?
 std::vector<recv_body_t> _recv_body_cache;
@@ -54,14 +55,10 @@ util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
 }
 
 int
-remove_nonce (const std::string &nonce, [[maybe_unused]] std::string *_ = NULL)
-{
-    return util_remove_string_deq (nonce, _nonces);
-}
-
-int
 remove_oauth_state (const std::string &state, std::string *redirect)
 {
+    std::lock_guard lk (_oauth_states_m);
+
     auto i = _oauth_states.find (state);
     if (i == _oauth_states.end ())
         return -1;
@@ -73,35 +70,38 @@ remove_oauth_state (const std::string &state, std::string *redirect)
     return 0;
 }
 
+bool
+should_break_oauth_states (const std::string &val)
+{
+    std::lock_guard lk (_oauth_states_m);
+    auto i = _oauth_states.find (val);
+    return i == _oauth_states.end ();
+}
+
 void
 util_create_remove_thread (int second_sleep, const std::string &val,
                            int (*remove_fn) (const std::string &,
-                                             std::string *))
+                                             std::string *),
+                           bool (*should_break) (const std::string &) = NULL)
 {
-    std::thread t ([val, second_sleep, remove_fn] () {
+    std::thread t ([val, second_sleep, remove_fn, should_break] () {
         thread_manager::DoneSetter tdms;
 
-        std::this_thread::sleep_for (std::chrono::seconds (second_sleep));
+        int second_slept = 0;
+
+        while (get_running_state () && second_slept < second_sleep)
+            {
+                if (should_break && should_break (val))
+                    break;
+
+                std::this_thread::sleep_for (std::chrono::seconds (1));
+                second_slept++;
+            }
 
         remove_fn (val, NULL);
     });
 
     thread_manager::dispatch (t);
-}
-
-std::string
-generate_nonce ()
-{
-    std::string nonce = std::to_string (
-        std::chrono::duration_cast<std::chrono::milliseconds> (
-            std::chrono::high_resolution_clock::now ().time_since_epoch ())
-            .count ());
-
-    _nonces.push_back (nonce);
-
-    util_create_remove_thread (3, nonce, remove_nonce);
-
-    return nonce;
 }
 
 inline constexpr const char token[]
@@ -113,6 +113,8 @@ std::string
 generate_oauth_state (const std::string &redirect)
 {
     std::string state = "";
+
+    std::lock_guard lk (_oauth_states_m);
 
     do
         {
@@ -131,7 +133,8 @@ generate_oauth_state (const std::string &redirect)
 
     _oauth_states.insert_or_assign (state, redirect);
 
-    util_create_remove_thread (STATE_LIFETIME, state, remove_oauth_state);
+    util_create_remove_thread (STATE_LIFETIME, state, remove_oauth_state,
+                               should_break_oauth_states);
 
     return state;
 }

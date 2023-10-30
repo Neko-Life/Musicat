@@ -10,8 +10,6 @@ namespace musicat::server::services
 curlpp_response_t
 discord_post_creds (const std::string &creds)
 {
-            return { false, 0, 0, "" };
-
     std::ostringstream os;
 
     curlpp::Easy req;
@@ -45,7 +43,6 @@ discord_post_creds (const std::string &creds)
 curlpp_response_t
 discord_get_me (const std::string &type, const std::string &token)
 {
-            return { false, 0, 0, "" };
     std::ostringstream os;
 
     curlpp::Easy req;
