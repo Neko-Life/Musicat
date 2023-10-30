@@ -11,6 +11,8 @@ get_root (APIResponse *res, APIRequest *req)
     if (cors_headers.empty ())
         return;
 
+    middlewares::print_headers (req);
+
     const char *http_status = http_status_t.OK_200;
     nlohmann::json r;
 

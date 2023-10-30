@@ -328,6 +328,8 @@ void close_valid_fd (int *i);
 
 std::vector<std::string> get_cors_enabled_origins ();
 
+std::string get_jwt_secret ();
+
 } // musicat
 
 #endif

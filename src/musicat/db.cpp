@@ -208,7 +208,7 @@ create_table_auths ()
         = "CREATE TABLE IF NOT EXISTS "
           "\"auths\" ( \"raw\" JSON NOT NULL, "
           // user_id
-          "\"uid\" VARCHAR(24) NOT NULL, "
+          "\"uid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
           "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
           "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
 

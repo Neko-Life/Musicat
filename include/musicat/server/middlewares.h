@@ -20,6 +20,8 @@ void write_headers (
     APIResponse *res,
     const std::vector<std::pair<std::string, std::string> > &headers);
 
+void print_headers (APIRequest *req);
+
 } // musicat::server::middlewares
 
 #endif // MUSICAT_SERVER_MIDDLEWARES_H

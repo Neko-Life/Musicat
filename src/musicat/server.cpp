@@ -1,7 +1,9 @@
 #include "musicat/server.h"
+#include "jwt-cpp/jwt.h"
 #include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/routes.h"
+#include "musicat/server/states.h"
 #include "musicat/server/ws.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
@@ -319,11 +321,22 @@ run ()
             fprintf (stderr, "[server ERROR] Listening socket is null\n");
     });
 
+    states::init ();
+
+    auto jwt_verifier
+        = jwt::verify ()
+              .allow_algorithm (jwt::algorithm::hs256{ get_jwt_secret () })
+              .with_issuer ("Musicat" /*version*/);
+
+    states::set_jwt_verifier_ptr (&jwt_verifier);
+
     running = true;
 
     app.run ();
 
     running = false;
+
+    states::set_jwt_verifier_ptr (nullptr);
 
     // socket exiting, assigning null to these pointer
     _listen_socket_ptr = nullptr;

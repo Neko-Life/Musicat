@@ -2,6 +2,7 @@
 #define MUSICAT_SERVER_STATES_H
 
 #include "musicat/server.h"
+#include "musicat/server/auth.h"
 #include <mutex>
 #include <string>
 
@@ -40,6 +41,14 @@ bool is_recv_body_cache_end_iterator (std::vector<recv_body_t>::iterator i);
 int store_recv_body_cache (const recv_body_t &struct_body);
 
 void delete_recv_body_cache (std::vector<recv_body_t>::iterator i);
+
+void reserve_recv_body_cache (size_t siz);
+
+int init ();
+
+void set_jwt_verifier_ptr (auth::jwt_verifier_t *ptr);
+
+auth::jwt_verifier_t *get_jwt_verifier_ptr ();
 
 } // musicat::server::states
 

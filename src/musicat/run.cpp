@@ -356,6 +356,11 @@ get_cors_enabled_origins ()
     return ret;
 }
 
+std::string get_jwt_secret () {
+    return get_config_value<std::string> ("JWT_SECRET", "");
+}
+
+
 int _sigint_count = 0;
 
 void
@@ -572,6 +577,7 @@ run (int argc, const char *argv[])
 
     return 0;
 }
+
 } // musicat
 
 // vim: et sw=4 ts=8

@@ -21,6 +21,7 @@ get_cors_headers (std::string_view req_allow_headers)
     return {
         { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
         { "Access-Control-Allow-Headers", allow_headers },
+        { "Access-Control-Allow-Credentials", "true" },
         // other security headers
         { "X-Content-Type-Options", "nosniff" },
         { "X-XSS-Protection", "1; mode=block" },
@@ -153,6 +154,17 @@ write_headers (
         {
             res->writeHeader (s.first, s.second);
         }
+}
+
+void
+print_headers (APIRequest *req)
+{
+    fprintf (stderr, "================================================\n");
+    for (auto i = req->begin ().ptr; !i->key.empty (); i++)
+        {
+            std::cerr << i->key << ": " << i->value << '\n';
+        }
+    fprintf (stderr, "================================================\n");
 }
 
 } // musicat::server::middlewares

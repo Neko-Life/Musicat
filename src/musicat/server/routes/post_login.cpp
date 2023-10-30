@@ -1,4 +1,5 @@
 #include "musicat/server.h"
+#include "musicat/server/auth.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/services.h"
@@ -13,6 +14,7 @@ handle_post_login_creds (
     std::vector<std::pair<std::string, std::string> > cors_headers,
     std::string creds)
 {
+    /*
     services::curlpp_response_t resp = services::discord_post_creds (creds);
 
     if (resp.status != 200L)
@@ -64,8 +66,8 @@ handle_post_login_creds (
           "guild": Guild object
         }
      */
-    nlohmann::json udata;
-
+    nlohmann::json udata = { { "expires_in", 604800 } };
+    /*
     try
         {
             udata = nlohmann::json::parse (str_udata);
@@ -98,10 +100,32 @@ handle_post_login_creds (
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    auto type = udata["token_type"];
+    auto tkn = udata["access_token"];
+
+    std::string token_type = type.is_string () ? type.get<std::string> () : "";
+    std::string access_token = tkn.is_string () ? tkn.get<std::string> () : "";
+
+    if (token_type.empty () || access_token.empty ())
+        {
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] POST "
+                     "/oauth2/token Unknown response:\n%s\n",
+                     udata.dump (2).c_str ());
+
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("POST /oauth2/token: ")
+                                           + "Unknown response")
+                          .dump ());
+
+            return;
+        }
+
     // get @me
-    services::curlpp_response_t resp_me = services::discord_get_me (
-        udata.find ("token_type")->get<std::string> (),
-        udata.find ("access_token")->get<std::string> ());
+    services::curlpp_response_t resp_me
+        = services::discord_get_me (token_type, tkn);
 
     if (resp_me.status != 200L)
         {
@@ -193,37 +217,73 @@ handle_post_login_creds (
           }
         }
      */
-    nlohmann::json ume;
+    nlohmann::json ume = { { "user", { { "id", "750335181285490760" } } } };
+    /*
+        try
+            {
+                ume = nlohmann::json::parse (str_ume);
+            }
+        catch (const nlohmann::json::exception &e)
+            {
+                fprintf (stderr,
+                         "[server::routes::handle_post_login_body ERROR] %s\n",
+                         e.what ());
 
-    try
-        {
-            ume = nlohmann::json::parse (str_ume);
-        }
-    catch (const nlohmann::json::exception &e)
+                fprintf (stderr,
+                         "================================================\n");
+
+                fprintf (stderr, "%s\n", str_ume.c_str ());
+
+                fprintf (stderr,
+                         "================================================\n");
+            }
+
+        if (!ume.is_object ())
+            {
+                res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+                middlewares::write_headers (res, cors_headers);
+                res->end (response::error (response::ERROR_CODE_NOTHING,
+                                           "GET /oauth2/@me: Unknown response")
+                              .dump ());
+
+                return;
+            }*/
+
+    auto i_user = ume["user"]["id"];
+
+    std::string uid = !i_user.is_string () ? "" : i_user.get<std::string> ();
+
+    if (uid.empty ())
         {
             fprintf (stderr,
-                     "[server::routes::handle_post_login_body ERROR] %s\n",
-                     e.what ());
+                     "[server::routes::handle_post_login_body ERROR] GET "
+                     "/oauth2/@me Unknown response:\n%s\n",
+                     ume.dump (2).c_str ());
 
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", str_ume.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
-        }
-
-    if (!ume.is_object ())
-        {
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
             res->end (response::error (response::ERROR_CODE_NOTHING,
-                                       "GET /oauth2/@me: Unknown response")
+                                       std::string ("GET /oauth2/@me: ")
+                                           + "Unknown response")
                           .dump ());
 
             return;
         }
+
+    int64_t exp = 0;
+    try
+        {
+            exp = udata.value ("expires_in", 0);
+        }
+    catch (...)
+        {
+            exp = 0;
+        }
+
+    if (exp < 0)
+        exp = 0;
+
+    std::string max_age = exp ? "; Max-Age=" + std::to_string (exp) : "";
 
     // save creds to db
     // !TODO
@@ -234,6 +294,11 @@ handle_post_login_creds (
     res->writeStatus (http_status_t.OK_200);
     middlewares::write_headers (res, cors_headers);
     middlewares::set_content_type_json (res);
+
+    res->writeHeader ("Set-Cookie", std::string ("token=")
+                                        + auth::create_jwt_token (uid)
+                                        + max_age + "; HttpOnly");
+
     res->end (response::payload ({ { "redirect", redirect } }).dump ());
 }
 
@@ -285,13 +350,10 @@ handle_post_login_body (
 
     // the actual post handler starts here...
 
-    auto i_state = json_body.find ("state");
+    auto i_state = json_body["state"];
 
-    bool i_state_is_end = i_state == json_body.end ();
-
-    std::string state = (i_state_is_end || !i_state->is_string ())
-                            ? ""
-                            : i_state->get<std::string> ();
+    std::string state
+        = !i_state.is_string () ? "" : i_state.get<std::string> ();
 
     if (state.empty ())
         {
@@ -301,13 +363,9 @@ handle_post_login_body (
             return;
         }
 
-    auto i_code = json_body.find ("code");
+    auto i_code = json_body["code"];
 
-    bool i_code_is_end = i_code == json_body.end ();
-
-    std::string code = (i_code_is_end || !i_code->is_string ())
-                           ? ""
-                           : i_code->get<std::string> ();
+    std::string code = !i_code.is_string () ? "" : i_code.get<std::string> ();
 
     if (code.empty ())
         {
@@ -317,14 +375,11 @@ handle_post_login_body (
             return;
         }
 
-    auto i_redirect_uri = json_body.find ("redirect_uri");
+    auto i_redirect_uri = json_body["redirect_uri"];
 
-    bool i_redirect_uri_is_end = i_redirect_uri == json_body.end ();
-
-    std::string redirect_uri
-        = (i_redirect_uri_is_end || !i_redirect_uri->is_string ())
-              ? ""
-              : i_redirect_uri->get<std::string> ();
+    std::string redirect_uri = !i_redirect_uri.is_string ()
+                                   ? ""
+                                   : i_redirect_uri.get<std::string> ();
 
     if (redirect_uri.empty ())
         {
@@ -381,6 +436,8 @@ post_login (APIResponse *res, APIRequest *req)
     auto cors_headers = middlewares::cors (res, req);
     if (cors_headers.empty ())
         return;
+
+    middlewares::print_headers (req);
 
     states::recv_body_t struct_body = states::create_recv_body_t (
         "post_login", std::string (res->getRemoteAddressAsText ()), res, req);

@@ -1,5 +1,6 @@
 #include "musicat/server/states.h"
 #include "musicat/musicat.h"
+#include "musicat/server/auth.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include <deque>
@@ -10,6 +11,7 @@
 
 namespace musicat::server::states
 {
+auth::jwt_verifier_t *_jwt_verifier = nullptr;
 
 std::map<std::string, std::string> _oauth_states = {};
 std::mutex _oauth_states_m;
@@ -192,6 +194,32 @@ delete_recv_body_cache (std::vector<recv_body_t>::iterator i)
         delete i->body;
 
     _recv_body_cache.erase (i);
+}
+
+void
+reserve_recv_body_cache (size_t siz)
+{
+    _recv_body_cache.reserve (siz);
+}
+
+int
+init ()
+{
+    reserve_recv_body_cache (100);
+
+    return 0;
+}
+
+void
+set_jwt_verifier_ptr (auth::jwt_verifier_t *ptr)
+{
+    _jwt_verifier = ptr;
+}
+
+auth::jwt_verifier_t *
+get_jwt_verifier_ptr ()
+{
+    return _jwt_verifier;
 }
 
 } // musicat::server::states

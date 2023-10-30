@@ -128,6 +128,7 @@ target_include_directories(Shasha PRIVATE
 	libs/icu/usr/local/include
 	libs/curlpp/include
 	libs/liboggz/include
+	libs/jwt-cpp/include
 	/usr/include/postgresql
 	# Remember to add the include directories of any other libraries too
 	)
