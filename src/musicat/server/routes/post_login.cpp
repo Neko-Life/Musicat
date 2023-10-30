@@ -3,7 +3,6 @@
 #include "musicat/server/response.h"
 #include "musicat/server/services.h"
 #include "musicat/server/states.h"
-#include "musicat/thread_manager.h"
 
 namespace musicat::server::routes
 {
@@ -14,8 +13,6 @@ handle_post_login_creds (
     std::vector<std::pair<std::string, std::string> > cors_headers,
     std::string creds)
 {
-    thread_manager::DoneSetter tmds;
-
     services::curlpp_response_t resp = services::discord_post_creds (creds);
 
     if (resp.status != 200L)
@@ -404,44 +401,44 @@ post_login (APIResponse *res, APIRequest *req)
             }
     }
 
-    res->onData (
-        [cors_headers, struct_body] (std::string_view chunk, bool is_last) {
-            std::lock_guard lk (states::recv_body_cache_m);
-            std::vector<states::recv_body_t>::iterator cache
-                = get_recv_body_cache (struct_body);
+    res->onData ([res, req, cors_headers, struct_body] (std::string_view chunk,
+                                                        bool is_last) {
+        std::lock_guard lk (states::recv_body_cache_m);
+        std::vector<states::recv_body_t>::iterator cache
+            = get_recv_body_cache (struct_body);
 
-            if (is_recv_body_cache_end_iterator (cache))
-                {
-                    // request aborted, returns now
-                    return;
-                }
+        if (is_recv_body_cache_end_iterator (cache))
+            {
+                // request aborted, returns now
+                return;
+            }
 
-            if (is_last)
-                {
-                    if (!cache->body)
-                        {
-                            handle_post_login_body (cache->res, cache->req,
-                                                    std::string (chunk),
-                                                    cors_headers);
+        if (is_last)
+            {
+                if (!cache->body)
+                    {
+                        handle_post_login_body (res, req, std::string (chunk),
+                                                cors_headers);
 
-                            return;
-                        }
+                        delete_recv_body_cache (cache);
 
-                    cache->body->append (chunk);
+                        return;
+                    }
 
-                    handle_post_login_body (cache->res, cache->req,
-                                            *cache->body, cors_headers);
+                cache->body->append (chunk);
 
-                    delete_recv_body_cache (cache);
+                handle_post_login_body (res, req, *cache->body, cors_headers);
 
-                    return;
-                }
+                delete_recv_body_cache (cache);
 
-            if (!cache->body)
-                cache->body = new std::string ();
+                return;
+            }
 
-            cache->body->append (chunk);
-        });
+        if (!cache->body)
+            cache->body = new std::string ();
+
+        cache->body->append (chunk);
+    });
 
     res->onAborted ([struct_body] () {
         std::lock_guard lk (states::recv_body_cache_m);
