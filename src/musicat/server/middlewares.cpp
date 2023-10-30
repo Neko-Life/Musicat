@@ -21,6 +21,9 @@ get_cors_headers (std::string_view req_allow_headers)
     return {
         { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
         { "Access-Control-Allow-Headers", allow_headers },
+        // other security headers
+        { "X-Content-Type-Options", "nosniff" },
+        { "X-XSS-Protection", "1; mode=block" },
     };
 }
 

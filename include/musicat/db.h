@@ -109,20 +109,6 @@ convert_playlist_to_json (const std::deque<player::MCTrack> &playlist);
 // -----------------------------------------------------------------------
 
 /**
- * @brief Create table playlists
- *
- * @return ExecStatusType PGRES_COMMAND_OK on success, -1 if user_id is 0
- */
-ExecStatusType create_table_playlists ();
-
-/**
- * @brief Create guild_current_queue table
- *
- * @return ExecStatusType PGRES_COMMAND_OK on success
- */
-ExecStatusType create_table_guilds_current_queue ();
-
-/**
  * @brief Get all user playlist, PGresult pointer must be freed using
  * finish_res()
  *

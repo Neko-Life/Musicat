@@ -27,10 +27,6 @@ PGconn *conn;
 
 // STATES
 
-bool _table_playlists_exist;
-bool _table_guilds_current_queue;
-bool _table_guilds_player_config_exist;
-
 PGresult *
 _db_exec (const char *query, bool debug = false)
 {
@@ -91,7 +87,6 @@ _escape_values_query (const std::string &str)
 ExecStatusType
 _create_table (const char *query, const char *fn = "msg")
 {
-    std::lock_guard<std::mutex> lk (conn_mutex);
     PGresult *res = _db_exec (query);
 
     ExecStatusType status = _check_status (res, fn);
@@ -150,9 +145,81 @@ _parse_loop_mode (const char *loop_mode)
     return ret;
 }
 
+ExecStatusType
+create_table_guilds_current_queue ()
+{
+    static const char query[]
+        = "CREATE TABLE IF NOT EXISTS \""
+          "guilds_current_queue\" ( \"raw\" JSON NOT NULL, "
+          // guild_id
+          "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
+          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
+
+    ExecStatusType status
+        = _create_table (query, "create_table_guilds_current_queue");
+
+    return status;
+}
+
+ExecStatusType
+create_table_guilds_player_config ()
+{
+    static const char query[]
+        = "CREATE TABLE IF NOT EXISTS \""
+          "guilds_player_config\" ( \"autoplay_state\" BOOL DEFAULT FALSE, "
+          "\"autoplay_threshold\" INT DEFAULT 0 "
+          "CHECK (\"autoplay_threshold\" >= 0 AND \"autoplay_threshold\" <= "
+          "10000), "
+          "\"loop_mode\" SMALLINT DEFAULT 0 "
+          "CHECK (\"loop_mode\" >= 0 AND \"loop_mode\" <= 10), "
+          // guild_id
+          "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
+          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
+
+    ExecStatusType status
+        = _create_table (query, "create_table_guilds_player_config");
+
+    return status;
+}
+
+ExecStatusType
+create_table_playlists ()
+{
+    static const char query[]
+        = "CREATE TABLE IF NOT EXISTS "
+          "\"playlists\" ( \"raw\" JSON NOT NULL, "
+          // user_id
+          "\"uid\" VARCHAR(24) NOT NULL, "
+          "\"name\" VARCHAR(100) NOT NULL, "
+          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
+
+    ExecStatusType status = _create_table (query, "create_table_playlists");
+
+    return status;
+}
+
 // -----------------------------------------------------------------------
 // INSTANCE MANIPULATION
 // -----------------------------------------------------------------------
+
+struct init_table_handler_t
+{
+    const char *name;
+    ExecStatusType (*const init) ();
+};
+
+inline constexpr const init_table_handler_t init_table_handlers[]
+    = { { "guilds_current_queue", create_table_guilds_current_queue },
+        { "guilds_player_config", create_table_guilds_player_config },
+        { "playlists", create_table_playlists },
+        /*
+        { "users", create_table_users },
+        { "auths", create_table_auths },
+        */
+        { NULL, NULL } };
 
 ConnStatusType
 init (const std::string &_conninfo)
@@ -183,9 +250,33 @@ init (const std::string &_conninfo)
         {
             fprintf (stderr, "[DB] Database connected: %s\n", PQdb (conn));
 
-            _table_playlists_exist = false;
-            _table_guilds_current_queue = false;
-            _table_guilds_player_config_exist = false;
+            for (size_t i = 0; i < (sizeof (init_table_handlers)
+                                    / sizeof (*init_table_handlers));
+                 i++)
+                {
+                    const init_table_handler_t *h = &init_table_handlers[i];
+
+                    if (!h->name && !h->init)
+                        {
+                            break;
+                        }
+
+                    if (h->init () != PGRES_COMMAND_OK)
+                        {
+                            fprintf (stderr,
+                                     "[DB_ERROR] Failed to create table "
+                                     "%s\n",
+                                     h->name ? h->name : "unknown");
+
+                            conninfo = "";
+                            PQfinish (conn);
+                            conn = nullptr;
+
+                            return CONNECTION_BAD;
+                        }
+                }
+
+            fprintf (stderr, "[DB] Database successfully initialized\n");
         }
 
     if (!PQisthreadsafe ())
@@ -323,86 +414,6 @@ convert_playlist_to_json (const std::deque<player::MCTrack> &playlist)
 // -----------------------------------------------------------------------
 // TABLE MANIPULATION
 // -----------------------------------------------------------------------
-
-ExecStatusType
-create_table_playlists ()
-{
-    if (_table_playlists_exist)
-        return PGRES_COMMAND_OK;
-
-    static const char query[]
-        = "CREATE TABLE IF NOT EXISTS "
-          "\"playlists\" ( \"raw\" JSON NOT NULL, "
-          // user_id
-          "\"uid\" VARCHAR(24) NOT NULL, "
-          "\"name\" VARCHAR(100) NOT NULL, "
-          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
-          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
-
-    ExecStatusType status = _create_table (query, "create_table_playlists");
-
-    if (status == PGRES_COMMAND_OK)
-        {
-            _table_playlists_exist = true;
-        }
-
-    return status;
-}
-
-ExecStatusType
-create_table_guilds_current_queue ()
-{
-    if (_table_guilds_current_queue)
-        return PGRES_COMMAND_OK;
-
-    static const char query[]
-        = "CREATE TABLE IF NOT EXISTS \""
-          "guilds_current_queue\" ( \"raw\" JSON NOT NULL, "
-          // guild_id
-          "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
-          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
-          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
-
-    ExecStatusType status
-        = _create_table (query, "create_table_guilds_current_queue");
-
-    if (status == PGRES_COMMAND_OK)
-        {
-            _table_guilds_current_queue = true;
-        }
-
-    return status;
-}
-
-ExecStatusType
-create_table_guilds_player_config ()
-{
-    if (_table_guilds_player_config_exist)
-        return PGRES_COMMAND_OK;
-
-    static const char query[]
-        = "CREATE TABLE IF NOT EXISTS \""
-          "guilds_player_config\" ( \"autoplay_state\" BOOL DEFAULT FALSE, "
-          "\"autoplay_threshold\" INT DEFAULT 0 "
-          "CHECK (\"autoplay_threshold\" >= 0 AND \"autoplay_threshold\" <= "
-          "10000), "
-          "\"loop_mode\" SMALLINT DEFAULT 0 "
-          "CHECK (\"loop_mode\" >= 0 AND \"loop_mode\" <= 10), "
-          // guild_id
-          "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
-          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
-          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
-
-    ExecStatusType status
-        = _create_table (query, "create_table_guilds_player_config");
-
-    if (status == PGRES_COMMAND_OK)
-        {
-            _table_guilds_player_config_exist = true;
-        }
-
-    return status;
-}
 
 std::pair<PGresult *, ExecStatusType>
 get_all_user_playlist (const dpp::snowflake &user_id,
@@ -604,14 +615,6 @@ update_guild_current_queue (const dpp::snowflake &guild_id,
     if (!playlist.size ())
         return (ExecStatusType)-2;
 
-    if (create_table_guilds_current_queue () != PGRES_COMMAND_OK)
-        {
-            fprintf (stderr,
-                     "[DB_ERROR] Failed to create table guilds_current_queue, "
-                     "can't update guild current queue\n");
-            return (ExecStatusType)-3;
-        }
-
     nlohmann::json jso = convert_playlist_to_json (playlist);
 
     const std::string values = _escape_values_query (jso.dump ());
@@ -683,14 +686,6 @@ update_guild_player_config (const dpp::snowflake &guild_id,
 
     if (!guild_id)
         return (ExecStatusType)-1;
-
-    if (create_table_guilds_player_config () != PGRES_COMMAND_OK)
-        {
-            fprintf (stderr,
-                     "[DB_ERROR] Failed to create table guilds_player_config, "
-                     "can't update guild player config\n");
-            return (ExecStatusType)-3;
-        }
 
     if (!autoplay_state && !autoplay_threshold && !loop_mode)
         {
