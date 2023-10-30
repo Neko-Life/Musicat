@@ -238,7 +238,17 @@ get_guild_player_config (const dpp::snowflake &guild_id);
  */
 std::pair<player_config, int>
 parse_guild_player_config_PGresult (PGresult *res);
-}
-}
+
+ExecStatusType update_user_auth (const dpp::snowflake &user_id,
+                                 const nlohmann::json &data);
+
+std::pair<nlohmann::json, int>
+get_user_auth_json_from_PGresult (PGresult *res);
+
+std::pair<PGresult *, ExecStatusType>
+get_user_auth (const dpp::snowflake &user_id);
+
+} // database
+} // nusicat
 
 #endif // MUSICAT_DATABASE_H

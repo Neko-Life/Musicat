@@ -1,3 +1,4 @@
+#include "musicat/db.h"
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
 #include "musicat/server/middlewares.h"
@@ -14,7 +15,6 @@ handle_post_login_creds (
     std::vector<std::pair<std::string, std::string> > cors_headers,
     std::string creds)
 {
-    /*
     services::curlpp_response_t resp = services::discord_post_creds (creds);
 
     if (resp.status != 200L)
@@ -66,8 +66,9 @@ handle_post_login_creds (
           "guild": Guild object
         }
      */
-    nlohmann::json udata = { { "expires_in", 604800 } };
-    /*
+
+    nlohmann::json udata; // = { { "expires_in", 604800 } };
+
     try
         {
             udata = nlohmann::json::parse (str_udata);
@@ -217,37 +218,38 @@ handle_post_login_creds (
           }
         }
      */
-    nlohmann::json ume = { { "user", { { "id", "750335181285490760" } } } };
-    /*
-        try
-            {
-                ume = nlohmann::json::parse (str_ume);
-            }
-        catch (const nlohmann::json::exception &e)
-            {
-                fprintf (stderr,
-                         "[server::routes::handle_post_login_body ERROR] %s\n",
-                         e.what ());
+    nlohmann::json
+        ume; // = { { "user", { { "id", "750335181285490760" } } } };
 
-                fprintf (stderr,
-                         "================================================\n");
+    try
+        {
+            ume = nlohmann::json::parse (str_ume);
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr,
+                     "[server::routes::handle_post_login_body ERROR] %s\n",
+                     e.what ());
 
-                fprintf (stderr, "%s\n", str_ume.c_str ());
+            fprintf (stderr,
+                     "================================================\n");
 
-                fprintf (stderr,
-                         "================================================\n");
-            }
+            fprintf (stderr, "%s\n", str_ume.c_str ());
 
-        if (!ume.is_object ())
-            {
-                res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
-                middlewares::write_headers (res, cors_headers);
-                res->end (response::error (response::ERROR_CODE_NOTHING,
-                                           "GET /oauth2/@me: Unknown response")
-                              .dump ());
+            fprintf (stderr,
+                     "================================================\n");
+        }
 
-                return;
-            }*/
+    if (!ume.is_object ())
+        {
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       "GET /oauth2/@me: Unknown response")
+                          .dump ());
+
+            return;
+        }
 
     auto i_user = ume["user"]["id"];
 
@@ -286,10 +288,17 @@ handle_post_login_creds (
     std::string max_age = exp ? "; Max-Age=" + std::to_string (exp) : "";
 
     // save creds to db
-    // !TODO
+
+    // remove guild property
+    auto i_guild = udata.find ("guild");
+    if (i_guild != udata.end ())
+        {
+            udata.erase (i_guild);
+        }
+
+    database::update_user_auth (uid, udata);
 
     // set set-cookie header and end req
-    // !TODO
 
     res->writeStatus (http_status_t.OK_200);
     middlewares::write_headers (res, cors_headers);

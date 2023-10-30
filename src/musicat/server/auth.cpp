@@ -40,15 +40,20 @@ verify_jwt_token (const std::string &token)
 
             v->verify (decoded);
 
+            picojson::value iss ("");
+
             for (auto &e : decoded.get_payload_json ())
                 {
-                    if (e.first == "iss"
-                        && e.second.get<std::string> ()
-                               != "Musicat" /*version*/)
-                        return "";
+                    if (e.first == "iss")
+                        iss = e.second;
 
                     if (e.first == "user_id")
                         uid = e.second.get<std::string> ();
+                }
+
+            if (iss.get<std::string> () != "Musicat" /*version*/)
+                {
+                    return "";
                 }
         }
     catch (...)
