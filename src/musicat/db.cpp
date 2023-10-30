@@ -77,7 +77,7 @@ _escape_values_query (const std::string &str)
             _print_conn_error ("_escape_values_query");
         }
 
-    const std::string ret (res == NULL ? "" : res);
+    std::string ret (res == NULL ? "" : res);
 
     PQfreemem (res);
     res = NULL;
@@ -201,6 +201,22 @@ create_table_playlists ()
     return status;
 }
 
+ExecStatusType
+create_table_auths ()
+{
+    static const char query[]
+        = "CREATE TABLE IF NOT EXISTS "
+          "\"auths\" ( \"raw\" JSON NOT NULL, "
+          // user_id
+          "\"uid\" VARCHAR(24) NOT NULL, "
+          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
+
+    ExecStatusType status = _create_table (query, "create_table_auths");
+
+    return status;
+}
+
 // -----------------------------------------------------------------------
 // INSTANCE MANIPULATION
 // -----------------------------------------------------------------------
@@ -216,9 +232,10 @@ inline constexpr const init_table_handler_t init_table_handlers[]
         { "guilds_player_config", create_table_guilds_player_config },
         { "playlists", create_table_playlists },
         /*
+           // what user table for?
         { "users", create_table_users },
-        { "auths", create_table_auths },
         */
+        { "auths", create_table_auths },
         { NULL, NULL } };
 
 ConnStatusType
@@ -507,7 +524,19 @@ get_playlist_from_PGresult (PGresult *res)
     if (PQgetisnull (res, 0, 0))
         return std::make_pair (ret, -2);
 
-    nlohmann::json jso = nlohmann::json::parse (PQgetvalue (res, 0, 0));
+    nlohmann::json jso;
+    try
+        {
+            jso = nlohmann::json::parse (PQgetvalue (res, 0, 0));
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr, "[database::get_playlist_from_PGresult "
+                             "ERROR] Invalid json:\n");
+            fprintf (stderr, "%s\n", e.what ());
+
+            return std::make_pair (ret, -3);
+        }
 
     if (jso.is_null () || !jso.is_array () || jso.empty ())
         return std::make_pair (ret, -1);
@@ -536,11 +565,11 @@ update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
     if (!user_id)
         return (ExecStatusType)-1;
 
-    const std::string str_user_id = std::to_string (user_id);
+    std::string str_user_id = std::to_string (user_id);
 
     nlohmann::json jso = convert_playlist_to_json (playlist);
 
-    const std::string values = _escape_values_query (jso.dump ());
+    std::string values = _escape_values_query (jso.dump ());
 
     std::lock_guard<std::mutex> lk (conn_mutex);
 
@@ -617,7 +646,7 @@ update_guild_current_queue (const dpp::snowflake &guild_id,
 
     nlohmann::json jso = convert_playlist_to_json (playlist);
 
-    const std::string values = _escape_values_query (jso.dump ());
+    std::string values = _escape_values_query (jso.dump ());
 
     std::string query ("INSERT INTO \"guilds_current_queue\" ");
     query += "( \"raw\", \"gid\") VALUES (" + values + ", '"
@@ -820,6 +849,73 @@ parse_guild_player_config_PGresult (PGresult *res)
 
     return std::make_pair (ret, set ? 0 : 1);
 }
+
+std::pair<PGresult *, ExecStatusType>
+get_user_auth (const dpp::snowflake &user_id)
+{
+    if (!user_id)
+        return std::make_pair (nullptr, (ExecStatusType)-1);
+
+    std::string query ("SELECT \"raw\" FROM \"auths\" WHERE \"uid\" = '");
+    query += std::to_string (user_id) + "';";
+
+    std::lock_guard<std::mutex> lk (conn_mutex);
+    PGresult *res = _db_exec (query.c_str ());
+
+    ExecStatusType status
+        = _check_status (res, "get_user_auth", PGRES_TUPLES_OK);
+
+    return std::make_pair (res, status);
+}
+
+std::pair<nlohmann::json, int>
+get_user_auth_json_from_PGresult (PGresult *res)
+{
+    if (PQgetisnull (res, 0, 0))
+        return std::make_pair (nullptr, -2);
+
+    nlohmann::json jso;
+    try
+        {
+            jso = nlohmann::json::parse (PQgetvalue (res, 0, 0));
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr, "[database::get_user_auth_json_from_PGresult "
+                             "ERROR] Invalid json:\n");
+            fprintf (stderr, "%s\n", e.what ());
+
+            return std::make_pair (nullptr, -1);
+        }
+
+    return std::make_pair (jso, 0);
+}
+
+ExecStatusType
+update_user_auth (const dpp::snowflake &user_id, const nlohmann::json &data)
+{
+    if (!user_id)
+        return (ExecStatusType)-1;
+    if (!data.size ())
+        return (ExecStatusType)-2;
+
+    std::string values = _escape_values_query (data.dump ());
+
+    std::string query ("INSERT INTO \"auths\" ");
+    query += "( \"raw\", \"uid\") VALUES (" + values + ", '"
+             + std::to_string (user_id)
+             + "') ON CONFLICT (\"uid\") DO UPDATE SET \"raw\" = " + values
+             + ", \"uts\" = CURRENT_TIMESTAMP;";
+
+    std::lock_guard<std::mutex> lk (conn_mutex);
+    PGresult *res = _db_exec (query.c_str ());
+
+    ExecStatusType status = _check_status (res, "update_user_auth");
+
+    return finish_res (res, status);
+}
+
+// !TODO: expired user auth clear aggregate
 
 } // database
 } // musicat
