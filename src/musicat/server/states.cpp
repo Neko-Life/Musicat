@@ -11,50 +11,18 @@
 
 namespace musicat::server::states
 {
+// this should always be used inside server thread, hence no mutex
 auth::jwt_verifier_t *_jwt_verifier = nullptr;
 
-std::map<std::string, std::string> _oauth_states = {};
+std::map<std::string, std::string> _oauth_states;
 std::mutex _oauth_states_m;
 
 // !TODO: reserve from somewhere?
 std::vector<recv_body_t> _recv_body_cache;
 std::mutex recv_body_cache_m; // EXTERN_VARIABLE
 
-template <typename T>
-typename std::deque<T>::iterator
-util_deque_find (std::deque<T> *_deq, T _find)
-{
-    auto i = _deq->begin ();
-    for (; i != _deq->end (); i++)
-        {
-            if (*i == _find)
-                return i;
-        }
-    return i;
-}
-
-int
-util_remove_string_deq (const std::string &val, std::deque<std::string> &deq)
-{
-    int idx = -1;
-    int count = 0;
-    for (auto i = deq.begin (); i != deq.end ();)
-        {
-            if (*i == val)
-                {
-                    deq.erase (i);
-                    idx = count;
-                    break;
-                }
-            else
-                {
-                    i++;
-                    count++;
-                }
-        }
-
-    return idx;
-}
+std::vector<oauth_timer_t> _oauth_timers;
+std::mutex oauth_timers_m; // EXTERN_VARIABLE
 
 int
 remove_oauth_state (const std::string &state, std::string *redirect)
@@ -86,24 +54,10 @@ util_create_remove_thread (int second_sleep, const std::string &val,
                                              std::string *),
                            bool (*should_break) (const std::string &) = NULL)
 {
-    std::thread t ([val, second_sleep, remove_fn, should_break] () {
-        thread_manager::DoneSetter tdms;
-
-        int second_slept = 0;
-
-        while (get_running_state () && second_slept < second_sleep)
-            {
-                if (should_break && should_break (val))
-                    break;
-
-                std::this_thread::sleep_for (std::chrono::seconds (1));
-                second_slept++;
-            }
-
-        remove_fn (val, NULL);
-    });
-
-    thread_manager::dispatch (t);
+    register_timer ({ std::chrono::high_resolution_clock::now ()
+                          .time_since_epoch ()
+                          .count (),
+                      second_sleep, val, remove_fn, should_break });
 }
 
 inline constexpr const char token[]
@@ -190,6 +144,9 @@ store_recv_body_cache (const recv_body_t &struct_body)
 void
 delete_recv_body_cache (std::vector<recv_body_t>::iterator i)
 {
+    if (i == _recv_body_cache.end ())
+        return;
+
     if (i->body)
         delete i->body;
 
@@ -220,6 +177,131 @@ auth::jwt_verifier_t *
 get_jwt_verifier_ptr ()
 {
     return _jwt_verifier;
+}
+
+bool
+oauth_timer_t_is (const oauth_timer_t &t1, const oauth_timer_t &t2)
+{
+    return t1.ts == t2.ts && t1.val == t2.val && t1.remove_fn == t2.remove_fn
+           && t1.second_sleep == t2.second_sleep
+           && t1.should_break == t2.should_break;
+}
+
+int
+register_timer (const oauth_timer_t &t)
+{
+    std::lock_guard lk (oauth_timers_m);
+
+    int status = 0;
+
+    auto i = _oauth_timers.begin ();
+    while (i != _oauth_timers.end ())
+        {
+            if (!oauth_timer_t_is (t, *i))
+                {
+                    i++;
+                    continue;
+                }
+
+            status = -1;
+            break;
+        }
+
+    if (status)
+        return status;
+
+    _oauth_timers.push_back (t);
+
+    return 0;
+}
+
+int
+remove_timer (const oauth_timer_t &t)
+{
+    std::lock_guard lk (oauth_timers_m);
+
+    int status = -1;
+
+    auto i = _oauth_timers.begin ();
+    while (i != _oauth_timers.end ())
+        {
+            if (!oauth_timer_t_is (t, *i))
+                {
+                    i++;
+                    continue;
+                }
+
+            status = 0;
+            i->remove_fn (i->val, NULL);
+            i = _oauth_timers.erase (i);
+        }
+
+    return status;
+}
+
+int
+check_timers ()
+{
+    std::lock_guard lk (oauth_timers_m);
+
+    int status = -1;
+
+    auto i = _oauth_timers.begin ();
+    while (i != _oauth_timers.end ())
+        {
+            if (i->should_break && i->should_break (i->val))
+                {
+                    i = _oauth_timers.erase (i);
+                    continue;
+                }
+
+            long long current_ts = std::chrono::high_resolution_clock::now ()
+                                       .time_since_epoch ()
+                                       .count ();
+
+            if ((current_ts - i->ts)
+                > (long long)(i->second_sleep * 1000000000))
+                {
+                    i->remove_fn (i->val, NULL);
+                    i = _oauth_timers.erase (i);
+                    continue;
+                }
+
+            i++;
+        }
+
+    return status;
+}
+
+int
+remove_all_timers ()
+{
+    std::lock_guard lk (oauth_timers_m);
+
+    auto i = _oauth_timers.begin ();
+    while (i != _oauth_timers.end ())
+        {
+            i->remove_fn (i->val, NULL);
+            i = _oauth_timers.erase (i);
+        }
+
+    return 0;
+}
+
+oauth_timer_t
+get_oauth_timer (const std::string &val)
+{
+    std::lock_guard lk (oauth_timers_m);
+
+    for (const auto &i : _oauth_timers)
+        {
+            if (i.val != val)
+                continue;
+
+            return i;
+        }
+
+    return { 0, 0, "", NULL, NULL };
 }
 
 } // musicat::server::states

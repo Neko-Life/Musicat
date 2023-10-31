@@ -11,9 +11,9 @@ namespace musicat::server::routes
 
 void
 handle_post_login_creds (
-    APIResponse *res, std::string redirect,
-    std::vector<std::pair<std::string, std::string> > cors_headers,
-    std::string creds)
+    APIResponse *res, const std::string &redirect,
+    const std::vector<std::pair<std::string, std::string> > &cors_headers,
+    const std::string &creds)
 {
     services::curlpp_response_t resp = services::discord_post_creds (creds);
 
@@ -308,7 +308,9 @@ handle_post_login_creds (
                                         + auth::create_jwt_token (uid)
                                         + max_age + "; HttpOnly");
 
-    res->end (response::payload ({ { "redirect", redirect } }).dump ());
+    res->end (response::payload (
+                  { { "redirect", redirect }, { "user", ume["user"] } })
+                  .dump ());
 }
 
 void
@@ -346,6 +348,12 @@ handle_post_login_body (
                      "[server::routes::handle_post_login_body ERROR] %s\n",
                      e.what ());
 
+            fprintf (stderr,
+                     "================================================\n");
+            std::cerr << body << '\n';
+            fprintf (stderr,
+                     "================================================\n");
+
             // let fall through so handled by below if
         }
 
@@ -369,6 +377,19 @@ handle_post_login_body (
             res->writeStatus (http_status_t.BAD_REQUEST_400);
             middlewares::write_headers (res, cors_headers);
             res->end ("state");
+            return;
+        }
+
+    // check if state valid and get previously saved redirect URL
+    std::string redirect;
+    int status = states::remove_oauth_state (state, &redirect);
+
+    if (status)
+        {
+            // invalid state
+            res->writeStatus (http_status_t.FORBIDDEN_403);
+            middlewares::write_headers (res, cors_headers);
+            res->end ();
             return;
         }
 
@@ -399,19 +420,6 @@ handle_post_login_body (
         }
 
     // we have the stuff here, proceed
-
-    // check if state valid and get previously saved redirect URL
-    std::string redirect;
-    int status = states::remove_oauth_state (state, &redirect);
-
-    if (status)
-        {
-            // invalid state
-            res->writeStatus (http_status_t.FORBIDDEN_403);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
-            return;
-        }
 
     // verify to discord
 

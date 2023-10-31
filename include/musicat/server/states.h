@@ -19,7 +19,18 @@ struct recv_body_t
     APIRequest *req;
 };
 
+struct oauth_timer_t
+{
+    long long ts;
+    int second_sleep;
+    std::string val;
+    int (*remove_fn) (const std::string &, std::string *);
+    bool (*should_break) (const std::string &);
+};
+
 extern std::mutex recv_body_cache_m; // EXTERN_VARIABLE
+
+extern std::mutex oauth_timers_m; // EXTERN_VARIABLE
 
 std::string generate_oauth_state (const std::string &redirect = "");
 
@@ -49,6 +60,13 @@ int init ();
 void set_jwt_verifier_ptr (auth::jwt_verifier_t *ptr);
 
 auth::jwt_verifier_t *get_jwt_verifier_ptr ();
+
+bool oauth_timer_t_is (const oauth_timer_t &t1, const oauth_timer_t &t2);
+int register_timer (const oauth_timer_t &t);
+int remove_timer (const oauth_timer_t &t);
+int check_timers ();
+int remove_all_timers ();
+oauth_timer_t get_oauth_timer (const std::string &val);
 
 } // musicat::server::states
 

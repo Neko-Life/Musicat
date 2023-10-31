@@ -3,6 +3,7 @@
 #include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/routes.h"
+#include "musicat/server/service_cache.h"
 #include "musicat/server/states.h"
 #include "musicat/server/ws.h"
 #include "musicat/server/ws/player.h"
@@ -417,6 +418,7 @@ shutdown ()
 
         fprintf (stderr, "[server] Shutting down...\n");
 
+        states::remove_all_timers ();
         _app_ptr->close ();
     });
 
@@ -425,8 +427,11 @@ shutdown ()
     return 0;
 }
 
-void main_loop_routine() {
-    // !TODO
+void
+main_loop_routine ()
+{
+    states::check_timers ();
+    service_cache::check_timers ();
 }
 
 } // musicat::server
