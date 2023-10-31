@@ -259,8 +259,10 @@ check_timers ()
                                        .time_since_epoch ()
                                        .count ();
 
-            if ((current_ts - i->ts)
-                > (long long)(i->second_sleep * 1000000000))
+            long long passed = (current_ts - i->ts);
+            long long max = ((long long)i->second_sleep * 1000000000LL);
+
+            if (passed > max)
                 {
                     i->remove_fn (i->val, NULL);
                     i = _oauth_timers.erase (i);

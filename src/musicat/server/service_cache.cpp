@@ -78,8 +78,10 @@ check_timers ()
                                        .time_since_epoch ()
                                        .count ();
 
-            if ((current_ts - i->ts)
-                > (long long)(i->second_max_age * 1000000000))
+            long long passed = (current_ts - i->ts);
+            long long max = ((long long)i->second_max_age * 1000000000LL);
+
+            if (passed > max)
                 {
                     remove (i->key);
                     i = _timers.erase (i);
