@@ -23,7 +23,7 @@ namespace musicat::server
 using MCWsApp = uWS::WebSocket<SERVER_WITH_SSL, true, ws::player::SocketData>;
 
 std::mutex ns_mutex; // EXTERN_VARIABLE
-bool running = false;
+std::atomic<bool> running = false;
 
 // assign null to these pointer on exit!
 APIApp *_app_ptr = nullptr;

@@ -210,10 +210,12 @@ get_music_folder_path ()
 std::string
 get_invite_oauth_base_url ()
 {
-    const std::string sha_id_str = std::to_string (get_sha_id ());
+    dpp::snowflake sid = get_sha_id ();
 
-    if (sha_id_str.empty ())
+    if (!sid)
         return "";
+
+    std::string sha_id_str = std::to_string (sid);
 
     return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
 }
@@ -356,10 +358,11 @@ get_cors_enabled_origins ()
     return ret;
 }
 
-std::string get_jwt_secret () {
+std::string
+get_jwt_secret ()
+{
     return get_config_value<std::string> ("JWT_SECRET", "");
 }
-
 
 int _sigint_count = 0;
 
@@ -561,6 +564,8 @@ run (int argc, const char *argv[])
                                  "[ERROR DB_RECONNECT] Status code: %d\n",
                                  status);
                 }
+
+            server::main_loop_routine ();
 
             thread_manager::join_done ();
         }

@@ -46,6 +46,7 @@ int shutdown ();
 
 int run ();
 
+// should call this in main loop to keep states in check
 void main_loop_routine ();
 
 } // musicat::server
