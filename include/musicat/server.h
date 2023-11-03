@@ -28,6 +28,7 @@ inline constexpr const struct
     const char *NOT_FOUND_404 = "404 Not Found";
     const char *NO_CONTENT_204 = "204 No Content";
     const char *INTERNAL_SERVER_ERROR_500 = "500 Internal Server Error";
+    const char *UNAUTHORIZED_401 = "401 Unauthorized";
 } http_status_t;
 
 // always lock this whenever updating states

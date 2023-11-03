@@ -454,7 +454,7 @@ post_login (APIResponse *res, APIRequest *req)
     if (cors_headers.empty ())
         return;
 
-    middlewares::print_headers (req);
+    /* middlewares::print_headers (req); */
 
     states::recv_body_t struct_body = states::create_recv_body_t (
         "post_login", std::string (res->getRemoteAddressAsText ()), res, req);
