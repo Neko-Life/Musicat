@@ -1,12 +1,15 @@
+#include "musicat/server/middlewares.h"
 #include "musicat/musicat.h"
 #include "musicat/server.h"
+#include "musicat/server/auth.h"
+#include "musicat/server/services.h"
 
 namespace musicat::server::middlewares
 {
 
 std::vector<std::string> _cors_enabled_origins;
 
-std::vector<std::pair<std::string, std::string> >
+header_v_t
 get_cors_headers (std::string_view req_allow_headers)
 {
     std::string allow_headers = "DNT,User-Agent,X-Requested-With,If-Modified-"
@@ -67,10 +70,8 @@ load_cors_enabled_origin ()
  }
  */
 
-std::vector<std::pair<std::string, std::string> >
-cors (APIResponse *res, APIRequest *req,
-      const std::vector<std::pair<std::string, std::string> >
-          &additional_headers)
+header_v_t
+cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
 {
     std::string_view origin = req->getHeader ("origin");
 
@@ -118,7 +119,7 @@ cors (APIResponse *res, APIRequest *req,
             return {};
         }
 
-    std::vector<std::pair<std::string, std::string> > headers
+    header_v_t headers
         = { { "Access-Control-Allow-Origin", std::string (origin) } };
 
     std::string_view req_allow_headers
@@ -145,9 +146,7 @@ set_content_type_json (APIResponse *res)
 }
 
 void
-write_headers (
-    APIResponse *res,
-    const std::vector<std::pair<std::string, std::string> > &headers)
+write_headers (APIResponse *res, const header_v_t &headers)
 {
     for (const std::pair<std::string, std::string> &s : headers)
         {
@@ -164,6 +163,97 @@ print_headers (APIRequest *req)
             std::cerr << i->key << ": " << i->value << '\n';
         }
     fprintf (stderr, "================================================\n");
+}
+
+inline constexpr const char token_cookie_name[] = "token=";
+inline constexpr const size_t token_cookie_name_size
+    = (sizeof (token_cookie_name) / sizeof (*token_cookie_name)) - 1;
+
+std::string
+validate_token (APIResponse *res, APIRequest *req,
+                const header_v_t &cors_headers)
+{
+    std::string_view cookie = req->getHeader ("cookie");
+
+    size_t i = cookie.find (token_cookie_name);
+
+    if (i == cookie.npos)
+        {
+            res->writeStatus (http_status_t.UNAUTHORIZED_401);
+            middlewares::write_headers (res, cors_headers);
+            res->end ();
+            return "";
+        }
+
+    size_t t_start = i + token_cookie_name_size;
+    std::string_view token
+        = cookie.substr (t_start, cookie.find (" ", t_start));
+
+    if (token.empty ())
+        {
+            res->writeStatus (http_status_t.UNAUTHORIZED_401);
+            middlewares::write_headers (res, cors_headers);
+            res->end ();
+            return "";
+        }
+
+    std::string user_id = auth::verify_jwt_token (std::string (token));
+
+    if (user_id.empty ())
+        {
+            res->writeStatus (http_status_t.UNAUTHORIZED_401);
+            middlewares::write_headers (res, cors_headers);
+            res->end ();
+            return "";
+        }
+
+    return user_id;
+}
+
+nlohmann::json
+process_curlpp_response_t (const services::curlpp_response_t &resp,
+                           const char *callee)
+{
+    if (resp.status != 200L)
+        {
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "[%s ERROR] Status: %ld\n", callee, resp.status);
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", resp.response.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            return nullptr;
+        }
+
+    std::string str_udata = resp.response.substr (resp.header_size).c_str ();
+
+    nlohmann::json udata; // = { { "expires_in", 604800 } };
+
+    try
+        {
+            udata = nlohmann::json::parse (str_udata);
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr, "[%s ERROR] %s\n", callee, e.what ());
+
+            fprintf (stderr,
+                     "================================================\n");
+
+            fprintf (stderr, "%s\n", str_udata.c_str ());
+
+            fprintf (stderr,
+                     "================================================\n");
+        }
+
+    return udata;
 }
 
 } // musicat::server::middlewares

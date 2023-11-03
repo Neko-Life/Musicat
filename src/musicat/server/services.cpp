@@ -54,7 +54,7 @@ discord_get_me (const std::string &type, const std::string &token)
     req.setOpt (curlpp::options::Header (1L));
     req.setOpt (curlpp::options::HttpHeader ({ header.c_str () }));
 
-    req.setOpt (curlpp::options::Verbose (1L));
+    /* req.setOpt (curlpp::options::Verbose (1L)); */
 
     req.setOpt (curlpp::options::WriteStream (&os));
 

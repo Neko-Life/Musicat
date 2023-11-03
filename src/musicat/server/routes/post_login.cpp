@@ -3,7 +3,6 @@
 #include "musicat/server/auth.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
-#include "musicat/server/services.h"
 #include "musicat/server/states.h"
 
 namespace musicat::server::routes
@@ -16,41 +15,6 @@ handle_post_login_creds (
     const std::string &creds)
 {
     services::curlpp_response_t resp = services::discord_post_creds (creds);
-
-    if (resp.status != 200L)
-        {
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr,
-                     "[server::routes::handle_post_login_body ERROR] POST "
-                     "/oauth2/token Status: %ld\n",
-                     resp.status);
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", creds.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", resp.response.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
-            middlewares::write_headers (res, cors_headers);
-            res->end (response::error (response::ERROR_CODE_NOTHING,
-                                       std::string ("POST /oauth2/token: ")
-                                           + std::to_string (resp.status))
-                          .dump ());
-
-            return;
-        }
-
-    std::string str_udata = resp.response.substr (resp.header_size).c_str ();
 
     /*
         oauth:
@@ -66,26 +30,19 @@ handle_post_login_creds (
           "guild": Guild object
         }
      */
+    nlohmann::json udata = middlewares::process_curlpp_response_t (
+        resp, "server::routes::handle_post_login_creds");
 
-    nlohmann::json udata; // = { { "expires_in", 604800 } };
-
-    try
+    if (resp.status != 200L)
         {
-            udata = nlohmann::json::parse (str_udata);
-        }
-    catch (const nlohmann::json::exception &e)
-        {
-            fprintf (stderr,
-                     "[server::routes::handle_post_login_body ERROR] %s\n",
-                     e.what ());
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("POST /oauth2/token: ")
+                                           + std::to_string (resp.status))
+                          .dump ());
 
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", str_udata.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
+            return;
         }
 
     if (!udata.is_object ())
@@ -127,44 +84,6 @@ handle_post_login_creds (
     // get @me
     services::curlpp_response_t resp_me
         = services::discord_get_me (token_type, tkn);
-
-    if (resp_me.status != 200L)
-        {
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr,
-                     "[server::routes::handle_post_login_body ERROR] GET "
-                     "/oauth2/@me Status: %ld\n",
-                     resp_me.status);
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", udata.dump (2).c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", resp_me.response.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
-
-            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
-            middlewares::write_headers (res, cors_headers);
-            res->end (response::error (response::ERROR_CODE_NOTHING,
-                                       std::string ("GET /oauth2/@me: ")
-                                           + std::to_string (resp_me.status))
-                          .dump ());
-
-            return;
-        }
-
-    fprintf (stderr, "get @me:\n%s\n", resp_me.response.c_str ());
-
-    std::string str_ume
-        = resp_me.response.substr (resp_me.header_size).c_str ();
 
     /*
         {
@@ -218,26 +137,19 @@ handle_post_login_creds (
           }
         }
      */
-    nlohmann::json
-        ume; // = { { "user", { { "id", "750335181285490760" } } } };
+    nlohmann::json ume = middlewares::process_curlpp_response_t (
+        resp_me, "server::routes::handle_post_login_creds");
 
-    try
+    if (resp_me.status != 200L)
         {
-            ume = nlohmann::json::parse (str_ume);
-        }
-    catch (const nlohmann::json::exception &e)
-        {
-            fprintf (stderr,
-                     "[server::routes::handle_post_login_body ERROR] %s\n",
-                     e.what ());
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("GET /oauth2/@me: ")
+                                           + std::to_string (resp_me.status))
+                          .dump ());
 
-            fprintf (stderr,
-                     "================================================\n");
-
-            fprintf (stderr, "%s\n", str_ume.c_str ());
-
-            fprintf (stderr,
-                     "================================================\n");
+            return;
         }
 
     if (!ume.is_object ())
