@@ -266,6 +266,7 @@ find_track (bool playlist, std::string &arg_query,
         }
 
     yt_search::YSearchResult search_result = {};
+    yt_search::YPlaylist playlist_result = {};
 
     // prioritize cache over searching
     std::vector<yt_search::YTrack> searches;
@@ -287,7 +288,10 @@ find_track (bool playlist, std::string &arg_query,
                 {
                     searches
                         = playlist
-                              ? yt_search::get_playlist (arg_query).entries ()
+                              ? (playlist_result
+                                 = yt_search::get_playlist (arg_query))
+                                    .entries ()
+
                               : (search_result = yt_search::search (arg_query))
                                     .trackResults ();
 
@@ -308,6 +312,13 @@ find_track (bool playlist, std::string &arg_query,
 
                     return { {}, 1 };
                 }
+        }
+
+    if (playlist && playlist_result.status == 1 && !searches.empty ())
+        {
+            // remove duplicate track as first sideTrackPlaylist entry is a
+            // duplicate of the searched track
+            searches.erase (searches.begin ());
         }
 
     searches_size = searches.size ();
