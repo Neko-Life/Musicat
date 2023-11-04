@@ -29,7 +29,7 @@ get_guilds (APIResponse *res, APIRequest *req)
             res->writeStatus (http_status);
             middlewares::write_headers (res, cors_headers);
             middlewares::set_content_type_json (res);
-            res->end (cached.dump ());
+            res->end (response::payload (cached).dump ());
 
             return;
         }
@@ -80,12 +80,25 @@ get_guilds (APIResponse *res, APIRequest *req)
     nlohmann::json r = middlewares::process_curlpp_response_t (
         resp, "server::routes::get_guilds");
 
+    if (resp.status != 200L)
+        {
+            res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
+            middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
+            res->end (response::error (response::ERROR_CODE_NOTHING,
+                                       std::string ("GET /users/@me/guilds: ")
+                                           + std::to_string (resp.status))
+                          .dump ());
+
+            return;
+        }
+
     service_cache::set_cached_user_guilds (user_id, r);
 
     res->writeStatus (http_status);
     middlewares::write_headers (res, cors_headers);
     middlewares::set_content_type_json (res);
-    res->end (r.dump ());
+    res->end (response::payload (r).dump ());
 }
 
 } // musicat::server::routes
