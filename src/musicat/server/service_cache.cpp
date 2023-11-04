@@ -111,4 +111,36 @@ remove_invalidate_timer (const std::string &key)
         }
 }
 
+nlohmann::json
+get_cached_user_auth (const std::string &user_id)
+{
+    return service_cache::get (user_id + "/auth");
+}
+
+void
+set_cached_user_auth (const std::string &user_id, const nlohmann::json &data)
+{
+    std::string key = user_id + "/auth";
+    service_cache::set (key, data);
+
+    // 5 minutes
+    service_cache::create_invalidate_timer (key, 300);
+}
+
+nlohmann::json
+get_cached_user_guilds (const std::string &user_id)
+{
+    return service_cache::get (user_id + "/get_user_guilds");
+}
+
+void
+set_cached_user_guilds (const std::string &user_id, const nlohmann::json &data)
+{
+    std::string key = user_id + "/get_user_guilds";
+    service_cache::set (key, data);
+
+    // 5 minutes
+    service_cache::create_invalidate_timer (key, 300);
+}
+
 } // musicat::server::service_cache

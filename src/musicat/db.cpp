@@ -883,6 +883,7 @@ get_user_auth_json_from_PGresult (PGresult *res)
         {
             fprintf (stderr, "[database::get_user_auth_json_from_PGresult "
                              "ERROR] Invalid json:\n");
+
             fprintf (stderr, "%s\n", e.what ());
 
             return std::make_pair (nullptr, -1);

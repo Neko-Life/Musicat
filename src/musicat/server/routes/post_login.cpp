@@ -3,6 +3,7 @@
 #include "musicat/server/auth.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
+#include "musicat/server/service_cache.h"
 #include "musicat/server/states.h"
 
 namespace musicat::server::routes
@@ -37,6 +38,7 @@ handle_post_login_creds (
         {
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        std::string ("POST /oauth2/token: ")
                                            + std::to_string (resp.status))
@@ -49,6 +51,7 @@ handle_post_login_creds (
         {
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        "POST /oauth2/token: Unknown response")
                           .dump ());
@@ -73,6 +76,7 @@ handle_post_login_creds (
 
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        std::string ("POST /oauth2/token: ")
                                            + "Unknown response")
@@ -144,6 +148,7 @@ handle_post_login_creds (
         {
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        std::string ("GET /oauth2/@me: ")
                                            + std::to_string (resp_me.status))
@@ -156,6 +161,7 @@ handle_post_login_creds (
         {
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        "GET /oauth2/@me: Unknown response")
                           .dump ());
@@ -176,6 +182,7 @@ handle_post_login_creds (
 
             res->writeStatus (http_status_t.INTERNAL_SERVER_ERROR_500);
             middlewares::write_headers (res, cors_headers);
+            middlewares::set_content_type_json (res);
             res->end (response::error (response::ERROR_CODE_NOTHING,
                                        std::string ("GET /oauth2/@me: ")
                                            + "Unknown response")
@@ -209,6 +216,7 @@ handle_post_login_creds (
         }
 
     database::update_user_auth (uid, udata);
+    service_cache::set_cached_user_auth (uid, udata);
 
     // set set-cookie header and end req
 

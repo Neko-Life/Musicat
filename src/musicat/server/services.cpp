@@ -8,6 +8,44 @@ namespace musicat::server::services
 {
 
 curlpp_response_t
+discord_get_wauth (const char *endpoint, const std::string &type,
+                   const std::string &token)
+{
+    std::ostringstream os;
+
+    curlpp::Easy req;
+
+    req.setOpt (
+        curlpp::options::Url (std::string (DISCORD_API_URL) + endpoint));
+
+    std::string header = "Authorization: " + type + ' ' + token;
+
+    req.setOpt (curlpp::options::Header (1L));
+    req.setOpt (curlpp::options::HttpHeader ({ header.c_str () }));
+
+    /* req.setOpt (curlpp::options::Verbose (1L)); */
+
+    req.setOpt (curlpp::options::WriteStream (&os));
+
+    try
+        {
+            req.perform ();
+        }
+    catch (const curlpp::LibcurlRuntimeError &e)
+        {
+            fprintf (stderr,
+                     "[ERROR] "
+                     "LibcurlRuntimeError(%d): %s\n",
+                     e.whatCode (), e.what ());
+
+            return { false, 0, 0, "" };
+        }
+
+    return { true, curlpp::Infos::ResponseCode::get (req),
+             curlpp::Infos::HeaderSize::get (req), os.str () };
+}
+
+curlpp_response_t
 discord_post_creds (const std::string &creds)
 {
     std::ostringstream os;
@@ -43,37 +81,13 @@ discord_post_creds (const std::string &creds)
 curlpp_response_t
 discord_get_me (const std::string &type, const std::string &token)
 {
-    std::ostringstream os;
+    return discord_get_wauth ("/oauth2/@me", type, token);
+}
 
-    curlpp::Easy req;
-
-    req.setOpt (curlpp::options::Url (DISCORD_API_URL "/oauth2/@me"));
-
-    std::string header = "Authorization: " + type + ' ' + token;
-
-    req.setOpt (curlpp::options::Header (1L));
-    req.setOpt (curlpp::options::HttpHeader ({ header.c_str () }));
-
-    /* req.setOpt (curlpp::options::Verbose (1L)); */
-
-    req.setOpt (curlpp::options::WriteStream (&os));
-
-    try
-        {
-            req.perform ();
-        }
-    catch (const curlpp::LibcurlRuntimeError &e)
-        {
-            fprintf (stderr,
-                     "[ERROR] "
-                     "LibcurlRuntimeError(%d): %s\n",
-                     e.whatCode (), e.what ());
-
-            return { false, 0, 0, "" };
-        }
-
-    return { true, curlpp::Infos::ResponseCode::get (req),
-             curlpp::Infos::HeaderSize::get (req), os.str () };
+curlpp_response_t
+discord_get_user_guilds (const std::string &type, const std::string &token)
+{
+    return discord_get_wauth ("/users/@me/guilds", type, token);
 }
 
 } // musicat::server::services

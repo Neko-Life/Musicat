@@ -19,6 +19,9 @@ curlpp_response_t discord_post_creds (const std::string &creds);
 curlpp_response_t discord_get_me (const std::string &type,
                                   const std::string &token);
 
+curlpp_response_t discord_get_user_guilds (const std::string &type,
+                                           const std::string &token);
+
 } // musicat::server::services
 
 #endif // MUSICAT_SERVER_SERVICES_H

@@ -3,6 +3,7 @@
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
 #include "musicat/server/services.h"
+#include "musicat/util.h"
 
 namespace musicat::server::middlewares
 {
@@ -199,7 +200,7 @@ validate_token (APIResponse *res, APIRequest *req,
 
     std::string user_id = auth::verify_jwt_token (std::string (token));
 
-    if (user_id.empty ())
+    if (util::valid_number (user_id) != 0)
         {
             res->writeStatus (http_status_t.UNAUTHORIZED_401);
             middlewares::write_headers (res, cors_headers);
