@@ -7,6 +7,18 @@ namespace musicat::server::routes
 {
 
 void
+set_guilds_is_mutual (const std::string &user_id, nlohmann::json &guilds)
+{
+    if (!guilds.is_array ())
+        return;
+
+    for (nlohmann::json &g : guilds)
+        {
+            middlewares::set_guild_is_mutual (user_id, g);
+        }
+}
+
+void
 get_guilds (APIResponse *res, APIRequest *req)
 {
     auto cors_headers = middlewares::cors (res, req);
@@ -26,6 +38,12 @@ get_guilds (APIResponse *res, APIRequest *req)
 
     if (!cached.is_null ())
         {
+            // not included in cache and it's fine
+            // some people just refresh to see if
+            // the bot sucessfully invited to their
+            // server
+            set_guilds_is_mutual (user_id, cached);
+
             res->writeStatus (http_status);
             middlewares::write_headers (res, cors_headers);
             middlewares::set_content_type_json (res);
@@ -94,6 +112,8 @@ get_guilds (APIResponse *res, APIRequest *req)
         }
 
     service_cache::set_cached_user_guilds (user_id, r);
+
+    set_guilds_is_mutual (user_id, r);
 
     res->writeStatus (http_status);
     middlewares::write_headers (res, cors_headers);

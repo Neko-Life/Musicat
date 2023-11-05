@@ -2,6 +2,7 @@
 #define MUSICAT_SERVER_SERVICE_CACHE_H
 
 #include "nlohmann/json.hpp"
+#include <dpp/dpp.h>
 #include <mutex>
 
 namespace musicat::server::service_cache
@@ -28,6 +29,10 @@ nlohmann::json get_cached_user_guilds (const std::string &user_id);
 
 void set_cached_user_guilds (const std::string &user_id,
                              const nlohmann::json &data);
+
+void handle_guild_create (const dpp::guild_create_t &e);
+
+void handle_guild_delete (const dpp::guild_delete_t &e);
 
 } // musicat::server::service_cache
 

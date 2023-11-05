@@ -29,6 +29,8 @@ nlohmann::json
 process_curlpp_response_t (const services::curlpp_response_t &resp,
                            const char *callee);
 
+void set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild);
+
 } // musicat::server::middlewares
 
 #endif // MUSICAT_SERVER_MIDDLEWARES_H

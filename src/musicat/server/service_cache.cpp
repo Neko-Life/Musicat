@@ -1,4 +1,5 @@
 #include "nlohmann/json.hpp"
+#include <dpp/dpp.h>
 #include <map>
 #include <mutex>
 
@@ -141,6 +142,27 @@ set_cached_user_guilds (const std::string &user_id, const nlohmann::json &data)
 
     // 5 minutes
     service_cache::create_invalidate_timer (key, 300);
+}
+
+void
+remove_cached_user_guilds (const std::string &user_id)
+{
+    std::string key = user_id + "/get_user_guilds";
+
+    remove (key);
+    remove_invalidate_timer (key);
+}
+
+void
+handle_guild_create (const dpp::guild_create_t &e)
+{
+    // !TODO
+}
+
+void
+handle_guild_delete (const dpp::guild_delete_t &e)
+{
+    // !TODO
 }
 
 } // musicat::server::service_cache

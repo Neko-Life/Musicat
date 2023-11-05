@@ -1,4 +1,5 @@
 #include "musicat/server/middlewares.h"
+#include "cache.h"
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
@@ -255,6 +256,29 @@ process_curlpp_response_t (const services::curlpp_response_t &resp,
         }
 
     return udata;
+}
+
+void
+set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild)
+{
+    if (user_id.empty ())
+        return;
+
+    nlohmann::json &gid = guild["id"];
+    if (!gid.is_string ())
+        return;
+
+    std::string guild_id = gid.get<std::string> ();
+
+    dpp::guild *g = dpp::find_guild (guild_id);
+    if (!g)
+        {
+            guild["is_mutual"] = false;
+            return;
+        }
+
+    auto i_member = g->members.find (user_id);
+    guild["is_mutual"] = i_member != g->members.end ();
 }
 
 } // musicat::server::middlewares
