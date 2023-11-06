@@ -115,33 +115,35 @@ remove_invalidate_timer (const std::string &key)
 nlohmann::json
 get_cached_user_auth (const std::string &user_id)
 {
-    return service_cache::get (user_id + "/auth");
+    return get (user_id + "/auth");
 }
 
 void
 set_cached_user_auth (const std::string &user_id, const nlohmann::json &data)
 {
     std::string key = user_id + "/auth";
-    service_cache::set (key, data);
+    set (key, data);
 
     // 5 minutes
-    service_cache::create_invalidate_timer (key, 300);
+    create_invalidate_timer (key, 300);
 }
 
 nlohmann::json
 get_cached_user_guilds (const std::string &user_id)
 {
-    return service_cache::get (user_id + "/get_user_guilds");
+    return get (user_id + "/get_user_guilds");
 }
 
 void
 set_cached_user_guilds (const std::string &user_id, const nlohmann::json &data)
 {
     std::string key = user_id + "/get_user_guilds";
-    service_cache::set (key, data);
+    set (key, data);
 
-    // 5 minutes
-    service_cache::create_invalidate_timer (key, 300);
+    // now we handle guild event properly and cache invalidation
+    // we can store all the cache as long as we want
+    // one day
+    create_invalidate_timer (key, 86400);
 }
 
 void
@@ -156,13 +158,67 @@ remove_cached_user_guilds (const std::string &user_id)
 void
 handle_guild_create (const dpp::guild_create_t &e)
 {
-    // !TODO
+    if (!e.created || e.created->owner_id.empty ())
+        return;
+
+    remove_cached_user_guilds (e.created->owner_id.str ());
+
+    std::lock_guard lk (cache_m);
+
+    auto i = _cache.begin ();
+    while (i != _cache.end ())
+        {
+            size_t idx = i->first.find ("/get_user_guilds");
+            if (idx == i->first.npos)
+                {
+                    i++;
+                    continue;
+                }
+
+            std::string uid = i->first.substr (0, idx);
+
+            if (e.created->members.find (uid) == e.created->members.end ())
+                {
+                    i++;
+                    continue;
+                }
+
+            remove_invalidate_timer (i->first);
+            i = _cache.erase (i);
+        }
 }
 
 void
 handle_guild_delete (const dpp::guild_delete_t &e)
 {
-    // !TODO
+    if (e.deleted.owner_id.empty ())
+        return;
+
+    remove_cached_user_guilds (e.deleted.owner_id.str ());
+
+    std::lock_guard lk (cache_m);
+
+    auto i = _cache.begin ();
+    while (i != _cache.end ())
+        {
+            size_t idx = i->first.find ("/get_user_guilds");
+            if (idx == i->first.npos)
+                {
+                    i++;
+                    continue;
+                }
+
+            std::string uid = i->first.substr (0, idx);
+
+            if (e.deleted.members.find (uid) == e.deleted.members.end ())
+                {
+                    i++;
+                    continue;
+                }
+
+            remove_invalidate_timer (i->first);
+            i = _cache.erase (i);
+        }
 }
 
 } // musicat::server::service_cache
