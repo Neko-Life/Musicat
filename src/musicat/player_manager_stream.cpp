@@ -149,14 +149,14 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     // do not send drain buffer
     bool no_send = false;
 
-    const bool track_seek_queried = !states.track.seek_to.empty ();
+    bool track_seek_queried = !states.track.seek_to.empty ();
 
     if (track_seek_queried)
         {
-            const std::string cmd = cc::command_options_keys_t.command + '='
-                                    + cc::command_options_keys_t.seek + ';'
-                                    + cc::command_options_keys_t.seek + '='
-                                    + states.track.seek_to + ';';
+            std::string cmd = cc::command_options_keys_t.command + '='
+                              + cc::command_options_keys_t.seek + ';'
+                              + cc::command_options_keys_t.seek + '='
+                              + states.track.seek_to + ';';
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
@@ -192,11 +192,11 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             no_send = true;
         }
 
-    const bool volume_queried = states.guild_player->set_volume != -1;
+    bool volume_queried = states.guild_player->set_volume != -1;
 
     if (volume_queried)
         {
-            const std::string cmd
+            std::string cmd
                 = cc::command_options_keys_t.command + '='
                   + cc::command_options_keys_t.volume + ';'
                   + cc::command_options_keys_t.volume + '='
@@ -208,30 +208,78 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_volume = -1;
         }
 
-    const bool equalizer_queried
-        = !states.guild_player->set_equalizer.empty ();
+    bool should_write_helper_chain_cmd = false;
+    std::string helper_chain_cmd = cc::command_options_keys_t.command + '='
+                                   + cc::command_options_keys_t.helper_chain
+                                   + ';';
+
+    bool equalizer_queried = !states.guild_player->set_equalizer.empty ();
 
     if (equalizer_queried)
         {
-            const std::string new_equalizer
+            std::string new_equalizer
                 = states.guild_player->set_equalizer == "0"
                       ? ""
                       : states.guild_player->set_equalizer;
 
-            const std::string cmd
-                = cc::command_options_keys_t.command + '='
-                  + cc::command_options_keys_t.helper_chain + ';'
-                  + cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (new_equalizer) + ';';
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_equalizer)
+                              + ';';
 
-            cc::write_command (cmd, states.command_fd, "Manager::stream");
+            helper_chain_cmd += cmd;
 
             states.guild_player->equalizer = new_equalizer;
             states.guild_player->set_equalizer = "";
+
+            should_write_helper_chain_cmd = true;
+        }
+    else if (!states.guild_player->equalizer.empty ())
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (states.guild_player->equalizer)
+                  + ';';
+
+            helper_chain_cmd += cmd;
         }
 
-    const bool queried_cmd
-        = track_seek_queried || volume_queried || equalizer_queried;
+    bool resample_queried = !states.guild_player->set_resample.empty ();
+
+    if (resample_queried)
+        {
+            std::string new_resample = states.guild_player->set_resample == "0"
+                                           ? ""
+                                           : states.guild_player->set_resample;
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_resample)
+                              + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->resample = new_resample;
+            states.guild_player->set_resample = "";
+
+            should_write_helper_chain_cmd = true;
+        }
+    else if (!states.guild_player->resample.empty ())
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (states.guild_player->resample)
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (should_write_helper_chain_cmd)
+        {
+            cc::write_command (helper_chain_cmd, states.command_fd,
+                               "Manager::stream");
+        }
+
+    bool queried_cmd = track_seek_queried || volume_queried
+                       || equalizer_queried || resample_queried;
 
     if (!queried_cmd)
         {
@@ -431,6 +479,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (!guild_player->equalizer.empty ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (guild_player->equalizer)
+                       + ';';
+
+            if (!guild_player->resample.empty ())
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value (guild_player->resample)
                        + ';';
 
             // !TODO: convert current byte to timestamp string

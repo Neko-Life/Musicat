@@ -70,19 +70,17 @@ helper_main (helper_chain_t &options)
                      "-ar",
                      "48000",
                      "-i",
-                     "pipe:0",
+                     "-",
                      "-af",
                      (char *)options.options.raw_args.c_str (),
                      "-f",
                      "s16le",
                      "-ac",
                      "2",
-                     "-ar",
-                     "48000",
                      /*"-preset", "ultrafast",*/ "-threads",
                      "1",
                      "-nostdin",
-                     "pipe:1",
+                     "-",
                      (char *)NULL };
 
     if (options.options.debug)
@@ -219,13 +217,15 @@ handle_middle_chain (std::deque<helper_chain_t>::iterator hci)
 
     bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
 
-    ssize_t buf_size = 0;
+    ssize_t buf_size = 0, tw = 0;
     uint8_t buf[PROCESSOR_BUFFER_SIZE];
     while (
         read_ready
         && ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0))
         {
-            write (nhc.write_fd, buf, buf_size);
+            ssize_t cw = write (nhc.write_fd, buf, buf_size);
+            tw += cw;
+            fprintf (stderr, "tw %ld\n", tw);
 
             read_ready
                 = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
@@ -420,14 +420,17 @@ run_through_chain (uint8_t *buffer, ssize_t *size)
                     // whatever happens, this should never fail
                     // not the best way but should work for now
 
+                    // sleep for 0.2 ms
+                    usleep (2000);
+
+                    // struct pollfd prfds[1];
+                    // prfds[0].events = POLLOUT;
+                    // prfds[0].fd = hci->write_fd;
+
+                    // bool write_ready = (poll (prfds, 1, 100) > 0)
+                    //                    && (prfds[0].revents & POLLOUT);
+
                     /*
-struct pollfd prfds[1];
-prfds[0].events = POLLOUT;
-prfds[0].fd = hci->write_fd;
-
-bool write_ready = (poll (prfds, 1, 1) > 0)
-                   && (prfds[0].revents & POLLOUT);
-
 ssize_t wrote = 0, current_w = 0;
 while (write_ready && wrote < *size
        && ((current_w // 	s16le stereo minimal frame size
@@ -441,10 +444,12 @@ while (write_ready && wrote < *size
     }
                     */
 
-                    // sleep for 0.2 ms
-                    // usleep (200);
+                    // !TODO: maybe drain all buffer inside the system before
+                    // feeding more?
 
-                    write (hci->write_fd, buffer, *size);
+                    // if (write_ready)
+                    fprintf (stderr, "written %ld\n",
+                             write (hci->write_fd, buffer, *size));
 
                     *size = 0;
 
@@ -468,8 +473,17 @@ while (write_ready && wrote < *size
             prfds[0].events = POLLIN;
             prfds[0].fd = hci->read_fd;
 
-            if ((poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN))
-                *size = read (hci->read_fd, buffer, BUFFER_SIZE);
+            bool read_ready
+                = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
+
+            while (read_ready
+                   && (*size = read (hci->read_fd, buffer, BUFFER_SIZE)) > 0)
+                {
+                    audio_processing::write_stdout (buffer, size, true);
+
+                    read_ready = (poll (prfds, 1, 0) > 0)
+                                 && (prfds[0].revents & POLLIN);
+                }
         }
 
     return 0;

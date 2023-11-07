@@ -74,7 +74,6 @@ namespace filters
 {
 namespace equalizer
 {
-// !TODO: create a struct for this
 
 struct equalizer_fx_t
 {
@@ -397,7 +396,6 @@ slash_run (const dpp::slashcommand_t &event)
 }
 
 } // equalizer
-
 } // filters
 } // command
 } // musicat

@@ -65,12 +65,3 @@
  T.. vibrato           A->A       Apply vibrato effect.
  T.C virtualbass       A->A       Audio Virtual Bass.
  T.C volume            A->A       Change input volume.
-
-[BROKEN] 4a113c68a7d1eb607ae57f9f5fba8f71c3e9fd92
-{"message": "Invalid Form Body", "code": 50035, "errors": {"data": {"custom_id": {"_errors": [{"code": "BASE_TYPE_REQUIRED", "message": "This field is required"}]}, "title": {"_errors": 
-[{"code": "BASE_TYPE_REQUIRED", "message": "This field is required"}]}, "components": {"_errors": [{"code": "BASE_TYPE_BAD_LENGTH", "message": "Must be between 1 and 5 in length."}]}}}}
-
-[BROKEN] d2322315aa661c175bbbed152d0ccac8f29e33b3 : refactor: fix json_interface (#937)
-[x] 2cfaeb5ca0aa832da6823350e0f73d2e7e65722b : Been on a refactor binge (#941)
-[x] a338fe2b43a25260e6144ecf390d76a03edf78e3 : fix: refactored guild_member_remove
-[x] af25a5360a7276013d25859d0ea22b094e32f4ab : improv: freshen up dpp::snowflake and dpp::managed (#912)

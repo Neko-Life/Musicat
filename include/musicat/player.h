@@ -186,6 +186,15 @@ class Player
     std::string set_equalizer;
 
     /**
+     * @brief Resample raw ffmpeg opt
+     */
+    std::string resample;
+    /**
+     * @brief Resample raw ffmpeg opt
+     */
+    std::string set_resample;
+
+    /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
