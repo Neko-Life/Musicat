@@ -32,7 +32,7 @@ inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
 inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
 // inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
-inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ;
+inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ / 2;
 
 inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUS = BUFSIZ / 2;
 

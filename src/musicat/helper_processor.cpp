@@ -871,8 +871,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                      ori_buffer_written, current_has_read, iter);
 #endif
 
-            if (total_wrote_to_chain < MAX_TOTAL_WROTE_TO_CHAIN
-                && (shutdown ? true : ori_buffer_written) && !current_has_read)
+            if ((shutdown ? true : ori_buffer_written) && !current_has_read)
                 break;
         }
 
