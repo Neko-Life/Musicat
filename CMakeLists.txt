@@ -113,6 +113,7 @@ target_link_libraries(Shasha
 	ssl
 	crypto
 	z
+	pthread
 	# Add any other libs you want to use here
 	)
 

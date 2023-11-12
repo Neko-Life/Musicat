@@ -35,6 +35,9 @@ create_audio_processor (command::command_options_t &options)
     std::string so_fp
         = audio_processing::get_audio_stream_stdout_path (options.id);
 
+    std::string sem_full_key;
+    sem_t *sem;
+
     unlink (as_fp.c_str ());
     unlink (si_fp.c_str ());
     unlink (so_fp.c_str ());
@@ -64,6 +67,9 @@ create_audio_processor (command::command_options_t &options)
     options.audio_stream_stdin_path = si_fp;
     options.audio_stream_stdout_path = so_fp;
 
+    sem_full_key = audio_processing::get_sem_key (options.guild_id);
+    sem = audio_processing::create_sem (sem_full_key);
+
     status = fork ();
 
     if (status < 0)
@@ -80,11 +86,15 @@ create_audio_processor (command::command_options_t &options)
 
             options.child_write_fd = write_fd;
 
+            audio_processing::do_sem_post (sem);
+
             status = audio_processing::run_processor (options);
             _exit (status);
         }
 
     close (write_fd);
+
+    audio_processing::do_sem_wait (sem, sem_full_key);
 
     options.pid = status;
     options.parent_read_fd = read_fd;
@@ -93,6 +103,8 @@ create_audio_processor (command::command_options_t &options)
 
 err4:
     unlink (so_fp.c_str ());
+    audio_processing::do_sem_post (sem);
+    audio_processing::do_sem_wait (sem, sem_full_key);
 err3:
     unlink (si_fp.c_str ());
 err2:

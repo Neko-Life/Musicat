@@ -12,6 +12,52 @@ namespace helper_processor
 {
 std::deque<helper_chain_t> active_helpers = {};
 
+std::vector<int> pending_write;
+std::vector<int> pending_read;
+
+void
+remove_pending (std::vector<int> *vec, int fd)
+{
+    auto pi = vec->begin ();
+    while (pi != vec->end ())
+        {
+            if (*pi != fd)
+                {
+                    pi++;
+                    continue;
+                }
+
+            pi = vec->erase (pi);
+        }
+}
+
+bool
+is_pending (std::vector<int> *vec, int fd)
+{
+    auto pi = vec->begin ();
+    while (pi != vec->end ())
+        {
+            if (*pi != fd)
+                {
+                    pi++;
+                    continue;
+                }
+
+            return true;
+        }
+
+    return false;
+}
+
+void
+add_pending (std::vector<int> *vec, int fd)
+{
+    if (is_pending (vec, fd))
+        return;
+
+    vec->push_back (fd);
+}
+
 void
 close_all_helper_fds ()
 {
@@ -31,6 +77,7 @@ helper_main (helper_chain_t &options)
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
             perror ("helper_processor::helper_main prctl");
+            audio_processing::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -40,6 +87,7 @@ helper_main (helper_chain_t &options)
     if (status == -1)
         {
             perror ("helper_processor::helper_main dout");
+            audio_processing::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -48,6 +96,7 @@ helper_main (helper_chain_t &options)
     if (status == -1)
         {
             perror ("helper_processor::helper_main din");
+            audio_processing::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -92,6 +141,7 @@ helper_main (helper_chain_t &options)
                 fprintf (stderr, "%s\n", args[i]);
             }
 
+    audio_processing::do_sem_post (options.sem);
     execvp ("ffmpeg", args);
 
     perror ("helper_processor::helper_main exit");
@@ -121,6 +171,12 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     helper_process.child_read_fd = sep.first;
     helper_process.write_fd = sep.second;
 
+    helper_process.sem_full_key
+        = audio_processing::get_sem_key (std::to_string (helper_process.pid));
+
+    helper_process.sem
+        = audio_processing::create_sem (helper_process.sem_full_key);
+
     pid = fork ();
     if (pid == -1)
         {
@@ -148,6 +204,9 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     close (helper_process.child_read_fd);
     helper_process.child_write_fd = -1;
     helper_process.child_read_fd = -1;
+
+    audio_processing::do_sem_wait (helper_process.sem,
+                                   helper_process.sem_full_key);
 
     active_helpers.push_back (helper_process);
 
@@ -217,15 +276,13 @@ handle_middle_chain (std::deque<helper_chain_t>::iterator hci)
 
     bool read_ready = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
 
-    ssize_t buf_size = 0, tw = 0;
+    ssize_t buf_size = 0;
     uint8_t buf[PROCESSOR_BUFFER_SIZE];
     while (
         read_ready
         && ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0))
         {
-            ssize_t cw = write (nhc.write_fd, buf, buf_size);
-            tw += cw;
-            fprintf (stderr, "tw %ld\n", tw);
+            write (nhc.write_fd, buf, buf_size);
 
             read_ready
                 = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
@@ -335,6 +392,7 @@ manage_processor (const audio_processing::processor_options_t &options,
                 {
                     const audio_processing::helper_chain_option_t &hco
                         = options.helper_chain[i];
+
                     const audio_processing::helper_chain_option_t &chco
                         = active_helpers[i].options;
 
@@ -389,102 +447,396 @@ manage_processor (const audio_processing::processor_options_t &options,
     return status;
 }
 
-ssize_t
-run_through_chain (uint8_t *buffer, ssize_t *size)
+struct pollfd *
+init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd)
 {
-    if (*size == 0)
-        return 0;
+    size_t alloc_size = sizeof (struct pollfd) * fds_n;
 
-    // ssize_t SET_BUF_SIZE = *size;
+    struct pollfd *pfds = (struct pollfd *)malloc (alloc_size);
 
-    size_t current_chain_size = active_helpers.size ();
-
-    if (current_chain_size == 0)
-        return 0;
-
-    size_t max_idx = current_chain_size - 1;
-
-    auto hcb = active_helpers.begin ();
-    for (size_t i = 0; i <= max_idx; i++)
+    if (!pfds)
         {
-            bool is_last_p = i == max_idx;
-            bool is_first_p = i == 0;
+            fprintf (stderr,
+                     "init_helpers_pollfd: Failed allocating %lu bytes\n",
+                     alloc_size);
 
-            auto hci = hcb + i;
+            return NULL;
+        }
 
-            if (is_first_p)
+    nfds_t fdi = 0;
+
+    for (size_t hi = 0; hi < active_helpers.size (); hi++)
+        {
+            auto &hc = active_helpers.at (hi);
+
+            if (hi == 0 && close_first_write_fd)
                 {
-                    // handle_first_chain_stream (hci);
+                    close_valid_fd (&hc.write_fd);
 
-                    // pass buffer to processor without polling
-                    // whatever happens, this should never fail
-                    // not the best way but should work for now
-
-                    // sleep for 0.2 ms
-                    usleep (2000);
-
-                    // struct pollfd prfds[1];
-                    // prfds[0].events = POLLOUT;
-                    // prfds[0].fd = hci->write_fd;
-
-                    // bool write_ready = (poll (prfds, 1, 100) > 0)
-                    //                    && (prfds[0].revents & POLLOUT);
-
-                    /*
-ssize_t wrote = 0, current_w = 0;
-while (write_ready && wrote < *size
-       && ((current_w // 	s16le stereo minimal frame size
-            = write (hci->write_fd, buffer + wrote, 4))
-           > 0))
-    {
-        wrote += current_w;
-
-        write_ready = (poll (prfds, 1, 1) > 0)
-                      && (prfds[0].revents & POLLOUT);
-    }
-                    */
-
-                    // !TODO: maybe drain all buffer inside the system before
-                    // feeding more?
-
-                    // if (write_ready)
-                    fprintf (stderr, "written %ld\n",
-                             write (hci->write_fd, buffer, *size));
-
-                    *size = 0;
-
-                    // if there's deadlock we know where to look
-                }
-
-            // not the last chain
-            if (!is_last_p)
-                {
-                    // pipe polled output to next processor
-                    handle_middle_chain (hci);
-
+                    pfds[fdi].fd = hc.read_fd;
+                    pfds[fdi++].events = POLLIN;
                     continue;
                 }
 
-            // is last
-            // read polled output to fill out buffer once
-            // handle_last_chain_stream (hci);
+            // hc
+            // 0,      1,     2
+            // [read],[write, read]
 
-            struct pollfd prfds[1];
-            prfds[0].events = POLLIN;
-            prfds[0].fd = hci->read_fd;
+            pfds[fdi].fd = hc.write_fd;
+            pfds[fdi++].events = POLLOUT;
 
-            bool read_ready
-                = (poll (prfds, 1, 0) > 0) && (prfds[0].revents & POLLIN);
-
-            while (read_ready
-                   && (*size = read (hci->read_fd, buffer, BUFFER_SIZE)) > 0)
-                {
-                    audio_processing::write_stdout (buffer, size, true);
-
-                    read_ready = (poll (prfds, 1, 0) > 0)
-                                 && (prfds[0].revents & POLLIN);
-                }
+            pfds[fdi].fd = hc.read_fd;
+            pfds[fdi++].events = POLLIN;
         }
+
+    return pfds;
+}
+
+int
+pass_buf (int ni_fd, int prev_fd, uint8_t *buf, ssize_t buf_size, nfds_t ni,
+          nfds_t prev_ni, bool discard_output = false)
+{
+    int status = -1;
+
+    if ((buf_size = read (ni_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0)
+        {
+            // fprintf (stderr,
+            //          "READ FROM "
+            //          "%lu: %lu\n",
+            //          ni, buf_size);
+
+            if (!discard_output)
+                {
+                    ssize_t wr = write (prev_fd, buf, buf_size);
+
+                    // fprintf (stderr,
+                    //          "WROTE TO "
+                    //          "%lu: %lu\n",
+                    //          prev_ni, wr);
+                }
+
+            status = 0;
+        }
+
+    return status;
+}
+
+int
+read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
+                       bool discard_output = false)
+{
+    struct pollfd crpfd[1];
+    crpfd[0].fd = ni_fd;
+    crpfd[0].events = POLLIN;
+
+    uint8_t buf[BUFFER_SIZE];
+    ssize_t read_size;
+
+    int status = -1;
+
+    while (*first_read_fd_ready
+           && (read_size = read (ni_fd, buf, BUFFER_SIZE)) > 0)
+        {
+            // fprintf (stderr,
+            //          "READ FROM "
+            //          "CHAIN: %lu\n",
+            //          read_size);
+
+            if (!discard_output)
+                audio_processing::write_stdout (buf, &read_size, true);
+
+            status = 0;
+
+            // break on last buffer
+            // don't need this when we
+            // use standard buffer size
+            // if (read_size
+            //     < (const ssize_t)
+            //         BUFFER_SIZE)
+
+            //     break;
+
+            // make sure there's no more buffer by waiting a bit longer
+            int crevent = poll (crpfd, 1, 400);
+
+            *first_read_fd_ready
+                = (crevent > 0) && (crpfd[0].revents & POLLIN);
+        }
+
+    remove_pending (&pending_read, ni_fd);
+
+    return status;
+}
+
+ssize_t
+run_through_chain (uint8_t *buffer, ssize_t *size,
+                   bool shutdown_discard_output)
+{
+    bool shutdown = buffer == NULL && size == NULL;
+    ssize_t dummy_size = 0;
+
+    if (!shutdown)
+        {
+            if (*size == 0)
+                return 0;
+        }
+    else
+        {
+            size = &dummy_size;
+        }
+
+    // ssize_t SET_BUF_SIZE = *size;
+    size_t helper_size = active_helpers.size ();
+
+    if (helper_size == 0)
+        return 0;
+
+    // fprintf (stderr, "SHOULD PROCESS %lu BYTES\n", *size);
+
+    // gather fds to poll
+    // each process have 2 fd, stdin and stdout
+    // fd to process = active_helpers * 2
+    nfds_t fds_n = ((helper_size * 2));
+
+    if (shutdown)
+        fds_n--;
+
+    struct pollfd *pfds = init_helpers_pollfd (fds_n, shutdown);
+
+    if (!pfds)
+        {
+            // fprintf (stderr,
+            //          "run_through_chain: Failed allocating memory for
+            //          pfds\n");
+
+            return -1;
+        }
+
+    int event;
+
+    // save original buffer
+    std::string ori_buffer;
+    if (!shutdown)
+        ori_buffer = std::string ((char *)buffer, *size);
+
+    bool ori_buffer_written = false;
+
+    // read fds odd idx
+    // write fds even idx
+    nfds_t max_idx = (fds_n - 1);
+
+    // if this variable got checked then certainly it's true
+    bool first_read_fd_ready = true;
+    size_t iter = 0;
+
+    while (true)
+        {
+            iter++;
+            event = poll (pfds, fds_n, 50);
+
+            // nothing in 50 ms?
+            if (!event && !pending_read.size () && !pending_write.size ())
+                {
+                    free (pfds);
+                    pfds = NULL;
+
+                    return 0;
+                }
+
+            bool current_has_read = false;
+
+            // reverse loop
+            for (nfds_t ni = max_idx;; ni--)
+                {
+                    bool read_even = (ni & 1);
+                    bool read_idx = shutdown ? !read_even : read_even;
+
+                    int ni_fd = pfds[ni].fd;
+                    short ni_revents = pfds[ni].revents;
+
+                    bool skip_check = false;
+
+                    bool first_fd = ni == max_idx;
+                    bool last_fd = ni == 0;
+
+                    // invalid if first_fd=true
+                    nfds_t prev_ni = first_fd ? max_idx : ni + 1;
+                    int prev_fd = pfds[prev_ni].fd;
+                    short prev_revents = pfds[prev_ni].revents;
+
+                    // if (max_idx == 3)
+                    //     fprintf (stderr,
+                    //              "read_idx: %d ni_fd: %d ni_revents: %d "
+                    //              "skip_check: %d "
+                    //              "first_fd: %d last_fd: %d "
+                    //              "prev_ni: %lu prev_fd: %d prev_revents:
+                    //              %d\n", read_idx, ni_fd, ni_revents,
+                    //              skip_check, first_fd, last_fd, prev_ni,
+                    //              prev_fd, prev_revents);
+
+                    // invalid if last_fd=true
+                    // nfds_t next_ni = last_fd ? 0 : ni - 1;
+                    // int next_fd = pfds[next_ni].fd;
+                    // short next_revents = pfds[next_ni].revents;
+
+                    if (read_idx
+                        && (ni_revents & POLLIN
+                            || is_pending (&pending_read, ni_fd)))
+                        {
+                            skip_check = true;
+
+                            if (first_fd)
+                                {
+                                    int status = read_first_fd_routine (
+                                        ni_fd, &first_read_fd_ready,
+                                        shutdown_discard_output);
+
+                                    if (status == 0)
+                                        current_has_read = true;
+
+                                    if (last_fd)
+                                        break;
+
+                                    continue;
+                                }
+
+                            // read and pipe to prev write_fd once
+
+                            uint8_t buf[PROCESSOR_BUFFER_SIZE];
+                            ssize_t buf_size = 0;
+
+                            // check if next fd is open for writing
+                            if (prev_revents & POLLOUT
+                                || is_pending (&pending_write, prev_fd))
+                                {
+                                    int status = pass_buf (
+                                        ni_fd, prev_fd, buf, buf_size, ni,
+                                        prev_ni, shutdown_discard_output);
+
+                                    remove_pending (&pending_read, ni_fd);
+
+                                    remove_pending (&pending_write, prev_fd);
+
+                                    if (status == 0)
+                                        current_has_read = true;
+
+                                    if (last_fd)
+                                        break;
+
+                                    continue;
+                                }
+
+                            // fprintf (stderr,
+                            //          "CURRENT: %lu CANT WRITE TO "
+                            //          "%lu, add to pending read\n",
+                            //          ni, prev_ni);
+
+                            // can't write to prev fd, mark this
+                            // read_fd pending
+                            add_pending (&pending_read, ni_fd);
+
+                            if (last_fd)
+                                break;
+
+                            continue;
+                        }
+
+                    if (!read_idx
+                        && (ni_revents & POLLOUT
+                            || is_pending (&pending_write, ni_fd)))
+                        {
+                            skip_check = true;
+
+                            if (last_fd && *size)
+                                {
+                                    if (ori_buffer_written)
+                                        break;
+
+                                    ssize_t wr
+                                        = write (ni_fd, ori_buffer.data (),
+                                                 ori_buffer.length ());
+
+                                    *size = 0;
+
+                                    ori_buffer_written = true;
+
+                                    // fprintf (stderr, "WROTE TO CHAIN:
+                                    // %lu\n",
+                                    //          wr);
+
+                                    remove_pending (&pending_write, ni_fd);
+
+                                    break;
+                                }
+
+                            // fprintf (stderr,
+                            //          "PENDING WRITE "
+                            //          "%lu\n",
+                            //          ni);
+
+                            // mark pending, let the read handler
+                            // do all the work
+                            add_pending (&pending_write, ni_fd);
+
+                            if (last_fd)
+                                break;
+
+                            continue;
+                        }
+
+                    bool has_error
+                        = (ni_revents & POLLHUP || ni_revents & POLLERR
+                           || ni_revents & POLLNVAL);
+
+                    if (!skip_check)
+                        {
+                            if (has_error)
+                                {
+                                    // remove this fd from pending cache
+                                    std::vector<int> *vec;
+
+                                    if (read_idx)
+                                        vec = &pending_read;
+                                    else
+                                        vec = &pending_write;
+
+                                    if (!vec->size ())
+                                        {
+                                            if (last_fd)
+                                                {
+                                                    break;
+                                                }
+
+                                            continue;
+                                        }
+
+                                    remove_pending (vec, ni_fd);
+
+                                    if (last_fd)
+                                        break;
+
+                                    continue;
+                                }
+                        }
+
+                    if (last_fd)
+                        {
+                            break;
+                        }
+                }
+
+            // fprintf (stderr,
+            //          "ori_buffer_written: %d current_has_read: %d iter:
+            //          %lu\n", ori_buffer_written, current_has_read, iter);
+
+            if ((shutdown ? true : ori_buffer_written) && !current_has_read)
+                break;
+        }
+
+    free (pfds);
+    pfds = NULL;
+
+    // fprintf (stderr, "LOOP DONE: %lu\n", iter);
 
     return 0;
 }
@@ -492,18 +844,48 @@ while (write_ready && wrote < *size
 int
 shutdown_chain (bool discard_output)
 {
-    // stop all active chain, hci is automatically end if no entry in deque
+    // fprintf (stderr, "SHUTTING DOWN CHAIN\n");
+
+    int status = run_through_chain (NULL, NULL, discard_output);
+
+    pending_write.clear ();
+    pending_read.clear ();
+
+    // fprintf (stderr, "REAPING PROCESSES\n");
+    // shutdown all helpers
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
-            // error or not, every active helper should die
-            stop_first_chain (discard_output);
+            close_valid_fd (&hci->write_fd);
 
-            // erase the exited chain
+            ssize_t buf_size = 0;
+            uint8_t buf[PROCESSOR_BUFFER_SIZE];
+            while ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE))
+                   > 0)
+                {
+                    if (!discard_output)
+                        // write read buffer to stdout
+                        audio_processing::write_stdout (buf, &buf_size, true);
+                }
+
+            int status = 0;
+            waitpid (hci->pid, &status, 0);
+
+            if (hci->options.debug)
+                fprintf (stderr,
+                         "[helper_processor::manage_processor] chain "
+                         "status: "
+                         "%d `%s`\n",
+                         status, hci->options.raw_args.c_str ());
+
+            close_valid_fd (&hci->read_fd);
+
             hci = active_helpers.erase (hci);
         }
 
-    return 0;
+    // fprintf (stderr, "DONE SHUTTING DOWN\n");
+
+    return status;
 }
 
 } // helper_processor

@@ -16,9 +16,7 @@
 #include <thread>
 #include <unistd.h>
 
-namespace musicat
-{
-namespace audio_processing
+namespace musicat::audio_processing
 {
 
 // need to make this global to close it on worker fork
@@ -116,8 +114,8 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
         {
             helper_processor::run_through_chain (buffer, size);
 
-            // if (debug)
-            //     fprintf (stderr, necdfmt, *size);
+            /* if (debug) */
+            fprintf (stderr, necdfmt, *size);
         }
 
     if (*size == 0)
@@ -976,12 +974,13 @@ handle_helper_fork ()
 
 static int
 run_standalone (const processor_options_t &options,
-                const processor_states_t &p_info)
+                const processor_states_t &p_info, sem_t *sem)
 {
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
             perror ("child standalone prctl");
+            do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
     preadfd = p_info.ppipefd[0];
@@ -998,6 +997,7 @@ run_standalone (const processor_options_t &options,
     if (status == -1)
         {
             perror ("child standalone dout");
+            do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -1006,6 +1006,7 @@ run_standalone (const processor_options_t &options,
     if (status == -1)
         {
             perror ("child standalone din");
+            do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -1066,6 +1067,7 @@ run_standalone (const processor_options_t &options,
                 fprintf (stderr, "%s\n", args[i]);
             }
 
+    do_sem_post (sem);
     execvp ("ffmpeg", args);
 
     perror ("child standalone exit");
@@ -1107,6 +1109,9 @@ run_processor (child::command::command_options_t &process_options)
     helper_processor::manage_processor (options, handle_helper_fork);
 
     int stdin_fifo, fifo_status, stdout_fifo;
+
+    sem_t *sem;
+    std::string sem_full_key;
 
     write_fifo
         = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY);
@@ -1175,6 +1180,9 @@ run_processor (child::command::command_options_t &process_options)
     creadfd = p_info.cpipefd[0];
     pwritefd = p_info.cpipefd[1];
 
+    sem_full_key = get_sem_key (options.guild_id);
+    sem = create_sem (sem_full_key);
+
     // create a child
     p_info.cpid = fork ();
     if (p_info.cpid == -1)
@@ -1189,7 +1197,7 @@ run_processor (child::command::command_options_t &process_options)
             // close unrelated fds
             handle_worker_fork ();
 
-            run_standalone (options, p_info);
+            run_standalone (options, p_info, sem);
         }
 
     close (cwritefd); /* Close unused write end */
@@ -1197,6 +1205,9 @@ run_processor (child::command::command_options_t &process_options)
 
     cwritefd = -1;
     creadfd = -1;
+
+    do_sem_wait (sem, sem_full_key);
+    sem = SEM_FAILED;
 
     // prepare required data for polling
     prfds[0].events = POLLIN;
@@ -1364,6 +1375,9 @@ run_processor (child::command::command_options_t &process_options)
                     creadfd = p_info.cpipefd[0];
                     pwritefd = p_info.cpipefd[1];
 
+                    sem_full_key = get_sem_key (options.guild_id);
+                    sem = create_sem (sem_full_key);
+
                     p_info.cpid = fork ();
                     if (p_info.cpid == -1)
                         {
@@ -1388,7 +1402,7 @@ run_processor (child::command::command_options_t &process_options)
                             // close unrelated fds to avoid deadlock
                             handle_worker_fork ();
 
-                            run_standalone (options, p_info);
+                            run_standalone (options, p_info, sem);
                         }
 
                     close (cwritefd); /* Close unused write end */
@@ -1396,6 +1410,9 @@ run_processor (child::command::command_options_t &process_options)
 
                     cwritefd = -1;
                     creadfd = -1;
+
+                    do_sem_wait (sem, sem_full_key);
+                    sem = SEM_FAILED;
 
                     // update fd to poll
                     prfds[0].fd = preadfd;
@@ -1509,5 +1526,47 @@ get_audio_stream_stdout_path (const std::string &id)
     return std::string ("/tmp/musicat.") + id + ".stdout";
 }
 
-} // audio_processing
-} // musicat
+std::string
+get_sem_key (const std::string &key)
+{
+    return std::string ("musicat.") + key + '.'
+           + std::to_string (std::chrono::high_resolution_clock::now ()
+                                 .time_since_epoch ()
+                                 .count ());
+}
+
+sem_t *
+create_sem (const std::string &full_key)
+{
+    return sem_open (full_key.c_str (), O_CREAT, 0600, 0);
+}
+
+int
+do_sem_post (sem_t *sem)
+{
+    int status = sem_post (sem);
+    if (status)
+        {
+            perror ("do_sem_post");
+        }
+
+    return status;
+}
+
+int
+do_sem_wait (sem_t *sem, const std::string &full_key)
+{
+    int status = sem_wait (sem);
+    if (status)
+        {
+            perror ("do_sem_wait");
+        }
+
+    sem_close (sem);
+
+    sem_unlink (full_key.c_str ());
+
+    return status;
+}
+
+} // musicat::audio_processing

@@ -552,6 +552,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             bool processor_read_ready = false;
             if (nread_size > 0)
                 {
+                    nbuf[nread_size] = '\0';
+
                     if (std::string (nbuf) == "0")
                         {
                             processor_read_ready = true;

@@ -42,7 +42,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (rate > MAX_VAL)
         rate = MAX_VAL;
 
-    bool no_rate = rate == 0;
+    bool no_rate = rate == 0 || rate == 48000;
 
     std::string rate_str = no_rate ? "" : std::to_string (rate);
 
