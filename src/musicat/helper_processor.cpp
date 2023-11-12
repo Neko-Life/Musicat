@@ -6,6 +6,8 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 
+#define DEBUG_LOG
+
 namespace musicat
 {
 namespace helper_processor
@@ -180,6 +182,9 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     pid = fork ();
     if (pid == -1)
         {
+            audio_processing::clear_sem (helper_process.sem,
+                                         helper_process.sem_full_key);
+
             goto err3;
         }
 
@@ -500,19 +505,23 @@ pass_buf (int ni_fd, int prev_fd, uint8_t *buf, ssize_t buf_size, nfds_t ni,
 
     if ((buf_size = read (ni_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0)
         {
-            // fprintf (stderr,
-            //          "READ FROM "
-            //          "%lu: %lu\n",
-            //          ni, buf_size);
+#ifdef DEBUG_LOG
+            fprintf (stderr,
+                     "READ FROM "
+                     "%lu: %lu\n",
+                     ni, buf_size);
+#endif
 
             if (!discard_output)
                 {
                     ssize_t wr = write (prev_fd, buf, buf_size);
 
-                    // fprintf (stderr,
-                    //          "WROTE TO "
-                    //          "%lu: %lu\n",
-                    //          prev_ni, wr);
+#ifdef DEBUG_LOG
+                    fprintf (stderr,
+                             "WROTE TO "
+                             "%lu: %lu\n",
+                             prev_ni, wr);
+#endif
                 }
 
             status = 0;
@@ -537,10 +546,12 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
     while (*first_read_fd_ready
            && (read_size = read (ni_fd, buf, BUFFER_SIZE)) > 0)
         {
-            // fprintf (stderr,
-            //          "READ FROM "
-            //          "CHAIN: %lu\n",
-            //          read_size);
+#ifdef DEBUG_LOG
+            fprintf (stderr,
+                     "READ FROM "
+                     "CHAIN: %lu\n",
+                     read_size);
+#endif
 
             if (!discard_output)
                 audio_processing::write_stdout (buf, &read_size, true);
@@ -589,7 +600,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     if (helper_size == 0)
         return 0;
 
-    // fprintf (stderr, "SHOULD PROCESS %lu BYTES\n", *size);
+#ifdef DEBUG_LOG
+    fprintf (stderr, "SHOULD PROCESS %lu BYTES\n", *size);
+#endif
 
     // gather fds to poll
     // each process have 2 fd, stdin and stdout
@@ -603,9 +616,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
     if (!pfds)
         {
-            // fprintf (stderr,
-            //          "run_through_chain: Failed allocating memory for
-            //          pfds\n");
+            fprintf (stderr,
+                     "run_through_chain: Failed allocating memory for pfds\n");
 
             return -1;
         }
@@ -662,15 +674,15 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                     int prev_fd = pfds[prev_ni].fd;
                     short prev_revents = pfds[prev_ni].revents;
 
-                    // if (max_idx == 3)
-                    //     fprintf (stderr,
-                    //              "read_idx: %d ni_fd: %d ni_revents: %d "
-                    //              "skip_check: %d "
-                    //              "first_fd: %d last_fd: %d "
-                    //              "prev_ni: %lu prev_fd: %d prev_revents:
-                    //              %d\n", read_idx, ni_fd, ni_revents,
-                    //              skip_check, first_fd, last_fd, prev_ni,
-                    //              prev_fd, prev_revents);
+#ifdef DEBUG_LOG
+                    fprintf (stderr,
+                             "read_idx: %d ni_fd: %d ni_revents: %d "
+                             "skip_check: %d "
+                             "first_fd: %d last_fd: %d "
+                             "prev_ni: %lu prev_fd: %d prev_revents: %d\n",
+                             read_idx, ni_fd, ni_revents, skip_check, first_fd,
+                             last_fd, prev_ni, prev_fd, prev_revents);
+#endif
 
                     // invalid if last_fd=true
                     // nfds_t next_ni = last_fd ? 0 : ni - 1;
@@ -724,10 +736,12 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     continue;
                                 }
 
-                            // fprintf (stderr,
-                            //          "CURRENT: %lu CANT WRITE TO "
-                            //          "%lu, add to pending read\n",
-                            //          ni, prev_ni);
+#ifdef DEBUG_LOG
+                            fprintf (stderr,
+                                     "CURRENT: %lu CANT WRITE TO "
+                                     "%lu, add to pending read\n",
+                                     ni, prev_ni);
+#endif
 
                             // can't write to prev fd, mark this
                             // read_fd pending
@@ -758,19 +772,22 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
                                     ori_buffer_written = true;
 
-                                    // fprintf (stderr, "WROTE TO CHAIN:
-                                    // %lu\n",
-                                    //          wr);
+#ifdef DEBUG_LOG
+                                    fprintf (stderr, "WROTE TO CHAIN: %lu\n",
+                                             wr);
+#endif
 
                                     remove_pending (&pending_write, ni_fd);
 
                                     break;
                                 }
 
-                            // fprintf (stderr,
-                            //          "PENDING WRITE "
-                            //          "%lu\n",
-                            //          ni);
+#ifdef DEBUG_LOG
+                            fprintf (stderr,
+                                     "PENDING WRITE "
+                                     "%lu\n",
+                                     ni);
+#endif
 
                             // mark pending, let the read handler
                             // do all the work
@@ -823,9 +840,11 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                         }
                 }
 
-            // fprintf (stderr,
-            //          "ori_buffer_written: %d current_has_read: %d iter:
-            //          %lu\n", ori_buffer_written, current_has_read, iter);
+#ifdef DEBUG_LOG
+            fprintf (stderr,
+                     "ori_buffer_written: %d current_has_read: %d iter: %lu\n",
+                     ori_buffer_written, current_has_read, iter);
+#endif
 
             if ((shutdown ? true : ori_buffer_written) && !current_has_read)
                 break;
@@ -834,7 +853,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     free (pfds);
     pfds = NULL;
 
-    // fprintf (stderr, "LOOP DONE: %lu\n", iter);
+#ifdef DEBUG_LOG
+    fprintf (stderr, "LOOP DONE: %lu\n", iter);
+#endif
 
     return 0;
 }
@@ -842,14 +863,19 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 int
 shutdown_chain (bool discard_output)
 {
-    // fprintf (stderr, "SHUTTING DOWN CHAIN\n");
+#ifdef DEBUG_LOG
+    fprintf (stderr, "SHUTTING DOWN CHAIN\n");
+#endif
 
     int status = run_through_chain (NULL, NULL, discard_output);
 
     pending_write.clear ();
     pending_read.clear ();
 
-    // fprintf (stderr, "REAPING PROCESSES\n");
+#ifdef DEBUG_LOG
+    fprintf (stderr, "REAPING PROCESSES\n");
+#endif
+
     // shutdown all helpers
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
@@ -881,7 +907,9 @@ shutdown_chain (bool discard_output)
             hci = active_helpers.erase (hci);
         }
 
-    // fprintf (stderr, "DONE SHUTTING DOWN\n");
+#ifdef DEBUG_LOG
+    fprintf (stderr, "DONE SHUTTING DOWN\n");
+#endif
 
     return status;
 }

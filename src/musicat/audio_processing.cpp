@@ -136,7 +136,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
             > 0)
            || (written < *size))
         {
-            if (current_written < 1)
+            if (current_written < 0)
                 {
                     return -1;
                 }
@@ -1189,6 +1189,9 @@ run_processor (child::command::command_options_t &process_options)
         {
             perror ("fork");
             init_error = ERR_SFORK;
+
+            clear_sem (sem, sem_full_key);
+
             goto err_sfork;
         }
 
@@ -1394,6 +1397,8 @@ run_processor (child::command::command_options_t &process_options)
                             pwritefd = -1;
                             creadfd = -1;
 
+                            clear_sem (sem, sem_full_key);
+
                             break;
                         }
 
@@ -1554,6 +1559,16 @@ do_sem_post (sem_t *sem)
 }
 
 int
+clear_sem (sem_t *sem, const std::string &full_key)
+{
+    sem_close (sem);
+
+    sem_unlink (full_key.c_str ());
+
+    return 0;
+}
+
+int
 do_sem_wait (sem_t *sem, const std::string &full_key)
 {
     int status = sem_wait (sem);
@@ -1562,9 +1577,7 @@ do_sem_wait (sem_t *sem, const std::string &full_key)
             perror ("do_sem_wait");
         }
 
-    sem_close (sem);
-
-    sem_unlink (full_key.c_str ());
+    clear_sem (sem, full_key);
 
     return status;
 }
