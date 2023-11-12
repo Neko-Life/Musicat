@@ -2,11 +2,14 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/worker.h"
 #include "musicat/musicat.h"
+#include <limits.h>
+#include <stdio.h>
 #include <sys/poll.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 
-#define DEBUG_LOG
+// #define DEBUG_LOG
+// #define DEBUG_LOG_2
 
 namespace musicat
 {
@@ -16,6 +19,9 @@ std::deque<helper_chain_t> active_helpers = {};
 
 std::vector<int> pending_write;
 std::vector<int> pending_read;
+
+ssize_t total_wrote_to_chain = 0;
+inline constexpr ssize_t MAX_TOTAL_WROTE_TO_CHAIN = SSIZE_MAX;
 
 void
 remove_pending (std::vector<int> *vec, int fd)
@@ -695,6 +701,18 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                         {
                             skip_check = true;
 
+                            if (!shutdown && ni == 1)
+                                {
+#ifdef DEBUG_LOG_2
+                                    fprintf (stderr,
+                                             "TOTAL WROTE TO CHAIN ON READ "
+                                             "READY: %lu\n",
+                                             total_wrote_to_chain);
+#endif
+
+                                    total_wrote_to_chain = 0;
+                                }
+
                             if (first_fd)
                                 {
                                     int status = read_first_fd_routine (
@@ -768,6 +786,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                         = write (ni_fd, ori_buffer.data (),
                                                  ori_buffer.length ());
 
+                                    total_wrote_to_chain += wr;
+
                                     *size = 0;
 
                                     ori_buffer_written = true;
@@ -775,6 +795,11 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 #ifdef DEBUG_LOG
                                     fprintf (stderr, "WROTE TO CHAIN: %lu\n",
                                              wr);
+#endif
+#ifdef DEBUG_LOG_2
+                                    fprintf (stderr,
+                                             "TOTAL WROTE TO CHAIN: %lu\n",
+                                             total_wrote_to_chain);
 #endif
 
                                     remove_pending (&pending_write, ni_fd);
@@ -846,7 +871,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                      ori_buffer_written, current_has_read, iter);
 #endif
 
-            if ((shutdown ? true : ori_buffer_written) && !current_has_read)
+            if (total_wrote_to_chain < MAX_TOTAL_WROTE_TO_CHAIN
+                && (shutdown ? true : ori_buffer_written) && !current_has_read)
                 break;
         }
 
