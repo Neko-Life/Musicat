@@ -557,7 +557,7 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
             //     break;
 
             // make sure there's no more buffer by waiting a bit longer
-            int crevent = poll (crpfd, 1, 400);
+            int crevent = poll (crpfd, 1, 20);
 
             *first_read_fd_ready
                 = (crevent > 0) && (crpfd[0].revents & POLLIN);

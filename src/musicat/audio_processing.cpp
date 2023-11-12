@@ -115,7 +115,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
             helper_processor::run_through_chain (buffer, size);
 
             /* if (debug) */
-            fprintf (stderr, necdfmt, *size);
+            // fprintf (stderr, necdfmt, *size);
         }
 
     if (*size == 0)
