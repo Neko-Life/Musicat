@@ -272,6 +272,31 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             helper_chain_cmd += cmd;
         }
 
+    bool earwax_queried
+        = states.guild_player->set_earwax != states.guild_player->earwax;
+
+    if (earwax_queried)
+        {
+            std::string new_fx
+                = states.guild_player->set_earwax == false ? "" : "earwax";
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_fx) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->earwax = states.guild_player->set_earwax;
+
+            should_write_helper_chain_cmd = true;
+        }
+    else if (states.guild_player->earwax)
+        {
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value ("earwax") + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
     if (should_write_helper_chain_cmd)
         {
             cc::write_command (helper_chain_cmd, states.command_fd,
@@ -485,6 +510,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (guild_player->resample)
                        + ';';
+
+            if (guild_player->earwax)
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value ("earwax") + ';';
 
             // !TODO: convert current byte to timestamp string
             // + cc::command_options_keys_t.seek + '=' +

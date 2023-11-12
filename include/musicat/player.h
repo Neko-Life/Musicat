@@ -194,6 +194,9 @@ class Player
      */
     std::string set_resample;
 
+    bool earwax;
+    bool set_earwax;
+
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.

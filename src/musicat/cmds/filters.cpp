@@ -7,6 +7,7 @@ namespace musicat::command::filters
 static inline constexpr const command_handlers_map_t subcommand_handlers
     = { { "equalizer", equalizer::slash_run },
         { "resample", resample::slash_run },
+        { "earwax", earwax::slash_run },
         { NULL, NULL } };
 
 dpp::slashcommand
@@ -17,6 +18,7 @@ get_register_obj (const dpp::snowflake &sha_id)
     // setup command
     equalizer::setup_subcommand (slash);
     resample::setup_subcommand (slash);
+    earwax::setup_subcommand (slash);
 
     return slash;
 }

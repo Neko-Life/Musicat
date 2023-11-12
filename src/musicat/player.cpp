@@ -47,8 +47,8 @@ Player::init ()
     this->saved_config_loaded = false;
     this->volume = 100;
     this->set_volume = -1;
-    this->equalizer = "";
-    this->set_equalizer = "";
+    this->earwax = false;
+    this->set_earwax = false;
 }
 
 Player::Player () { this->init (); }
