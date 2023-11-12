@@ -550,10 +550,8 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
             // break on last buffer
             // don't need this when we
             // use standard buffer size
-            // if (read_size
-            //     < (const ssize_t)
-            //         BUFFER_SIZE)
-
+            //
+            // if (read_size < (const ssize_t)BUFFER_SIZE)
             //     break;
 
             // make sure there's no more buffer by waiting a bit longer

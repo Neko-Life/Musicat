@@ -279,7 +279,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     bool queried_cmd = track_seek_queried || volume_queried
-                       || equalizer_queried || resample_queried;
+                       || should_write_helper_chain_cmd;
 
     if (!queried_cmd)
         {
