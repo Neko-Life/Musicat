@@ -298,12 +298,13 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     bool vibrato_queried = states.guild_player->set_vibrato;
-    bool has_f = false, has_d = false;
+    bool has_f, has_d;
+
+    has_f = states.guild_player->vibrato_f != -1;
+    has_d = states.guild_player->vibrato_d != -1;
 
     if (vibrato_queried)
         {
-            has_f = states.guild_player->vibrato_f != -1;
-            has_d = states.guild_player->vibrato_d != -1;
 
             std::string new_vibrato
                 = (!has_f && !has_d)
@@ -320,8 +321,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_vibrato = false;
             should_write_helper_chain_cmd = true;
         }
-    else if ((has_f = states.guild_player->vibrato_f != -1)
-             || (has_d = states.guild_player->vibrato_d != -1))
+    else if (has_f || has_d)
         {
             std::string v_args
                 = get_ffmpeg_vibrato_args (has_f, has_d, states.guild_player);
@@ -572,9 +572,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value (guild_player->resample)
                        + ';';
 
-            bool has_f = false, has_d = false;
-            if ((has_f = guild_player->vibrato_f != -1)
-                || (has_d = guild_player->vibrato_d != -1))
+            bool has_f = guild_player->vibrato_f != -1,
+                 has_d = guild_player->vibrato_d != -1;
+
+            if (has_f || has_d)
                 {
                     std::string v_args
                         = get_ffmpeg_vibrato_args (has_f, has_d, guild_player);
