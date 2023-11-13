@@ -48,7 +48,7 @@ read_command (processor_options_t &options)
     ssize_t read_cmd_size = 0;
     char cmd_buf[CMD_BUFSIZE + 1];
 
-    int has_cmd = poll (cmdrfds, 1, 1);
+    int has_cmd = poll (cmdrfds, 1, 5);
     bool read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
     while (
         read_cmd
@@ -89,7 +89,7 @@ read_command (processor_options_t &options)
                     }
             }
 
-            has_cmd = poll (cmdrfds, 1, 1);
+            has_cmd = poll (cmdrfds, 1, 5);
             read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
         }
 
@@ -1300,8 +1300,6 @@ run_processor (child::command::command_options_t &process_options)
             if (options.panic_break)
                 break;
 
-            helper_processor::manage_processor (options, handle_helper_fork);
-
             // recreate ffmpeg process to update filter chain
             if (!options.seek_to.empty ())
                 {
@@ -1429,6 +1427,8 @@ run_processor (child::command::command_options_t &process_options)
                     // mark changes done
                     options.seek_to = "";
                 }
+
+            helper_processor::manage_processor (options, handle_helper_fork);
 
             // !TODO: put volume to always in the last chain
             // runtime effects here
