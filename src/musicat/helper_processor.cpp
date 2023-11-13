@@ -531,6 +531,9 @@ pass_buf (int ni_fd, int prev_fd, uint8_t *buf, ssize_t buf_size, nfds_t ni,
                 }
 
             status = 0;
+
+            remove_pending (&pending_read, ni_fd);
+            remove_pending (&pending_write, prev_fd);
         }
 
     return status;
@@ -578,7 +581,8 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
                 = (crevent > 0) && (crpfd[0].revents & POLLIN);
         }
 
-    remove_pending (&pending_read, ni_fd);
+    if (status == 0)
+        remove_pending (&pending_read, ni_fd);
 
     return status;
 }
@@ -645,6 +649,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     bool first_read_fd_ready = true;
     size_t iter = 0;
 
+    bool shutdown_is_last_hup = false;
+
     while (true)
         {
             iter++;
@@ -656,7 +662,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                     free (pfds);
                     pfds = NULL;
 
-                    return 0;
+                    return 1;
                 }
 
             bool current_has_read = false;
@@ -741,11 +747,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                         ni_fd, prev_fd, buf, buf_size, ni,
                                         prev_ni, shutdown_discard_output);
 
-                                    remove_pending (&pending_read, ni_fd);
-
-                                    remove_pending (&pending_write, prev_fd);
-
                                     if (status == 0)
+
                                         current_has_read = true;
 
                                     if (last_fd)
@@ -824,9 +827,33 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                             continue;
                         }
 
-                    bool has_error
-                        = (ni_revents & POLLHUP || ni_revents & POLLERR
-                           || ni_revents & POLLNVAL);
+                    bool got_hup = ni_revents & POLLHUP;
+
+                    if (shutdown)
+                        {
+#ifdef DEBUG_LOG_2
+                            fprintf (
+                                stderr,
+                                "SHUTDOWN HUP CHECK first_fd: %d got_hup: %d "
+                                "read_idx: %d prev_ni: %lu\n",
+                                first_fd, got_hup, read_idx, prev_ni);
+#endif
+
+                            if (first_fd && got_hup)
+                                {
+                                    // all hup, lets break and reap all
+                                    // children
+                                    shutdown_is_last_hup = true;
+                                    break;
+                                }
+
+                            // close previous write fd
+                            if (read_idx && !first_fd)
+                                close_valid_fd (&prev_fd);
+                        }
+
+                    bool has_error = (got_hup || ni_revents & POLLERR
+                                      || ni_revents & POLLNVAL);
 
                     if (!skip_check)
                         {
@@ -865,13 +892,17 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                         }
                 }
 
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
             fprintf (stderr,
-                     "ori_buffer_written: %d current_has_read: %d iter: %lu\n",
-                     ori_buffer_written, current_has_read, iter);
+                     "ori_buffer_written: %d current_has_read: %d iter: %lu "
+                     "shutdown_is_last_hup: %d\n",
+                     ori_buffer_written, current_has_read, iter,
+                     shutdown_is_last_hup);
 #endif
 
-            if ((shutdown ? true : ori_buffer_written) && !current_has_read)
+            if ((shutdown ? (shutdown_is_last_hup || iter >= 10000)
+                          : ori_buffer_written)
+                && !current_has_read)
                 break;
         }
 

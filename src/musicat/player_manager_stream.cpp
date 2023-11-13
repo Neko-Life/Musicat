@@ -414,7 +414,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                             less_buffer_encountered = true;
                         }
 
-                    has_event = poll (pfds, 1, 1000);
+                    has_event = poll (pfds, 1, 0);
                     drain_ready
                         = (has_event > 0) && (pfds[0].revents & POLLIN);
                 }

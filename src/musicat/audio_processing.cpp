@@ -1223,7 +1223,7 @@ run_processor (child::command::command_options_t &process_options)
     while (!options.panic_break)
         {
             // poll ffmpeg stdout
-            int read_has_event = poll (prfds, 1, 0);
+            int read_has_event = poll (prfds, 1, 10);
             bool read_ready
                 = (read_has_event > 0) && (prfds[0].revents & POLLIN);
 
@@ -1336,7 +1336,7 @@ run_processor (child::command::command_options_t &process_options)
                             //              && (prfds[0].revents & POLLIN);
                         }
 
-                    helper_processor::shutdown_chain (true);
+                    // helper_processor::shutdown_chain (true);
 
                     // wait for child to finish transferring data
                     waitpid (p_info.cpid, &cstatus, 0);
@@ -1421,8 +1421,8 @@ run_processor (child::command::command_options_t &process_options)
                     prfds[0].fd = preadfd;
                     pwfds[0].fd = pwritefd;
 
-                    helper_processor::manage_processor (options,
-                                                        handle_helper_fork);
+                    // helper_processor::manage_processor (options,
+                    //                                     handle_helper_fork);
 
                     // mark changes done
                     options.seek_to = "";
