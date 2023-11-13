@@ -5,8 +5,10 @@
 #include "musicat/config.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include <cstdint>
 #include <memory>
 #include <oggz/oggz.h>
+#include <string>
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -118,6 +120,29 @@ class EffectStatesListing
             }
     }
 };
+
+std::string
+get_ffmpeg_vibrato_args (bool has_f, bool has_d,
+                         std::shared_ptr<Player> &guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->vibrato_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->vibrato_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
 
 handle_effect_chain_change_states_t *
 get_effect_states (const dpp::snowflake &guild_id)
@@ -268,6 +293,42 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                 = cc::command_options_keys_t.helper_chain + '='
                   + cc::sanitize_command_value (states.guild_player->resample)
                   + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    bool vibrato_queried = states.guild_player->set_vibrato;
+    bool has_f = false, has_d = false;
+
+    if (vibrato_queried)
+        {
+            has_f = states.guild_player->vibrato_f != -1;
+            has_d = states.guild_player->vibrato_d != -1;
+
+            std::string new_vibrato
+                = (!has_f && !has_d)
+                      ? ""
+                      : "vibrato="
+                            + get_ffmpeg_vibrato_args (has_f, has_d,
+                                                       states.guild_player);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_vibrato) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_vibrato = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if ((has_f = states.guild_player->vibrato_f != -1)
+             || (has_d = states.guild_player->vibrato_d != -1))
+        {
+            std::string v_args
+                = get_ffmpeg_vibrato_args (has_f, has_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("vibrato=" + v_args) + ';';
 
             helper_chain_cmd += cmd;
         }
@@ -510,6 +571,18 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (guild_player->resample)
                        + ';';
+
+            bool has_f = false, has_d = false;
+            if ((has_f = guild_player->vibrato_f != -1)
+                || (has_d = guild_player->vibrato_d != -1))
+                {
+                    std::string v_args
+                        = get_ffmpeg_vibrato_args (has_f, has_d, guild_player);
+
+                    cmd += cc::command_options_keys_t.helper_chain + '='
+                           + cc::sanitize_command_value ("vibrato=" + v_args)
+                           + ';';
+                }
 
             if (guild_player->earwax)
                 cmd += cc::command_options_keys_t.helper_chain + '='

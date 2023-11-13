@@ -278,7 +278,7 @@ setup_subcommand (dpp::slashcommand &slash)
         }
 }
 
-static inline constexpr const command_handlers_map_t action_handlers
+inline constexpr const command_handlers_map_t action_handlers
     = { { "", show },
         { action_t_e.set, set },
         { action_t_e.balance, balance },

@@ -50,6 +50,15 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // earwax
 
+namespace vibrato
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // vibrato
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H

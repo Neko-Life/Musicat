@@ -45,10 +45,16 @@ Player::init ()
     this->channel_id = 0;
     this->saved_queue_loaded = false;
     this->saved_config_loaded = false;
+
     this->volume = 100;
     this->set_volume = -1;
+
     this->earwax = false;
     this->set_earwax = false;
+
+    this->set_vibrato = false;
+    this->vibrato_d = -1;
+    this->vibrato_f = -1;
 }
 
 Player::Player () { this->init (); }
