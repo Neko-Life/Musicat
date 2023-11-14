@@ -9,6 +9,7 @@ static inline constexpr const command_handlers_map_t subcommand_handlers
         { "resample", resample::slash_run },
         { "earwax", earwax::slash_run },
         { "vibrato", vibrato::slash_run },
+        { "tremolo", tremolo::slash_run },
         { NULL, NULL } };
 
 dpp::slashcommand
@@ -21,6 +22,7 @@ get_register_obj (const dpp::snowflake &sha_id)
     resample::setup_subcommand (slash);
     earwax::setup_subcommand (slash);
     vibrato::setup_subcommand (slash);
+    tremolo::setup_subcommand (slash);
 
     return slash;
 }

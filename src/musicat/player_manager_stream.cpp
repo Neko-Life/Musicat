@@ -144,6 +144,29 @@ get_ffmpeg_vibrato_args (bool has_f, bool has_d,
     return v_args;
 }
 
+std::string
+get_ffmpeg_tremolo_args (bool has_f, bool has_d,
+                         std::shared_ptr<Player> &guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->tremolo_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->tremolo_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
+
 handle_effect_chain_change_states_t *
 get_effect_states (const dpp::snowflake &guild_id)
 {
@@ -298,19 +321,20 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     bool vibrato_queried = states.guild_player->set_vibrato;
-    bool has_f, has_d;
+    bool has_vibrato_f, has_vibrato_d;
 
-    has_f = states.guild_player->vibrato_f != -1;
-    has_d = states.guild_player->vibrato_d != -1;
+    has_vibrato_f = states.guild_player->vibrato_f != -1;
+    has_vibrato_d = states.guild_player->vibrato_d != -1;
 
     if (vibrato_queried)
         {
 
             std::string new_vibrato
-                = (!has_f && !has_d)
+                = (!has_vibrato_f && !has_vibrato_d)
                       ? ""
                       : "vibrato="
-                            + get_ffmpeg_vibrato_args (has_f, has_d,
+                            + get_ffmpeg_vibrato_args (has_vibrato_f,
+                                                       has_vibrato_d,
                                                        states.guild_player);
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
@@ -321,14 +345,51 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_vibrato = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (has_f || has_d)
+    else if (has_vibrato_f || has_vibrato_d)
         {
-            std::string v_args
-                = get_ffmpeg_vibrato_args (has_f, has_d, states.guild_player);
+            std::string v_args = get_ffmpeg_vibrato_args (
+                has_vibrato_f, has_vibrato_d, states.guild_player);
 
             std::string cmd
                 = cc::command_options_keys_t.helper_chain + '='
                   + cc::sanitize_command_value ("vibrato=" + v_args) + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    bool tremolo_queried = states.guild_player->set_tremolo;
+    bool has_tremolo_f, has_tremolo_d;
+
+    has_tremolo_f = states.guild_player->tremolo_f != -1;
+    has_tremolo_d = states.guild_player->tremolo_d != -1;
+
+    if (tremolo_queried)
+        {
+
+            std::string new_tremolo
+                = (!has_tremolo_f && !has_tremolo_d)
+                      ? ""
+                      : "tremolo="
+                            + get_ffmpeg_tremolo_args (has_tremolo_f,
+                                                       has_tremolo_d,
+                                                       states.guild_player);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_tremolo) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_tremolo = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if (has_tremolo_f || has_tremolo_d)
+        {
+            std::string v_args = get_ffmpeg_tremolo_args (
+                has_tremolo_f, has_tremolo_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("tremolo=" + v_args) + ';';
 
             helper_chain_cmd += cmd;
         }
@@ -572,16 +633,29 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value (guild_player->resample)
                        + ';';
 
-            bool has_f = guild_player->vibrato_f != -1,
-                 has_d = guild_player->vibrato_d != -1;
+            bool has_vibrato_f = guild_player->vibrato_f != -1,
+                 has_vibrato_d = guild_player->vibrato_d != -1;
 
-            if (has_f || has_d)
+            if (has_vibrato_f || has_vibrato_d)
                 {
-                    std::string v_args
-                        = get_ffmpeg_vibrato_args (has_f, has_d, guild_player);
+                    std::string v_args = get_ffmpeg_vibrato_args (
+                        has_vibrato_f, has_vibrato_d, guild_player);
 
                     cmd += cc::command_options_keys_t.helper_chain + '='
                            + cc::sanitize_command_value ("vibrato=" + v_args)
+                           + ';';
+                }
+
+            bool has_tremolo_f = guild_player->tremolo_f != -1,
+                 has_tremolo_d = guild_player->tremolo_d != -1;
+
+            if (has_tremolo_f || has_tremolo_d)
+                {
+                    std::string v_args = get_ffmpeg_tremolo_args (
+                        has_tremolo_f, has_tremolo_d, guild_player);
+
+                    cmd += cc::command_options_keys_t.helper_chain + '='
+                           + cc::sanitize_command_value ("tremolo=" + v_args)
                            + ';';
                 }
 

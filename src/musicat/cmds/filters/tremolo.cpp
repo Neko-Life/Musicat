@@ -1,17 +1,22 @@
+/*
+    This file is copy pasted 100% from vibrato.cpp
+    I should probably create a base file instead
+    that's another !TODO:^
+*/
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
 #include "musicat/musicat.h"
 #include <dpp/dpp.h>
 #include <string>
 
-namespace musicat::command::filters::vibrato
+namespace musicat::command::filters::tremolo
 {
 
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
-    dpp::command_option subcmd (dpp::co_sub_command, "vibrato",
-                                "Well, vibrate[ playback audio]");
+    dpp::command_option subcmd (dpp::co_sub_command, "tremolo",
+                                "Volume cycler");
 
     subcmd
         .add_option (
@@ -22,12 +27,12 @@ setup_subcommand (dpp::slashcommand &slash)
 
         .add_option (dpp::command_option (
                          dpp::co_number, "frequency",
-                         "Vibrate frequency: [0.1 - 20000.0], default 5.0Hz")
+                         "Cycle frequency: [0.1 - 20000.0], default 5.0Hz")
                          .set_min_value (0.1)
                          .set_max_value (20000.0))
         .add_option (
             dpp::command_option (dpp::co_integer, "intensity",
-                                 "Vibrate intensity in percent, default 50%")
+                                 "Cycle intensity in percent, default 50%")
                 .set_min_value (0)
                 .set_max_value (100));
 
@@ -45,15 +50,15 @@ show (const dpp::slashcommand_t &event)
     bool f_set = false, d_set = false;
     std::string rep;
 
-    if (ftp.guild_player->vibrato_f != -1)
+    if (ftp.guild_player->tremolo_f != -1)
         {
             f_set = true;
 
             rep += "Frequency: "
-                   + std::to_string (ftp.guild_player->vibrato_f);
+                   + std::to_string (ftp.guild_player->tremolo_f);
         }
 
-    if (ftp.guild_player->vibrato_d != -1)
+    if (ftp.guild_player->tremolo_d != -1)
         {
             d_set = true;
 
@@ -62,7 +67,7 @@ show (const dpp::slashcommand_t &event)
                     rep += '\n';
                 }
 
-            rep += "Intensity: " + std::to_string (ftp.guild_player->vibrato_d)
+            rep += "Intensity: " + std::to_string (ftp.guild_player->tremolo_d)
                    + "%";
         }
 
@@ -103,26 +108,26 @@ set (const dpp::slashcommand_t &event)
 
     std::string rep;
 
-    bool had_f = ftp.guild_player->vibrato_f != -1;
-    bool had_d = ftp.guild_player->vibrato_d != -1;
+    bool had_f = ftp.guild_player->tremolo_f != -1;
+    bool had_d = ftp.guild_player->tremolo_d != -1;
 
     bool set_f = f != -1;
     bool set_d = d != -1;
 
     if (!set_f && had_f)
         {
-            f = ftp.guild_player->vibrato_f;
+            f = ftp.guild_player->tremolo_f;
             set_f = true;
         }
 
     if (!set_d && had_d)
         {
-            d = ftp.guild_player->vibrato_d;
+            d = ftp.guild_player->tremolo_d;
             set_d = true;
         }
 
-    bool same_f = f == ftp.guild_player->vibrato_f;
-    bool same_d = d == ftp.guild_player->vibrato_d;
+    bool same_f = f == ftp.guild_player->tremolo_f;
+    bool same_d = d == ftp.guild_player->tremolo_d;
 
     if (!set_f && !set_d)
         {
@@ -140,17 +145,17 @@ set (const dpp::slashcommand_t &event)
                             if (f > 20000.0)
                                 f = 20000.0;
 
-                            same_f = f == ftp.guild_player->vibrato_f;
+                            same_f = f == ftp.guild_player->tremolo_f;
 
                             if (!same_f)
                                 {
-                                    ftp.guild_player->set_vibrato = true;
-                                    ftp.guild_player->vibrato_f = f;
+                                    ftp.guild_player->set_tremolo = true;
+                                    ftp.guild_player->tremolo_f = f;
                                 }
                         }
 
                     rep += "Setting frequency to "
-                           + std::to_string (ftp.guild_player->vibrato_f)
+                           + std::to_string (ftp.guild_player->tremolo_f)
                            + "Hz";
                 }
 
@@ -164,12 +169,12 @@ set (const dpp::slashcommand_t &event)
                             if (d > 100)
                                 d = 100;
 
-                            same_d = d == ftp.guild_player->vibrato_d;
+                            same_d = d == ftp.guild_player->tremolo_d;
 
                             if (!same_d)
                                 {
-                                    ftp.guild_player->set_vibrato = true;
-                                    ftp.guild_player->vibrato_d = d;
+                                    ftp.guild_player->set_tremolo = true;
+                                    ftp.guild_player->tremolo_d = d;
                                 }
                         }
 
@@ -177,7 +182,7 @@ set (const dpp::slashcommand_t &event)
                         rep += '\n';
 
                     rep += "Setting intensity to "
-                           + std::to_string (ftp.guild_player->vibrato_d)
+                           + std::to_string (ftp.guild_player->tremolo_d)
                            + "%";
                 }
         }
@@ -193,7 +198,7 @@ reset (const dpp::slashcommand_t &event)
     if (perquisite (event, &ftp))
         return;
 
-    if (ftp.guild_player->vibrato_f == -1 && ftp.guild_player->vibrato_d == -1)
+    if (ftp.guild_player->tremolo_f == -1 && ftp.guild_player->tremolo_d == -1)
         {
             event.reply ("This filter is not enabled, please enable first "
                          "before resetting");
@@ -201,9 +206,9 @@ reset (const dpp::slashcommand_t &event)
             return;
         }
 
-    ftp.guild_player->vibrato_f = -1;
-    ftp.guild_player->vibrato_d = -1;
-    ftp.guild_player->set_vibrato = true;
+    ftp.guild_player->tremolo_f = -1;
+    ftp.guild_player->tremolo_d = -1;
+    ftp.guild_player->set_tremolo = true;
 
     event.reply ("Resetting...");
 }
@@ -235,4 +240,4 @@ slash_run (const dpp::slashcommand_t &event)
     handle_command ({ arg_action, action_handlers, event });
 }
 
-} // musicat::command::filters::vibrato
+} // musicat::command::filters::tremolo
