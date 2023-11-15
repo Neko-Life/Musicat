@@ -864,6 +864,10 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     else if (read_idx)
                                         // any error is ignored here
                                         // we're exiting anyway, who cares
+                                        //
+                                        // !TODO: closed/invalid fd should be
+                                        // removed from pfds to avoid poll
+                                        // returning immediately when called!!!
                                         close_valid_fd (&prev_fd);
                                 }
                         }
