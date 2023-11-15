@@ -839,17 +839,22 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                 first_fd, got_hup, read_idx, prev_ni);
 #endif
 
-                            if (first_fd && got_hup)
+                            if (got_hup)
                                 {
-                                    // all hup, lets break and reap all
-                                    // children
-                                    shutdown_is_last_hup = true;
-                                    break;
-                                }
+                                    if (first_fd)
+                                        {
+                                            // all hup, lets break and reap all
+                                            // children
+                                            shutdown_is_last_hup = true;
+                                            break;
+                                        }
 
-                            // close previous write fd
-                            if (read_idx && !first_fd)
-                                close_valid_fd (&prev_fd);
+                                    // close previous write fd
+                                    else if (read_idx)
+                                        // any error is ignored here
+                                        // we're exiting anyway, who cares
+                                        close_valid_fd (&prev_fd);
+                                }
                         }
 
                     bool has_error = (got_hup || ni_revents & POLLERR
