@@ -8,6 +8,17 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 
+// this may look too many
+// but on slow machine lower value
+// might just not give it enough time to
+// actually finish reading every last
+// drop of piped data causing horrible clips
+//
+// this is more of a infinite loop guard
+// than actually to limit number
+// of shutdown iteration
+#define MAX_SHUTDOWN_ITER 100000
+
 // #define DEBUG_LOG
 // #define DEBUG_LOG_2
 
@@ -905,7 +916,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                      shutdown_is_last_hup);
 #endif
 
-            if ((shutdown ? (shutdown_is_last_hup || iter >= 10000)
+            if ((shutdown ? (shutdown_is_last_hup || iter >= MAX_SHUTDOWN_ITER)
                           : ori_buffer_written)
                 && !current_has_read)
                 break;
