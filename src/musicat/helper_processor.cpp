@@ -17,7 +17,7 @@
 // this is more of a infinite loop guard
 // than actually to limit number
 // of shutdown iteration
-#define MAX_SHUTDOWN_ITER 100000
+#define MAX_SHUTDOWN_ITER 50000
 
 // #define DEBUG_LOG
 // #define DEBUG_LOG_2
@@ -61,6 +61,10 @@ is_pending (std::vector<int> *vec, int fd)
                     pi++;
                     continue;
                 }
+
+#ifdef DEBUG_LOG_2
+            fprintf (stderr, "fd %d is pending\n", fd);
+#endif
 
             return true;
         }
@@ -470,8 +474,12 @@ manage_processor (const audio_processing::processor_options_t &options,
 }
 
 struct pollfd *
-init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd)
+init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd,
+                     std::vector<char> &fds_state)
 {
+    fds_state.clear ();
+    fds_state.reserve (fds_n);
+
     size_t alloc_size = sizeof (struct pollfd) * fds_n;
 
     struct pollfd *pfds = (struct pollfd *)malloc (alloc_size);
@@ -497,6 +505,9 @@ init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd)
 
                     pfds[fdi].fd = hc.read_fd;
                     pfds[fdi++].events = POLLIN;
+
+                    fds_state.push_back ('r');
+
                     continue;
                 }
 
@@ -507,11 +518,67 @@ init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd)
             pfds[fdi].fd = hc.write_fd;
             pfds[fdi++].events = POLLOUT;
 
+            fds_state.push_back ('w');
+
             pfds[fdi].fd = hc.read_fd;
             pfds[fdi++].events = POLLIN;
+
+            fds_state.push_back ('r');
         }
 
     return pfds;
+}
+
+struct pollfd *
+close_pfds_ni (struct pollfd *pfds, nfds_t ni, nfds_t &fds_n,
+               std::vector<char> &fds_state)
+{
+    std::vector<char> cpy_fds_state = fds_state;
+
+    nfds_t new_fds_n = fds_n - 1;
+
+    fds_state.clear ();
+    fds_state.reserve (new_fds_n);
+
+    size_t alloc_size = sizeof (struct pollfd) * new_fds_n;
+
+    struct pollfd *new_pfds = (struct pollfd *)malloc (alloc_size);
+
+    if (!new_pfds)
+        {
+            fprintf (stderr, "close_pfds_ni: Failed allocating %lu bytes\n",
+                     alloc_size);
+
+            return NULL;
+        }
+
+    nfds_t fdi = 0;
+
+    for (nfds_t hi = 0; hi < fds_n; hi++)
+        {
+            int fd = pfds[hi].fd;
+
+            if (hi == ni)
+                {
+                    close (fd);
+                    continue;
+                }
+
+            char mode = cpy_fds_state.at (hi);
+            bool read_mode = mode == 'r';
+
+            new_pfds[fdi].fd = fd;
+            new_pfds[fdi++].events = read_mode ? POLLIN : POLLOUT;
+
+            fds_state.push_back (mode);
+        }
+
+    free (pfds);
+    pfds = NULL;
+
+    fds_n = new_fds_n;
+
+    return new_pfds;
 }
 
 int
@@ -563,10 +630,17 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
 
     int status = -1;
 
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
+    fprintf (stderr,
+             "READING FROM "
+             "CHAIN: first_read_fd_ready: %d\n",
+             *first_read_fd_ready);
+#endif
+
     while (*first_read_fd_ready
            && (read_size = read (ni_fd, buf, BUFFER_SIZE)) > 0)
         {
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
             fprintf (stderr,
                      "READ FROM "
                      "CHAIN: %lu\n",
@@ -633,7 +707,8 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     if (shutdown)
         fds_n--;
 
-    struct pollfd *pfds = init_helpers_pollfd (fds_n, shutdown);
+    std::vector<char> fds_state;
+    struct pollfd *pfds = init_helpers_pollfd (fds_n, shutdown, fds_state);
 
     if (!pfds)
         {
@@ -652,9 +727,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
     bool ori_buffer_written = false;
 
-    // read fds odd idx
-    // write fds even idx
-    nfds_t max_idx = (fds_n - 1);
+    nfds_t max_idx;
 
     // if this variable got checked then certainly it's true
     bool first_read_fd_ready = true;
@@ -679,10 +752,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
             bool current_has_read = false;
 
             // reverse loop
-            for (nfds_t ni = max_idx;; ni--)
+            for (nfds_t ni = (max_idx = fds_n - 1);; ni--)
                 {
-                    bool read_even = (ni & 1);
-                    bool read_idx = shutdown ? !read_even : read_even;
+                    bool read_idx = fds_state.at (ni) == 'r';
 
                     int ni_fd = pfds[ni].fd;
                     short ni_revents = pfds[ni].revents;
@@ -712,9 +784,66 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                     // int next_fd = pfds[next_ni].fd;
                     // short next_revents = pfds[next_ni].revents;
 
-                    if (read_idx
-                        && (ni_revents & POLLIN
-                            || is_pending (&pending_read, ni_fd)))
+                    bool allow_read = (ni_revents & POLLIN
+                                       || is_pending (&pending_read, ni_fd));
+
+                    bool allow_write = (ni_revents & POLLOUT
+                                        || is_pending (&pending_write, ni_fd));
+
+                    bool got_hup = ni_revents & POLLHUP;
+
+                    if (shutdown)
+                        {
+#ifdef DEBUG_LOG_2
+                            fprintf (
+                                stderr,
+                                "SHUTDOWN HUP CHECK first_fd: %d got_hup: %d "
+                                "read_idx: %d prev_ni: %lu allow_read: %d "
+                                "allow_write: %d\n",
+                                first_fd, got_hup, read_idx, prev_ni,
+                                allow_read, allow_write);
+
+                            fprintf (stderr, "fds_state:");
+                            for (char c : fds_state)
+                                {
+                                    fprintf (stderr, " %c", c);
+                                }
+                            fprintf (stderr, "\n");
+#endif
+
+                            if (got_hup && !allow_read && !allow_write)
+                                {
+                                    pfds = close_pfds_ni (pfds, ni, fds_n,
+                                                          fds_state);
+
+                                    if (first_fd)
+                                        {
+                                            // all hup, lets break and reap all
+                                            // children
+                                            shutdown_is_last_hup = true;
+                                        }
+
+                                    // close previous write fd
+                                    else if (fds_state.at (ni) == 'w')
+                                        {
+                                            // any error is ignored here
+                                            // we're exiting anyway, who cares
+                                            //
+                                            // ni is subtracted from the above
+                                            // close call
+                                            pfds = close_pfds_ni (
+                                                pfds, ni, fds_n, fds_state);
+                                        }
+
+                                    break;
+                                }
+
+                            // reset first_read_fd_ready state
+                            if (!first_read_fd_ready && allow_read && first_fd)
+                                first_read_fd_ready = true;
+                        }
+
+                    if (read_idx && allow_read)
                         {
                             skip_check = true;
 
@@ -785,9 +914,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                             continue;
                         }
 
-                    if (!read_idx
-                        && (ni_revents & POLLOUT
-                            || is_pending (&pending_write, ni_fd)))
+                    if (!read_idx && allow_write)
                         {
                             skip_check = true;
 
@@ -836,40 +963,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                 break;
 
                             continue;
-                        }
-
-                    bool got_hup = ni_revents & POLLHUP;
-
-                    if (shutdown)
-                        {
-#ifdef DEBUG_LOG_2
-                            fprintf (
-                                stderr,
-                                "SHUTDOWN HUP CHECK first_fd: %d got_hup: %d "
-                                "read_idx: %d prev_ni: %lu\n",
-                                first_fd, got_hup, read_idx, prev_ni);
-#endif
-
-                            if (got_hup)
-                                {
-                                    if (first_fd)
-                                        {
-                                            // all hup, lets break and reap all
-                                            // children
-                                            shutdown_is_last_hup = true;
-                                            break;
-                                        }
-
-                                    // close previous write fd
-                                    else if (read_idx)
-                                        // any error is ignored here
-                                        // we're exiting anyway, who cares
-                                        //
-                                        // !TODO: closed/invalid fd should be
-                                        // removed from pfds to avoid poll
-                                        // returning immediately when called!!!
-                                        close_valid_fd (&prev_fd);
-                                }
                         }
 
                     bool has_error = (got_hup || ni_revents & POLLERR
@@ -939,7 +1032,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 int
 shutdown_chain (bool discard_output)
 {
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
     fprintf (stderr, "SHUTTING DOWN CHAIN\n");
 #endif
 
@@ -948,7 +1041,7 @@ shutdown_chain (bool discard_output)
     pending_write.clear ();
     pending_read.clear ();
 
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
     fprintf (stderr, "REAPING PROCESSES\n");
 #endif
 
@@ -956,17 +1049,19 @@ shutdown_chain (bool discard_output)
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
-            close_valid_fd (&hci->write_fd);
+            // close_valid_fd (&hci->write_fd);
 
-            ssize_t buf_size = 0;
-            uint8_t buf[PROCESSOR_BUFFER_SIZE];
-            while ((buf_size = read (hci->read_fd, buf, PROCESSOR_BUFFER_SIZE))
-                   > 0)
-                {
-                    if (!discard_output)
-                        // write read buffer to stdout
-                        audio_processing::write_stdout (buf, &buf_size, true);
-                }
+            // ssize_t buf_size = 0;
+            // uint8_t buf[PROCESSOR_BUFFER_SIZE];
+            // while ((buf_size = read (hci->read_fd, buf,
+            // PROCESSOR_BUFFER_SIZE))
+            //        > 0)
+            //     {
+            //         if (!discard_output)
+            //             // write read buffer to stdout
+            //             audio_processing::write_stdout (buf, &buf_size,
+            //             true);
+            //     }
 
             int status = 0;
             waitpid (hci->pid, &status, 0);
@@ -978,12 +1073,12 @@ shutdown_chain (bool discard_output)
                          "%d `%s`\n",
                          status, hci->options.raw_args.c_str ());
 
-            close_valid_fd (&hci->read_fd);
+            // close_valid_fd (&hci->read_fd);
 
             hci = active_helpers.erase (hci);
         }
 
-#ifdef DEBUG_LOG
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
     fprintf (stderr, "DONE SHUTTING DOWN\n");
 #endif
 
