@@ -194,9 +194,6 @@ get_effect_states_list ()
 void
 handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
-    // do not send drain buffer
-    bool no_send = false;
-
     bool track_seek_queried = !states.track.seek_to.empty ();
 
     if (track_seek_queried)
@@ -209,35 +206,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             states.track.seek_to = "";
-
-            // struct pollfd nfds[1];
-            // nfds[0].events = POLLIN;
-            // nfds[0].fd = read_fd;
-
-            // int n_event = poll (nfds, 1, 100);
-            // bool n_ready
-            //     = (n_event > 0)
-            //       && (nfds[0].revents & POLLIN);
-
-            // if (n_ready)
-            //     {
-            //         char read_buf[CMD_BUFSIZE];
-            //         read (notification_fd, read_buf,
-            //               CMD_BUFSIZE);
-
-            //         if (read_buf[0] != '0')
-            //             {
-            //                 // !TODO: change to
-            //                 other
-            //                 // number and add
-            //                 handler
-            //                 // for it
-            //                 throw_error = 2;
-            //                 break;
-            //             }
-            //     }
-
-            no_send = true;
         }
 
     bool volume_queried = states.guild_player->set_volume != -1;
@@ -419,99 +387,10 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             helper_chain_cmd += cmd;
         }
 
-    if (should_write_helper_chain_cmd)
-        {
-            cc::write_command (helper_chain_cmd, states.command_fd,
-                               "Manager::stream");
-        }
+    if (!should_write_helper_chain_cmd)
+        return;
 
-    bool queried_cmd = track_seek_queried || volume_queried
-                       || should_write_helper_chain_cmd;
-
-    if (!queried_cmd)
-        {
-            return;
-        }
-
-    //////////////////////////////////////////////////
-
-    if (no_send)
-        {
-            //////////////////////////////////////////////////
-            ssize_t drain_size = 0;
-            bool less_buffer_encountered = false;
-
-            // drain current output
-            struct pollfd pfds[1];
-            pfds[0].events = POLLIN;
-            pfds[0].fd = states.read_fd;
-
-            int has_event = poll (pfds, 1, 1000);
-            bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
-
-            //////////////////////////////////////////////////
-
-            // have some patient and wait for 1000 ms each poll
-            // cuz if the pipe isn't really empty we will not have a smooth
-            // seek
-            char drain_buf[DRAIN_CHUNK];
-            while (drain_ready
-                   && ((drain_size
-                        = read (states.read_fd, drain_buf, DRAIN_CHUNK))
-                       > 0))
-                {
-                    if (drain_size < DRAIN_CHUNK)
-                        {
-                            // might be the last buffer, might be not
-                            if (less_buffer_encountered)
-                                {
-                                    // this is the second time we encountered
-                                    // buffer with size less than chunk read,
-                                    // lets break
-                                    break;
-                                }
-
-                            // lets set a flag for next encounter to break
-                            less_buffer_encountered = true;
-                        }
-
-                    has_event = poll (pfds, 1, 0);
-                    drain_ready
-                        = (has_event > 0) && (pfds[0].revents & POLLIN);
-                }
-
-            return;
-        }
-
-#ifndef MUSICAT_USE_PCM
-        // read buffer through liboggz once
-        // int r_count = 0;
-        // while (drain_ready && (r_count < 2)
-        //        && ((drain_size = oggz_read (states.track_og, CHUNK_READ)) >
-        //        0))
-        //     {
-        //         r_count++;
-        //         if (drain_size < CHUNK_READ)
-        //             {
-        //                 // might be the last buffer, might be not
-        //                 if (less_buffer_encountered)
-        //                     {
-        //                         // this is the second time we encountered
-        //                         // buffer with size less than chunk read,
-        //                         // lets break
-        //                         break;
-        //                     }
-
-        //                 // lets set a flag for next encounter to break
-        //                 less_buffer_encountered = true;
-        //             }
-
-        //         has_event = poll (pfds, 1, 0);
-        //         drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
-        //     }
-#else
-        // read and send pcm
-#endif
+    cc::write_command (helper_chain_cmd, states.command_fd, "Manager::stream");
 }
 
 void
@@ -761,118 +640,91 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // using raw pcm need to change ffmpeg output format to s16le!
 #ifdef MUSICAT_USE_PCM
             ssize_t read_size = 0;
-            ssize_t last_read_size = 0;
+            ssize_t current_read = 0;
             ssize_t total_read = 0;
             uint8_t buffer[STREAM_BUFSIZ];
 
             while ((running_state = get_running_state ())
-                   && ((read_size += read (read_fd, buffer + read_size,
-                                           STREAM_BUFSIZ - read_size))
+                   && ((current_read = read (read_fd, buffer + read_size,
+                                             STREAM_BUFSIZ - read_size))
                        > 0))
                 {
-                    // if (track.seek_to > -1 && track.seekable)
+                    read_size += current_read;
+                    total_read += current_read;
 
-                    // prevent infinite loop when done reading the last
-                    // straw of data
-                    const bool is_last_data
-                        = read_size < (ssize_t)STREAM_BUFSIZ
-                          && last_read_size == read_size;
-
-                    if ((is_stopping = is_stream_stopping (server_id))
-                        || is_last_data)
-                        {
-                            break;
-                        }
+                    if ((is_stopping = is_stream_stopping (server_id)))
+                        break;
 
                     handle_effect_chain_change (effect_states);
 
-                    last_read_size = read_size;
+                    if (read_size != STREAM_BUFSIZ)
+                        continue;
 
-                    if (read_size == STREAM_BUFSIZ)
+                    if ((debug = get_debug_state ()))
+                        fprintf (stderr, "Sending buffer: %ld %ld\n",
+                                 total_read, read_size);
+
+                    if (audio_processing::send_audio_routine (
+                            v, (uint16_t *)buffer, &read_size))
+                        break;
+
+                    float outbuf_duration;
+
+                    while ((running_state = get_running_state ()) && v
+                           && !v->terminating
+                           && ((outbuf_duration = v->get_secs_remaining ())
+                               > DPP_AUDIO_BUFFER_LENGTH_SECOND))
                         {
-                            total_read += read_size;
+                            // isn't very pretty for the terminal,
+                            // disable for now
+                            // if ((debug =
+                            // get_debug_state ()))
+                            //     {
+                            //         static std::chrono::time_point
+                            //             start_time
+                            //             = std::chrono::
+                            //                 high_resolution_clock::
+                            //                     now ();
 
-                            if ((debug = get_debug_state ()))
-                                fprintf (stderr, "Sending buffer: %ld %ld\n",
-                                         total_read, read_size);
+                            //         auto end_time = std::chrono::
+                            //             high_resolution_clock::now
+                            //             ();
 
-                            if (audio_processing::send_audio_routine (
-                                    v, (uint16_t *)buffer, &read_size))
-                                {
-                                    break;
-                                }
+                            //         auto done
+                            //             =
+                            //             std::chrono::duration_cast<
+                            //                 std::chrono::
+                            //                     milliseconds> (
+                            //                 end_time - start_time);
 
-                            float outbuf_duration;
+                            //         start_time = end_time;
 
-                            while ((running_state = get_running_state ()) && v
-                                   && !v->terminating
-                                   && ((outbuf_duration
-                                        = v->get_secs_remaining ())
-                                       > DPP_AUDIO_BUFFER_LENGTH_SECOND))
-                                {
-                                    // isn't very pretty for the terminal,
-                                    // disable for now if ((debug =
-                                    // get_debug_state ()))
-                                    //     {
-                                    //         static std::chrono::time_point
-                                    //             start_time
-                                    //             = std::chrono::
-                                    //                 high_resolution_clock::
-                                    //                     now ();
+                            //         fprintf (
+                            //             stderr,
+                            //             "[audio_processing::send_"
+                            //             "audio_routine] "
+                            //             "outbuf_duration: %f >
+                            //             %f\n", outbuf_duration,
+                            //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
 
-                                    //         auto end_time = std::chrono::
-                                    //             high_resolution_clock::now
-                                    //             ();
+                            //         fprintf (stderr,
+                            //                  "[audio_processing::send_"
+                            //                  "audio_routine] Delay "
+                            //                  "between send: %ld "
+                            //                  "milliseconds\n",
+                            //                  done.count ());
+                            //     }
 
-                                    //         auto done
-                                    //             =
-                                    //             std::chrono::duration_cast<
-                                    //                 std::chrono::
-                                    //                     milliseconds> (
-                                    //                 end_time - start_time);
+                            handle_effect_chain_change (effect_states);
 
-                                    //         start_time = end_time;
-
-                                    //         fprintf (
-                                    //             stderr,
-                                    //             "[audio_processing::send_"
-                                    //             "audio_routine] "
-                                    //             "outbuf_duration: %f >
-                                    //             %f\n", outbuf_duration,
-                                    //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
-
-                                    //         fprintf (stderr,
-                                    //                  "[audio_processing::send_"
-                                    //                  "audio_routine] Delay "
-                                    //                  "between send: %ld "
-                                    //                  "milliseconds\n",
-                                    //                  done.count ());
-                                    //     }
-
-                                    handle_effect_chain_change (effect_states);
-
-                                    std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (
-                                            SLEEP_ON_BUFFER_THRESHOLD_MS));
-                                }
+                            std::this_thread::sleep_for (
+                                std::chrono::milliseconds (
+                                    SLEEP_ON_BUFFER_THRESHOLD_MS));
                         }
                 }
 
             if ((read_size > 0) && running_state && !is_stopping)
                 {
-                    // ssize_t padding = STREAM_BUFSIZ - read_size;
-
-                    // for (; read_size < STREAM_BUFSIZ; read_size++)
-                    //     {
-                    //         buffer[read_size] = 0;
-                    //     }
-
-                    // if (debug)
-                    //     {
-                    //         fprintf (stderr, "Added padding: %ld\n",
-                    //                  padding);
-                    //     }
-
                     if (debug)
                         fprintf (stderr, "Final buffer: %ld %ld\n",
                                  (total_read += read_size), read_size);
@@ -984,9 +836,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 {
                     throw throw_error;
                 }
-
-            // if (status != audio_processing::SUCCESS)
-            //     throw 2;
         }
     else
         throw 1;
