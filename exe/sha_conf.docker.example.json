@@ -15,5 +15,7 @@
     "DESCRIPTION": "My cool bot", // bot description
     "SERVER_PORT": 3000, // server port, default to 80
     "WEBAPP_DIR": "", // dashboard dist dir, leave this empty if you don't need dashboard
-    "YTDLP_EXE": "/home/musicat/yt-dlp/yt-dlp.sh" // use yt-dlp already included inside docker
+    "YTDLP_EXE": "/home/musicat/yt-dlp/yt-dlp.sh", // use yt-dlp already included inside docker
+    "CORS_ENABLED_ORIGINS": ["https://www.google.com"], // where your dashboard hosted and anywhere you want to communicate with the api from
+    "JWT_SECRET": "secret"
 }

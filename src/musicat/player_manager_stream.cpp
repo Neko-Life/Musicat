@@ -5,8 +5,10 @@
 #include "musicat/config.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include <cstdint>
 #include <memory>
 #include <oggz/oggz.h>
+#include <string>
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -119,6 +121,52 @@ class EffectStatesListing
     }
 };
 
+std::string
+get_ffmpeg_vibrato_args (bool has_f, bool has_d,
+                         std::shared_ptr<Player> &guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->vibrato_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->vibrato_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
+
+std::string
+get_ffmpeg_tremolo_args (bool has_f, bool has_d,
+                         std::shared_ptr<Player> &guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->tremolo_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->tremolo_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
+
 handle_effect_chain_change_states_t *
 get_effect_states (const dpp::snowflake &guild_id)
 {
@@ -146,57 +194,25 @@ get_effect_states_list ()
 void
 handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
-    // do not send drain buffer
-    bool no_send = false;
-
-    const bool track_seek_queried = !states.track.seek_to.empty ();
+    bool track_seek_queried = !states.track.seek_to.empty ();
 
     if (track_seek_queried)
         {
-            const std::string cmd = cc::command_options_keys_t.command + '='
-                                    + cc::command_options_keys_t.seek + ';'
-                                    + cc::command_options_keys_t.seek + '='
-                                    + states.track.seek_to + ';';
+            std::string cmd = cc::command_options_keys_t.command + '='
+                              + cc::command_options_keys_t.seek + ';'
+                              + cc::command_options_keys_t.seek + '='
+                              + states.track.seek_to + ';';
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             states.track.seek_to = "";
-
-            // struct pollfd nfds[1];
-            // nfds[0].events = POLLIN;
-            // nfds[0].fd = read_fd;
-
-            // int n_event = poll (nfds, 1, 100);
-            // bool n_ready
-            //     = (n_event > 0)
-            //       && (nfds[0].revents & POLLIN);
-
-            // if (n_ready)
-            //     {
-            //         char read_buf[CMD_BUFSIZE];
-            //         read (notification_fd, read_buf,
-            //               CMD_BUFSIZE);
-
-            //         if (read_buf[0] != '0')
-            //             {
-            //                 // !TODO: change to
-            //                 other
-            //                 // number and add
-            //                 handler
-            //                 // for it
-            //                 throw_error = 2;
-            //                 break;
-            //             }
-            //     }
-
-            no_send = true;
         }
 
-    const bool volume_queried = states.guild_player->set_volume != -1;
+    bool volume_queried = states.guild_player->set_volume != -1;
 
     if (volume_queried)
         {
-            const std::string cmd
+            std::string cmd
                 = cc::command_options_keys_t.command + '='
                   + cc::command_options_keys_t.volume + ';'
                   + cc::command_options_keys_t.volume + '='
@@ -208,115 +224,173 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_volume = -1;
         }
 
-    const bool equalizer_queried
-        = !states.guild_player->set_equalizer.empty ();
+    bool should_write_helper_chain_cmd = false;
+    std::string helper_chain_cmd = cc::command_options_keys_t.command + '='
+                                   + cc::command_options_keys_t.helper_chain
+                                   + ';';
+
+    bool equalizer_queried = !states.guild_player->set_equalizer.empty ();
 
     if (equalizer_queried)
         {
-            const std::string new_equalizer
+            std::string new_equalizer
                 = states.guild_player->set_equalizer == "0"
                       ? ""
                       : states.guild_player->set_equalizer;
 
-            const std::string cmd
-                = cc::command_options_keys_t.command + '='
-                  + cc::command_options_keys_t.helper_chain + ';'
-                  + cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (new_equalizer) + ';';
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_equalizer)
+                              + ';';
 
-            cc::write_command (cmd, states.command_fd, "Manager::stream");
+            helper_chain_cmd += cmd;
 
             states.guild_player->equalizer = new_equalizer;
             states.guild_player->set_equalizer = "";
+
+            should_write_helper_chain_cmd = true;
         }
-
-    const bool queried_cmd
-        = track_seek_queried || volume_queried || equalizer_queried;
-
-    if (!queried_cmd)
+    else if (!states.guild_player->equalizer.empty ())
         {
-            return;
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (states.guild_player->equalizer)
+                  + ';';
+
+            helper_chain_cmd += cmd;
         }
 
-    //////////////////////////////////////////////////
+    bool resample_queried = !states.guild_player->set_resample.empty ();
 
-    if (no_send)
+    if (resample_queried)
         {
-            //////////////////////////////////////////////////
-            ssize_t drain_size = 0;
-            bool less_buffer_encountered = false;
+            std::string new_resample = states.guild_player->set_resample == "0"
+                                           ? ""
+                                           : states.guild_player->set_resample;
 
-            // drain current output
-            struct pollfd pfds[1];
-            pfds[0].events = POLLIN;
-            pfds[0].fd = states.read_fd;
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_resample)
+                              + ';';
 
-            int has_event = poll (pfds, 1, 1000);
-            bool drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
+            helper_chain_cmd += cmd;
 
-            //////////////////////////////////////////////////
+            states.guild_player->resample = new_resample;
+            states.guild_player->set_resample = "";
 
-            // have some patient and wait for 1000 ms each poll
-            // cuz if the pipe isn't really empty we will not have a smooth
-            // seek
-            char drain_buf[DRAIN_CHUNK];
-            while (drain_ready
-                   && ((drain_size
-                        = read (states.read_fd, drain_buf, DRAIN_CHUNK))
-                       > 0))
-                {
-                    if (drain_size < DRAIN_CHUNK)
-                        {
-                            // might be the last buffer, might be not
-                            if (less_buffer_encountered)
-                                {
-                                    // this is the second time we encountered
-                                    // buffer with size less than chunk read,
-                                    // lets break
-                                    break;
-                                }
+            should_write_helper_chain_cmd = true;
+        }
+    else if (!states.guild_player->resample.empty ())
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (states.guild_player->resample)
+                  + ';';
 
-                            // lets set a flag for next encounter to break
-                            less_buffer_encountered = true;
-                        }
-
-                    has_event = poll (pfds, 1, 1000);
-                    drain_ready
-                        = (has_event > 0) && (pfds[0].revents & POLLIN);
-                }
-
-            return;
+            helper_chain_cmd += cmd;
         }
 
-#ifndef MUSICAT_USE_PCM
-        // read buffer through liboggz once
-        // int r_count = 0;
-        // while (drain_ready && (r_count < 2)
-        //        && ((drain_size = oggz_read (states.track_og, CHUNK_READ)) >
-        //        0))
-        //     {
-        //         r_count++;
-        //         if (drain_size < CHUNK_READ)
-        //             {
-        //                 // might be the last buffer, might be not
-        //                 if (less_buffer_encountered)
-        //                     {
-        //                         // this is the second time we encountered
-        //                         // buffer with size less than chunk read,
-        //                         // lets break
-        //                         break;
-        //                     }
+    bool vibrato_queried = states.guild_player->set_vibrato;
+    bool has_vibrato_f, has_vibrato_d;
 
-        //                 // lets set a flag for next encounter to break
-        //                 less_buffer_encountered = true;
-        //             }
+    has_vibrato_f = states.guild_player->vibrato_f != -1;
+    has_vibrato_d = states.guild_player->vibrato_d != -1;
 
-        //         has_event = poll (pfds, 1, 0);
-        //         drain_ready = (has_event > 0) && (pfds[0].revents & POLLIN);
-        //     }
-#else
-        // read and send pcm
-#endif
+    if (vibrato_queried)
+        {
+
+            std::string new_vibrato
+                = (!has_vibrato_f && !has_vibrato_d)
+                      ? ""
+                      : "vibrato="
+                            + get_ffmpeg_vibrato_args (has_vibrato_f,
+                                                       has_vibrato_d,
+                                                       states.guild_player);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_vibrato) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_vibrato = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if (has_vibrato_f || has_vibrato_d)
+        {
+            std::string v_args = get_ffmpeg_vibrato_args (
+                has_vibrato_f, has_vibrato_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("vibrato=" + v_args) + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    bool tremolo_queried = states.guild_player->set_tremolo;
+    bool has_tremolo_f, has_tremolo_d;
+
+    has_tremolo_f = states.guild_player->tremolo_f != -1;
+    has_tremolo_d = states.guild_player->tremolo_d != -1;
+
+    if (tremolo_queried)
+        {
+
+            std::string new_tremolo
+                = (!has_tremolo_f && !has_tremolo_d)
+                      ? ""
+                      : "tremolo="
+                            + get_ffmpeg_tremolo_args (has_tremolo_f,
+                                                       has_tremolo_d,
+                                                       states.guild_player);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_tremolo) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_tremolo = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if (has_tremolo_f || has_tremolo_d)
+        {
+            std::string v_args = get_ffmpeg_tremolo_args (
+                has_tremolo_f, has_tremolo_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("tremolo=" + v_args) + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    bool earwax_queried
+        = states.guild_player->set_earwax != states.guild_player->earwax;
+
+    if (earwax_queried)
+        {
+            std::string new_fx
+                = states.guild_player->set_earwax == false ? "" : "earwax";
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_fx) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->earwax = states.guild_player->set_earwax;
+
+            should_write_helper_chain_cmd = true;
+        }
+    else if (states.guild_player->earwax)
+        {
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value ("earwax") + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!should_write_helper_chain_cmd)
+        return;
+
+    cc::write_command (helper_chain_cmd, states.command_fd, "Manager::stream");
 }
 
 void
@@ -433,6 +507,41 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value (guild_player->equalizer)
                        + ';';
 
+            if (!guild_player->resample.empty ())
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value (guild_player->resample)
+                       + ';';
+
+            bool has_vibrato_f = guild_player->vibrato_f != -1,
+                 has_vibrato_d = guild_player->vibrato_d != -1;
+
+            if (has_vibrato_f || has_vibrato_d)
+                {
+                    std::string v_args = get_ffmpeg_vibrato_args (
+                        has_vibrato_f, has_vibrato_d, guild_player);
+
+                    cmd += cc::command_options_keys_t.helper_chain + '='
+                           + cc::sanitize_command_value ("vibrato=" + v_args)
+                           + ';';
+                }
+
+            bool has_tremolo_f = guild_player->tremolo_f != -1,
+                 has_tremolo_d = guild_player->tremolo_d != -1;
+
+            if (has_tremolo_f || has_tremolo_d)
+                {
+                    std::string v_args = get_ffmpeg_tremolo_args (
+                        has_tremolo_f, has_tremolo_d, guild_player);
+
+                    cmd += cc::command_options_keys_t.helper_chain + '='
+                           + cc::sanitize_command_value ("tremolo=" + v_args)
+                           + ';';
+                }
+
+            if (guild_player->earwax)
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value ("earwax") + ';';
+
             // !TODO: convert current byte to timestamp string
             // + cc::command_options_keys_t.seek + '=' +
             // track.current_byte
@@ -499,6 +608,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             bool processor_read_ready = false;
             if (nread_size > 0)
                 {
+                    nbuf[nread_size] = '\0';
+
                     if (std::string (nbuf) == "0")
                         {
                             processor_read_ready = true;
@@ -529,118 +640,91 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // using raw pcm need to change ffmpeg output format to s16le!
 #ifdef MUSICAT_USE_PCM
             ssize_t read_size = 0;
-            ssize_t last_read_size = 0;
+            ssize_t current_read = 0;
             ssize_t total_read = 0;
             uint8_t buffer[STREAM_BUFSIZ];
 
             while ((running_state = get_running_state ())
-                   && ((read_size += read (read_fd, buffer + read_size,
-                                           STREAM_BUFSIZ - read_size))
+                   && ((current_read = read (read_fd, buffer + read_size,
+                                             STREAM_BUFSIZ - read_size))
                        > 0))
                 {
-                    // if (track.seek_to > -1 && track.seekable)
+                    read_size += current_read;
+                    total_read += current_read;
 
-                    // prevent infinite loop when done reading the last
-                    // straw of data
-                    const bool is_last_data
-                        = read_size < (ssize_t)STREAM_BUFSIZ
-                          && last_read_size == read_size;
-
-                    if ((is_stopping = is_stream_stopping (server_id))
-                        || is_last_data)
-                        {
-                            break;
-                        }
+                    if ((is_stopping = is_stream_stopping (server_id)))
+                        break;
 
                     handle_effect_chain_change (effect_states);
 
-                    last_read_size = read_size;
+                    if (read_size != STREAM_BUFSIZ)
+                        continue;
 
-                    if (read_size == STREAM_BUFSIZ)
+                    if ((debug = get_debug_state ()))
+                        fprintf (stderr, "Sending buffer: %ld %ld\n",
+                                 total_read, read_size);
+
+                    if (audio_processing::send_audio_routine (
+                            v, (uint16_t *)buffer, &read_size))
+                        break;
+
+                    float outbuf_duration;
+
+                    while ((running_state = get_running_state ()) && v
+                           && !v->terminating
+                           && ((outbuf_duration = v->get_secs_remaining ())
+                               > DPP_AUDIO_BUFFER_LENGTH_SECOND))
                         {
-                            total_read += read_size;
+                            // isn't very pretty for the terminal,
+                            // disable for now
+                            // if ((debug =
+                            // get_debug_state ()))
+                            //     {
+                            //         static std::chrono::time_point
+                            //             start_time
+                            //             = std::chrono::
+                            //                 high_resolution_clock::
+                            //                     now ();
 
-                            if ((debug = get_debug_state ()))
-                                fprintf (stderr, "Sending buffer: %ld %ld\n",
-                                         total_read, read_size);
+                            //         auto end_time = std::chrono::
+                            //             high_resolution_clock::now
+                            //             ();
 
-                            if (audio_processing::send_audio_routine (
-                                    v, (uint16_t *)buffer, &read_size))
-                                {
-                                    break;
-                                }
+                            //         auto done
+                            //             =
+                            //             std::chrono::duration_cast<
+                            //                 std::chrono::
+                            //                     milliseconds> (
+                            //                 end_time - start_time);
 
-                            float outbuf_duration;
+                            //         start_time = end_time;
 
-                            while ((running_state = get_running_state ()) && v
-                                   && !v->terminating
-                                   && ((outbuf_duration
-                                        = v->get_secs_remaining ())
-                                       > DPP_AUDIO_BUFFER_LENGTH_SECOND))
-                                {
-                                    // isn't very pretty for the terminal,
-                                    // disable for now if ((debug =
-                                    // get_debug_state ()))
-                                    //     {
-                                    //         static std::chrono::time_point
-                                    //             start_time
-                                    //             = std::chrono::
-                                    //                 high_resolution_clock::
-                                    //                     now ();
+                            //         fprintf (
+                            //             stderr,
+                            //             "[audio_processing::send_"
+                            //             "audio_routine] "
+                            //             "outbuf_duration: %f >
+                            //             %f\n", outbuf_duration,
+                            //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
 
-                                    //         auto end_time = std::chrono::
-                                    //             high_resolution_clock::now
-                                    //             ();
+                            //         fprintf (stderr,
+                            //                  "[audio_processing::send_"
+                            //                  "audio_routine] Delay "
+                            //                  "between send: %ld "
+                            //                  "milliseconds\n",
+                            //                  done.count ());
+                            //     }
 
-                                    //         auto done
-                                    //             =
-                                    //             std::chrono::duration_cast<
-                                    //                 std::chrono::
-                                    //                     milliseconds> (
-                                    //                 end_time - start_time);
+                            handle_effect_chain_change (effect_states);
 
-                                    //         start_time = end_time;
-
-                                    //         fprintf (
-                                    //             stderr,
-                                    //             "[audio_processing::send_"
-                                    //             "audio_routine] "
-                                    //             "outbuf_duration: %f >
-                                    //             %f\n", outbuf_duration,
-                                    //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
-
-                                    //         fprintf (stderr,
-                                    //                  "[audio_processing::send_"
-                                    //                  "audio_routine] Delay "
-                                    //                  "between send: %ld "
-                                    //                  "milliseconds\n",
-                                    //                  done.count ());
-                                    //     }
-
-                                    handle_effect_chain_change (effect_states);
-
-                                    std::this_thread::sleep_for (
-                                        std::chrono::milliseconds (
-                                            SLEEP_ON_BUFFER_THRESHOLD_MS));
-                                }
+                            std::this_thread::sleep_for (
+                                std::chrono::milliseconds (
+                                    SLEEP_ON_BUFFER_THRESHOLD_MS));
                         }
                 }
 
             if ((read_size > 0) && running_state && !is_stopping)
                 {
-                    // ssize_t padding = STREAM_BUFSIZ - read_size;
-
-                    // for (; read_size < STREAM_BUFSIZ; read_size++)
-                    //     {
-                    //         buffer[read_size] = 0;
-                    //     }
-
-                    // if (debug)
-                    //     {
-                    //         fprintf (stderr, "Added padding: %ld\n",
-                    //                  padding);
-                    //     }
-
                     if (debug)
                         fprintf (stderr, "Final buffer: %ld %ld\n",
                                  (total_read += read_size), read_size);
@@ -752,9 +836,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 {
                     throw throw_error;
                 }
-
-            // if (status != audio_processing::SUCCESS)
-            //     throw 2;
         }
     else
         throw 1;

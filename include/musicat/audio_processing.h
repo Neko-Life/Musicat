@@ -6,6 +6,7 @@
 #include "musicat/player.h"
 #include <fcntl.h>
 #include <memory>
+#include <semaphore.h>
 #include <stdio.h>
 
 #ifdef MUSICAT_USE_PCM
@@ -30,7 +31,9 @@
 inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
 inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
-inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
+// inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
+inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ / 2;
+
 inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUS = BUFSIZ / 2;
 
 namespace musicat
@@ -165,6 +168,20 @@ mode_t get_audio_stream_fifo_mode_t ();
 std::string get_audio_stream_stdin_path (const std::string &id);
 
 std::string get_audio_stream_stdout_path (const std::string &id);
+
+// should be called by parent process
+std::string get_sem_key (const std::string &key);
+
+// should be called by parent process
+sem_t *create_sem (const std::string &full_key);
+
+// should be called by child process
+int do_sem_post (sem_t *sem);
+
+int clear_sem (sem_t *sem, const std::string &full_key);
+
+// should be called by parent process
+int do_sem_wait (sem_t *sem, const std::string &full_key);
 
 } // audio_processing
 } // musicat

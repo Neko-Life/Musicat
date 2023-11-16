@@ -1,8 +1,8 @@
 #ifndef MUSICAT_COMMAND_FILTERS_H
 #define MUSICAT_COMMAND_FILTERS_H
 
-#include <dpp/dpp.h>
 #include "musicat/player.h"
+#include <dpp/dpp.h>
 
 namespace musicat::command::filters
 {
@@ -31,6 +31,43 @@ void setup_subcommand (dpp::slashcommand &slash);
 void slash_run (const dpp::slashcommand_t &event);
 
 } // equalizer
+
+namespace resample
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // resample
+
+namespace earwax
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // earwax
+
+namespace vibrato
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // vibrato
+
+namespace tremolo
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // tremolo
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H

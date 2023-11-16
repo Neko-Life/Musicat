@@ -74,7 +74,6 @@ namespace filters
 {
 namespace equalizer
 {
-// !TODO: create a struct for this
 
 struct equalizer_fx_t
 {
@@ -279,7 +278,7 @@ setup_subcommand (dpp::slashcommand &slash)
         }
 }
 
-static inline constexpr const command_handlers_map_t action_handlers
+inline constexpr const command_handlers_map_t action_handlers
     = { { "", show },
         { action_t_e.set, set },
         { action_t_e.balance, balance },
@@ -397,7 +396,6 @@ slash_run (const dpp::slashcommand_t &event)
 }
 
 } // equalizer
-
 } // filters
 } // command
 } // musicat

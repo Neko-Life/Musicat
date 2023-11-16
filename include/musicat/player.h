@@ -171,8 +171,6 @@ class Player
      */
     MCTrack current_track;
 
-    bool stopped;
-
     int volume;
     int set_volume;
 
@@ -184,6 +182,37 @@ class Player
      * @brief Equalizer raw ffmpeg opt
      */
     std::string set_equalizer;
+
+    /**
+     * @brief Resample raw ffmpeg opt
+     */
+    std::string resample;
+    /**
+     * @brief Resample raw ffmpeg opt
+     */
+    std::string set_resample;
+
+    bool stopped;
+    bool earwax;
+    bool set_earwax;
+
+    bool set_vibrato;
+    bool set_tremolo;
+
+    /**
+     * @brief In percent, so it should be converted with (float)d/100 when
+     * provided to ffmpeg
+     */
+    int vibrato_d;
+
+    /**
+     * @brief In percent, so it should be converted with (float)d/100 when
+     * provided to ffmpeg
+     */
+    int tremolo_d;
+
+    double vibrato_f;
+    double tremolo_f;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the

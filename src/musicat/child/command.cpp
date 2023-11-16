@@ -215,6 +215,8 @@ inline constexpr const char *wccfmt
       "buffer size: %ld > %d\n";
 inline constexpr const char *wccfmt2
     = "[%s child::command::write_command ERROR] Dropping command: %s\n";
+inline constexpr const char *wccfmt3
+    = "[%s child::command::write_command] fd %d: `%s`\n";
 
 void
 write_command (const std::string &cmd, const int write_fd, const char *caller)
@@ -235,6 +237,9 @@ write_command (const std::string &cmd, const int write_fd, const char *caller)
 
     std::string cpy (cmd);
     cpy.resize (CMD_BUFSIZE, '\0');
+
+    if (get_debug_state ())
+        fprintf (stderr, wccfmt3, caller, write_fd, cpy.c_str ());
 
     write (write_fd, cpy.c_str (), CMD_BUFSIZE);
 }

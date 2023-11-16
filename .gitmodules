@@ -20,3 +20,6 @@
 [submodule "libs/liboggz"]
 	path = libs/liboggz
 	url = https://github.com/kfish/liboggz.git
+[submodule "libs/jwt-cpp"]
+	path = libs/jwt-cpp
+	url = https://github.com/Thalhammer/jwt-cpp

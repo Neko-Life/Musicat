@@ -2,6 +2,8 @@
 #include "musicat/events/on_button_click.h"
 #include "musicat/events/on_channel_update.h"
 #include "musicat/events/on_form_submit.h"
+#include "musicat/events/on_guild_create.h"
+#include "musicat/events/on_guild_delete.h"
 #include "musicat/events/on_message_create.h"
 #include "musicat/events/on_message_delete.h"
 #include "musicat/events/on_message_delete_bulk.h"
@@ -29,6 +31,8 @@ load_events (dpp::cluster *client)
     on_message_delete (client);
     on_message_delete_bulk (client);
     on_channel_update (client);
+    on_guild_create (client);
+    on_guild_delete (client);
 
     return 0;
 }

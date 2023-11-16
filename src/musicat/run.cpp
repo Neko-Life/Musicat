@@ -154,9 +154,9 @@ is_voice_channel (dpp::channel_type channel_type)
 }
 
 int
-load_config ()
+load_config (const std::string &config_file)
 {
-    std::ifstream scs ("sha_conf.json");
+    std::ifstream scs (config_file);
     if (!scs.is_open ())
         {
             fprintf (stderr, "[ERROR] No config file exist\n");
@@ -210,10 +210,12 @@ get_music_folder_path ()
 std::string
 get_invite_oauth_base_url ()
 {
-    const std::string sha_id_str = std::to_string (get_sha_id ());
+    dpp::snowflake sid = get_sha_id ();
 
-    if (sha_id_str.empty ())
+    if (!sid)
         return "";
+
+    std::string sha_id_str = std::to_string (sid);
 
     return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
 }
@@ -329,6 +331,39 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+std::vector<std::string>
+get_cors_enabled_origins ()
+{
+    std::vector<std::string> ret = {};
+
+    auto i_a = sha_cfg.find ("CORS_ENABLED_ORIGINS");
+
+    if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
+        return ret;
+
+    size_t i_a_siz = i_a->size ();
+
+    ret.reserve (i_a_siz);
+
+    for (size_t i = 0; i < i_a_siz; i++)
+        {
+            nlohmann::json entry = i_a->at (i);
+
+            if (!entry.is_string () || !entry.size ())
+                continue;
+
+            ret.push_back (entry.get<std::string> ());
+        }
+
+    return ret;
+}
+
+std::string
+get_jwt_secret ()
+{
+    return get_config_value<std::string> ("JWT_SECRET", "");
+}
+
 int _sigint_count = 0;
 
 void
@@ -373,7 +408,7 @@ run (int argc, const char *argv[])
     set_running_state (true);
 
     // load config file
-    const int config_status = load_config ();
+    int config_status = load_config ();
     if (config_status != 0)
         return config_status;
 
@@ -530,6 +565,8 @@ run (int argc, const char *argv[])
                                  status);
                 }
 
+            server::main_loop_routine ();
+
             thread_manager::join_done ();
         }
 
@@ -545,6 +582,7 @@ run (int argc, const char *argv[])
 
     return 0;
 }
+
 } // musicat
 
 // vim: et sw=4 ts=8

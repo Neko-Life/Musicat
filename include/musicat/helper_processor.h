@@ -29,6 +29,9 @@ struct helper_chain_t
 
     audio_processing::helper_chain_option_t options;
     // stream state
+
+    sem_t *sem;
+    std::string sem_full_key;
 };
 
 void close_all_helper_fds ();
@@ -37,7 +40,8 @@ int manage_processor (const audio_processing::processor_options_t &options,
                       void (*on_fork) ());
 
 // run buffer through effect processor chain
-ssize_t run_through_chain (uint8_t *buffer, ssize_t *size);
+ssize_t run_through_chain (uint8_t *buffer, ssize_t *size,
+                           bool shutdown_discard_output = false);
 
 int shutdown_chain (bool discard_output = false);
 

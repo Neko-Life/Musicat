@@ -13,6 +13,8 @@
 #include <regex>
 #include <vector>
 
+/* #define USE_SEARCH_CACHE */
+
 namespace musicat::command::play
 {
 namespace autocomplete
@@ -266,12 +268,15 @@ find_track (bool playlist, std::string &arg_query,
         }
 
     yt_search::YSearchResult search_result = {};
+    yt_search::YPlaylist playlist_result = {};
 
     // prioritize cache over searching
     std::vector<yt_search::YTrack> searches;
 
+#ifdef USE_SEARCH_CACHE
     if (has_cache_id)
         searches = search_cache::get (cache_id);
+#endif
 
     size_t searches_size = has_cache_id ? searches.size () : 0;
     // quick decide to remove when no result found instead of looking up in the
@@ -287,7 +292,10 @@ find_track (bool playlist, std::string &arg_query,
                 {
                     searches
                         = playlist
-                              ? yt_search::get_playlist (arg_query).entries ()
+                              ? (playlist_result
+                                 = yt_search::get_playlist (arg_query))
+                                    .entries ()
+
                               : (search_result = yt_search::search (arg_query))
                                     .trackResults ();
 
@@ -310,13 +318,22 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
+    if (playlist && playlist_result.status == 1 && !searches.empty ())
+        {
+            // remove duplicate track as first sideTrackPlaylist entry is a
+            // duplicate of the searched track
+            searches.erase (searches.begin ());
+        }
+
     searches_size = searches.size ();
 
+#ifdef USE_SEARCH_CACHE
     // indicate if this cache is updated
     bool update_cache = searched && has_cache_id && searches_size;
     // save the result to cache
     if (update_cache)
         search_cache::set (cache_id, searches);
+#endif
 
     if (searches.begin () == searches.end ())
         {
@@ -375,17 +392,20 @@ find_track (bool playlist, std::string &arg_query,
 
             if (result.raw.is_null ())
                 {
+#ifdef USE_SEARCH_CACHE
                     // invalidate cache if Id provided
                     if (has_cache_id && cached_size)
                         search_cache::remove (cache_id);
-
+#endif
                     return { {}, 1 };
                 }
         }
 
+#ifdef USE_SEARCH_CACHE
     // save cache with key result id if update_cache is false
     if (!update_cache && !result.raw.is_null ())
         search_cache::set (result.id (), searches);
+#endif
 
     return { result, 0 };
 }

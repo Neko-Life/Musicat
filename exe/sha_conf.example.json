@@ -15,5 +15,7 @@
     "DESCRIPTION": "My cool bot", // bot description
     "SERVER_PORT": 3000, // server port, default to 80
     "WEBAPP_DIR": "/home/musicat-dashboard/dist", // dashboard dist dir, leave this empty if you don't need dashboard
-    "YTDLP_EXE": "~/Musicat/libs/yt-dlp/yt-dlp.sh" // your yt-dlp command, can be simply "yt-dlp" if you have it installed in your system. You can specify the absolute path to libs/yt-dlp/yt-dlp.sh to use the submodule
+    "YTDLP_EXE": "~/Musicat/libs/yt-dlp/yt-dlp.sh", // your yt-dlp command, can be simply "yt-dlp" if you have it installed in your system. You can specify the absolute path to libs/yt-dlp/yt-dlp.sh to use the submodule
+    "CORS_ENABLED_ORIGINS": ["https://www.google.com"], // where your dashboard hosted and anywhere you want to communicate with the api from
+    "JWT_SECRET": "secret"
 }

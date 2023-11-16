@@ -3,29 +3,35 @@
 
 #include <mutex>
 #include <string>
+#include <uWebSockets/src/App.h>
 
-namespace musicat
-{
-namespace server
-{
-enum ws_req_t
-{
-    bot_info = 1,
-    server_list = 2,
-    oauth_req = 3,
-    invite_req = 4,
-};
+#define SERVER_WITH_SSL false
+#define BOT_AVATAR_SIZE 480
 
-enum ws_event_t
+namespace musicat::server
 {
-    oauth = 1,
-};
 
-struct SocketData
+#if SERVER_WITH_SSL == true
+using APIApp = uWS::SSLApp;
+#else
+using APIApp = uWS::App;
+#endif
+
+using APIResponse = uWS::HttpResponse<SERVER_WITH_SSL>;
+using APIRequest = uWS::HttpRequest;
+
+inline constexpr const struct
 {
-};
+    const char *OK_200 = "200 OK";
+    const char *BAD_REQUEST_400 = "400 Bad Request";
+    const char *FORBIDDEN_403 = "403 Forbidden";
+    const char *NOT_FOUND_404 = "404 Not Found";
+    const char *NO_CONTENT_204 = "204 No Content";
+    const char *INTERNAL_SERVER_ERROR_500 = "500 Internal Server Error";
+    const char *UNAUTHORIZED_401 = "401 Unauthorized";
+} http_status_t;
 
-// always lock this whenever calling publish(),
+// always lock this whenever updating states
 // EXTERN_VARIABLE
 extern std::mutex ns_mutex;
 
@@ -41,7 +47,9 @@ int shutdown ();
 
 int run ();
 
-} // server
-} // musicat
+// should call this in main loop to keep states in check
+void main_loop_routine ();
+
+} // musicat::server
 
 #endif // MUSICAT_SERVER_H
