@@ -1,10 +1,6 @@
-/*
-    This file is copy pasted 100% from vibrato.cpp
-    I should probably create a base file instead
-    that's another !TODO:^
-*/
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
+#include "musicat/cmds/filters/modulation.h"
 #include "musicat/musicat.h"
 #include <dpp/dpp.h>
 #include <string>
@@ -12,205 +8,55 @@
 namespace musicat::command::filters::tremolo
 {
 
+static double
+get_f (const filters_perquisite_t &ftp)
+{
+    return ftp.guild_player->tremolo_f;
+}
+
+static int
+get_d (const filters_perquisite_t &ftp)
+{
+    return ftp.guild_player->tremolo_d;
+}
+
+static void
+set_f (const filters_perquisite_t &ftp, double v)
+{
+    ftp.guild_player->tremolo_f = v;
+    ftp.guild_player->set_tremolo = true;
+}
+
+static void
+set_d (const filters_perquisite_t &ftp, int v)
+{
+    ftp.guild_player->tremolo_d = v;
+    ftp.guild_player->set_tremolo = true;
+}
+
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
-    dpp::command_option subcmd (dpp::co_sub_command, "tremolo",
-                                "Volume cycler");
-
-    subcmd
-        .add_option (
-            dpp::command_option (dpp::co_string, "action",
-                                 "What you wanna do?", false)
-                .add_choice (dpp::command_option_choice ("Set", "0"))
-                .add_choice (dpp::command_option_choice ("Reset", "1")))
-
-        .add_option (dpp::command_option (
-                         dpp::co_number, "frequency",
-                         "Cycle frequency: [0.1 - 20000.0], default 5.0Hz")
-                         .set_min_value (0.1)
-                         .set_max_value (20000.0))
-        .add_option (
-            dpp::command_option (dpp::co_integer, "intensity",
-                                 "Cycle intensity in percent, default 50%")
-                .set_min_value (0)
-                .set_max_value (100));
-
-    slash.add_option (subcmd);
+    return modulation::setup_subcommand (
+        slash, { "tremolo", "Volume cycler", "Cycle" });
 }
 
 void
 show (const dpp::slashcommand_t &event)
 {
-    filters_perquisite_t ftp;
-
-    if (perquisite (event, &ftp))
-        return;
-
-    bool f_set = false, d_set = false;
-    std::string rep;
-
-    if (ftp.guild_player->tremolo_f != -1)
-        {
-            f_set = true;
-
-            rep += "Frequency: "
-                   + std::to_string (ftp.guild_player->tremolo_f);
-        }
-
-    if (ftp.guild_player->tremolo_d != -1)
-        {
-            d_set = true;
-
-            if (f_set)
-                {
-                    rep += '\n';
-                }
-
-            rep += "Intensity: " + std::to_string (ftp.guild_player->tremolo_d)
-                   + "%";
-        }
-
-    if (f_set && d_set)
-        {
-            // dummy if to prevent very significantly major performance
-            // degradation
-        }
-    else if (!f_set && !d_set)
-        {
-            rep += "This filter is not enabled";
-        }
-    else if (f_set && !d_set)
-        {
-            rep += "\nDefault intensity";
-        }
-    else if (!f_set && d_set)
-        {
-            rep += "\nDefault frequency";
-        }
-
-    event.reply (rep);
+    modulation::show (event, get_f, get_d);
 }
 
 void
 set (const dpp::slashcommand_t &event)
 {
-    filters_perquisite_t ftp;
-
-    if (perquisite (event, &ftp))
-        return;
-
-    double f = -1;
-    int64_t d = -1;
-
-    get_inter_param (event, "frequency", &f);
-    get_inter_param (event, "intensity", &d);
-
-    std::string rep;
-
-    bool had_f = ftp.guild_player->tremolo_f != -1;
-    bool had_d = ftp.guild_player->tremolo_d != -1;
-
-    bool set_f = f != -1;
-    bool set_d = d != -1;
-
-    if (!set_f && had_f)
-        {
-            f = ftp.guild_player->tremolo_f;
-            set_f = true;
-        }
-
-    if (!set_d && had_d)
-        {
-            d = ftp.guild_player->tremolo_d;
-            set_d = true;
-        }
-
-    bool same_f = f == ftp.guild_player->tremolo_f;
-    bool same_d = d == ftp.guild_player->tremolo_d;
-
-    if (!set_f && !set_d)
-        {
-            rep += "What do you want to set??";
-        }
-    else
-        {
-            if (set_f)
-                {
-                    if (!same_f)
-                        {
-                            if (f < 0.1)
-                                f = 0.1;
-
-                            if (f > 20000.0)
-                                f = 20000.0;
-
-                            same_f = f == ftp.guild_player->tremolo_f;
-
-                            if (!same_f)
-                                {
-                                    ftp.guild_player->set_tremolo = true;
-                                    ftp.guild_player->tremolo_f = f;
-                                }
-                        }
-
-                    rep += "Setting frequency to "
-                           + std::to_string (ftp.guild_player->tremolo_f)
-                           + "Hz";
-                }
-
-            if (set_d)
-                {
-                    if (!same_d)
-                        {
-                            if (d < 0)
-                                d = 0;
-
-                            if (d > 100)
-                                d = 100;
-
-                            same_d = d == ftp.guild_player->tremolo_d;
-
-                            if (!same_d)
-                                {
-                                    ftp.guild_player->set_tremolo = true;
-                                    ftp.guild_player->tremolo_d = d;
-                                }
-                        }
-
-                    if (set_f)
-                        rep += '\n';
-
-                    rep += "Setting intensity to "
-                           + std::to_string (ftp.guild_player->tremolo_d)
-                           + "%";
-                }
-        }
-
-    event.reply (rep);
+    modulation::set (event, get_f, get_d, set_f, set_d);
 }
 
 void
 reset (const dpp::slashcommand_t &event)
 {
-    filters_perquisite_t ftp;
-
-    if (perquisite (event, &ftp))
-        return;
-
-    if (ftp.guild_player->tremolo_f == -1 && ftp.guild_player->tremolo_d == -1)
-        {
-            event.reply ("This filter is not enabled, please enable first "
-                         "before resetting");
-
-            return;
-        }
-
-    ftp.guild_player->tremolo_f = -1;
-    ftp.guild_player->tremolo_d = -1;
-    ftp.guild_player->set_tremolo = true;
-
-    event.reply ("Resetting...");
+    modulation::reset (event, get_f, get_d, set_f, set_d);
 }
 
 inline constexpr const command_handlers_map_t action_handlers
@@ -219,25 +65,7 @@ inline constexpr const command_handlers_map_t action_handlers
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    filters_perquisite_t ftp;
-
-    if (perquisite (event, &ftp))
-        return;
-
-    std::string arg_action = "";
-    get_inter_param (event, "action", &arg_action);
-
-    if (arg_action.empty ())
-        {
-            double f = -1;
-            int64_t d = -1;
-
-            if (get_inter_param (event, "frequency", &f) == 0
-                || get_inter_param (event, "intensity", &d) == 0)
-                arg_action = "0";
-        }
-
-    handle_command ({ arg_action, action_handlers, event });
+    modulation::slash_run (event, action_handlers);
 }
 
 } // musicat::command::filters::tremolo
