@@ -50,26 +50,36 @@ docker build . -t shasha/musicat:latest
 * Register the commands. Can be as simple as
 
 ```sh
-docker run -it --rm -v ./exe/sha_conf-docker.json:/root/Musicat/exe/sha_conf.json --name Musicat-Register shasha/musicat:latest ./Shasha reg g
+docker run -it --rm -v ./exe/sha_conf.docker.json:/home/musicat/sha_conf.json --name Musicat-Register shasha/musicat:latest ./Shasha reg g
 ```
 
 * Running
 
 ```sh
-docker run -it --rm -p 3000:3000 -v ./exe/sha_conf-docker.json:/root/Musicat/exe/sha_conf.json -v ./exe/music:/root/music --name Musicat shasha/musicat:latest
+docker run -it --rm -p 3000:3000 -v ./exe/sha_conf.docker.json:/home/musicat/sha_conf.json -v ./exe/music:/home/musicat/music --name Musicat shasha/musicat:latest
 ```
 
 You can create a docker-compose.yml file to integrate with postgresql, configure however you want.
 
-* Misc
-    * Creating container
-        ```sh
-        docker container create -p 9001:9001 -v ./exe/sha_conf.docker.json:/root/Musicat/exe/sha_conf.json -v ./exe/music:/root/music --name Musicat shasha/musicat:latest
-        ```
-    * Running container
-        ```sh
-        docker container start Musicat
-        ```
+### Docker Misc
+
+* Creating container
+
+```sh
+docker container create -p 9001:9001 -v ./exe/sha_conf.docker.json:/home/musicat/sha_conf.json -v ./exe/music:/home/musicat/music --name Musicat shasha/musicat:latest
+```
+
+* Running container
+
+```sh
+docker container start Musicat
+```
+
+* Checkout `docker.sh`
+
+```sh
+cat docker.sh
+```
 
 ## Installing Dependencies
 
