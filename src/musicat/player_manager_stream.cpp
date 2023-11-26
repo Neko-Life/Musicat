@@ -459,6 +459,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (!server_id || !guild_player)
                 throw 2;
 
+            guild_player->tried_continuing = false;
+
             FILE *ofile = fopen (file_path.c_str (), "r");
 
             if (!ofile)

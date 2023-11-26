@@ -199,6 +199,8 @@ class Player
     bool set_vibrato;
     bool set_tremolo;
 
+    bool tried_continuing;
+
     /**
      * @brief In percent, so it should be converted with (float)d/100 when
      * provided to ffmpeg

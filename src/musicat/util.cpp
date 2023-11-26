@@ -98,9 +98,7 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
 int
 get_random_number ()
 {
-    srand (std::chrono::high_resolution_clock::now ()
-               .time_since_epoch ()
-               .count ());
+    srand (util::get_current_ts ());
 
     return rand ();
 }
@@ -216,6 +214,14 @@ log_confirmation_error (const dpp::confirmation_callback_t &e,
     std::cerr << ev.code << '\n';
     std::cerr << ev.message << '\n';
     std::cerr << ev.human_readable << '\n';
+}
+
+long long
+get_current_ts ()
+{
+    return std::chrono::high_resolution_clock::now ()
+        .time_since_epoch ()
+        .count ();
 }
 
 } // musicat::util

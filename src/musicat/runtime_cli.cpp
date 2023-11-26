@@ -388,8 +388,8 @@ attach_listener ()
             {
                 std::string cmd_str;
 
-                // poll for 3 seconds every iteration
-                const int read_has_event = poll (stdinpfds, 1, 3000);
+                // poll for 2 seconds every iteration
+                const int read_has_event = poll (stdinpfds, 1, 2000);
 
                 std::string codes = "";
                 if (stdinpfds[0].revents & POLLERR)
@@ -410,7 +410,7 @@ attach_listener ()
                 if (!codes.empty ())
                     {
                         fprintf (stderr,
-                                 "[runtime_cli::stdin_listener ERROR] %s",
+                                 "[runtime_cli::stdin_listener ERROR] %s ",
                                  codes.c_str ());
 
                         perror ("");

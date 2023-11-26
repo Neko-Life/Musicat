@@ -28,8 +28,8 @@ namespace helper_processor
 {
 std::deque<helper_chain_t> active_helpers = {};
 
-std::vector<int> pending_write;
-std::vector<int> pending_read;
+static std::vector<int> pending_write;
+static std::vector<int> pending_read;
 
 ssize_t total_wrote_to_chain = 0;
 inline constexpr ssize_t MAX_TOTAL_WROTE_TO_CHAIN = SSIZE_MAX;
