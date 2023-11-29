@@ -21,9 +21,21 @@ struct resume_timer_t
     dpp::discord_voice_client *vc;
 };
 
+struct track_marker_rm_timer_t
+{
+    long long ts;
+    std::string meta;
+    dpp::discord_voice_client *vc;
+};
+
+int create_track_marker_rm_timer (const std::string &meta,
+                                  dpp::discord_voice_client *vc);
+
 int create_resume_timer (const dpp::snowflake &user_id,
                          const dpp::snowflake &user_voice_channel_id,
                          dpp::discord_voice_client *vc);
+
+void check_track_marker_rm_timers ();
 
 void check_resume_timers ();
 

@@ -566,6 +566,7 @@ run (int argc, const char *argv[])
                                  status);
                 }
 
+            player::timer::check_track_marker_rm_timers ();
             player::timer::check_resume_timers ();
 
             server::main_loop_routine ();

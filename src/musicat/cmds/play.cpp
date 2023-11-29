@@ -225,6 +225,9 @@ slash_run (const dpp::slashcommand_t &event)
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
+
+            if (resumed)
+                guild_player->tried_continuing = true;
         }
 
     if (resumed)
@@ -249,11 +252,11 @@ slash_run (const dpp::slashcommand_t &event)
                     return;
                 }
 
+            event.reply ("Seems like I'm broken, lemme fix myself brb");
+
             // reconnect
             player_manager->full_reconnect (from, guild_id, vcclient.first->id,
                                             vcuser.first->id);
-
-            event.reply ("Seems like I'm broken, lemme fix myself brb");
             return;
         }
 
