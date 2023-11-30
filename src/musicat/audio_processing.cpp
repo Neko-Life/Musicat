@@ -184,6 +184,10 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         = (float)guild_player->current_track.filesize
                           / (float)duration;
 
+                    int64_t samp_calc = guild_player->sampling_rate == -1
+                                            ? 48000
+                                            : guild_player->sampling_rate;
+
                     guild_player->current_track.current_byte
                         // (buffer_size /
                         // (sampling rate * channel *
@@ -191,7 +195,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         // ) * 1 second in ms)
                         // * opus byte_per_ms
                         += (int64_t)((float)*send_buffer_length
-                                     / (48000 * 2 * 2) * 1000)
+                                     / (samp_calc * 2 * 2) * 1000)
                            * byte_per_ms;
                 }
         }
@@ -210,6 +214,12 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
     *send_buffer_length = 0;
 
     return 0;
+}
+
+static void
+notify_seek_done ()
+{
+    write (write_fifo, "BOOB", 4);
 }
 
 processor_options_t
@@ -599,6 +609,9 @@ run_processor (child::command::command_options_t &process_options)
                         {
                             perror ("ppipe");
                             error_status = ERR_LPIPE;
+
+                            notify_seek_done ();
+
                             break;
                         }
                     preadfd = p_info.ppipefd[0];
@@ -608,6 +621,8 @@ run_processor (child::command::command_options_t &process_options)
                         {
                             perror ("cpipe");
                             init_error = ERR_SPIPE;
+
+                            notify_seek_done ();
 
                             close (preadfd);
                             close (cwritefd);
@@ -627,6 +642,8 @@ run_processor (child::command::command_options_t &process_options)
                         {
                             perror ("fork");
                             error_status = ERR_LFORK;
+
+                            notify_seek_done ();
 
                             close (preadfd);
                             close (cwritefd);
@@ -664,11 +681,11 @@ run_processor (child::command::command_options_t &process_options)
                     prfds[0].fd = preadfd;
                     pwfds[0].fd = pwritefd;
 
-                    // helper_processor::manage_processor (options,
-                    //                                     handle_helper_fork);
-
                     // mark changes done
                     options.seek_to = "";
+
+                    // notify streaming thread
+                    notify_seek_done ();
                 }
 
             helper_processor::manage_processor (options, handle_helper_fork);

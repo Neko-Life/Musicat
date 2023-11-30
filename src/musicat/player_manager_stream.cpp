@@ -205,7 +205,72 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
+            // clear voice_client audio buffer
+            states.vc->stop_audio ();
+
             states.track.seek_to = "";
+
+            // drain current buffer while waiting for notification
+
+            struct pollfd datapfds[1];
+            datapfds[0].events = POLLIN;
+            datapfds[0].fd = states.read_fd;
+
+            // struct pollfd notifpfds[1];
+            // notifpfds[0].events = POLLIN;
+            // notifpfds[0].fd = states.notification_fd;
+
+            // notification buffer
+            // char nbuf[CMD_BUFSIZE + 1];
+            // drain buffer
+            uint8_t buffer[4];
+            short revents = 0;
+
+            while (true)
+                {
+                    bool has_data
+                        = (poll (datapfds, 1, 100) > 0)
+                          && ((revents = datapfds[0].revents) & POLLIN);
+
+                    if (revents & POLLHUP || revents & POLLERR
+                        || revents & POLLNVAL)
+                        {
+                            std::cerr
+                                << "[Manager::stream ERROR] POLL SEEK: gid("
+                                << states.vc->server_id << ") cid("
+                                << states.vc->channel_id << ")\n";
+
+                            break;
+                        }
+
+                    if (has_data)
+                        {
+                            // read 4 by 4 as stereo pcm frame size says so
+                            ssize_t rsiz = read (states.read_fd, buffer, 4);
+
+                            // this is the notification message to stop reading
+                            // i write whatever i want!
+                            if (rsiz == 4 && buffer[0] == 'B'
+                                && buffer[1] == 'O' && buffer[2] == 'O'
+                                && buffer[3] == 'B')
+                                break;
+                        }
+
+                    // bool has_notification = (poll (notifpfds, 1, 0) > 0)
+                    //                         && (notifpfds[0].revents &
+                    //                         POLLIN);
+                    // if (has_notification)
+                    //     {
+                    //         size_t nread_size = read
+                    //         (states.notification_fd,
+                    //                                   nbuf, CMD_BUFSIZE);
+
+                    //         if (nread_size > 0)
+                    //             // just ignore whatever message it has
+                    //             // one job, simply break when notified
+                    //             break;
+                    //     }
+                }
         }
 
     bool volume_queried = states.guild_player->set_volume != -1;
@@ -623,7 +688,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 }
 
             handle_effect_chain_change_states_t effect_states
-                = { guild_player, track, command_fd, read_fd, NULL };
+                = { guild_player, track, command_fd,     read_fd,
+                    NULL,         v,     notification_fd };
 
             int throw_error = 0;
             bool running_state = get_running_state (), is_stopping;
@@ -661,8 +727,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     if ((is_stopping = is_stream_stopping (server_id)))
                         break;
 
-                    handle_effect_chain_change (effect_states);
-
                     if (read_size != STREAM_BUFSIZ)
                         continue;
 
@@ -673,6 +737,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     if (audio_processing::send_audio_routine (
                             v, (uint16_t *)buffer, &read_size))
                         break;
+
+                    handle_effect_chain_change (effect_states);
 
                     float outbuf_duration;
 
