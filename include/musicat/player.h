@@ -643,6 +643,7 @@ struct handle_effect_chain_change_states_t
     int &read_fd;
     OGGZ *track_og;
     dpp::discord_voice_client *vc;
+    int notification_fd;
 };
 
 using effect_states_list_t
