@@ -178,19 +178,22 @@ class Player
      * @brief Equalizer raw ffmpeg opt
      */
     std::string equalizer;
+
     /**
      * @brief Equalizer raw ffmpeg opt
+     * !TODO: change this to bool
      */
     std::string set_equalizer;
 
     /**
      * @brief Resample raw ffmpeg opt
      */
-    std::string resample;
+    bool set_sampling_rate;
+
     /**
      * @brief Resample raw ffmpeg opt
      */
-    std::string set_resample;
+    int64_t sampling_rate;
 
     bool stopped;
     bool earwax;
