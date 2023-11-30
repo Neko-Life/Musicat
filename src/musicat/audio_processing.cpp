@@ -184,6 +184,10 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         = (float)guild_player->current_track.filesize
                           / (float)duration;
 
+                    int64_t samp_calc = guild_player->sampling_rate == -1
+                                            ? 48000
+                                            : guild_player->sampling_rate;
+
                     guild_player->current_track.current_byte
                         // (buffer_size /
                         // (sampling rate * channel *
@@ -191,7 +195,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         // ) * 1 second in ms)
                         // * opus byte_per_ms
                         += (int64_t)((float)*send_buffer_length
-                                     / (48000 * 2 * 2) * 1000)
+                                     / (samp_calc * 2 * 2) * 1000)
                            * byte_per_ms;
                 }
         }

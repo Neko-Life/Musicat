@@ -205,6 +205,9 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
+            // clear voice_client audio buffer
+            states.vc->stop_audio ();
+
             states.track.seek_to = "";
         }
 
@@ -623,7 +626,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 }
 
             handle_effect_chain_change_states_t effect_states
-                = { guild_player, track, command_fd, read_fd, NULL };
+                = { guild_player, track, command_fd, read_fd, NULL, v };
 
             int throw_error = 0;
             bool running_state = get_running_state (), is_stopping;
