@@ -8,6 +8,7 @@
 #include "musicat/function_macros.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/player_manager_timer.h"
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
@@ -523,7 +524,7 @@ run (int argc, const char *argv[])
 
     while (get_running_state ())
         {
-            std::this_thread::sleep_for (std::chrono::seconds (1));
+            std::this_thread::sleep_for (std::chrono::milliseconds (750));
 
             bool r_s = get_running_state ();
             bool debug = get_debug_state ();
@@ -564,6 +565,9 @@ run (int argc, const char *argv[])
                                  "[ERROR DB_RECONNECT] Status code: %d\n",
                                  status);
                 }
+
+            player::timer::check_track_marker_rm_timers ();
+            player::timer::check_resume_timers ();
 
             server::main_loop_routine ();
 

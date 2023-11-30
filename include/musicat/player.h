@@ -138,6 +138,11 @@ class Player
     bool saved_config_loaded;
 
     /**
+     * @brief Resample raw ffmpeg opt
+     */
+    bool set_sampling_rate;
+
+    /**
      * @brief History size limiter
      *
      */
@@ -178,19 +183,17 @@ class Player
      * @brief Equalizer raw ffmpeg opt
      */
     std::string equalizer;
+
     /**
      * @brief Equalizer raw ffmpeg opt
+     * !TODO: change this to bool
      */
     std::string set_equalizer;
 
     /**
      * @brief Resample raw ffmpeg opt
      */
-    std::string resample;
-    /**
-     * @brief Resample raw ffmpeg opt
-     */
-    std::string set_resample;
+    int64_t sampling_rate;
 
     bool stopped;
     bool earwax;
@@ -198,6 +201,8 @@ class Player
 
     bool set_vibrato;
     bool set_tremolo;
+
+    bool tried_continuing;
 
     /**
      * @brief In percent, so it should be converted with (float)d/100 when

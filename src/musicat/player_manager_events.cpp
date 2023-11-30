@@ -2,6 +2,7 @@
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/player_manager_timer.h"
 #include "musicat/thread_manager.h"
 #include <memory>
 
@@ -508,38 +509,21 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 
             // Whether the track paused automatically
             if (is_manually_paused)
-                // not manually paused
+                // not automatically paused
                 return;
 
-            // dispatch a thread to resume after a timeout
-            std::thread tj (
-                [this, e_guild_id, e_channel_id,
-                 e_user_id] (dpp::discord_voice_client *vc) {
-                    using ms = std::chrono::milliseconds;
+            // dispatch auto resume job
+            int tstatus = timer::create_resume_timer (e_user_id, e_channel_id,
+                                                      v->voiceclient);
 
-                    thread_manager::DoneSetter tmds;
-
-                    std::this_thread::sleep_for (ms (2500));
-
-                    auto a = get_voice_from_gid (e_guild_id, e_user_id);
-
-                    if (!vc || vc->terminating || !a.first
-                        || a.first->id != e_channel_id)
-                        return;
-
-                    vc->pause_audio (false);
-
-                    try
-                        {
-                            this->update_info_embed (e_guild_id);
-                        }
-                    catch (...)
-                        {
-                        }
-                },
-                v->voiceclient);
-
-            thread_manager::dispatch (tj);
+            if (tstatus != 0)
+                {
+                    std::cerr
+                        << "[Manager::handle_on_voice_state_update WARN] "
+                           "timer::create_resume_timer uid("
+                        << e_user_id << ") sid(" << e_guild_id << ") svcid("
+                        << e_channel_id << ") status(" << tstatus << ")\n";
+                }
 
             // End non sha event
             return;
@@ -568,6 +552,8 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             this->clear_wait_vc_ready (e_guild_id);
         }
 
+    // reconnect when bot user is in vc but no vc state in cache
+    // can means bot stays in vc after reboot situation
     if (v && v->channel_id && v->channel_id != a.first->id)
         {
             this->stop_stream (e_guild_id);

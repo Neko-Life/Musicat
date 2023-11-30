@@ -1,5 +1,6 @@
 #include "musicat/musicat.h"
 #include "musicat/cmds.h"
+#include "musicat/util.h"
 #include <chrono>
 #include <dpp/discordclient.h>
 #include <mutex>
@@ -204,42 +205,52 @@ format_duration (uint64_t dur)
     uint64_t hour = minuter / 60;
     uint8_t minute = minuter % 60;
     uint8_t second = secondr % 60;
+
     string ret = "";
     if (hour)
         {
             string hstr = std::to_string (hour);
             ret += string (hstr.length () < 2 ? "0" : "") + hstr + ":";
         }
+
     string mstr = std::to_string (minute);
     string sstr = std::to_string (second);
+
     ret += string (mstr.length () < 2 ? "0" : "") + mstr + ":"
            + string (sstr.length () < 2 ? "0" : "") + sstr;
+
     return ret;
 }
 
 std::vector<size_t>
 shuffle_indexes (size_t len)
 {
-    auto r = std::chrono::high_resolution_clock::now ();
-    srand (r.time_since_epoch ().count ());
+    srand (util::get_current_ts ());
+
     std::vector<size_t> ret = {};
     ret.reserve (len);
+
     std::vector<size_t> ori = {};
     ori.reserve (len);
+
     for (size_t i = 0; i < len; i++)
         ori.push_back (i);
+
     auto io = ori.begin ();
     while (io != ori.end ())
         {
             int r = rand () % ori.size ();
             auto it = io + r;
+
             ret.push_back (*it);
             ori.erase (it);
         }
-    const size_t s = ret.size ();
+
+    size_t s = ret.size ();
     if (s != len)
         fprintf (stderr, "[WARN(musicat.209)] Return size %ld != %ld\n", s,
                  len);
+
     return ret;
 }
 

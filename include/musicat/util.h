@@ -63,6 +63,15 @@ char valid_number (const std::string &numstr);
 void log_confirmation_error (const dpp::confirmation_callback_t &e,
                              const char *callee = "ERROR");
 
+// returns current timestamp in picosecond
+long long get_current_ts ();
+
+inline constexpr long long
+ms_to_picos (const long long ms)
+{
+    return ms * 1000000LL;
+}
+
 } // musicat::util
 
 #endif // MUSICAT_UTIL_H

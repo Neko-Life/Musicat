@@ -28,8 +28,8 @@ namespace helper_processor
 {
 std::deque<helper_chain_t> active_helpers = {};
 
-std::vector<int> pending_write;
-std::vector<int> pending_read;
+static std::vector<int> pending_write;
+static std::vector<int> pending_read;
 
 ssize_t total_wrote_to_chain = 0;
 inline constexpr ssize_t MAX_TOTAL_WROTE_TO_CHAIN = SSIZE_MAX;
@@ -533,6 +533,9 @@ struct pollfd *
 close_pfds_ni (struct pollfd *pfds, nfds_t ni, nfds_t &fds_n,
                std::vector<char> &fds_state)
 {
+    if (!pfds)
+        return NULL;
+
     std::vector<char> cpy_fds_state = fds_state;
 
     nfds_t new_fds_n = fds_n - 1;
@@ -548,6 +551,9 @@ close_pfds_ni (struct pollfd *pfds, nfds_t ni, nfds_t &fds_n,
         {
             fprintf (stderr, "close_pfds_ni: Failed allocating %lu bytes\n",
                      alloc_size);
+
+            free (pfds);
+            pfds = NULL;
 
             return NULL;
         }
@@ -735,7 +741,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
     bool shutdown_is_last_hup = false;
 
-    while (true)
+    while (pfds)
         {
             iter++;
             event = poll (pfds, fds_n, 50);
@@ -816,6 +822,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     pfds = close_pfds_ni (pfds, ni, fds_n,
                                                           fds_state);
 
+                                    if (!pfds)
+                                        break;
+
                                     if (first_fd)
                                         {
                                             // all hup, lets break and reap all
@@ -833,6 +842,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                             // close call
                                             pfds = close_pfds_ni (
                                                 pfds, ni, fds_n, fds_state);
+
+                                            if (!pfds)
+                                                break;
                                         }
 
                                     break;
@@ -1019,8 +1031,11 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                 break;
         }
 
-    free (pfds);
-    pfds = NULL;
+    if (pfds)
+        {
+            free (pfds);
+            pfds = NULL;
+        }
 
 #ifdef DEBUG_LOG
     fprintf (stderr, "LOOP DONE: %lu\n", iter);

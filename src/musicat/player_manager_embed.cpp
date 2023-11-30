@@ -10,8 +10,8 @@ namespace player
 // these are the most ridiculous code I have ever wrote....
 using string = std::string;
 
-std::mutex pe_m;
-static inline std::vector<dpp::snowflake> processing_embed = {};
+static std::mutex pe_m;
+static std::vector<dpp::snowflake> processing_embed = {};
 
 auto
 get_processing_embed (const dpp::snowflake &guild_id)

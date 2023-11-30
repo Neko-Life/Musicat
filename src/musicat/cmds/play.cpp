@@ -88,7 +88,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    /* bool debug = get_debug_state (); */
+    bool debug = get_debug_state ();
 
     auto guild_id = event.command.guild_id;
     auto from = event.from;
@@ -115,8 +115,12 @@ slash_run (const dpp::slashcommand_t &event)
 
     uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user),
                                                sha_user, vcuser.first);
-    fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm,
-             cperm & dpp::p_view_channel, cperm & dpp::p_connect);
+
+    if (debug)
+        {
+            fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm,
+                     cperm & dpp::p_view_channel, cperm & dpp::p_connect);
+        }
 
     if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
         {
@@ -155,6 +159,8 @@ slash_run (const dpp::slashcommand_t &event)
             from->disconnect_voice (guild_id);
         }
 
+    bool reconnecting = false;
+
     if (vcclient_cont && vcclient.first->id != vcuser.first->id)
         {
             if (has_listener (&vcclient.second))
@@ -186,6 +192,8 @@ slash_run (const dpp::slashcommand_t &event)
                     // reconnect
                     player_manager->full_reconnect (
                         from, guild_id, vcclient.first->id, vcuser.first->id);
+
+                    reconnecting = true;
                 }
         }
 
@@ -217,6 +225,9 @@ slash_run (const dpp::slashcommand_t &event)
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
+
+            if (resumed)
+                guild_player->tried_continuing = true;
         }
 
     if (resumed)
@@ -224,21 +235,36 @@ slash_run (const dpp::slashcommand_t &event)
 
     else if (no_query)
         {
-            if (continued)
-                event.reply ("Playback continued");
-            else
-                event.reply ("Provide song query if you wanna add a song, may "
-                             "be URL or song name");
+            if (!continued)
+                {
+                    event.reply ("Provide song query if you wanna add a song, "
+                                 "may be URL or song name");
+                    return;
+                }
+
+            // continued true from here
+
+            if (!guild_player->tried_continuing || reconnecting)
+                {
+                    guild_player->tried_continuing = true;
+
+                    event.reply ("Playback continued");
+                    return;
+                }
+
+            event.reply ("Seems like I'm broken, lemme fix myself brb");
+
+            // reconnect
+            player_manager->full_reconnect (from, guild_id, vcclient.first->id,
+                                            vcuser.first->id);
             return;
         }
-    else
-        {
-            event.thinking ();
 
-            add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v,
-                       vcuser.first->id, sha_id, true, from, event, continued,
-                       arg_slip);
-        }
+    event.thinking ();
+
+    add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v,
+               vcuser.first->id, sha_id, true, from, event, continued,
+               arg_slip);
 }
 
 std::pair<yt_search::YTrack, int>

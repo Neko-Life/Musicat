@@ -18,10 +18,10 @@ std::map<std::string, std::string> _oauth_states;
 std::mutex _oauth_states_m;
 
 // !TODO: reserve from somewhere?
-std::vector<recv_body_t> _recv_body_cache;
+static std::vector<recv_body_t> _recv_body_cache;
 std::mutex recv_body_cache_m; // EXTERN_VARIABLE
 
-std::vector<oauth_timer_t> _oauth_timers;
+static std::vector<oauth_timer_t> _oauth_timers;
 std::mutex oauth_timers_m; // EXTERN_VARIABLE
 
 int
@@ -54,10 +54,8 @@ util_create_remove_thread (int second_sleep, const std::string &val,
                                              std::string *),
                            bool (*should_break) (const std::string &) = NULL)
 {
-    register_timer ({ std::chrono::high_resolution_clock::now ()
-                          .time_since_epoch ()
-                          .count (),
-                      second_sleep, val, remove_fn, should_break });
+    register_timer ({ util::get_current_ts (), second_sleep, val, remove_fn,
+                      should_break });
 }
 
 inline constexpr const char token[]
@@ -99,11 +97,7 @@ recv_body_t
 create_recv_body_t (const char *endpoint, const std::string &id,
                     APIResponse *res, APIRequest *req)
 {
-    long long ts = std::chrono::high_resolution_clock::now ()
-                       .time_since_epoch ()
-                       .count ();
-
-    return { ts, endpoint, id, nullptr, res, req };
+    return { util::get_current_ts (), endpoint, id, nullptr, res, req };
 }
 
 std::vector<recv_body_t>::iterator
@@ -255,9 +249,7 @@ check_timers ()
                     continue;
                 }
 
-            long long current_ts = std::chrono::high_resolution_clock::now ()
-                                       .time_since_epoch ()
-                                       .count ();
+            long long current_ts = util::get_current_ts ();
 
             long long passed = (current_ts - i->ts);
             long long max = ((long long)i->second_sleep * 1000000000LL);

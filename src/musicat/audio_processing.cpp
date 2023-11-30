@@ -3,6 +3,7 @@
 #include "musicat/child/command.h"
 #include "musicat/helper_processor.h"
 #include "musicat/musicat.h"
+#include "musicat/util.h"
 #include <assert.h>
 #include <chrono>
 #include <fcntl.h>
@@ -777,9 +778,7 @@ std::string
 get_sem_key (const std::string &key)
 {
     return std::string ("musicat.") + key + '.'
-           + std::to_string (std::chrono::high_resolution_clock::now ()
-                                 .time_since_epoch ()
-                                 .count ());
+           + std::to_string (util::get_current_ts ());
 }
 
 sem_t *

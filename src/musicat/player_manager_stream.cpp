@@ -246,7 +246,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             states.guild_player->equalizer = new_equalizer;
             states.guild_player->set_equalizer = "";
-
             should_write_helper_chain_cmd = true;
         }
     else if (!states.guild_player->equalizer.empty ())
@@ -259,13 +258,16 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             helper_chain_cmd += cmd;
         }
 
-    bool resample_queried = !states.guild_player->set_resample.empty ();
+    bool resample_queried = states.guild_player->set_sampling_rate;
 
     if (resample_queried)
         {
-            std::string new_resample = states.guild_player->set_resample == "0"
-                                           ? ""
-                                           : states.guild_player->set_resample;
+            std::string new_resample
+                = states.guild_player->sampling_rate == -1
+                      ? ""
+                      : "aresample="
+                            + std::to_string (
+                                states.guild_player->sampling_rate);
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
                               + cc::sanitize_command_value (new_resample)
@@ -273,16 +275,16 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             helper_chain_cmd += cmd;
 
-            states.guild_player->resample = new_resample;
-            states.guild_player->set_resample = "";
-
+            states.guild_player->set_sampling_rate = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (!states.guild_player->resample.empty ())
+    else if (states.guild_player->sampling_rate != -1)
         {
             std::string cmd
                 = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (states.guild_player->resample)
+                  + cc::sanitize_command_value (
+                      "aresample="
+                      + std::to_string (states.guild_player->sampling_rate))
                   + ';';
 
             helper_chain_cmd += cmd;
@@ -459,6 +461,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (!server_id || !guild_player)
                 throw 2;
 
+            guild_player->tried_continuing = false;
+
             FILE *ofile = fopen (file_path.c_str (), "r");
 
             if (!ofile)
@@ -507,9 +511,11 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value (guild_player->equalizer)
                        + ';';
 
-            if (!guild_player->resample.empty ())
+            if (guild_player->sampling_rate != -1)
                 cmd += cc::command_options_keys_t.helper_chain + '='
-                       + cc::sanitize_command_value (guild_player->resample)
+                       + cc::sanitize_command_value (
+                           "aresample="
+                           + std::to_string (guild_player->sampling_rate))
                        + ';';
 
             bool has_vibrato_f = guild_player->vibrato_f != -1,

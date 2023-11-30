@@ -23,6 +23,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (perquisite (event, &ftp))
         return;
 
+    // !TODO: ffmpeg earwax fx default sample rate is 44.1KHz, add sampling_rate argument and make the default to 48KHz
     ftp.guild_player->set_earwax = !ftp.guild_player->earwax;
 
     event.reply (

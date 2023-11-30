@@ -9,7 +9,7 @@
 namespace musicat::server::middlewares
 {
 
-std::vector<std::string> _cors_enabled_origins;
+static std::vector<std::string> _cors_enabled_origins = {};
 
 header_v_t
 get_cors_headers (std::string_view req_allow_headers)
