@@ -138,6 +138,11 @@ class Player
     bool saved_config_loaded;
 
     /**
+     * @brief Resample raw ffmpeg opt
+     */
+    bool set_sampling_rate;
+
+    /**
      * @brief History size limiter
      *
      */
@@ -184,11 +189,6 @@ class Player
      * !TODO: change this to bool
      */
     std::string set_equalizer;
-
-    /**
-     * @brief Resample raw ffmpeg opt
-     */
-    bool set_sampling_rate;
 
     /**
      * @brief Resample raw ffmpeg opt

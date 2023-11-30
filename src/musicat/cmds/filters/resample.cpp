@@ -1,6 +1,5 @@
 #include "musicat/cmds/filters.h"
 #include "musicat/musicat.h"
-#include <dpp/dpp.h>
 
 #define MIN_VAL 6000
 #define MAX_VAL 128000
@@ -35,19 +34,20 @@ slash_run (const dpp::slashcommand_t &event)
     int64_t rate = 0;
     get_inter_param (event, "rate", &rate);
 
-    if (rate == 0)
+    if (rate == 0 || rate == ftp.guild_player->sampling_rate)
         {
-            if (ftp.guild_player->resample.empty ())
+            if (ftp.guild_player->sampling_rate == -1)
                 {
                     event.reply (
-                        "Currently playing at original sampling rate");
+                        "Currently playing at default sampling rate (48KHz)");
+
                     return;
                 }
 
-            std::string rate = ftp.guild_player->resample.substr (
-                sizeof ("aresample=") - 1);
+            event.reply ("Current playback sampling rate is "
+                         + std::to_string (ftp.guild_player->sampling_rate)
+                         + "Hz");
 
-            event.reply ("Current sampling rate: " + rate);
             return;
         }
 
@@ -59,19 +59,18 @@ slash_run (const dpp::slashcommand_t &event)
 
     bool no_rate = rate == 48000;
 
-    std::string rate_str = no_rate ? "" : std::to_string (rate);
+    int64_t new_rate = no_rate ? -1 : rate;
 
-    std::string new_rate = no_rate ? "0" : "aresample=" + rate_str;
+    ftp.guild_player->sampling_rate = new_rate;
+    ftp.guild_player->set_sampling_rate = true;
 
-    ftp.guild_player->set_resample = new_rate;
-
-    if (rate_str.empty ())
+    if (new_rate == -1)
         {
             event.reply ("Resetting resampler");
             return;
         }
 
-    event.reply ("Setting rate to " + rate_str);
+    event.reply ("Setting rate to " + std::to_string (new_rate) + "Hz");
 }
 
 } // musicat::command::filters::resample

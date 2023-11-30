@@ -59,6 +59,9 @@ Player::init ()
     this->set_tremolo = false;
     this->tremolo_d = -1;
     this->tremolo_f = -1;
+
+    this->set_sampling_rate = false;
+    this->sampling_rate = -1;
 }
 
 Player::Player () { this->init (); }
