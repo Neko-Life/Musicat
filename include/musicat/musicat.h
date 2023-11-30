@@ -330,6 +330,8 @@ std::vector<std::string> get_cors_enabled_origins ();
 
 std::string get_jwt_secret ();
 
+float get_stream_buffer_size ();
+
 } // musicat
 
 #endif

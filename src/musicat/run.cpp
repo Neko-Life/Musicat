@@ -32,6 +32,7 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 
 std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
+float _stream_buffer_size = 0.0f;
 
 dpp::cluster *
 get_client_ptr ()
@@ -363,6 +364,22 @@ std::string
 get_jwt_secret ()
 {
     return get_config_value<std::string> ("JWT_SECRET", "");
+}
+
+float
+get_stream_buffer_size ()
+{
+    if (_stream_buffer_size < 0.1f)
+        {
+            float set_v = get_config_value<float> ("STREAM_BUFFER_SIZE", 0.0f);
+
+            if (set_v < 0.1f)
+                set_v = 0.3f;
+
+            _stream_buffer_size = set_v;
+        }
+
+    return _stream_buffer_size;
 }
 
 int _sigint_count = 0;
