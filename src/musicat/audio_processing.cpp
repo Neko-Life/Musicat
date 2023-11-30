@@ -684,6 +684,10 @@ run_processor (child::command::command_options_t &process_options)
                     // mark changes done
                     options.seek_to = "";
 
+                    // clear effect buffer and let it respawn by
+                    // manage_processor call below
+                    helper_processor::shutdown_chain (true);
+
                     // notify streaming thread
                     notify_seek_done ();
                 }

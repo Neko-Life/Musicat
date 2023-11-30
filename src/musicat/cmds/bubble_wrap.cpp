@@ -36,9 +36,8 @@ slash_run (const dpp::slashcommand_t &event)
           "||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   "
           "||O||   ||O||   ||O||   ||O||   ||O||\n||O||   ||O||   ||O||   "
           "||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   "
-          "||O||   ||O||   ||O||   ||O||\n   ||O||   ||O||   ||O||   ||O||   "
-          "||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   ||O||   "
-          "||O||   ||O||   ||O||";
+          "||O||   ||O||   ||O||   ||O||";
+
     event.reply (std::string ("YAY bubblewrap for stressed developers 😄\n")
                  + bubble_wrap);
 }
