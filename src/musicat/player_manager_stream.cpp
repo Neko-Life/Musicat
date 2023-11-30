@@ -464,6 +464,8 @@ void
 run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
                  handle_effect_chain_change_states_t &effect_states)
 {
+    float dpp_audio_buffer_length_second = get_stream_buffer_size ();
+
     while ((states.running_state = get_running_state ()) && states.v
            && !states.v->terminating)
         {
@@ -489,7 +491,7 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
             while ((states.running_state = get_running_state ()) && states.v
                    && !states.v->terminating
                    && states.v->get_secs_remaining ()
-                          > DPP_AUDIO_BUFFER_LENGTH_SECOND)
+                          > dpp_audio_buffer_length_second)
                 {
                     std::this_thread::sleep_for (std::chrono::milliseconds (
                         SLEEP_ON_BUFFER_THRESHOLD_MS));
@@ -705,6 +707,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             EffectStatesListing esl (server_id, &effect_states);
 
+            float dpp_audio_buffer_length_second = get_stream_buffer_size ();
+
             // I LOVE C++!!!
 
             // track.seekable = true;
@@ -745,7 +749,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     while ((running_state = get_running_state ()) && v
                            && !v->terminating
                            && ((outbuf_duration = v->get_secs_remaining ())
-                               > DPP_AUDIO_BUFFER_LENGTH_SECOND))
+                               > dpp_audio_buffer_length_second))
                         {
                             // isn't very pretty for the terminal,
                             // disable for now
