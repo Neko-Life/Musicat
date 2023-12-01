@@ -10,8 +10,8 @@ COPY libs ./libs
 COPY CMakeLists.txt ./
 
 # Install dependencies
-RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
-      pacman -S --needed --noconfirm libc++ git cmake libsodium opus libogg postgresql-libs clang && \
+RUN pacman -Sy --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+      pacman -Syu --needed --noconfirm libc++ git cmake libsodium opus postgresql-libs clang && \
       mkdir -p build && cd build && \
       export CC=clang && \
       export CXX=clang++ && \
@@ -22,8 +22,8 @@ RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorli
 
 FROM archlinux:base as deploy
 
-RUN pacman -Syu --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
-      pacman -S --noconfirm libc++ libogg postgresql-libs libsodium opus ffmpeg && \
+RUN pacman -Sy --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+      pacman -Syu --noconfirm libc++ postgresql-libs libsodium opus ffmpeg && \
       groupadd musicat && useradd -m -g musicat musicat
 
 USER musicat
@@ -33,9 +33,9 @@ WORKDIR /home/musicat
 COPY --chown=musicat:musicat --from=build \
              /app/build/Shasha \
              /app/build/libs/DPP/library/libdpp.so* \
-             /app/libs/liboggz/build/lib/liboggz.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
              /home/musicat
+#             /app/libs/liboggz/build/lib/liboggz.so* \
 
 COPY --chown=musicat:musicat --from=build \
              /app/libs/yt-dlp \
