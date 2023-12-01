@@ -121,10 +121,6 @@ cmake ..
 make all -j$(nproc)
 ```
 
-Some distro have `liboggz2` or `liboggz2-dev`, if you got compile error about
-`oggz/oggz.h` not found but you already have `liboggz` installed,
-you might need to install that.
-
 * Move the built binary to `exe/` (or wherever you want along with a config file)
 
 ```sh
