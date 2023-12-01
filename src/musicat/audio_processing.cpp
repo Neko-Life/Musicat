@@ -188,6 +188,10 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                                             ? 48000
                                             : guild_player->sampling_rate;
 
+                    // take account earwax resampling
+                    if (guild_player->earwax)
+                        samp_calc -= 3900;
+
                     guild_player->current_track.current_byte
                         // (buffer_size /
                         // (sampling rate * channel *
