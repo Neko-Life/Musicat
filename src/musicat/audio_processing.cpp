@@ -319,6 +319,10 @@ run_standalone (const processor_options_t &options,
 
     char *rest_args[] = { "-v",
                           "debug",
+#ifdef FFMPEG_REALTIME
+                          "-probesize",
+                          "32",
+#endif
                           "-i",
                           (char *)file_path.c_str (),
                           "-af",

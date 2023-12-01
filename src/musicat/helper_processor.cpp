@@ -135,6 +135,10 @@ helper_main (helper_chain_t &options)
     char *args[] = { "ffmpeg",
                      "-v",
                      "debug",
+#ifdef FFMPEG_REALTIME
+                     "-probesize",
+                     "32",
+#endif
                      "-f",
                      "s16le",
                      "-ac",
@@ -1078,8 +1082,28 @@ shutdown_chain (bool discard_output)
             //             true);
             //     }
 
+            int waited_for = 0;
             int status = 0;
-            waitpid (hci->pid, &status, 0);
+            while (waitpid (hci->pid, &status, WNOHANG) != hci->pid)
+                {
+                    std::this_thread::sleep_for (
+                        std::chrono::milliseconds (20));
+
+                    waited_for += 20;
+
+                    // stuck for one second, kill it!
+                    if (waited_for >= 1000)
+                        {
+                            fprintf (stderr,
+                                     "[helper_processor::shutdown_chain WARN] "
+                                     "Stuck for 1 second waiting %d, killing "
+                                     "it...\n",
+                                     hci->pid);
+
+                            kill (hci->pid, SIGKILL);
+                            waitpid (hci->pid, &status, 0);
+                        }
+                }
 
             if (hci->options.debug)
                 fprintf (stderr,
