@@ -12,7 +12,6 @@ Need to install:
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libopus - Library
-* libogg - Library
 * libcurl - Library
 * libsodium - Library
 * openssl - Library
@@ -94,7 +93,7 @@ apt upgrade
 * Install
 
 ```sh
-apt install build-essential pkg-config cmake make zlib1g-dev autoconf automake libtool libcurl4-openssl-dev libssl-dev libsodium-dev libopus-dev libogg-dev ffmpeg postgresql libpq-dev
+apt install build-essential pkg-config cmake make zlib1g-dev autoconf automake libtool libcurl4-openssl-dev libssl-dev libsodium-dev libopus-dev ffmpeg postgresql libpq-dev
 ```
 
 ## Compiling
