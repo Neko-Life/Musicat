@@ -7,7 +7,6 @@
 #include "musicat/player.h"
 #include <cstdint>
 #include <memory>
-#include <oggz/oggz.h>
 #include <string>
 #include <sys/poll.h>
 #include <sys/stat.h>
@@ -21,6 +20,8 @@
 #define DRAIN_CHUNK DRAIN_CHUNK_PCM
 
 #else
+
+#include <oggz/oggz.h>
 
 #define STREAM_BUFSIZ STREAM_BUFSIZ_OPUS
 #define CHUNK_READ CHUNK_READ_OPUS
@@ -48,17 +49,19 @@ struct mc_oggz_user_data
     bool &debug;
 };
 
+#if !defined(MUSICAT_USE_PCM)
 // !TODO: delete this
 struct run_stream_loop_states_t
 {
     dpp::discord_voice_client *&v;
     player::MCTrack &track;
     dpp::snowflake &server_id;
-    OGGZ *&track_og;
+    void /*OGGZ*/ *&track_og;
     bool &running_state;
     bool &is_stopping;
     bool &debug;
 };
+#endif
 
 static effect_states_list_t effect_states_list = {};
 std::mutex effect_states_list_m; // EXTERN_VARIABLE
@@ -460,6 +463,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     cc::write_command (helper_chain_cmd, states.command_fd, "Manager::stream");
 }
 
+#if !defined(MUSICAT_USE_PCM)
 void
 run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
                  handle_effect_chain_change_states_t &effect_states)
@@ -502,6 +506,8 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
                 break;
         }
 }
+
+#endif
 
 constexpr const char *msprrfmt
     = "[Manager::stream ERROR] Processor not ready or exited: %s\n";

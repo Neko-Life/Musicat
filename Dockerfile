@@ -33,9 +33,9 @@ WORKDIR /home/musicat
 COPY --chown=musicat:musicat --from=build \
              /app/build/Shasha \
              /app/build/libs/DPP/library/libdpp.so* \
-             /app/libs/liboggz/build/lib/liboggz.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
              /home/musicat
+#             /app/libs/liboggz/build/lib/liboggz.so* \
 
 COPY --chown=musicat:musicat --from=build \
              /app/libs/yt-dlp \
