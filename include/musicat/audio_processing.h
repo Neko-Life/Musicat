@@ -27,6 +27,7 @@
 #define FORMAT_USING_PCM "-f", "s16le"
 
 #define OUT_CMD "pipe:1"
+#define FFMPEG_REALTIME
 
 inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
 inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
