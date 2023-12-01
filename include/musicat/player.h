@@ -1,6 +1,7 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
+#include "musicat/config.h"
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
 #include <deque>
@@ -8,9 +9,12 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <oggz/oggz.h>
 #include <string>
 #include <vector>
+
+#if !defined(MUSICAT_USE_PCM)
+#include <oggz/oggz.h>
+#endif
 
 namespace musicat
 {

@@ -100,7 +100,7 @@ endif()
 # Linking libraries
 target_link_libraries(Shasha
 	dpp
-	oggz
+	# oggz
 	ogg
 	pq
 	curlpp
@@ -128,7 +128,7 @@ target_include_directories(Shasha PRIVATE
 	libs/uWebSockets/uSockets/src
 	libs/icu/usr/local/include
 	libs/curlpp/include
-	libs/liboggz/include
+	# libs/liboggz/include
 	libs/jwt-cpp/include
 	/usr/include/postgresql
 	# Remember to add the include directories of any other libraries too
@@ -137,7 +137,7 @@ target_include_directories(Shasha PRIVATE
 target_link_directories(Shasha PRIVATE
 	libs/curlpp/build
 	libs/icu/usr/local/lib
-	libs/liboggz/build/lib
+	# libs/liboggz/build/lib
 	)
 
 # Set C++ version

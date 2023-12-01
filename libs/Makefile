@@ -21,7 +21,7 @@ ifeq ($(COMPILE_GNUPLOT),1)
 	override GNUPLOT_TARGET = gnuplot
 endif
 
-all: liboggz icu curlpp $(GNUPLOT_TARGET)
+all: icu curlpp $(GNUPLOT_TARGET) # liboggz 
 
 icu: $(ICUDATA_SO)
 
