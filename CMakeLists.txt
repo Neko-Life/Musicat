@@ -101,7 +101,7 @@ endif()
 target_link_libraries(Shasha
 	dpp
 	# oggz
-	ogg
+	# ogg
 	pq
 	curlpp
 	curl
