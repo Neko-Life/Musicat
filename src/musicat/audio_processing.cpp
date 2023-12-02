@@ -198,9 +198,11 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         // (bit width(16) / bit per byte(8))
                         // ) * 1 second in ms)
                         // * opus byte_per_ms
-                        += (int64_t)((float)*send_buffer_length
-                                     / (samp_calc * 2 * 2) * 1000)
-                           * byte_per_ms;
+                        += (int64_t)((double)((float)((float)*send_buffer_length
+                                                      / (samp_calc * 2 * 2)
+                                                      * 1000)
+                                              * byte_per_ms)
+                                     * guild_player->tempo);
                 }
         }
 
