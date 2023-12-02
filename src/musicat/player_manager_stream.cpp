@@ -664,11 +664,10 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + ';';
 
             if (guild_player->pitch != 0)
-                std::string cmd
-                    = cc::command_options_keys_t.helper_chain + '='
-                      + cc::sanitize_command_value (
-                          get_ffmpeg_pitch_args (guild_player->pitch))
-                      + ';';
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value (
+                           get_ffmpeg_pitch_args (guild_player->pitch))
+                       + ';';
 
             if (!guild_player->equalizer.empty ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
