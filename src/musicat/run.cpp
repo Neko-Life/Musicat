@@ -570,7 +570,7 @@ run (int argc, const char *argv[])
                                  done.count ());
                 }
 
-            if (r_s && !no_db && (time (NULL) - last_recon) > 60)
+            if (r_s && !no_db && (time (NULL) - last_recon) > 5)
                 {
                     ConnStatusType status
                         = database::reconnect (false, db_connect_param);

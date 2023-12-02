@@ -68,6 +68,24 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // tremolo
 
+namespace tempo
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // tempo
+
+namespace pitch
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // pitch
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H

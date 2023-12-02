@@ -180,7 +180,10 @@ class Player
      */
     MCTrack current_track;
 
+    // default 100
     int volume;
+    // default -1
+    // !TODO: should be bool type
     int set_volume;
 
     /**
@@ -195,7 +198,7 @@ class Player
     std::string set_equalizer;
 
     /**
-     * @brief Resample raw ffmpeg opt
+     * @brief Default -1
      */
     int64_t sampling_rate;
 
@@ -208,20 +211,30 @@ class Player
 
     bool tried_continuing;
 
+    bool set_tempo;
+    bool set_pitch;
+
+    // -400-100, default 0
+    int pitch;
+
     /**
      * @brief In percent, so it should be converted with (float)d/100 when
-     * provided to ffmpeg
+     * provided to ffmpeg, default -1
      */
     int vibrato_d;
 
     /**
      * @brief In percent, so it should be converted with (float)d/100 when
-     * provided to ffmpeg
+     * provided to ffmpeg, default -1
      */
     int tremolo_d;
 
+    // default -1
     double vibrato_f;
+    // default -1
     double tremolo_f;
+    // 0.5-4.0, default 1.0
+    double tempo;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
