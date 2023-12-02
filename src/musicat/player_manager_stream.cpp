@@ -170,6 +170,31 @@ get_ffmpeg_tremolo_args (bool has_f, bool has_d,
     return v_args;
 }
 
+std::string
+get_ffmpeg_pitch_args (int pitch)
+{
+    if (pitch == 0)
+        return "";
+
+    constexpr int64_t samp_per_percent = 24000 / 100;
+    constexpr double tempo_per_percent = 0.5 / 100;
+
+    int64_t sample = 48000 + (pitch * (-samp_per_percent));
+    double tempo = 1.0 + ((double)pitch * (-tempo_per_percent));
+
+    /*
+        100=24000,0.5=-24000,-0.5=48000+(100*(-(24000/100))),1.0+(100*(-(0.5/100)))
+        0=48000,1.0
+        -100=72000,1.5=+24000,+0.5=48000+(-100*(-(24000/100))),1.0+(-100*(-(0.5/100)))
+        -200=96000,2.0=+48000,+1.0=48000+(-200*(-(24000/100))),1.0+(-200*(-(0.5/100)))
+        -300=120000,2.5=+72000,+1.5
+        -400=144000,3.0=+96000,+2.0
+    */
+
+    return "aresample=" + std::to_string (sample)
+           + ",atempo=" + std::to_string (tempo);
+}
+
 handle_effect_chain_change_states_t *
 get_effect_states (const dpp::snowflake &guild_id)
 {
@@ -296,6 +321,59 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     std::string helper_chain_cmd = cc::command_options_keys_t.command + '='
                                    + cc::command_options_keys_t.helper_chain
                                    + ';';
+
+    bool tempo_queried = states.guild_player->set_tempo;
+    if (tempo_queried)
+        {
+            std::string new_fx
+                = states.guild_player->tempo == 1.0
+                      ? ""
+                      : "atempo="
+                            + std::to_string (states.guild_player->tempo);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_fx) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_tempo = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if (states.guild_player->tempo != 1.0)
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      "atempo=" + std::to_string (states.guild_player->tempo))
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    bool pitch_queried = states.guild_player->set_pitch;
+    if (pitch_queried)
+        {
+            std::string new_fx
+                = get_ffmpeg_pitch_args (states.guild_player->pitch);
+
+            std::string cmd = cc::command_options_keys_t.helper_chain + '='
+                              + cc::sanitize_command_value (new_fx) + ';';
+
+            helper_chain_cmd += cmd;
+
+            states.guild_player->set_pitch = false;
+            should_write_helper_chain_cmd = true;
+        }
+    else if (states.guild_player->pitch != 0)
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      get_ffmpeg_pitch_args (states.guild_player->pitch))
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
 
     bool equalizer_queried = !states.guild_player->set_equalizer.empty ();
 
@@ -578,6 +656,19 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                    + cc::command_options_keys_t.volume + '='
                    + std::to_string (guild_player->volume) + ';';
+
+            if (guild_player->tempo != 1.0)
+                cmd += cc::command_options_keys_t.helper_chain + '='
+                       + cc::sanitize_command_value (
+                           "atempo=" + std::to_string (guild_player->tempo))
+                       + ';';
+
+            if (guild_player->pitch != 0)
+                std::string cmd
+                    = cc::command_options_keys_t.helper_chain + '='
+                      + cc::sanitize_command_value (
+                          get_ffmpeg_pitch_args (guild_player->pitch))
+                      + ';';
 
             if (!guild_player->equalizer.empty ())
                 cmd += cc::command_options_keys_t.helper_chain + '='

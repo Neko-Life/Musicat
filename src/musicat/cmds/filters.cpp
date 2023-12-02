@@ -4,13 +4,12 @@
 // status, save, load, delete filters manage subcommand
 namespace musicat::command::filters
 {
-static inline constexpr const command_handlers_map_t subcommand_handlers
-    = { { "equalizer", equalizer::slash_run },
-        { "resample", resample::slash_run },
-        { "earwax", earwax::slash_run },
-        { "vibrato", vibrato::slash_run },
-        { "tremolo", tremolo::slash_run },
-        { NULL, NULL } };
+static inline constexpr const command_handlers_map_t subcommand_handlers = {
+    { "equalizer", equalizer::slash_run }, { "resample", resample::slash_run },
+    { "earwax", earwax::slash_run },       { "vibrato", vibrato::slash_run },
+    { "tremolo", tremolo::slash_run },     { "tempo", tempo::slash_run },
+    { "pitch", pitch::slash_run },         { NULL, NULL }
+};
 
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
@@ -23,6 +22,8 @@ get_register_obj (const dpp::snowflake &sha_id)
     earwax::setup_subcommand (slash);
     vibrato::setup_subcommand (slash);
     tremolo::setup_subcommand (slash);
+    tempo::setup_subcommand (slash);
+    pitch::setup_subcommand (slash);
 
     return slash;
 }

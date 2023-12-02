@@ -62,6 +62,12 @@ Player::init ()
 
     this->set_sampling_rate = false;
     this->sampling_rate = -1;
+
+    this->tempo = 1.0;
+    this->set_tempo = false;
+
+    this->pitch = 0;
+    this->set_pitch = false;
 }
 
 Player::Player () { this->init (); }
