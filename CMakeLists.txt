@@ -12,6 +12,7 @@ option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
+set(DPP_USE_EXTERNAL_JSON ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
 set(WITH_COMPILE_GNUPLOT 0)
@@ -150,5 +151,7 @@ set_target_properties(Shasha PROPERTIES
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
 # You can also add any other libs you want to use
+
+message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")
 
 # vim: sw=8 noet
