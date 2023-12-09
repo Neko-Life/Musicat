@@ -385,7 +385,16 @@ get_stream_buffer_size ()
     return _stream_buffer_size;
 }
 
-int _sigint_count = 0;
+ofxEliza *
+get_eliza ()
+{
+    if (!get_running_state ())
+        return nullptr;
+
+    return eliza;
+}
+
+std::atomic<int> _sigint_count = 0;
 
 void
 on_sigint ([[maybe_unused]] int code)
@@ -507,6 +516,10 @@ run (int argc, const char *argv[])
                          dpp::i_guild_members | dpp::i_default_intents);
 
     player::Manager player_manager (&client);
+
+    if (std::filesystem::create_directory ("eliza"))
+        {
+        }
 
     ofxEliza eliza_chatbot;
     eliza_chatbot.init ();
