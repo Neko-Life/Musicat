@@ -12,6 +12,7 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
+#include "ofxEliza.h"
 
 static const std::string OAUTH_BASE_URL
     = "https://discord.com/api/oauth2/authorize";
@@ -33,6 +34,8 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 float _stream_buffer_size = 0.0f;
+
+ofxEliza *eliza = nullptr;
 
 dpp::cluster *
 get_client_ptr ()
@@ -505,8 +508,12 @@ run (int argc, const char *argv[])
 
     player::Manager player_manager (&client);
 
+    ofxEliza eliza_chatbot;
+    eliza_chatbot.init ();
+
     client_ptr = &client;
     player_manager_ptr = &player_manager;
+    eliza = &eliza_chatbot;
 
     client.on_log ([] (const dpp::log_t &event) {
         if (!get_debug_state ())
@@ -590,6 +597,8 @@ run (int argc, const char *argv[])
 
             thread_manager::join_done ();
         }
+
+    eliza = nullptr;
 
     child::shutdown ();
 
