@@ -1,6 +1,7 @@
 #include "musicat/eliza.h"
 #include "musicat/musicat.h"
 #include <filesystem>
+#include <regex>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -61,10 +62,26 @@ handle_message_create (const dpp::message_create_t &event)
     if (event.msg.content.empty ())
         return;
 
-    std::string resp = eliza_ptr->ask (event.msg.content);
+    std::string msg_content = event.msg.content;
+
+    std::regex re_m (" ?<@!?" + sid.str () + ">");
+    std::regex re_s ("^\\s+|\\s+$");
+
+    msg_content = std::regex_replace (msg_content, re_m, "");
+    msg_content = std::regex_replace (msg_content, re_s, "");
+
+    if (msg_content.empty ())
+        return;
+
+    std::string resp = eliza_ptr->ask (msg_content);
 
     if (resp.empty ())
         return;
+
+    for (char &c : resp)
+        {
+            c = std::tolower (c);
+        }
 
     event.reply (resp);
 }
