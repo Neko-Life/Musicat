@@ -1,4 +1,5 @@
 #include "musicat/events/on_message_create.h"
+#include "musicat/eliza.h"
 
 namespace musicat::events
 {
@@ -10,6 +11,8 @@ on_message_create (dpp::cluster *client)
         dpp::channel *c = dpp::find_channel (event.msg.channel_id);
         if (c)
             c->last_message_id = event.msg.id;
+
+        eliza::handle_message_create (event);
     });
 }
 } // musicat::events

@@ -4,6 +4,7 @@
 
 #include "musicat/child.h"
 #include "musicat/db.h"
+#include "musicat/eliza.h"
 #include "musicat/events.h"
 #include "musicat/function_macros.h"
 #include "musicat/musicat.h"
@@ -35,7 +36,7 @@ std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 float _stream_buffer_size = 0.0f;
 
-ofxEliza *eliza = nullptr;
+ofxEliza *eliza_ptr = nullptr;
 
 dpp::cluster *
 get_client_ptr ()
@@ -391,7 +392,7 @@ get_eliza ()
     if (!get_running_state ())
         return nullptr;
 
-    return eliza;
+    return eliza_ptr;
 }
 
 std::atomic<int> _sigint_count = 0;
@@ -474,6 +475,13 @@ run (int argc, const char *argv[])
             return ret;
         }
 
+    ofxEliza eliza_chatbot;
+    if (eliza::check () == 0)
+        {
+            eliza_chatbot.init ();
+            eliza_ptr = &eliza_chatbot;
+        }
+
     // no return after this, init child
     const int child_init_status = child::init ();
     if (child_init_status)
@@ -517,16 +525,8 @@ run (int argc, const char *argv[])
 
     player::Manager player_manager (&client);
 
-    if (std::filesystem::create_directory ("eliza"))
-        {
-        }
-
-    ofxEliza eliza_chatbot;
-    eliza_chatbot.init ();
-
     client_ptr = &client;
     player_manager_ptr = &player_manager;
-    eliza = &eliza_chatbot;
 
     client.on_log ([] (const dpp::log_t &event) {
         if (!get_debug_state ())
@@ -611,7 +611,11 @@ run (int argc, const char *argv[])
             thread_manager::join_done ();
         }
 
-    eliza = nullptr;
+    if (eliza_ptr)
+        {
+            eliza_ptr->save ();
+            eliza_ptr = nullptr;
+        }
 
     child::shutdown ();
 
