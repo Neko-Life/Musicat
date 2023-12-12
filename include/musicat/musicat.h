@@ -3,7 +3,6 @@
 
 #include "musicat/player.h"
 #include "nekos-best++.hpp"
-#include "ofxEliza.h"
 #include <dpp/dpp.h>
 #include <memory>
 #include <stdexcept>
@@ -332,8 +331,6 @@ std::vector<std::string> get_cors_enabled_origins ();
 std::string get_jwt_secret ();
 
 float get_stream_buffer_size ();
-
-ofxEliza *get_eliza ();
 
 } // musicat
 

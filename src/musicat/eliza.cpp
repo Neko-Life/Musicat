@@ -8,36 +8,10 @@
 namespace musicat::eliza
 {
 
-int
-check ()
-{
-    struct stat ofile_stat;
-
-    bool serr = false;
-    if ((serr = (stat ("eliza/script.txt", &ofile_stat) != 0))
-        || !S_ISREG (ofile_stat.st_mode))
-        {
-            if (serr)
-                perror ("eliza");
-
-            std::filesystem::create_directory ("eliza");
-
-            fprintf (stderr, "[ERROR] Missing eliza script, please provide it "
-                             "under eliza/ directory\nIn the meantime, Eliza "
-                             "chatbot will be disabled\n");
-
-            return 1;
-        }
-
-    return 0;
-}
-
 void
 handle_message_create (const dpp::message_create_t &event)
 {
-    ofxEliza *eliza_ptr = get_eliza ();
-
-    if (!eliza_ptr)
+    if (!get_running_state ())
         return;
 
     auto sid = get_sha_id ();
@@ -73,7 +47,7 @@ handle_message_create (const dpp::message_create_t &event)
     if (msg_content.empty ())
         return;
 
-    std::string resp = eliza_ptr->ask (msg_content);
+    std::string resp = eliza::ask (msg_content);
 
     if (resp.empty ())
         return;

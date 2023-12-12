@@ -13,7 +13,6 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
-#include "ofxEliza.h"
 
 static const std::string OAUTH_BASE_URL
     = "https://discord.com/api/oauth2/authorize";
@@ -35,8 +34,6 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 float _stream_buffer_size = 0.0f;
-
-ofxEliza *eliza_ptr = nullptr;
 
 dpp::cluster *
 get_client_ptr ()
@@ -386,15 +383,6 @@ get_stream_buffer_size ()
     return _stream_buffer_size;
 }
 
-ofxEliza *
-get_eliza ()
-{
-    if (!get_running_state ())
-        return nullptr;
-
-    return eliza_ptr;
-}
-
 std::atomic<int> _sigint_count = 0;
 
 void
@@ -475,11 +463,10 @@ run (int argc, const char *argv[])
             return ret;
         }
 
-    ofxEliza eliza_chatbot;
-    if (eliza::check () == 0)
+    if (eliza::init () != 0)
         {
-            eliza_chatbot.init ();
-            eliza_ptr = &eliza_chatbot;
+            fprintf (stderr,
+                     "[ERROR] Something wrong when initializing Eliza...\n");
         }
 
     // no return after this, init child
@@ -609,12 +596,6 @@ run (int argc, const char *argv[])
             server::main_loop_routine ();
 
             thread_manager::join_done ();
-        }
-
-    if (eliza_ptr)
-        {
-            eliza_ptr->save ();
-            eliza_ptr = nullptr;
         }
 
     child::shutdown ();

@@ -23,6 +23,6 @@
 [submodule "libs/jwt-cpp"]
 	path = libs/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp.git
-[submodule "libs/ofxEliza"]
-	path = libs/ofxEliza
-	url = https://github.com/Neko-Life/ofxEliza.git
+[submodule "libs/ELIZA"]
+	path = libs/ELIZA
+	url = https://github.com/Neko-Life/ELIZA.git
