@@ -1,4 +1,9 @@
-FROM archlinux:base-devel as build
+FROM archlinux:base as init
+
+RUN pacman -Sy --needed --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+      pacman -Syu --needed --noconfirm libc++ postgresql-libs libsodium opus ffmpeg
+
+FROM init as build
 
 # Build dependencies
 WORKDIR /app
@@ -10,8 +15,7 @@ COPY libs ./libs
 COPY CMakeLists.txt ./
 
 # Install dependencies
-RUN pacman -Sy --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
-      pacman -Syu --needed --noconfirm libc++ git cmake libsodium opus postgresql-libs clang && \
+RUN pacman -S --needed --noconfirm base-devel libc++ git cmake libsodium opus postgresql-libs clang && \
       mkdir -p build && cd build && \
       export CC=clang && \
       export CXX=clang++ && \
@@ -20,11 +24,9 @@ RUN pacman -Sy --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlis
       export CXXFLAGS='-flto -stdlib=libc++' && \
       cmake .. && make all -j12
 
-FROM archlinux:base as deploy
+FROM init as deploy
 
-RUN pacman -Sy --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
-      pacman -Syu --noconfirm libc++ postgresql-libs libsodium opus ffmpeg && \
-      groupadd musicat && useradd -m -g musicat musicat
+RUN groupadd musicat && useradd -m -g musicat musicat
 
 USER musicat
 
