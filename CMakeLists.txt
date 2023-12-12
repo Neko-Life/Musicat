@@ -30,6 +30,12 @@ file(GLOB_RECURSE MUSICAT_HEADER_FILES
 file(GLOB_RECURSE MUSICAT_SOURCE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/musicat/*.cpp)
 
+file(GLOB_RECURSE ELIZA_HEADER_FILES
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/*.h)
+
+file(GLOB_RECURSE ELIZA_SOURCE_FILES
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/*.cpp)
+
 # Create an executable
 add_executable(Shasha
 	# include files
@@ -37,6 +43,7 @@ add_executable(Shasha
 	include/nlohmann/json.hpp
 	libs/uWebSockets/uSockets/src/libusockets.h
 	libs/uWebSockets/uSockets/src/quic.h
+	${ELIZA_HEADER_FILES}
 	# !TODO: include/uWebSockets/files
 
 	# impl files
@@ -46,6 +53,7 @@ add_executable(Shasha
 	libs/yt-search.h/src/yt-search/yt-search.cpp
 	libs/yt-search.h/src/yt-search/yt-track-info.cpp
 	libs/nekos-bestpp/src/nekos-best++.cpp
+	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
 set(USOCKETS_OBJECT_FILES
@@ -132,6 +140,7 @@ target_include_directories(Shasha PRIVATE
 	# libs/liboggz/include
 	libs/jwt-cpp/include
 	/usr/include/postgresql
+	libs/ELIZA/src
 	# Remember to add the include directories of any other libraries too
 	)
 

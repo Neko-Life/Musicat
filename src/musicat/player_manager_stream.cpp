@@ -5,13 +5,11 @@
 #include "musicat/config.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <thread>
 
 #ifdef MUSICAT_USE_PCM
 

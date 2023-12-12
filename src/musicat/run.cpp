@@ -4,6 +4,7 @@
 
 #include "musicat/child.h"
 #include "musicat/db.h"
+#include "musicat/eliza.h"
 #include "musicat/events.h"
 #include "musicat/function_macros.h"
 #include "musicat/musicat.h"
@@ -382,7 +383,7 @@ get_stream_buffer_size ()
     return _stream_buffer_size;
 }
 
-int _sigint_count = 0;
+std::atomic<int> _sigint_count = 0;
 
 void
 on_sigint ([[maybe_unused]] int code)
@@ -460,6 +461,12 @@ run (int argc, const char *argv[])
                 std::this_thread::sleep_for (std::chrono::seconds (1));
 
             return ret;
+        }
+
+    if (eliza::init () != 0)
+        {
+            fprintf (stderr,
+                     "[ERROR] Something wrong when initializing Eliza...\n");
         }
 
     // no return after this, init child
