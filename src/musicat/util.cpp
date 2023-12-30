@@ -224,4 +224,25 @@ get_current_ts ()
         .count ();
 }
 
+dpp::command_option
+find_focused (const std::vector<dpp::command_option> &options)
+{
+    for (const auto &i : options)
+        {
+            if (i.focused)
+                {
+                    return i;
+                }
+
+            if (!i.options.empty ())
+                {
+                    auto nested_opt = find_focused (i.options);
+                    if (nested_opt.type != (dpp::command_option_type)0)
+                        return nested_opt;
+                }
+        }
+
+    return dpp::command_option ((dpp::command_option_type)0, "", "");
+}
+
 } // musicat::util

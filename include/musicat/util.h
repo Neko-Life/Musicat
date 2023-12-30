@@ -72,6 +72,9 @@ ms_to_picos (const long long ms)
     return ms * 1000000LL;
 }
 
+dpp::command_option
+find_focused (const std::vector<dpp::command_option> &options);
+
 } // musicat::util
 
 #endif // MUSICAT_UTIL_H
