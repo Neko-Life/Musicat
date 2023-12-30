@@ -15,7 +15,7 @@ COPY libs ./libs
 COPY CMakeLists.txt ./
 
 # Install dependencies
-RUN pacman -S --needed --noconfirm base-devel libc++ git cmake libsodium opus postgresql-libs clang && \
+RUN pacman -Syu --needed --noconfirm base-devel libc++ git cmake libsodium opus postgresql-libs clang && \
       mkdir -p build && cd build && \
       export CC=clang && \
       export CXX=clang++ && \
