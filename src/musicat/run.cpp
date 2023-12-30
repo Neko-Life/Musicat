@@ -448,10 +448,25 @@ run (int argc, const char *argv[])
             return -1;
         }
 
+    const musicat_cluster_params_t cluster_params
+        = { sha_token,
+            dpp::i_guild_members | dpp::i_default_intents,
+            0,
+            0,
+            1,
+            true,
+            dpp::cache_policy::cpol_default,
+            1,
+            1 };
+
     if (argc > 1)
         {
-            dpp::cluster client (sha_token, dpp::i_guild_members
-                                                | dpp::i_default_intents);
+            dpp::cluster client (
+                cluster_params.token, cluster_params.intents,
+                cluster_params.shards, cluster_params.cluster_id,
+                cluster_params.maxclusters, cluster_params.compressed,
+                cluster_params.policy, cluster_params.request_threads,
+                cluster_params.request_threads_raw);
 
             client_ptr = &client;
 
@@ -507,8 +522,11 @@ run (int argc, const char *argv[])
 
     // initialize cluster here since constructing cluster
     // also spawns threads
-    dpp::cluster client (sha_token,
-                         dpp::i_guild_members | dpp::i_default_intents);
+    dpp::cluster client (cluster_params.token, cluster_params.intents,
+                         cluster_params.shards, cluster_params.cluster_id,
+                         cluster_params.maxclusters, cluster_params.compressed,
+                         cluster_params.policy, cluster_params.request_threads,
+                         cluster_params.request_threads_raw);
 
     player::Manager player_manager (&client);
 

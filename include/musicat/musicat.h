@@ -15,6 +15,19 @@ namespace musicat
 {
 extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
+struct musicat_cluster_params_t
+{
+    std::string token;
+    uint32_t intents;
+    uint32_t shards;
+    uint32_t cluster_id;
+    uint32_t maxclusters;
+    bool compressed;
+    dpp::cache_policy_t policy;
+    uint32_t request_threads;
+    uint32_t request_threads_raw;
+};
+
 // Main
 int run (int argc, const char *argv[]);
 
