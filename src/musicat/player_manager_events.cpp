@@ -292,7 +292,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                         this->remove_ignore_marker (guild_id);
 
-                        v->insert_marker ("e");
+                        // let the user decide what to do instead of straight
+                        // skipping the unplayable track, maybe i want to save
+                        // it to playlist first!
+                        //
+                        // v->insert_marker ("e");
                     }
 
                 // can't notify user, what else to do?
