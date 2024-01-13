@@ -1,0 +1,61 @@
+// url info
+{
+  "id": "RfFdKYChVfs",
+  "title": "S3RL feat. Chi Chi - I'll See You Again",
+  // delete "formats"
+  // delete "thumbnails"
+  "thumbnail": "https://i.ytimg.com/vi/RfFdKYChVfs/maxresdefault.jpg",
+  "description": "WATCH IN HD and read the description below(:\nFacebook page: https://www.facebook.com/NightcoreHandsUpCentral\nSong: S3RL feat. Chi Chi - I'll See You Again\n\nSupport S3RL:\n- https://www.facebook.com/DJ.S3RL.Official.Fan.Page\n- https://www.youtube.com/user/S3RL\n\nSupport Chi Chi:\n- https://www.youtube.com/user/chisanaAi\n\nSUPPORT the artists and BUY the originals:\nAmazon: http://www.amazon.com/gp/product/B00IANHK84/ref=dm_ws_sp_ps_dp?ie=UTF8&qid=1396429624&sr=8-1\niTunes: https://itunes.apple.com/us/album/ill-see-you-again-feat.-chi/id815841957\nMusicload: http://www.musicload.de/chi-chi-s3rl/i-ll-see-you-again/musik/single/21621857_4?xtmc=s3rl_i_ll_see_you&xtcr=1\nTrackitdown: https://www.trackitdown.net/track/s3rl-feat-chi-chi/ill-see-you-again-dj-edit/hardcore/6712982.html\nBeatport: http://www.beatport.com/release/ill-see-you-again/1244388\nDJShop: http://www.djshop.de/Download-s3rl-feat-chi-chi-ill-see-you-again/ex/s~details,u~8490036969,p1~mp3/xe/details.html\n\nPicture link: http://konachan.com/post/show/117947/angel-bondage-chenbo-original-purple_eyes-realisti\n\nPartner Channel:\n- https://www.youtube.com/user/HandsUpMusicEX\n- https://www.youtube.com/user/HandsUpMusicED\n- https://www.youtube.com/user/HandsUpMusicMIX\n(Subscribe to him for some of the best Hands Up tracks!)\n\n\"Copyright Disclaimer Under Section 107 of the Copyright Act 1976, allowance is made for \"fair use\" for purposes such as criticism, comment, news reporting, teaching, scholarship, and research. Fair use is a use permitted by copyright statute that might otherwise be infringing. Non-profit, educational or personal use tips the balance in favor of fair use\"",
+  "channel_id": "UCNf9hXZAoFHDIj5Buiv7qiw",
+  "channel_url": "https://www.youtube.com/channel/UCNf9hXZAoFHDIj5Buiv7qiw",
+  "duration": 225,
+  "view_count": 65309,
+  "average_rating": null,
+  "age_limit": 0,
+  "webpage_url": "https://www.youtube.com/watch?v=RfFdKYChVfs",
+  "categories": [
+    "Music"
+  ],
+  "tags": [],
+  "playable_in_embed": true,
+  "live_status": "not_live",
+  "release_timestamp": null,
+  "_format_sort_fields": [
+    "quality",
+    "res",
+    "fps",
+    "hdr:12",
+    "source",
+    "vcodec:vp9.2",
+    "channels",
+    "acodec",
+    "lang",
+    "proto"
+  ],
+  "automatic_captions": {},
+  "subtitles": {},
+  "comment_count": 76,
+  "chapters": null,
+  // delete "heatmap"
+  "channel": "HandzUpNightcore",
+  "channel_follower_count": 34600,
+  "uploader": "HandzUpNightcore",
+  "uploader_id": "@HandzUpNightcore",
+  "uploader_url": "https://www.youtube.com/@HandzUpNightcore",
+  "upload_date": "20140402",
+  "availability": "public",
+  "__post_extractor": null,
+  "original_url": "https://www.youtube.com/watch?v=RfFdKYChVfs",
+  "webpage_url_basename": "watch",
+  "webpage_url_domain": "youtube.com",
+  "extractor": "youtube",
+  "extractor_key": "Youtube",
+  "epoch": 1705128788,
+  "_type": "video",
+  "_version": {
+    "version": "2023.11.16",
+    "current_git_head": null,
+    "release_git_head": "24f827875c6ba513f12ed09a3aef2bbed223760d",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}

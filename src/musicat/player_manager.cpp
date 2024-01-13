@@ -1,3 +1,4 @@
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
@@ -232,17 +233,17 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
         this->stop_stream (guild_id);
 
-    auto a = guild_player->skip (v);
-    if (a.first.size ())
+    auto [removed_ts, status] = guild_player->skip (v);
+    if (removed_ts.size ())
         {
-            for (auto &e : a.first)
+            for (const auto &e : removed_ts)
                 removed_tracks.push_back (e);
         }
 
     if (remove && !guild_player->stopped && v && v->voiceclient)
         v->voiceclient->insert_marker ("rm");
 
-    return { removed_tracks, a.second };
+    return { removed_tracks, status };
 }
 
 void
@@ -320,7 +321,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
         {
             std::cerr << "[Manager::play ERROR] Voice client is null, "
                          "unable to start streaming thread: '"
-                      << track.title () << "' (" << channel_id << ")\n";
+                      << mctrack::get_title (track) << "' (" << channel_id
+                      << ")\n";
 
             return 1;
         }
