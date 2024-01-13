@@ -1,0 +1,1096 @@
+// python get_info.py 'https://www.youtube.com/watch?v=RfFdKYChVfs&list=RDRfFdKYChVfs'
+{
+  "id": "RDRfFdKYChVfs",
+  "title": "Mix - S3RL feat. Chi Chi - I'll See You Again",
+  "_type": "playlist",
+  "entries": [
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "RfFdKYChVfs",
+      "url": "https://www.youtube.com/watch?v=RfFdKYChVfs",
+      "title": "S3RL feat. Chi Chi - I'll See You Again",
+      "description": null,
+      "duration": 225.0,
+      "channel_id": "UCNf9hXZAoFHDIj5Buiv7qiw",
+      "channel": "HandzUpNightcore",
+      "channel_url": "https://www.youtube.com/channel/UCNf9hXZAoFHDIj5Buiv7qiw",
+      "uploader": "HandzUpNightcore",
+      "uploader_id": "@HandzUpNightcore",
+      "uploader_url": "https://www.youtube.com/@HandzUpNightcore",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/RfFdKYChVfs/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA7k1sHrBcw-yxVsBMZd9WxP9cgxg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/RfFdKYChVfs/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBanLbsZP4Ph0Ox2RXyD53T-w-8Mg",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/RfFdKYChVfs/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBEY_3CWTR9291Z6ZZhDB4JkOGfzQ",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/RfFdKYChVfs/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDgY59He4eBwIXyfr825P2qhZz4Gg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "zEZEsyk6BSo",
+      "url": "https://www.youtube.com/watch?v=zEZEsyk6BSo",
+      "title": "Pretty Rave Girl (Original Mix)",
+      "description": null,
+      "duration": 364.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/zEZEsyk6BSo/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBV6BAHMpcQscUz6NSSrCvO_28iqg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/zEZEsyk6BSo/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCQNyvsCIzen_FTIj5WMKwJL56E4A",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/zEZEsyk6BSo/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBhvIZB-i5EbpOAxiEr__85d-LP6Q",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/zEZEsyk6BSo/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDxRPiR_nXX2U_aiqJUld11LhoCYA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "QlHJfiXnDaQ",
+      "url": "https://www.youtube.com/watch?v=QlHJfiXnDaQ",
+      "title": "Pika Girl",
+      "description": null,
+      "duration": 226.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/QlHJfiXnDaQ/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBYeah2csqkdpvT3HPRiABP8rRNgg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/QlHJfiXnDaQ/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDeaGzwQbubKriSbPljjBhnt_pvdw",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/QlHJfiXnDaQ/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAX8-Ew6-yDUhskNCXhYnKYCLWJXg",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/QlHJfiXnDaQ/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBRHHMQy8bgZXwZeiYHVO18OBSvrg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "flbz8iM2bEU",
+      "url": "https://www.youtube.com/watch?v=flbz8iM2bEU",
+      "title": "Nightcore - Day after day",
+      "description": null,
+      "duration": 304.0,
+      "channel_id": "UCkZSsVotFjw2KKYbcyL7lmA",
+      "channel": "AliceBloodRabbit",
+      "channel_url": "https://www.youtube.com/channel/UCkZSsVotFjw2KKYbcyL7lmA",
+      "uploader": "AliceBloodRabbit",
+      "uploader_id": "@AliceBloodRabbit",
+      "uploader_url": "https://www.youtube.com/@AliceBloodRabbit",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/flbz8iM2bEU/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGDMgRyh_MA8=&rs=AOn4CLBMLn-dUIv1aj6qfz4SAsIjWE1KCA",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/flbz8iM2bEU/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGDMgRyh_MA8=&rs=AOn4CLCVHfn3rNSsAvVd0n-kR-Mad2V5vQ",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/flbz8iM2bEU/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARgzIEcofzAP&rs=AOn4CLC6ehtkChe1uc9qZxvMhwEIxjTWiA",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/flbz8iM2bEU/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARgzIEcofzAP&rs=AOn4CLCp7JWZeV0jljJNfUoCbwL4g1D-zw",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "8QG7CEuUqMc",
+      "url": "https://www.youtube.com/watch?v=8QG7CEuUqMc",
+      "title": "Everytime we touch - Nightcore - HD",
+      "description": null,
+      "duration": 156.0,
+      "channel_id": "UCQMxK26bJvIBU-dMIOZUYbw",
+      "channel": "WorldOfNightcore",
+      "channel_url": "https://www.youtube.com/channel/UCQMxK26bJvIBU-dMIOZUYbw",
+      "uploader": "WorldOfNightcore",
+      "uploader_id": "@WorldOfNightcore",
+      "uploader_url": "https://www.youtube.com/@WorldOfNightcore",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/8QG7CEuUqMc/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGGUgSChbMA8=&rs=AOn4CLBk9Qwl_UNrl3vO0OGoycTHezuXlA",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/8QG7CEuUqMc/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGGUgSChbMA8=&rs=AOn4CLBjqoJCLDnE82dhpP3TxTSbCWJQ8A",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/8QG7CEuUqMc/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARhlIEgoWzAP&rs=AOn4CLDj1-rk_evwe_2RrU0ZOhIBIz9LVw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/8QG7CEuUqMc/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARhlIEgoWzAP&rs=AOn4CLCCNEydopMYA04rvcZApGkeTRk1zA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "7GiDgP4F1j8",
+      "url": "https://www.youtube.com/watch?v=7GiDgP4F1j8",
+      "title": "Nightcore - Around The World",
+      "description": null,
+      "duration": 189.0,
+      "channel_id": "UCHLNXt4S4Zru_9-0MVQi_Lw",
+      "channel": "Syndy Cloud",
+      "channel_url": "https://www.youtube.com/channel/UCHLNXt4S4Zru_9-0MVQi_Lw",
+      "uploader": "Syndy Cloud",
+      "uploader_id": "@KuraudoNightCore",
+      "uploader_url": "https://www.youtube.com/@KuraudoNightCore",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/7GiDgP4F1j8/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-CYAC0AWKAgwIABABGBMgSCh_MA8=&rs=AOn4CLD6dhXjYpogYb5_EhPlFTj74ed-6Q",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/7GiDgP4F1j8/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-CYAC0AWKAgwIABABGBMgSCh_MA8=&rs=AOn4CLCKeNmg1BT7PuOJtM0DT0aFiuCk4Q",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/7GiDgP4F1j8/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARgTIEgofzAP&rs=AOn4CLCT0Tawu51a7cechydexVOs9wv2MA",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/7GiDgP4F1j8/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gmAAtAFigIMCAAQARgTIEgofzAP&rs=AOn4CLDruFyGFqeB_2id7By4TGPR-ezHYQ",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "ZQKdayVotaI",
+      "url": "https://www.youtube.com/watch?v=ZQKdayVotaI",
+      "title": "Nightcore  - How Do You Do (Remix) ✕",
+      "description": null,
+      "duration": 185.0,
+      "channel_id": "UC4TQkrQmE94CokTtHqXhCJA",
+      "channel": "NightcoreLounge",
+      "channel_url": "https://www.youtube.com/channel/UC4TQkrQmE94CokTtHqXhCJA",
+      "uploader": "NightcoreLounge",
+      "uploader_id": "@NightcoreLounge",
+      "uploader_url": "https://www.youtube.com/@NightcoreLounge",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/ZQKdayVotaI/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAR6IU7kRj1fziyuAqpOGPwDNAeIw",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZQKdayVotaI/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDG3_DFU0fr0vbPz8KBprFoasQwUg",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZQKdayVotaI/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCbOteeTZ19dZYnFKBAb7yNwv9Bhw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZQKdayVotaI/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAUwzPtdMl962M_TinI9QnknnKCDQ",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "P69mx-2F5X0",
+      "url": "https://www.youtube.com/watch?v=P69mx-2F5X0",
+      "title": "Rainbow Girl - S3RL feat Tamika",
+      "description": null,
+      "duration": 223.0,
+      "channel_id": "UCp5eS3IGCq0fm3NEhFcy_uQ",
+      "channel": "Desuvi Music",
+      "channel_url": "https://www.youtube.com/channel/UCp5eS3IGCq0fm3NEhFcy_uQ",
+      "uploader": "Desuvi Music",
+      "uploader_id": "@jordesuvi",
+      "uploader_url": "https://www.youtube.com/@jordesuvi",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/P69mx-2F5X0/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ShI76h4XIsw-NXFV8U6rDj31TQ",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/P69mx-2F5X0/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLACryydKE8VnkbnaHtNvRlkTPbSpg",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/P69mx-2F5X0/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLB4nWezMjtdNpeeqvtI-vR9bER8ag",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/P69mx-2F5X0/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAWRoXOqJ-zSiFc2uLTlgorB11eFw",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "Quzsv6ekcPQ",
+      "url": "https://www.youtube.com/watch?v=Quzsv6ekcPQ",
+      "title": "Nightcore - Poison",
+      "description": null,
+      "duration": 317.0,
+      "channel_id": "UCL-ltQirVJ1rfyZyVz9EeoA",
+      "channel": "Maikel6311's Nightcore",
+      "channel_url": "https://www.youtube.com/channel/UCL-ltQirVJ1rfyZyVz9EeoA",
+      "uploader": "Maikel6311's Nightcore",
+      "uploader_id": "@Maikel6311",
+      "uploader_url": "https://www.youtube.com/@Maikel6311",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/Quzsv6ekcPQ/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLChHin1b9MQwqNbr0yX9LnKdHR1sg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Quzsv6ekcPQ/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCUC_-V4wV8iuBaog7g5X3kYGwjyQ",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Quzsv6ekcPQ/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCYYIfADEdR8wPnZefUGL7vgNP7gA",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Quzsv6ekcPQ/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBKl1-w5Mn4fJZXga6RaOTEDsftyA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "EYSYLt14miM",
+      "url": "https://www.youtube.com/watch?v=EYSYLt14miM",
+      "title": "Dj Satomi - Waves",
+      "description": null,
+      "duration": 185.0,
+      "channel_id": "UCG409V3DPX1jhd3VYBJ03IQ",
+      "channel": "unwrittenmelody15",
+      "channel_url": "https://www.youtube.com/channel/UCG409V3DPX1jhd3VYBJ03IQ",
+      "uploader": "unwrittenmelody15",
+      "uploader_id": "@unwrittenmelody15",
+      "uploader_url": "https://www.youtube.com/@unwrittenmelody15",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/EYSYLt14miM/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGDsgUShyMA8=&rs=AOn4CLDk4QiZLFcSfp2ajvHfh8LhAnOVKg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/EYSYLt14miM/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGDsgUShyMA8=&rs=AOn4CLCbqhmpqt3qneU3aF_4K9CqGKsx7g",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/EYSYLt14miM/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARg7IFEocjAP&rs=AOn4CLDExSOj2UiSOVFU90ai8I6Kk4Uk6Q",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/EYSYLt14miM/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARg7IFEocjAP&rs=AOn4CLB93jAnXs7UW15IhKx05BJf3Kx1Eg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "cmlCuzn_mqI",
+      "url": "https://www.youtube.com/watch?v=cmlCuzn_mqI",
+      "title": "Nightcore - Bad boy",
+      "description": null,
+      "duration": 157.0,
+      "channel_id": "UCkZSsVotFjw2KKYbcyL7lmA",
+      "channel": "AliceBloodRabbit",
+      "channel_url": "https://www.youtube.com/channel/UCkZSsVotFjw2KKYbcyL7lmA",
+      "uploader": "AliceBloodRabbit",
+      "uploader_id": "@AliceBloodRabbit",
+      "uploader_url": "https://www.youtube.com/@AliceBloodRabbit",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/cmlCuzn_mqI/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGE8gRyhlMA8=&rs=AOn4CLD-yX9HO2EDU5tnLSUGPEw3Qpqf4w",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cmlCuzn_mqI/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AG-B4AC0AWKAgwIABABGE8gRyhlMA8=&rs=AOn4CLA77iR62H_4yj1DBtz7guJftIIwvA",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cmlCuzn_mqI/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARhPIEcoZTAP&rs=AOn4CLBGXijwbjNUb5-066V0BXTB_Lozvg",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cmlCuzn_mqI/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgBvgeAAtAFigIMCAAQARhPIEcoZTAP&rs=AOn4CLChF9uUlhwLg9sAYR7YQh7PJcjeuQ",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "baBVGXfOBXA",
+      "url": "https://www.youtube.com/watch?v=baBVGXfOBXA",
+      "title": "Nightcore - Angel of Darkness",
+      "description": null,
+      "duration": 180.0,
+      "channel_id": "UCrG8mytOLrC_t5vu7To4ajA",
+      "channel": "Cherry 葵",
+      "channel_url": "https://www.youtube.com/channel/UCrG8mytOLrC_t5vu7To4ajA",
+      "uploader": "Cherry 葵",
+      "uploader_id": "@Cherriexin",
+      "uploader_url": "https://www.youtube.com/@Cherriexin",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/baBVGXfOBXA/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBTG9_HwHYgh7HoZnKZm3lQEdPS_Q",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/baBVGXfOBXA/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBQD2NU_K4uIlTVJNJmd5exmudFXA",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/baBVGXfOBXA/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDj6HD1RpDgCoAgBIO6nsUiNKy8Gw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/baBVGXfOBXA/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCBchhyEZXlwwOx55cfmqh-BAJ95Q",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "BByMzI1YjKA",
+      "url": "https://www.youtube.com/watch?v=BByMzI1YjKA",
+      "title": "Nightcore - Pretty Little Psycho",
+      "description": null,
+      "duration": 169.0,
+      "channel_id": "UC38GMKiSwiZQQITrRYuTEOA",
+      "channel": "Zero.Miz-Kun",
+      "channel_url": "https://www.youtube.com/channel/UC38GMKiSwiZQQITrRYuTEOA",
+      "uploader": "Zero.Miz-Kun",
+      "uploader_id": "@ZeroMizKun",
+      "uploader_url": "https://www.youtube.com/@ZeroMizKun",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/BByMzI1YjKA/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCoDjsJEFqw9dlJJz7zXuJP1SAWNQ",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/BByMzI1YjKA/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLB8NMykrojwxqIBhGUL76OY5tgxDA",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/BByMzI1YjKA/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBeG306_eOh5G6QCbEiD3VvJSfqAA",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/BByMzI1YjKA/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAvASRzlPw_hJB92mhvbzFkFrwxhg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "VeWJWOVEOR0",
+      "url": "https://www.youtube.com/watch?v=VeWJWOVEOR0",
+      "title": "Nightcore - Stereo Love",
+      "description": null,
+      "duration": 208.0,
+      "channel_id": "UC2lIZV8sAAZCNZBxgu4Ldbg",
+      "channel": "Cutelizziepie",
+      "channel_url": "https://www.youtube.com/channel/UC2lIZV8sAAZCNZBxgu4Ldbg",
+      "uploader": "Cutelizziepie",
+      "uploader_id": "@Cutelizziepie",
+      "uploader_url": "https://www.youtube.com/@Cutelizziepie",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/VeWJWOVEOR0/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGCEgSCh_MA8=&rs=AOn4CLA5mouDtgbp660aVwsp7ke0CDCruw",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/VeWJWOVEOR0/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGCEgSCh_MA8=&rs=AOn4CLAO-pyPKj7Bdq4Ej-rcIxNQDsg76g",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/VeWJWOVEOR0/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARghIEgofzAP&rs=AOn4CLB5siSzToQ3Nvn-90w3KE1_FYxQfw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/VeWJWOVEOR0/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARghIEgofzAP&rs=AOn4CLAANrIbJRO3vtWMojnJW_EW3XvxpA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "TiVIFMbwxOc",
+      "url": "https://www.youtube.com/watch?v=TiVIFMbwxOc",
+      "title": "Nightcore - God Is A Girl",
+      "description": null,
+      "duration": 221.0,
+      "channel_id": "UCL-ltQirVJ1rfyZyVz9EeoA",
+      "channel": "Maikel6311's Nightcore",
+      "channel_url": "https://www.youtube.com/channel/UCL-ltQirVJ1rfyZyVz9EeoA",
+      "uploader": "Maikel6311's Nightcore",
+      "uploader_id": "@Maikel6311",
+      "uploader_url": "https://www.youtube.com/@Maikel6311",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/TiVIFMbwxOc/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDlwOPh1zvB9C9bBpfpkgVBRqUUOg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/TiVIFMbwxOc/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLC9fI_Z1J8b1uPWT8wyq4BPhWtFjw",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/TiVIFMbwxOc/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDjhhC63_tSJX_Tx-msB3nrUvPwtA",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/TiVIFMbwxOc/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBWV-_1UL-d_eXnVZT8drlgQeHOnQ",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "J8MYkqM8wYY",
+      "url": "https://www.youtube.com/watch?v=J8MYkqM8wYY",
+      "title": "I Will Pick You up (feat. Tamika)",
+      "description": null,
+      "duration": 223.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/J8MYkqM8wYY/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDj8O38P0BqNTco1wfrJeoQQe_sZA",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/J8MYkqM8wYY/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLC5zfZPlATcNm0kUGSolVjOYjK0iA",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/J8MYkqM8wYY/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCNDE1GToO-BiouRRUZ2lxz6uSvig",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/J8MYkqM8wYY/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLA_l4BY10f710eMz6DSnkHkTAedWQ",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "kZrNHq0NmRk",
+      "url": "https://www.youtube.com/watch?v=kZrNHq0NmRk",
+      "title": "It Went - S3RL feat Tamika",
+      "description": null,
+      "duration": 227.0,
+      "channel_id": "UCp5eS3IGCq0fm3NEhFcy_uQ",
+      "channel": "Desuvi Music",
+      "channel_url": "https://www.youtube.com/channel/UCp5eS3IGCq0fm3NEhFcy_uQ",
+      "uploader": "Desuvi Music",
+      "uploader_id": "@jordesuvi",
+      "uploader_url": "https://www.youtube.com/@jordesuvi",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/kZrNHq0NmRk/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBwA4_LD8aKm3z0Itgfse05e28SMw",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/kZrNHq0NmRk/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLATOt45vLMpI0EE7LUjCC_cvNZbEA",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/kZrNHq0NmRk/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAIfa4mn9rQlY55p3-EmVDSWi7i0A",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/kZrNHq0NmRk/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBkMzoPe4_rOZBqQ3FDzgM__ZWnEA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "maI0-kf5MWM",
+      "url": "https://www.youtube.com/watch?v=maI0-kf5MWM",
+      "title": "Feel the Melody - S3RL feat Sara",
+      "description": null,
+      "duration": 233.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/maI0-kf5MWM/hqdefault.jpg?sqp=-oaymwE1CKgBEF5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGGUgZShlMA8=&rs=AOn4CLBOScxZL0btCQ1rvRJkLrjVTmJovA",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/maI0-kf5MWM/hqdefault.jpg?sqp=-oaymwE1CMQBEG5IVfKriqkDKAgBFQAAiEIYAXABwAEG8AEB-AH-BIAC4AOKAgwIABABGGUgZShlMA8=&rs=AOn4CLC_V0oZH8noJ87xY1A3VYQLUcmi_g",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/maI0-kf5MWM/hqdefault.jpg?sqp=-oaymwE2CPYBEIoBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARhlIGUoZTAP&rs=AOn4CLCYQOATUQ3fDVBFkMIz7zIwJkjM7Q",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/maI0-kf5MWM/hqdefault.jpg?sqp=-oaymwE2CNACELwBSFXyq4qpAygIARUAAIhCGAFwAcABBvABAfgB_gSAAuADigIMCAAQARhlIGUoZTAP&rs=AOn4CLAvn_LOmOmoH5mbl2WhgJwNEgVLPg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "FcRJGHkpm8s",
+      "url": "https://www.youtube.com/watch?v=FcRJGHkpm8s",
+      "title": "Nightcore This - S3RL feat Tamika",
+      "description": null,
+      "duration": 231.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/FcRJGHkpm8s/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCngMrH00304c7MeJdVJ1yc0xGcfQ",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/FcRJGHkpm8s/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDcIboBSQ3VYcrjBnzbznwMkmYAAQ",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/FcRJGHkpm8s/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBD6uwVChkSD4taKsw9L9xQV1bLdg",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/FcRJGHkpm8s/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBS5SCstzQS7WaEf5FfHFbf6OhU8w",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "bXSAVT8EjUo",
+      "url": "https://www.youtube.com/watch?v=bXSAVT8EjUo",
+      "title": "All That I Need - S3RL feat Kayliana & MC Riddle",
+      "description": null,
+      "duration": 195.0,
+      "channel_id": "UCb6JTMjrHZCYFD9Y04CBk9g",
+      "channel": "S3RL",
+      "channel_url": "https://www.youtube.com/channel/UCb6JTMjrHZCYFD9Y04CBk9g",
+      "uploader": "S3RL",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/bXSAVT8EjUo/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLBaEUC8ZI6qeyu0pF5kwV0XHz--Ag",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/bXSAVT8EjUo/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCkAg3nbNOx5wVTX_iEOn-NA78IJg",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/bXSAVT8EjUo/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLB3RFm0lpHr2y86D-t56PArMs4xqw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/bXSAVT8EjUo/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBko5-Jy-PULgb7LweWOtwgp1Inwg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "AlYdp8P1s6c",
+      "url": "https://www.youtube.com/watch?v=AlYdp8P1s6c",
+      "title": "【Clover】 Still Dancing (Music Video)",
+      "description": null,
+      "duration": 234.0,
+      "channel_id": "UCTAyRNwgMv_vvM8Z9UvKKEg",
+      "channel": "OR3O",
+      "channel_url": "https://www.youtube.com/channel/UCTAyRNwgMv_vvM8Z9UvKKEg",
+      "uploader": "OR3O",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/AlYdp8P1s6c/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAc_U347MeVAlRy1hpn7k8G10B_mw",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/AlYdp8P1s6c/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA96NGIyHflXx5xFbxs7cMcIh1Jug",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/AlYdp8P1s6c/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLC7gm-9Winw76A2K8V-rYzspuTN7A",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/AlYdp8P1s6c/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBIGVZD9HCff76gfeNQnGA9dV7iUA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "ZstsPUKT5CI",
+      "url": "https://www.youtube.com/watch?v=ZstsPUKT5CI",
+      "title": "BENDY AND THE INK MACHINE SONG (Build Our Machine) LYRIC VIDEO - DAGames",
+      "description": null,
+      "duration": 263.0,
+      "channel_id": "UCK7OXr0m5mnM1z9p7n_Bwfw",
+      "channel": "DAGames",
+      "channel_url": "https://www.youtube.com/channel/UCK7OXr0m5mnM1z9p7n_Bwfw",
+      "uploader": "DAGames",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/ZstsPUKT5CI/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDZRMTlAn_3qMvorqqUkTQ9iWoZ6g",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZstsPUKT5CI/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLChQVo2frODIPtGugvYwKZi9h5sTw",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZstsPUKT5CI/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDVAd4R_PxxbBLDR3IrrP4No2EPOw",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/ZstsPUKT5CI/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBIkDXvPQmMhIlFa8fdR5XmfRMrWg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "WRz2MxhAdJo",
+      "url": "https://www.youtube.com/watch?v=WRz2MxhAdJo",
+      "title": "Avicii - Without You “Audio” ft. Sandro Cavazza",
+      "description": null,
+      "duration": 184.0,
+      "channel_id": "UCPHjpfnnGklkRBBTd0k6aHg",
+      "channel": "Avicii",
+      "channel_url": "https://www.youtube.com/channel/UCPHjpfnnGklkRBBTd0k6aHg",
+      "uploader": "Avicii",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/WRz2MxhAdJo/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLDHKqdKjMMUEslyME7I1VEWgL48jQ",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/WRz2MxhAdJo/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCiAEKRGeyosyoaM9yxE67aUDAyPQ",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/WRz2MxhAdJo/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD8JdnItuS1teG3P_v71YYqRhl3tQ",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/WRz2MxhAdJo/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAEPhwFtodlkTFayKoWCAQFuf5fBg",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "Y2Sv_V7czgo",
+      "url": "https://www.youtube.com/watch?v=Y2Sv_V7czgo",
+      "title": "Trivecta - Ghost in the Machine [Monstercat Release]",
+      "description": null,
+      "duration": 269.0,
+      "channel_id": "UCp8OOssjSjGZRVYK6zWbNLg",
+      "channel": "Monstercat Instinct",
+      "channel_url": "https://www.youtube.com/channel/UCp8OOssjSjGZRVYK6zWbNLg",
+      "uploader": "Monstercat Instinct",
+      "uploader_id": "@monstercatinstinct",
+      "uploader_url": "https://www.youtube.com/@monstercatinstinct",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/Y2Sv_V7czgo/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLCNwz76IaMso2HFRQ-w1RG5nQ1zKg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Y2Sv_V7czgo/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAQcZT2hcLO4L75kymzPt32E-YWfQ",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Y2Sv_V7czgo/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAqPWfnnQRi8l9hYxKuLsEoG6ObNQ",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/Y2Sv_V7czgo/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBOWknKeGuZB8lrVjFqbtLpCv8HBw",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "cHHLHGNpCSA",
+      "url": "https://www.youtube.com/watch?v=cHHLHGNpCSA",
+      "title": "Avicii - Waiting For Love",
+      "description": null,
+      "duration": 231.0,
+      "channel_id": "UCPHjpfnnGklkRBBTd0k6aHg",
+      "channel": "Avicii",
+      "channel_url": "https://www.youtube.com/channel/UCPHjpfnnGklkRBBTd0k6aHg",
+      "uploader": "Avicii",
+      "uploader_id": null,
+      "uploader_url": null,
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/cHHLHGNpCSA/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLArt_w-Sp2d7xVGeW85q7jo8efYrg",
+          "height": 94,
+          "width": 168
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cHHLHGNpCSA/hqdefault.jpg?sqp=-oaymwEbCMQBEG5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLAl5p9fKqJ7k7Daqtok-0Wpve-K0Q",
+          "height": 110,
+          "width": 196
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cHHLHGNpCSA/hqdefault.jpg?sqp=-oaymwEcCPYBEIoBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAWouHMXUGnD0xG0kVVQQnDwR6Z-A",
+          "height": 138,
+          "width": 246
+        },
+        {
+          "url": "https://i.ytimg.com/vi/cHHLHGNpCSA/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAGMC2VXjIlIPqkNCpOekATzgOEjA",
+          "height": 188,
+          "width": 336
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": null,
+      "live_status": null,
+      "channel_is_verified": null
+    }
+  ],
+  "webpage_url": "https://www.youtube.com/watch?v=RfFdKYChVfs&list=RDRfFdKYChVfs",
+  "original_url": "https://www.youtube.com/watch?v=RfFdKYChVfs&list=RDRfFdKYChVfs",
+  "webpage_url_basename": "watch",
+  "webpage_url_domain": "youtube.com",
+  "extractor": "youtube:tab",
+  "extractor_key": "YoutubeTab",
+  "epoch": 1705128324,
+  "_version": {
+    "version": "2023.11.16",
+    "current_git_head": null,
+    "release_git_head": "24f827875c6ba513f12ed09a3aef2bbed223760d",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}
