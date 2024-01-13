@@ -112,7 +112,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (!vcuser.first)
         return event.reply ("Join a voice channel first you dummy");
 
-    dpp::user *sha_user = dpp::find_user (sha_id);
+    dpp::user const *sha_user = dpp::find_user (sha_id);
 
     uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user),
                                                sha_user, vcuser.first);

@@ -2,6 +2,7 @@
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/helper_processor.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <assert.h>
@@ -177,8 +178,8 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 
             if (guild_player && guild_player->current_track.filesize)
                 {
-                    const uint64_t duration
-                        = guild_player->current_track.info.duration ();
+                    uint64_t duration
+                        = mctrack::get_duration (guild_player->current_track);
 
                     float byte_per_ms
                         = (float)guild_player->current_track.filesize

@@ -1,5 +1,6 @@
 #include "musicat/pagination.h"
 #include "musicat/function_macros.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/storage.h"
@@ -485,7 +486,7 @@ _construct_desc (std::deque<player::MCTrack> &queue,
         {
             uint64_t dur = 0;
             if (!i->info.raw.is_null ())
-                dur = i->info.duration ();
+                dur = mctrack::get_duration (*i);
 
             desc += std::to_string (id) + ": [" + i->title () + "]("
                     + i->url () + ")"
@@ -549,7 +550,7 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
 
     for (auto i = queue.begin (); i != queue.end (); i++)
         if (!i->info.raw.is_null ())
-            totald += i->info.duration ();
+            totald += mctrack::get_duration (*i);
 
     auto guild_player
         = get_player_manager_ptr ()->get_player (event.command.guild_id);

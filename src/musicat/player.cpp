@@ -432,7 +432,7 @@ player_has_current_track (std::shared_ptr<player::Player> guild_player)
 player::track_progress
 get_track_progress (player::MCTrack &track)
 {
-    const int64_t duration = track.info.duration ();
+    int64_t duration = mctrack::get_duration (track);
 
     if (!duration || !track.filesize)
         return { 0, 0, 1 };

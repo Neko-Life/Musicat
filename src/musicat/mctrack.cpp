@@ -5,9 +5,10 @@
 namespace musicat::mctrack
 {
 int
-get_track_flag (const player::MCTrack &track)
+get_track_flag (const nlohmann::json &data)
 {
-    const nlohmann::json &data = track.raw;
+    if (!data.is_object ())
+        return 0;
 
     auto data_end = data.end ();
     int flag = player::TRACK_MC;
@@ -19,6 +20,22 @@ get_track_flag (const player::MCTrack &track)
         flag = flag & player::TRACK_YTDLP_DETAILED;
 
     return flag;
+}
+
+int
+get_track_flag (const player::MCTrack &track)
+{
+    const nlohmann::json &data = track.raw;
+
+    return get_track_flag (data);
+}
+
+int
+get_track_flag (const yt_search::audio_info_t &info)
+{
+    const nlohmann::json &data = info.raw;
+
+    return get_track_flag (data);
 }
 
 bool
@@ -36,6 +53,14 @@ is_YTDLPTrack (int track_flag)
            || track_flag & player::TRACK_YTDLP_DETAILED;
 }
 
+bool
+is_YTDLPTrack (const yt_search::audio_info_t &info)
+{
+    int flag = get_track_flag (info);
+
+    return is_YTDLPTrack (flag);
+}
+
 std::string
 get_title (const player::MCTrack &track)
 {
@@ -49,6 +74,18 @@ std::string
 get_title (const yt_search::YTrack &track)
 {
     return track.title ();
+}
+
+uint64_t
+get_duration (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_duration (track);
+
+    if (is_YTDLPTrack (track.info))
+        return YTDLPTrack::get_duration (track.info);
+
+    return track.info.duration ();
 }
 
 } // musicat::mctrack
