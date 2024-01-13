@@ -1,4 +1,5 @@
 #include "musicat/runtime_cli.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
@@ -143,7 +144,8 @@ list_effect_states (const cmd_args_t &args)
             std::string gstr = g ? g->name : "[not_found]";
 
             std::cerr << gstr << " (" << gid
-                      << "):\nTrack: " << ef->track.title () << '\n'
+                      << "):\nTrack: " << mctrack::get_title (ef->track)
+                      << '\n'
                       << "Command fd: " << ef->command_fd << "\n==========\n";
         }
 

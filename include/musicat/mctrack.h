@@ -12,9 +12,13 @@
 
 namespace musicat::mctrack
 {
+int get_track_flag (const player::MCTrack &track);
+
 bool is_YTDLPTrack (const player::MCTrack &track);
+bool is_YTDLPTrack (int track_flag);
 
 std::string get_title (const player::MCTrack &track);
+std::string get_title (const yt_search::YTrack &track);
 
 } // musicat::mctrack
 

@@ -1,5 +1,6 @@
 #include "musicat/cmds/progress.h"
 #include "musicat/cmds.h"
+#include "musicat/mctrack.h"
 
 namespace musicat::command::progress
 {
@@ -17,7 +18,7 @@ _reply_embed (player::MCTrack &current_track, const int64_t &current_ms,
 
     dpp::embed embed;
 
-    embed.set_title (current_track.title ())
+    embed.set_title (mctrack::get_title (current_track))
         .set_url (current_track.url ())
         .set_description (std::string ("[") + format_duration (current_ms)
                           + "/" + format_duration (duration) + "]");

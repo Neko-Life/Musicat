@@ -1,4 +1,5 @@
 #include "musicat/util_response.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 
 namespace musicat::util::response
@@ -51,20 +52,23 @@ reply_skipped_track (std::deque<musicat::player::MCTrack> &removed_tracks)
                 {
                 case 1:
                     append_response
-                        += " `" + removed_tracks.front ().title () + "`";
+                        += " `" + mctrack::get_title (removed_tracks.front ())
+                           + "`";
                     break;
                 case 2:
-                    append_response += " `" + removed_tracks.front ().title ()
-                                       + "` and `"
-                                       + removed_tracks.at (1).title () + "`";
+                    append_response
+                        += " `" + mctrack::get_title (removed_tracks.front ())
+                           + "` and `"
+                           + mctrack::get_title (removed_tracks.at (1)) + "`";
                     break;
                 default:
                     const size_t rc = removed_size - 2;
-                    append_response += " `" + removed_tracks.front ().title ()
-                                       + "`, `"
-                                       + removed_tracks.at (1).title ()
-                                       + "` and " + std::to_string (rc)
-                                       + " other track" + (rc > 1 ? "s" : "");
+                    append_response
+                        += " `" + mctrack::get_title (removed_tracks.front ())
+                           + "`, `"
+                           + mctrack::get_title (removed_tracks.at (1))
+                           + "` and " + std::to_string (rc) + " other track"
+                           + (rc > 1 ? "s" : "");
                 }
         }
 

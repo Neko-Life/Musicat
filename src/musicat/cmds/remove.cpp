@@ -1,5 +1,6 @@
 #include "musicat/cmds/remove.h"
 #include "musicat/cmds.h"
+#include "musicat/mctrack.h"
 #include "musicat/util.h"
 
 namespace musicat::command::remove
@@ -64,8 +65,11 @@ slash_run (const dpp::slashcommand_t &event)
                                  + util::join (ret > 1, " track", "s"));
 
             auto queue2 = player_manager->get_queue (event.command.guild_id);
-            if (queue2.size () < 2U || queue2.at (1).title () != f_t.title ()
-                || queue2.back ().title () != l_t.title ())
+            if (queue2.size () < 2U
+                || mctrack::get_title (queue2.at (1))
+                       != mctrack::get_title (f_t)
+                || mctrack::get_title (queue2.back ())
+                       != mctrack::get_title (l_t))
                 try
                     {
                         player_manager->update_info_embed (

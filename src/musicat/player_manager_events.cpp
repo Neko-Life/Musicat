@@ -1,5 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/player_manager_timer.h"
@@ -114,7 +115,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
     else if (event.track_meta == "rm")
         {
-            const string removed_title = guild_player->queue.front ().title ();
+            const string removed_title
+                = mctrack::get_title (guild_player->queue.front ());
             guild_player->queue.pop_front ();
 
             if (debug)
@@ -306,8 +308,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                     }
 
                 const string m_content
-                    = "Can't play track: " + track.title () + " (added by <@"
-                      + std::to_string (track.user_id) + ">)";
+                    = "Can't play track: " + mctrack::get_title (track)
+                      + " (added by <@" + std::to_string (track.user_id)
+                      + ">)";
 
                 dpp::message m (channel_id, m_content);
 

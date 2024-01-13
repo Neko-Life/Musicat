@@ -1,6 +1,7 @@
 #include "musicat/cmds/download.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/play.h"
+#include "musicat/mctrack.h"
 #include <sys/stat.h>
 
 namespace musicat::command::download
@@ -141,8 +142,9 @@ slash_run (const dpp::slashcommand_t &event)
                                 return;
 
                             // proceed upload
-                            event.edit_response (std::string ("Uploading: ")
-                                                 + result.title ());
+                            event.edit_response (
+                                std::string ("Uploading: ")
+                                + mctrack::get_title (result));
                         }
                 case 0:
                     break;

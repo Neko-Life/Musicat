@@ -1,3 +1,4 @@
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/util.h"
@@ -490,22 +491,24 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     dpp::embed e;
     e.set_description (track.snippetText ())
-        .set_title (track.title ())
+        .set_title (mctrack::get_title (track))
         .set_url (track.url ())
         .set_author (ea);
 
     if (!prev_track.raw.is_null ())
-        e.add_field (
-            "PREVIOUS",
-            "[" + prev_track.title () + "](" + prev_track.url () + ")", true);
+        e.add_field ("PREVIOUS",
+                     "[" + mctrack::get_title (prev_track) + "]("
+                         + prev_track.url () + ")",
+                     true);
 
     if (!next_track.raw.is_null ())
-        e.add_field (
-            "NEXT", "[" + next_track.title () + "](" + next_track.url () + ")",
-            true);
+        e.add_field ("NEXT",
+                     "[" + mctrack::get_title (next_track) + "]("
+                         + next_track.url () + ")",
+                     true);
 
     if (!skip_track.raw.is_null ())
-        e.add_field ("SKIP", "[" + skip_track.title () + "]("
+        e.add_field ("SKIP", "[" + mctrack::get_title (skip_track) + "]("
                                  + skip_track.url () + ")");
 
     string ft = "";

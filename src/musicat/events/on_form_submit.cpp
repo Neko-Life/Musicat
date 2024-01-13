@@ -1,5 +1,6 @@
 #include "musicat/events/on_form_submit.h"
 #include "musicat/cmds/play.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/storage.h"
@@ -73,14 +74,15 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     const std::string prepend_name
         = util::response::str_mention_user (event.command.usr.id);
 
-    std::string edit_response = prepend_name
-                                + util::response::reply_added_track (
-                                    result.title (), top ? 1 : arg_slip);
+    std::string edit_response
+        = prepend_name
+          + util::response::reply_added_track (mctrack::get_title (result),
+                                               top ? 1 : arg_slip);
 
     event.thinking ();
 
     std::string fname = std::regex_replace (
-        result.title () + std::string ("-") + result.id ()
+        mctrack::get_title (result) + std::string ("-") + result.id ()
             + std::string (".opus"),
         std::regex ("/"), "", std::regex_constants::match_any);
 
@@ -92,9 +94,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     if (!test.is_open ())
         {
             dling = true;
-            event.edit_response (
-                prepend_name
-                + util::response::reply_downloading_track (result.title ()));
+            event.edit_response (prepend_name
+                                 + util::response::reply_downloading_track (
+                                     mctrack::get_title (result)));
 
             auto player_manager = get_player_manager_ptr ();
 

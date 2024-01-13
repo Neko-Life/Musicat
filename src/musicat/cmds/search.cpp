@@ -1,6 +1,7 @@
 #include "musicat/cmds/search.h"
 #include "musicat/cmds.h"
 #include "musicat/function_macros.h"
+#include "musicat/mctrack.h"
 #include "musicat/pagination.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
@@ -95,7 +96,7 @@ slash_run (const dpp::slashcommand_t &event)
     for (auto &t : tracks)
         {
             size_t cn = mult * 10 + (++count);
-            const std::string tit = t.title ();
+            const std::string tit = mctrack::get_title (t);
             char tit_char[512];
             util::u8_limit_length (tit.c_str (), tit_char, 80);
 

@@ -10,9 +10,7 @@
 #include <thread>
 // #include <opus/opusfile.h>
 
-namespace musicat
-{
-namespace player
+namespace musicat::player
 {
 // this section looks so bad
 using string = std::string;
@@ -336,7 +334,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                 {
                     std::cerr
                         << "[Manager::play ERROR] Voice client is null: '"
-                        << track.title () << "' (" << channel_id << ")\n";
+                        << mctrack::get_title (track) << "' (" << channel_id
+                        << ")\n";
 
                     return;
                 }
@@ -438,5 +437,4 @@ Manager::shuffle_queue (const dpp::snowflake &guild_id)
     return guild_player->shuffle ();
 }
 
-} // player
-} // musicat
+} // musicat::player

@@ -40,6 +40,13 @@ enum processor_state_t
     PROCESSOR_DEAD = (1 << 1),
 };
 
+enum track_flag_t
+{
+    TRACK_MC = 0,
+    TRACK_YTDLP_SEARCH = 1,
+    TRACK_YTDLP_DETAILED = (1 << 1),
+};
+
 struct MCTrack : yt_search::YTrack
 {
     /**
@@ -77,8 +84,10 @@ struct MCTrack : yt_search::YTrack
 
     size_t filesize;
 
+    void init ();
+
     MCTrack ();
-    MCTrack (const yt_search::YTrack &t);
+    explicit MCTrack (const yt_search::YTrack &t);
     ~MCTrack ();
 };
 

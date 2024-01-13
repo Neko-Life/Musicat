@@ -1,5 +1,6 @@
 #include "musicat/player.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include <memory>
 
@@ -9,26 +10,25 @@ namespace player
 {
 using string = std::string;
 
-MCTrack::MCTrack ()
-{
-    seekable = false;
-    seek_to = "";
-    stopping = false;
-    current_byte = 0;
-    filesize = 0;
-}
+MCTrack::MCTrack () { this->init (); }
 
 MCTrack::MCTrack (const YTrack &t)
 {
-    seekable = false;
-    seek_to = "";
-    stopping = false;
-    current_byte = 0;
-    filesize = 0;
+    this->init ();
     this->raw = t.raw;
 }
 
 MCTrack::~MCTrack () = default;
+
+void
+MCTrack::init ()
+{
+    seekable = false;
+    seek_to = "";
+    stopping = false;
+    current_byte = 0;
+    filesize = 0;
+}
 
 void
 Player::init ()
@@ -222,7 +222,7 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
             this->queue.pop_front ();
             if (get_debug_state ())
                 fprintf (stderr, "POPPED FROM QUEUE: '%s'\n",
-                         l.title ().c_str ());
+                         mctrack::get_title (l).c_str ());
 
             removed_tracks.push_back (l);
 

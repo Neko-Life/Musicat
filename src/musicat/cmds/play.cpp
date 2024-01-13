@@ -2,6 +2,7 @@
 
 #include "musicat/cmds/play.h"
 #include "musicat/autocomplete.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
@@ -20,7 +21,7 @@ namespace musicat::command::play
 namespace autocomplete
 {
 void
-query (const dpp::autocomplete_t &event, std::string param)
+query (const dpp::autocomplete_t &event, const std::string &param)
 {
     std::vector<std::pair<std::string, std::string> > avail = {};
 
@@ -440,7 +441,7 @@ std::string
 get_filename_from_result (yt_search::YTrack &result)
 {
     const auto sid = result.id ();
-    const auto st = result.title ();
+    const auto st = mctrack::get_title (result);
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
@@ -566,17 +567,19 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 {
                     event.edit_response (
                         util::response::reply_downloading_track (
-                            result.title ()));
+                            mctrack::get_title (result)));
                 }
             else
                 {
                     if (debug)
                         fprintf (stderr,
                                  "track arg_top arg_slip: '%s' %ld %ld\n",
-                                 result.title ().c_str (), arg_top, arg_slip);
+                                 mctrack::get_title (result).c_str (), arg_top,
+                                 arg_slip);
 
                     event.edit_response (util::response::reply_added_track (
-                        result.title (), arg_top ? arg_top : arg_slip));
+                        mctrack::get_title (result),
+                        arg_top ? arg_top : arg_slip));
                 }
         case 0:
             break;
@@ -598,6 +601,8 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,
          guild_id, from, continued, arg_slip,
          event] (yt_search::YTrack result) {
+            thread_manager::DoneSetter tmds;
+
             dpp::snowflake user_id
                 = from_interaction ? event.command.usr.id : sha_id;
             auto guild_player = player_manager->create_player (guild_id);
@@ -612,7 +617,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                     if (from_interaction)
                         event.edit_response (
                             util::response::reply_added_track (
-                                result.title (),
+                                mctrack::get_title (result),
                                 arg_top ? arg_top : arg_slip));
                 }
             if (from)
@@ -631,7 +636,8 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
             decide_play (from, guild_id, continued);
         },
         result);
-    dlt.detach ();
+
+    thread_manager::dispatch (dlt);
 }
 
 void

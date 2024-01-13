@@ -8,7 +8,7 @@ namespace musicat::command::play
 {
 namespace autocomplete
 {
-void query (const dpp::autocomplete_t &event, std::string param);
+void query (const dpp::autocomplete_t &event, const std::string &param);
 } // autocomplete
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
