@@ -3,7 +3,14 @@ import os
 import json
 from utils.common import printerr  # , create_dir_name
 
-LIB_PATH = os.path.dirname(os.path.abspath(__file__)) + r'/../../libs/yt-dlp/'
+ytdlp_dir = (os.getenv('YTDLP_DIR')
+             or (os.path.dirname(os.path.abspath(__file__)) +
+                 r'/../../libs/yt-dlp/'))
+
+# printerr(ytdlp_dir)
+
+LIB_PATH = ytdlp_dir
+
 sys.path.insert(0, LIB_PATH)
 
 import yt_dlp
