@@ -36,6 +36,7 @@ COPY --chown=musicat:musicat --from=build \
              /app/build/Shasha \
              /app/build/libs/DPP/library/libdpp.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
+             /app/libs/icu/usr/local/lib/lib* \
              /home/musicat
 #             /app/libs/liboggz/build/lib/liboggz.so* \
 
