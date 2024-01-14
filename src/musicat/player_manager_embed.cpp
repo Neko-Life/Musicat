@@ -577,6 +577,15 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                   + "]";
         }
 
+    int64_t rpt = guild_player->current_track.repeat;
+    if (rpt > 0)
+        {
+            if (!ft.empty ())
+                ft += " | ";
+
+            ft += string ("R ") + std::to_string (rpt);
+        }
+
     if (!ft.empty ())
         e.set_footer (ft, "");
 

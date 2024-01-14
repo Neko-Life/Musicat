@@ -71,13 +71,15 @@ struct MCTrack : yt_search::YTrack
 
     bool seekable;
 
-    // seek query, reset to empty string after seek performed.
-    // ffmpeg -ss value
-    std::string seek_to;
-
     // whether this track is in the process to stop
     // its audio stream
     bool stopping;
+
+    int64_t repeat;
+
+    // seek query, reset to empty string after seek performed.
+    // ffmpeg -ss value
+    std::string seek_to;
 
     // current byte position
     int64_t current_byte;

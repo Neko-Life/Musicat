@@ -31,6 +31,7 @@ MCTrack::init ()
     stopping = false;
     current_byte = 0;
     filesize = 0;
+    repeat = 0;
 }
 
 void
@@ -231,7 +232,10 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
             removed_tracks.push_back (l);
 
             if (!remove && (l_s || l_q))
-                this->queue.push_back (l);
+                {
+                    l.repeat = 0;
+                    this->queue.push_back (l);
+                }
         }
 
     return removed_tracks;
