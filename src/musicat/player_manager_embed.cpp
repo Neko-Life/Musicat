@@ -487,7 +487,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     static const char *p_mode[] = { "Paused", "Playing" };
 
-    string et = track.bestThumbnail ().url;
+    string et = mctrack::get_thumbnail (track);
 
     dpp::embed e;
     e.set_description (track.snippetText ())

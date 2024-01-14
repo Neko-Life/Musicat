@@ -88,4 +88,22 @@ get_duration (const player::MCTrack &track)
     return track.info.duration ();
 }
 
+std::string
+get_thumbnail (player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_thumbnail (track);
+
+    return track.bestThumbnail ().url;
+}
+
+std::string
+get_description (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_description (track);
+
+    return track.snippetText ();
+}
+
 } // musicat::mctrack

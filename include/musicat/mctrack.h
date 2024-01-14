@@ -25,6 +25,10 @@ std::string get_title (const yt_search::YTrack &track);
 
 uint64_t get_duration (const player::MCTrack &track);
 
+std::string get_thumbnail (player::MCTrack &track);
+
+std::string get_description (const player::MCTrack &track);
+
 } // musicat::mctrack
 
 #endif // MUSICAT_MCTRACK_H
