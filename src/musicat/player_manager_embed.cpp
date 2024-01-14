@@ -490,26 +490,26 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     string et = mctrack::get_thumbnail (track);
 
     dpp::embed e;
-    e.set_description (track.snippetText ())
+    e.set_description (mctrack::get_description (track))
         .set_title (mctrack::get_title (track))
-        .set_url (track.url ())
+        .set_url (mctrack::get_url (track))
         .set_author (ea);
 
     if (!prev_track.raw.is_null ())
         e.add_field ("PREVIOUS",
                      "[" + mctrack::get_title (prev_track) + "]("
-                         + prev_track.url () + ")",
+                         + mctrack::get_url (prev_track) + ")",
                      true);
 
     if (!next_track.raw.is_null ())
         e.add_field ("NEXT",
                      "[" + mctrack::get_title (next_track) + "]("
-                         + next_track.url () + ")",
+                         + mctrack::get_url (next_track) + ")",
                      true);
 
     if (!skip_track.raw.is_null ())
         e.add_field ("SKIP", "[" + mctrack::get_title (skip_track) + "]("
-                                 + skip_track.url () + ")");
+                                 + mctrack::get_url (skip_track) + ")");
 
     string ft = "";
 

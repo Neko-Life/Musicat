@@ -16,6 +16,9 @@ MCTrack::MCTrack (const YTrack &t)
 {
     this->init ();
     this->raw = t.raw;
+
+    if (t.raw.find ("raw_info") != t.raw.end ())
+        this->info.raw = t.raw.value ("raw_info", nullptr);
 }
 
 MCTrack::~MCTrack () = default;
@@ -102,9 +105,10 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
         if (track.info.raw.is_null ())
             try
                 {
-                    track.info.raw = yt_search::get_track_info (track.url ())
-                                         .audio_info (251)
-                                         .raw;
+                    track.info.raw
+                        = yt_search::get_track_info (mctrack::get_url (track))
+                              .audio_info (251)
+                              .raw;
 
                     track.thumbnails ();
                 }
@@ -430,7 +434,7 @@ player_has_current_track (std::shared_ptr<player::Player> guild_player)
 }
 
 player::track_progress
-get_track_progress (player::MCTrack &track)
+get_track_progress (const player::MCTrack &track)
 {
     int64_t duration = mctrack::get_duration (track);
 

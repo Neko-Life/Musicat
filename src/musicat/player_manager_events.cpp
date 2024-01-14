@@ -233,7 +233,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             this->wait_for_download (track.filename);
 
             // check for autoplay
-            const string track_id = track.id ();
+            const string track_id = mctrack::get_id (track);
             std::thread at_t;
             if (!guild_player->auto_play)
                 goto no_autoplay;

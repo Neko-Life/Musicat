@@ -82,8 +82,8 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     event.thinking ();
 
     std::string fname = std::regex_replace (
-        mctrack::get_title (result) + std::string ("-") + result.id ()
-            + std::string (".opus"),
+        mctrack::get_title (result) + std::string ("-")
+            + mctrack::get_id (result) + std::string (".opus"),
         std::regex ("/"), "", std::regex_constants::match_any);
 
     bool dling = false;
@@ -104,7 +104,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
                 && player_manager->waiting_file_download.find (fname)
                        == player_manager->waiting_file_download.end ())
                 {
-                    auto url = result.url ();
+                    auto url = mctrack::get_url (result);
                     player_manager->download (fname, url, guild_id);
                 }
         }

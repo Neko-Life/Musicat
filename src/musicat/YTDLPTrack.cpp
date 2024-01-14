@@ -95,4 +95,25 @@ get_thumbnail (const player::MCTrack &track)
     return url_hq_res;
 }
 
+std::string
+get_description (const player::MCTrack &track)
+{
+    const nlohmann::json &data = track.raw;
+
+    return data.value ("description", "");
+}
+
+std::string
+get_url (const player::MCTrack &track)
+{
+    const nlohmann::json &data = track.raw;
+
+    std::string url = data.value ("url", "");
+
+    if (url.empty ())
+        return data.value ("original_url", "");
+
+    return url;
+}
+
 } // musicat::YTDLPTrack

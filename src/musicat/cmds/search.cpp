@@ -101,8 +101,9 @@ slash_run (const dpp::slashcommand_t &event)
             util::u8_limit_length (tit.c_str (), tit_char, 80);
 
             desc += std::string ("`") + std::to_string (cn) + "`: [" + tit_char
-                    + (tit.length () > 80 ? "..." : "") + "](" + t.url ()
-                    + ") [" + t.length () + "] - " + t.channel ().name + "\n";
+                    + (tit.length () > 80 ? "..." : "") + "]("
+                    + mctrack::get_url (t) + ") [" + t.length () + "] - "
+                    + t.channel ().name + "\n";
 
             if (count == 10 || cn == pl_siz)
                 {

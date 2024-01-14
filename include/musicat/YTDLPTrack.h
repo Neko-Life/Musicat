@@ -20,6 +20,10 @@ uint64_t get_duration (const nlohmann::json &data);
 
 std::string get_thumbnail (const player::MCTrack &track);
 
+std::string get_description (const player::MCTrack &track);
+
+std::string get_url (const player::MCTrack &track);
+
 } // musicat::YTDLPTrack
 
 #endif // MUSICAT_YTDLPTRACK_H

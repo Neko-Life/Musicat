@@ -116,8 +116,9 @@ slash_run (const dpp::slashcommand_t &event)
 
             fname = play::get_filename_from_result (result);
 
-            auto download_result = play::track_exist (
-                fname, result.url (), player_manager, true, guild_id, true);
+            auto download_result
+                = play::track_exist (fname, mctrack::get_url (result),
+                                     player_manager, true, guild_id, true);
 
             bool dling = download_result.first;
 

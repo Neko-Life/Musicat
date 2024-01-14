@@ -381,13 +381,13 @@ find_track (bool playlist, std::string &arg_query,
             // find entry that wasn't played before
             for (const auto &i : searches)
                 {
-                    auto iid = i.id ();
+                    auto iid = mctrack::get_id (i);
                     bool br = false;
 
                     // lookup in current queue
                     for (const auto &a : guild_player->queue)
                         {
-                            if (a.id () != iid)
+                            if (mctrack::get_id (a) != iid)
                                 continue;
 
                             br = true;
@@ -440,7 +440,7 @@ find_track (bool playlist, std::string &arg_query,
 std::string
 get_filename_from_result (yt_search::YTrack &result)
 {
-    const auto sid = result.id ();
+    const auto sid = mctrack::get_id (result);
     const auto st = mctrack::get_title (result);
 
     // ignore title for now, this is definitely problematic
@@ -541,7 +541,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
             player_manager->set_waiting_vc_ready (guild_id, fname);
         }
 
-    const auto result_url = result.url ();
+    const auto result_url = mctrack::get_url (result);
 
     auto download_result = track_exist (fname, result_url, player_manager,
                                         from_interaction, guild_id);

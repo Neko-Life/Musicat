@@ -14,10 +14,10 @@ get_track_flag (const nlohmann::json &data)
     int flag = player::TRACK_MC;
 
     if (data.find ("ie_key") != data_end)
-        flag = flag & player::TRACK_YTDLP_SEARCH;
+        flag |= player::TRACK_YTDLP_SEARCH;
 
     if (data.find ("extractor_key") != data_end)
-        flag = flag & player::TRACK_YTDLP_DETAILED;
+        flag |= player::TRACK_YTDLP_DETAILED;
 
     return flag;
 }
@@ -104,6 +104,36 @@ get_description (const player::MCTrack &track)
         return YTDLPTrack::get_description (track);
 
     return track.snippetText ();
+}
+
+std::string
+get_url (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_url (track);
+
+    return track.url ();
+}
+
+std::string
+get_url (const yt_search::YTrack &track)
+{
+    return track.url ();
+}
+
+std::string
+get_id (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_id (track);
+
+    return track.id ();
+}
+
+std::string
+get_id (const yt_search::YTrack &track)
+{
+    return track.id ();
 }
 
 } // musicat::mctrack
