@@ -212,6 +212,12 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
     const bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
     const bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
+    if (!this->current_track.raw.is_null ())
+        this->current_track.repeat = 0;
+
+    if (!this->queue.empty ())
+        this->queue.front ().repeat = 0;
+
     std::deque<MCTrack> removed_tracks = {};
     for (int64_t i
          = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s))
