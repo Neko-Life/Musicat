@@ -1082,9 +1082,12 @@ shutdown_chain (bool discard_output)
             //             true);
             //     }
 
+            // sent INT
+            kill (hci->pid, SIGINT);
+
             int waited_for = 0;
-            int status = 0;
-            while (waitpid (hci->pid, &status, WNOHANG) != hci->pid)
+            int child_status = 0;
+            while (waitpid (hci->pid, &child_status, WNOHANG) != hci->pid)
                 {
                     std::this_thread::sleep_for (
                         std::chrono::milliseconds (20));
@@ -1101,16 +1104,16 @@ shutdown_chain (bool discard_output)
                                      hci->pid);
 
                             kill (hci->pid, SIGKILL);
-                            waitpid (hci->pid, &status, 0);
+                            waitpid (hci->pid, &child_status, 0);
                         }
                 }
 
             if (hci->options.debug)
                 fprintf (stderr,
                          "[helper_processor::manage_processor] chain "
-                         "status: "
+                         "child_status: "
                          "%d `%s`\n",
-                         status, hci->options.raw_args.c_str ());
+                         child_status, hci->options.raw_args.c_str ());
 
             // close_valid_fd (&hci->read_fd);
 

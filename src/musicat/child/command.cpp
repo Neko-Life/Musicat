@@ -5,13 +5,9 @@
 #include <chrono>
 #include <mutex>
 
-namespace musicat
-{
-namespace child
-{
 // this namespace is mostly still executed in main program/thread
 // with exception of some util function
-namespace command
+namespace musicat::child::command
 {
 
 std::deque<std::string> command_queue;
@@ -22,8 +18,12 @@ std::map<std::string, std::pair<bool, int> > slave_ready_queue;
 std::mutex sr_m;
 std::condition_variable sr_cv;
 
+std::map<std::string, std::pair<int, nlohmann::json> > ytdlp_result_queue;
+std::mutex ytdlp_m;
+std::condition_variable ytdlp_cv;
+
 int
-set_option (command_options_t &options, std::string &cmd_option)
+set_option (command_options_t &options, const std::string &cmd_option)
 {
     std::string opt = "";
     std::string value = "";
@@ -227,7 +227,7 @@ write_command (const std::string &cmd, const int write_fd, const char *caller)
             return;
         }
 
-    const size_t cmd_size = cmd.size ();
+    size_t cmd_size = cmd.size ();
     if (cmd_size > CMD_BUFSIZE)
         {
             fprintf (stderr, wccfmt, caller, cmd_size, CMD_BUFSIZE);
@@ -348,7 +348,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
 }
 
 int
-wait_slave_ready (std::string &id, const int timeout)
+wait_slave_ready (const std::string &id, int timeout)
 {
     {
         std::lock_guard<std::mutex> lk (sr_m);
@@ -392,7 +392,7 @@ wait_slave_ready (std::string &id, const int timeout)
 }
 
 int
-mark_slave_ready (std::string &id, const int status)
+mark_slave_ready (const std::string &id, int status)
 {
     {
         std::lock_guard<std::mutex> lk (sr_m);
@@ -404,6 +404,62 @@ mark_slave_ready (std::string &id, const int status)
     return 0;
 }
 
-} // command
-} // child
-} // musicat
+std::pair<int, nlohmann::json>
+get_ytdlp_result (const std::string &id, int timeout)
+{
+    {
+        std::lock_guard<std::mutex> lk (ytdlp_m);
+        auto i = ytdlp_result_queue.find (id);
+        if (i != ytdlp_result_queue.end ())
+            {
+                const nlohmann::json &ret = i->second;
+                ytdlp_result_queue.erase (i);
+
+                return ret;
+            }
+    }
+
+    {
+        std::lock_guard<std::mutex> lk (ytdlp_m);
+        ytdlp_result_queue.insert_or_assign (id, std::make_pair (-1, nullptr));
+    }
+    {
+        std::unique_lock ulk (ytdlp_m);
+        ytdlp_cv.wait_until (
+            ulk,
+            std::chrono::system_clock::now () + std::chrono::seconds (timeout),
+            [id] () {
+                auto i = ytdlp_result_queue.find (id);
+                return i == ytdlp_result_queue.end () || i->second.first != -1;
+            });
+    }
+
+    std::lock_guard<std::mutex> lk (ytdlp_m);
+    auto i = ytdlp_result_queue.find (id);
+    if (i == ytdlp_result_queue.end ())
+        {
+            return { -1, nullptr };
+        }
+
+    const nlohmann::json &ret = i->second.second;
+    ytdlp_result_queue.erase (i);
+
+    return ret;
+}
+
+int
+set_ytdlp_result (const std::string &id, int status,
+                  const nlohmann::json &result)
+{
+    {
+        std::lock_guard<std::mutex> lk (ytdlp_m);
+        ytdlp_result_queue.insert_or_assign (id,
+                                             std::make_pair (status, result));
+    }
+
+    ytdlp_cv.notify_all ();
+
+    return 0;
+}
+
+} // musicat::child::command

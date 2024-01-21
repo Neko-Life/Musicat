@@ -114,6 +114,7 @@ target_link_libraries(Shasha
 	pq
 	curlpp
 	curl
+	cppcodec
 	icui18n
 	icuuc
 	icudata
@@ -159,8 +160,14 @@ set_target_properties(Shasha PROPERTIES
 
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
+add_subdirectory(libs/cppcodec)
 # You can also add any other libs you want to use
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")
+
+# add_executable(base32 include/musicat/util/base32.h base32.cpp src/musicat/util/base32.cpp)
+# target_link_libraries(base32 cppcodec)
+# target_include_directories(base32 PRIVATE
+# 	include)
 
 # vim: sw=8 noet

@@ -4,11 +4,7 @@
 #include "musicat/child.h"
 #include <string>
 
-namespace musicat
-{
-namespace child
-{
-namespace command
+namespace musicat::child::command
 {
 
 // update worker::execute and related routines when changing this
@@ -16,6 +12,8 @@ inline const struct
 {
     const std::string create_audio_processor = "cap";
     const std::string shutdown = "shut";
+    // notification
+    const std::string ytdlp_result = "ytres";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
@@ -113,12 +111,10 @@ std::string sanitize_command_key_value (const std::string &key_value);
 void parse_command_to_options (const std::string &cmd,
                                command_options_t &options);
 
-int wait_slave_ready (std::string &id, const int timeout);
+int wait_slave_ready (const std::string &id, int timeout);
 
-int mark_slave_ready (std::string &id, const int status = 0);
+int mark_slave_ready (const std::string &id, int status = 0);
 
-} // command
-} // child
-} // musicat
+} // musicat::child::command
 
 #endif // MUSICAT_CHILD_COMMAND_H
