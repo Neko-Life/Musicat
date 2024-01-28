@@ -1,5 +1,6 @@
 #include "musicat/child/worker.h"
 #include "musicat/child/worker_management.h"
+#include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
 #include <map>
 #include <string>
@@ -64,7 +65,7 @@ shutdown_routine (command::command_options_t &options)
         }
     else if (child_type == command::command_execute_commands_t.call_ytdlp)
         {
-            // !TODO
+            return 0;
         }
 
     return 1;
@@ -110,7 +111,10 @@ clean_up_routine (command::command_options_t &options)
         }
     else if (child_type == command::command_execute_commands_t.call_ytdlp)
         {
-            // !TODO
+            std::string as_fp = ytdlp::get_ytdout_fifo_path (options.id);
+
+            unlink (as_fp.c_str ());
+            return 0;
         }
 
     return 0;

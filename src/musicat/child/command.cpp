@@ -98,6 +98,10 @@ set_option (command_options_t &options, const std::string &cmd_option)
         {
             options.force = value == "1";
         }
+    else if (opt == command_options_keys_t.ytdlp_util_exe)
+        {
+            options.ytdlp_util_exe = value;
+        }
     else if (opt == command_options_keys_t.ytdlp_query)
         {
             options.ytdlp_query = value;
@@ -149,6 +153,7 @@ handle_child_message (command_options_t &options)
         }
 }
 
+// run in main program thread
 void
 run_command_thread ()
 {

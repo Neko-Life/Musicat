@@ -14,7 +14,8 @@ get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("search", "Search [for tracks]", sha_id)
         .add_option (dpp::command_option (dpp::co_string, "query",
-                                          "Search [this]", true));
+                                          "Search [this]", true)
+                         .set_max_length (150));
 }
 
 dpp::interaction_modal_response

@@ -62,7 +62,8 @@ get_register_obj (const dpp::snowflake &sha_id)
         .add_option (
             dpp::command_option (dpp::co_string, "query",
                                  "Song [to search] or Youtube URL [to play]")
-                .set_auto_complete (true))
+                .set_auto_complete (true)
+                .set_max_length (150))
         .add_option (
             dpp::command_option (dpp::co_integer, "top",
                                  "Add [this song] to the top [of the queue]")

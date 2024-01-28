@@ -16,7 +16,7 @@ inline const struct
     /**
      * Invoking ytdlp cmd and save the output to a json file
      *
-     * Requires id, ytdlp_lib_path and ytdlp_query
+     * Requires id, ytdlp_util_exe, ytdlp_lib_path and ytdlp_query
      * Optionally ytdlp_max_entries
      *
      * Creates a fifo based on id
@@ -52,6 +52,7 @@ inline const struct
     const std::string helper_chain = "ehl"; // str
     const std::string force = "frc";        // bool
 
+    const std::string ytdlp_util_exe = "ytdex";    // str
     const std::string ytdlp_query = "ytdq";        // str
     const std::string ytdlp_max_entries = "ytdme"; // int
     const std::string ytdlp_lib_path = "ytdlibp";  // str
@@ -94,6 +95,7 @@ struct command_options_t
      */
     bool force;
 
+    std::string ytdlp_util_exe;
     std::string ytdlp_query;
     int ytdlp_max_entries;
     std::string ytdlp_lib_path;
@@ -103,7 +105,7 @@ static inline command_options_t
 create_command_options ()
 {
     return { "",    "", false, "", -1,  -1, -1,    -1, -1, "", "",
-             false, "", "",    "", 100, "", false, "", -1, "" };
+             false, "", "",    "", 100, "", false, "", "", -1, "" };
 }
 
 void command_queue_routine ();

@@ -41,7 +41,7 @@ execute (command::command_options_t &options)
 
             status = ready_status_t.ERR_SLAVE_EXIST;
             goto ret;
-        };
+        }
 
     if (options.command
         == command::command_execute_commands_t.create_audio_processor)
@@ -112,6 +112,7 @@ handle_worker_fork ()
     slave_manager::handle_worker_fork ();
 }
 
+// run as main's child process, is helpers/slaves manager
 void
 run ()
 {
