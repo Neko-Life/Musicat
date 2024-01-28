@@ -18,6 +18,8 @@
     "YTDLP_EXE": "/home/musicat/yt-dlp/yt-dlp.sh", // use yt-dlp already included inside docker
     "CORS_ENABLED_ORIGINS": ["https://www.google.com"], // where your dashboard hosted and anywhere you want to communicate with the api from
     "JWT_SECRET": "secret",
-    "STREAM_BUFFER_SIZE": 0.3 // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
-                              // this might need to be adjustable on runtime in the future either from runtime cli or automatically
+    "STREAM_BUFFER_SIZE": 0.3, // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
+                               // this might need to be adjustable on runtime in the future either from runtime cli or automatically
+    "YTDLP_UTIL_EXE": "/home/musicat/ytdlp.py",
+    "YTDLP_LIB_DIR": "/home/musicat/yt-dlp/"
 }

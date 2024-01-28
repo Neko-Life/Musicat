@@ -334,6 +334,18 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+std::string
+get_ytdlp_util_exe ()
+{
+    return get_config_value<std::string> ("YTDLP_UTIL_EXE", "");
+}
+
+std::string
+get_ytdlp_lib_path ()
+{
+    return get_config_value<std::string> ("YTDLP_LIB_DIR", "");
+}
+
 std::vector<std::string>
 get_cors_enabled_origins ()
 {
