@@ -370,8 +370,8 @@ run_processor_error_t
 run_processor (child::command::command_options_t &process_options)
 {
     // !TODO: remove this useless child_write_fd entirely
-    close (process_options.child_write_fd);
-    process_options.child_write_fd = -1;
+    // close (process_options.child_write_fd);
+    // process_options.child_write_fd = -1;
 
     processor_states_t p_info;
 
@@ -471,7 +471,7 @@ run_processor (child::command::command_options_t &process_options)
     creadfd = p_info.cpipefd[0];
     pwritefd = p_info.cpipefd[1];
 
-    sem_full_key = get_sem_key (options.guild_id);
+    sem_full_key = get_sem_key (options.id);
     sem = create_sem (sem_full_key);
 
     // create a child
@@ -645,7 +645,7 @@ run_processor (child::command::command_options_t &process_options)
                     creadfd = p_info.cpipefd[0];
                     pwritefd = p_info.cpipefd[1];
 
-                    sem_full_key = get_sem_key (options.guild_id);
+                    sem_full_key = get_sem_key (options.id);
                     sem = create_sem (sem_full_key);
 
                     p_info.cpid = fork ();

@@ -59,6 +59,10 @@ execute (command::command_options_t &options)
 
             return 0;
         }
+    else if (options.command == command::command_execute_commands_t.call_ytdlp)
+        {
+            status = worker_command::call_ytdlp (options);
+        }
 
     if (status == 0)
         {

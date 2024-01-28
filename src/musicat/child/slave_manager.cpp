@@ -62,6 +62,10 @@ shutdown_routine (command::command_options_t &options)
         {
             return worker_management::shutdown_audio_processor (options);
         }
+    else if (child_type == command::command_execute_commands_t.call_ytdlp)
+        {
+            // !TODO
+        }
 
     return 1;
 }
@@ -103,6 +107,10 @@ clean_up_routine (command::command_options_t &options)
         == command::command_execute_commands_t.create_audio_processor)
         {
             return worker_management::clean_up_audio_processor (options);
+        }
+    else if (child_type == command::command_execute_commands_t.call_ytdlp)
+        {
+            // !TODO
         }
 
     return 0;

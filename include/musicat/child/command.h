@@ -26,7 +26,7 @@ inline const struct
      * If file_path is empty then smt wrong happened
      * !TODO: result status?
      */
-    const std::string ytdlp = "ytd";
+    const std::string call_ytdlp = "ytd";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this

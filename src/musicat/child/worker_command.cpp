@@ -5,25 +5,21 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace musicat
-{
-namespace child
-{
-namespace worker_command
+namespace musicat::child::worker_command
 {
 
 int
 create_audio_processor (command::command_options_t &options)
 {
-    std::pair<int, int> pipe_fds = worker::create_pipe ();
+    // std::pair<int, int> pipe_fds = worker::create_pipe ();
     pid_t status = -1;
 
-    if (pipe_fds.first == -1)
-        {
-            return status;
-        }
-    int read_fd = pipe_fds.first;
-    int write_fd = pipe_fds.second;
+    // if (pipe_fds.first == -1)
+    //     {
+    //         return status;
+    //     }
+    // int read_fd = pipe_fds.first;
+    // int write_fd = pipe_fds.second;
 
     // !TODO: create fifos here
     std::string as_fp
@@ -67,7 +63,7 @@ create_audio_processor (command::command_options_t &options)
     options.audio_stream_stdin_path = si_fp;
     options.audio_stream_stdout_path = so_fp;
 
-    sem_full_key = audio_processing::get_sem_key (options.guild_id);
+    sem_full_key = audio_processing::get_sem_key (options.id);
     sem = audio_processing::create_sem (sem_full_key);
 
     status = fork ();
@@ -82,9 +78,9 @@ create_audio_processor (command::command_options_t &options)
         {
             worker::handle_worker_fork ();
 
-            close (read_fd);
+            // close (read_fd);
 
-            options.child_write_fd = write_fd;
+            // options.child_write_fd = write_fd;
 
             audio_processing::do_sem_post (sem);
 
@@ -92,12 +88,12 @@ create_audio_processor (command::command_options_t &options)
             _exit (status);
         }
 
-    close (write_fd);
+    // close (write_fd);
 
     audio_processing::do_sem_wait (sem, sem_full_key);
 
     options.pid = status;
-    options.parent_read_fd = read_fd;
+    // options.parent_read_fd = read_fd;
 
     return 0;
 
@@ -110,11 +106,14 @@ err3:
 err2:
     unlink (as_fp.c_str ());
 err1:
-    close (read_fd);
-    close (write_fd);
+    // close (read_fd);
+    // close (write_fd);
     return status;
 }
 
-} // worker_command
-} // child
-} // musicat
+int
+call_ytdlp (command::command_options_t &options)
+{
+}
+
+} // musicat::child::worker_command
