@@ -18,10 +18,6 @@ std::map<std::string, std::pair<bool, int> > slave_ready_queue;
 std::mutex sr_m;
 std::condition_variable sr_cv;
 
-std::map<std::string, std::pair<int, nlohmann::json> > ytdlp_result_queue;
-std::mutex ytdlp_m;
-std::condition_variable ytdlp_cv;
-
 int
 set_option (command_options_t &options, const std::string &cmd_option)
 {
@@ -102,6 +98,18 @@ set_option (command_options_t &options, const std::string &cmd_option)
         {
             options.force = value == "1";
         }
+    else if (opt == command_options_keys_t.ytdlp_query)
+        {
+            options.ytdlp_query = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_lib_path)
+        {
+            options.ytdlp_lib_path = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_max_entries)
+        {
+            options.ytdlp_max_entries = atoi (value.c_str ());
+        }
 
     return 0;
 }
@@ -128,7 +136,7 @@ wait_for_command ()
     std::unique_lock<std::mutex> ulk (command_mutex);
 
     command_cv.wait (ulk, [] () {
-        return (command_queue.size () > 0) || !get_running_state ();
+        return !command_queue.empty () || !get_running_state ();
     });
 }
 
@@ -400,64 +408,6 @@ mark_slave_ready (const std::string &id, int status)
     }
 
     sr_cv.notify_all ();
-
-    return 0;
-}
-
-std::pair<int, nlohmann::json>
-get_ytdlp_result (const std::string &id, int timeout)
-{
-    {
-        std::lock_guard<std::mutex> lk (ytdlp_m);
-        auto i = ytdlp_result_queue.find (id);
-        if (i != ytdlp_result_queue.end ())
-            {
-                const nlohmann::json &ret = i->second;
-                ytdlp_result_queue.erase (i);
-
-                return ret;
-            }
-    }
-
-    {
-        std::lock_guard<std::mutex> lk (ytdlp_m);
-        ytdlp_result_queue.insert_or_assign (id, std::make_pair (-1, nullptr));
-    }
-    {
-        std::unique_lock ulk (ytdlp_m);
-        ytdlp_cv.wait_until (
-            ulk,
-            std::chrono::system_clock::now () + std::chrono::seconds (timeout),
-            [id] () {
-                auto i = ytdlp_result_queue.find (id);
-                return i == ytdlp_result_queue.end () || i->second.first != -1;
-            });
-    }
-
-    std::lock_guard<std::mutex> lk (ytdlp_m);
-    auto i = ytdlp_result_queue.find (id);
-    if (i == ytdlp_result_queue.end ())
-        {
-            return { -1, nullptr };
-        }
-
-    const nlohmann::json &ret = i->second.second;
-    ytdlp_result_queue.erase (i);
-
-    return ret;
-}
-
-int
-set_ytdlp_result (const std::string &id, int status,
-                  const nlohmann::json &result)
-{
-    {
-        std::lock_guard<std::mutex> lk (ytdlp_m);
-        ytdlp_result_queue.insert_or_assign (id,
-                                             std::make_pair (status, result));
-    }
-
-    ytdlp_cv.notify_all ();
 
     return 0;
 }

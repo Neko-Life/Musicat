@@ -12,8 +12,21 @@ inline const struct
 {
     const std::string create_audio_processor = "cap";
     const std::string shutdown = "shut";
-    // notification
-    const std::string ytdlp_result = "ytres";
+
+    /**
+     * Invoking ytdlp cmd and save the output to a json file
+     *
+     * Requires id, ytdlp_lib_path and ytdlp_query
+     * Optionally ytdlp_max_entries
+     *
+     * Creates a fifo based on id
+     * Caller should open and read the fifo to get the cmd output
+     * containing file_path of the result to open and read
+     *
+     * If file_path is empty then smt wrong happened
+     * !TODO: result status?
+     */
+    const std::string ytdlp = "ytd";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
@@ -38,6 +51,10 @@ inline const struct
      */
     const std::string helper_chain = "ehl"; // str
     const std::string force = "frc";        // bool
+
+    const std::string ytdlp_query = "ytdq";        // str
+    const std::string ytdlp_max_entries = "ytdme"; // int
+    const std::string ytdlp_lib_path = "ytdlibp";  // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -76,13 +93,17 @@ struct command_options_t
      * Some will just ignore it
      */
     bool force;
+
+    std::string ytdlp_query;
+    int ytdlp_max_entries;
+    std::string ytdlp_lib_path;
 };
 
 static inline command_options_t
 create_command_options ()
 {
-    return { "", "", false, "", -1, -1, -1,  -1, -1,
-             "", "", false, "", "", "", 100, "", false };
+    return { "",    "", false, "", -1,  -1, -1,    -1, -1, "", "",
+             false, "", "",    "", 100, "", false, "", -1, "" };
 }
 
 void command_queue_routine ();
