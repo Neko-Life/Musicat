@@ -349,6 +349,8 @@ std::string get_jwt_secret ();
 
 float get_stream_buffer_size ();
 
+const char *get_python_cmd ();
+
 } // musicat
 
 #endif

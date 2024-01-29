@@ -10,6 +10,8 @@ std::string get_ytdout_fifo_path (const std::string &id);
 
 std::string get_ytdout_json_out_filename (const std::string &id);
 
+int has_python ();
+
 } // musicat::child::ytdlp
 
 #endif // MUSICAT_CHILD_YTDLP_H
