@@ -301,8 +301,9 @@ call_ytdlp (command::command_options_t &options)
                 }
 
             // write output fp to write_fifo
-            resopt += command::command_options_keys_t.id + '=' + options.id
-                      + ';' + command::command_options_keys_t.command + '='
+            resopt += command::command_options_keys_t.id + '='
+                      + command::sanitize_command_value (options.id) + ';'
+                      + command::command_options_keys_t.command + '='
                       + command::command_execute_commands_t.call_ytdlp + ';'
                       + command::command_options_keys_t.file_path + '='
                       + command::sanitize_command_value (outfname) + ';';

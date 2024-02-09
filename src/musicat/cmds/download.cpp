@@ -95,7 +95,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (!filename.empty ())
         {
             auto find_result = play::find_track (
-                false, filename, player_manager, true, guild_id, true);
+                false, filename, player_manager, guild_id, true);
 
             switch (find_result.second)
                 {

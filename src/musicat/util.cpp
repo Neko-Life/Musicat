@@ -1,6 +1,7 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
 #include <memory>
+#include <regex>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/ucnv.h>
@@ -243,6 +244,13 @@ find_focused (const std::vector<dpp::command_option> &options)
         }
 
     return dpp::command_option ((dpp::command_option_type)0, "", "");
+}
+
+std::string
+trim_str (const std::string &str)
+{
+    std::regex re_s ("^\\s+|\\s+$");
+    return std::regex_replace (str, re_s, "");
 }
 
 } // musicat::util

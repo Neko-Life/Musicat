@@ -568,6 +568,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                       + std::to_string (guild_player->max_history_size) + ")";
         }
 
+    // !TODO: remove this when fully using ytdlp to support non-yt tracks
     if (tinfo)
         {
             if (!ft.empty ())

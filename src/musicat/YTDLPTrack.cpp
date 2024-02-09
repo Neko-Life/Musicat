@@ -1,7 +1,22 @@
 #include "musicat/YTDLPTrack.h"
+#include "musicat/player.h"
 
 namespace musicat::YTDLPTrack
 {
+std::string
+get_str (const nlohmann::json &data, const std::string &at)
+{
+    if (!data.is_object ())
+        return "";
+
+    auto i = data.find (at);
+
+    if (i == data.end () || !i->is_string ())
+        return "";
+
+    return i->get<std::string> ();
+}
+
 bool
 is_detailed (const nlohmann::json &raw)
 {
@@ -14,7 +29,7 @@ is_detailed (const nlohmann::json &raw)
 std::string
 get_id_nocheck (const nlohmann::json &data)
 {
-    return data.value ("id", "");
+    return get_str (data, "id");
 }
 
 std::string
@@ -39,7 +54,7 @@ get_title (const player::MCTrack &track)
 {
     const nlohmann::json &data = track.raw;
 
-    return data.value ("title", "");
+    return get_str (data, "title");
 }
 
 uint64_t
@@ -48,7 +63,12 @@ get_duration (const nlohmann::json &data)
     if (!data.is_object ())
         return 0;
 
-    double v = data.value ("duration", 0.0);
+    auto i = data.find ("duration");
+
+    if (i == data.end () || i->is_null ())
+        return 0;
+
+    double v = i->get<double> ();
 
     return v > 0.0 ? (uint64_t)(v * 1000) : (uint64_t)v;
 }
@@ -75,12 +95,12 @@ get_thumbnail (const player::MCTrack &track)
     const nlohmann::json &data = track.raw;
 
     if (is_detailed (data))
-        return data.value ("thumbnail", "");
+        return get_str (data, "thumbnail");
 
     const nlohmann::json &info_data = track.info.raw;
 
     if (info_data.is_object () && is_detailed (info_data))
-        return info_data.value ("thumbnail", "");
+        return get_str (info_data, "thumbnail");
 
     // !TODO: call ytdlp get info here?
 
@@ -100,7 +120,7 @@ get_description (const player::MCTrack &track)
 {
     const nlohmann::json &data = track.raw;
 
-    return data.value ("description", "");
+    return get_str (data, "description");
 }
 
 std::string
@@ -108,12 +128,38 @@ get_url (const player::MCTrack &track)
 {
     const nlohmann::json &data = track.raw;
 
-    std::string url = data.value ("url", "");
+    std::string url = get_str (data, "url");
 
     if (url.empty ())
-        return data.value ("original_url", "");
+        return get_str (data, "original_url");
 
     return url;
+}
+
+std::vector<player::MCTrack>
+get_playlist_entries (const nlohmann::json &data)
+{
+    if (!data.is_object ())
+        {
+            return {};
+        }
+
+    auto ep = data.find ("entries");
+    if (ep == data.end () || !ep->is_array ())
+        {
+            return {};
+        }
+
+    std::vector<player::MCTrack> ret = {};
+
+    for (const auto &e : *ep)
+        {
+            player::MCTrack t;
+            t.raw = e;
+            ret.push_back (t);
+        }
+
+    return ret;
 }
 
 } // musicat::YTDLPTrack

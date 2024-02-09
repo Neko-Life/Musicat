@@ -1,6 +1,7 @@
 // !TODO: REFACTOR THIS HORRIBLE FILE
 
 #include "musicat/cmds/play.h"
+#include "musicat/YTDLPTrack.h"
 #include "musicat/autocomplete.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
@@ -269,13 +270,19 @@ slash_run (const dpp::slashcommand_t &event)
                arg_slip);
 }
 
-std::pair<yt_search::YTrack, int>
+std::pair<player::MCTrack, int>
 find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr_t player_manager, bool from_interaction,
+            player::player_manager_ptr_t player_manager,
             dpp::snowflake guild_id, bool no_check_history,
             const std::string &cache_id)
 {
+    std::string trimmed_query = util::trim_str (arg_query);
+
+#ifdef USE_SEARCH_CACHE
     bool has_cache_id = !cache_id.empty ();
+#else
+    // bool has_cache_id = false;
+#endif
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
@@ -295,11 +302,12 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
+    // prioritize cache over searching
+    std::vector<player::MCTrack> searches;
+
+#ifdef USE_YTSEARCH_H
     yt_search::YSearchResult search_result = {};
     yt_search::YPlaylist playlist_result = {};
-
-    // prioritize cache over searching
-    std::vector<yt_search::YTrack> searches;
 
 #ifdef USE_SEARCH_CACHE
     if (has_cache_id)
@@ -307,6 +315,7 @@ find_track (bool playlist, std::string &arg_query,
 #endif
 
     size_t searches_size = has_cache_id ? searches.size () : 0;
+
     // quick decide to remove when no result found instead of looking up in the
     // cache map
     size_t cached_size = has_cache_id ? searches_size : 0;
@@ -321,10 +330,11 @@ find_track (bool playlist, std::string &arg_query,
                     searches
                         = playlist
                               ? (playlist_result
-                                 = yt_search::get_playlist (arg_query))
+                                 = yt_search::get_playlist (trimmed_query))
                                     .entries ()
 
-                              : (search_result = yt_search::search (arg_query))
+                              : (search_result
+                                 = yt_search::search (trimmed_query))
                                     .trackResults ();
 
                     searches_size = searches.size ();
@@ -355,6 +365,19 @@ find_track (bool playlist, std::string &arg_query,
 
     searches_size = searches.size ();
 
+#else
+    // use mctrack::fetch
+    // playlist true means autoplay request, which is always a playlist url
+    // query
+    nlohmann::json res = mctrack::fetch ({ trimmed_query, 25, playlist });
+
+    if (res.is_null ())
+        return { {}, 2 };
+
+    searches = YTDLPTrack::get_playlist_entries (res);
+
+#endif
+
 #ifdef USE_SEARCH_CACHE
     // indicate if this cache is updated
     bool update_cache = searched && has_cache_id && searches_size;
@@ -365,13 +388,10 @@ find_track (bool playlist, std::string &arg_query,
 
     if (searches.begin () == searches.end ())
         {
-            if (from_interaction)
-                return { {}, -1 };
-
-            return { {}, 0 };
+            return { {}, -1 };
         }
 
-    yt_search::YTrack result = {};
+    player::MCTrack result = {};
     if (playlist == false || no_check_history)
         // play the first result according to user query
         result = searches.front ();
@@ -439,7 +459,7 @@ find_track (bool playlist, std::string &arg_query,
 }
 
 std::string
-get_filename_from_result (yt_search::YTrack &result)
+get_filename_from_result (player::MCTrack &result)
 {
     const auto sid = mctrack::get_id (result);
     const auto st = mctrack::get_title (result);
@@ -512,19 +532,27 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
 
     const bool debug = get_debug_state ();
 
-    auto find_result
-        = find_track (playlist, arg_query, player_manager, from_interaction,
-                      guild_id, false, cache_id);
+    auto find_result = find_track (playlist, arg_query, player_manager,
+                                   guild_id, false, cache_id);
 
     switch (find_result.second)
         {
         case -1:
+            if (!from_interaction)
+                break;
+
             event.edit_response ("Can't find anything");
             return;
         case 1:
             return;
         case 0:
             break;
+        case 2:
+            if (!from_interaction)
+                break;
+
+            event.edit_response ("Error while searching, try again");
+            return;
         default:
             fprintf (stderr,
                      "[command::play::add_track WARN] Unhandled find_track "

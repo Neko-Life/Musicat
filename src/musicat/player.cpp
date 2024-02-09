@@ -103,6 +103,7 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
 {
     size_t siz = 0;
     {
+        // !TODO: remove this when fully using ytdlp to support non-yt tracks
         if (track.info.raw.is_null ())
             try
                 {
@@ -111,7 +112,7 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
                               .audio_info (251)
                               .raw;
 
-                    track.thumbnails ();
+                    // track.thumbnails ();
                 }
             catch (std::exception &e)
                 {

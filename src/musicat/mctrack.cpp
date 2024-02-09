@@ -25,6 +25,9 @@ get_track_flag (const nlohmann::json &data)
     if (data.find ("extractor_key") != data_end)
         flag |= player::TRACK_YTDLP_DETAILED;
 
+    // !TODO: add non-youtube track flag, streaming (youtube n non-yt) and
+    // generic download
+
     return flag;
 }
 
@@ -164,7 +167,8 @@ fetch (const search_option_t &options)
     std::string ytdlp_cmd
         = cc::command_options_keys_t.command + '='
           + cc::command_execute_commands_t.call_ytdlp + ';'
-          + cc::command_options_keys_t.id + '=' + qid + ';'
+          + cc::command_options_keys_t.id + '='
+          + cc::sanitize_command_value (qid) + ';'
           + cc::command_options_keys_t.ytdlp_util_exe + '='
           + cc::sanitize_command_value (get_ytdlp_util_exe ()) + ';'
           + cc::command_options_keys_t.ytdlp_lib_path + '='

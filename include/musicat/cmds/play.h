@@ -14,13 +14,13 @@ void query (const dpp::autocomplete_t &event, const std::string &param);
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 void slash_run (const dpp::slashcommand_t &event);
 
-std::pair<yt_search::YTrack, int>
+std::pair<player::MCTrack, int>
 find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr_t player_manager, bool from_interaction,
+            player::player_manager_ptr_t player_manager,
             dpp::snowflake guild_id, bool no_check_history = false,
             const std::string &cache_id = "");
 
-std::string get_filename_from_result (yt_search::YTrack &result);
+std::string get_filename_from_result (player::MCTrack &result);
 
 std::pair<bool, int> track_exist (const std::string &fname,
                                   const std::string &url,
