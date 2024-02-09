@@ -10,12 +10,17 @@
 
 #include "musicat/player.h"
 
+#define YDLP_DEFAULT_MAX_ENTRIES 25
+
 namespace musicat::mctrack
 {
 struct search_option_t
 {
     const std::string &query;
+    // should always be populated, default is 25
     const int max_entries;
+    // should always be populated
+    const bool is_url;
 };
 
 int get_track_flag (const player::MCTrack &track);
@@ -42,12 +47,12 @@ std::string get_id (const player::MCTrack &track);
 std::string get_id (const yt_search::YTrack &track);
 
 /**
- * @Brief Search a query or fetch a playlist playlist url
- *        or even get the detail of a track
+ * @Brief Search a query or fetch a playlist url
+ *        or get the detail of a track
  *        This is blocking call that WILL block your thread
- *        for a good amount of time
+ *        for a good amount of time (it uses python!)
  */
-std::vector<player::MCTrack> fetch (const search_option_t &options);
+nlohmann::json fetch (const search_option_t &options);
 
 } // musicat::mctrack
 
