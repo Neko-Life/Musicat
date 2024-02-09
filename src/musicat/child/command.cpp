@@ -180,7 +180,7 @@ run_command_thread ()
                     = read (*get_parent_read_fd (), read_buf, CMD_BUFSIZE))
                    > 0))
             {
-                read_buf[CMD_BUFSIZE] = '\0';
+                read_buf[read_size] = '\0';
 
                 fprintf (stderr,
                          "[child::command] Received "

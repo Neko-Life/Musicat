@@ -45,6 +45,10 @@ COPY --chown=musicat:musicat --from=build \
              /app/libs/yt-dlp \
              /home/musicat/yt-dlp/
 
+COPY --chown=musicat:musicat --from=build \
+             /app/src/yt-dlp/utils \
+             /home/musicat/utils/
+
 ENV LD_LIBRARY_PATH=/home/musicat
 
 VOLUME ["/home/musicat/music"]

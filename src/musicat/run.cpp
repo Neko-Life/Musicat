@@ -15,6 +15,12 @@
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
 
+#define RUN_TESTS 0
+
+#if RUN_TESTS
+#include "musicat/tests.h"
+#endif
+
 static const std::string OAUTH_BASE_URL
     = "https://discord.com/api/oauth2/authorize";
 
@@ -598,6 +604,10 @@ run (int argc, const char *argv[])
     });
 
     thread_manager::dispatch (server_thread);
+
+#if RUN_TESTS
+    tests::test_ytdlp ();
+#endif
 
     time_t last_gc;
     time_t last_recon;

@@ -61,7 +61,7 @@ read_command (processor_options_t &options)
         && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
         {
             status = 0;
-            cmd_buf[CMD_BUFSIZE] = '\0';
+            cmd_buf[read_cmd_size] = '\0';
 
             if (options.debug)
                 {

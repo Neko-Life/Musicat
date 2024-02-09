@@ -1,7 +1,7 @@
-#include "musicat/util/base32.h"
+#include "musicat/util/base64.h"
 #include <cppcodec/base64_url_unpadded.hpp>
 
-namespace musicat::util::base32
+namespace musicat::util::base64
 {
 std::string
 encode (const std::string &str)
@@ -23,4 +23,4 @@ decode (const std::string &encoded_str)
 
     return ret;
 }
-} // musicat::util::base32
+} // musicat::util::base64

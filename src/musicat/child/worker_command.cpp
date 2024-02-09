@@ -1,5 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
+#include "musicat/child/command.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
@@ -143,7 +144,7 @@ call_ytdlp (command::command_options_t &options)
 
     if ((status = mkfifo (as_fp.c_str (), fifo_bitmask)) < 0)
         {
-            perror ("call_ytdlp as_fp");
+            perror ("worker_command::call_ytdlp as_fp");
             goto err1;
         }
 
@@ -154,7 +155,7 @@ call_ytdlp (command::command_options_t &options)
 
     if (status < 0)
         {
-            perror ("call_ytdlp fork");
+            perror ("worker_command::call_ytdlp fork");
             goto err4;
         }
 
@@ -165,11 +166,14 @@ call_ytdlp (command::command_options_t &options)
             audio_processing::do_sem_post (sem);
 
             int write_fifo = -1;
-            pid_t pid = -1;
+            status = -1;
             FILE *jsonout = NULL;
             int jsonout_status = -1;
             int read_fd = -1, write_fd = -1;
             std::pair<int, int> ppfds;
+
+            // result options to write to parent fifo
+            std::string resopt;
 
             std::string outfname
                 = ytdlp::get_ytdout_json_out_filename (options.id);
@@ -196,16 +200,16 @@ call_ytdlp (command::command_options_t &options)
             write_fd = ppfds.second;
 
             // run query
-            pid = fork ();
+            status = fork ();
 
-            if (pid < 0)
+            if (status < 0)
                 {
-                    perror ("call_ytdlp fork_child");
+                    perror ("worker_command::call_ytdlp fork_child");
                     status = 2;
                     goto exit_failure;
                 }
 
-            if (pid == 0)
+            if (status == 0)
                 {
                     // call ytdlp
                     close (read_fd);
@@ -284,16 +288,30 @@ call_ytdlp (command::command_options_t &options)
                 }
 
         write_res:
+            close (read_fd);
+            read_fd = -1;
+
             write_fifo = open (as_fp.c_str (), O_WRONLY);
 
             if (write_fifo < 0)
                 {
-                    perror ("call_ytdlp write_fifo");
+                    perror ("worker_command::call_ytdlp write_fifo open");
                     status = 1;
                     goto exit_failure;
                 }
 
             // write output fp to write_fifo
+            resopt += command::command_options_keys_t.id + '=' + options.id
+                      + ';' + command::command_options_keys_t.command + '='
+                      + command::command_execute_commands_t.call_ytdlp + ';'
+                      + command::command_options_keys_t.file_path + '='
+                      + command::sanitize_command_value (outfname) + ';';
+
+            command::write_command (resopt, write_fifo,
+                                    "worker_command::call_ytdlp resopt");
+
+            close (write_fifo);
+            write_fifo = -1;
 
         exit_failure:
             _exit (status);

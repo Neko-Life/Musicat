@@ -122,7 +122,7 @@ run ()
     size_t read_size = 0;
     while ((read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
         {
-            cmd[CMD_BUFSIZE] = '\n';
+            cmd[read_size] = '\0';
             fprintf (stderr, "[child::worker] Received command: `%s`\n", cmd);
 
             handle_command (cmd);
