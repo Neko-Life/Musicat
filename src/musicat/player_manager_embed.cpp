@@ -513,10 +513,9 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
     string ft = "";
 
-    bool tinfo = !track.info.raw.is_null ();
-    if (tinfo)
+    track_progress prog = util::get_track_progress (track);
+    if (prog.status == 0)
         {
-            track_progress prog = util::get_track_progress (track);
             ft += "[" + format_duration (prog.current_ms) + "/"
                   + format_duration (prog.duration) + "]";
         }
@@ -569,6 +568,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
         }
 
     // !TODO: remove this when fully using ytdlp to support non-yt tracks
+    bool tinfo = !track.info.raw.is_null ();
     if (tinfo)
         {
             if (!ft.empty ())

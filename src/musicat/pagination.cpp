@@ -467,10 +467,9 @@ _construct_desc (std::deque<player::MCTrack> &queue,
     if (i == queue.begin ())
         {
             player::track_progress prog = { 0, 0, -1 };
-            if (util::player_has_current_track (guild_player)
-                && !guild_player->current_track.info.raw.is_null ())
+            if (util::player_has_current_track (guild_player))
                 prog = util::get_track_progress (guild_player->current_track);
-            else if (!i->info.raw.is_null ())
+            else
                 prog = util::get_track_progress (*i);
 
             desc += "Current track: [" + i->title () + "](" + i->url () + ")"
@@ -484,9 +483,7 @@ _construct_desc (std::deque<player::MCTrack> &queue,
         }
     else
         {
-            uint64_t dur = 0;
-            if (!i->info.raw.is_null ())
-                dur = mctrack::get_duration (*i);
+            uint64_t dur = mctrack::get_duration (*i);
 
             desc += std::to_string (id) + ": [" + i->title () + "]("
                     + i->url () + ")"
@@ -549,8 +546,7 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
     uint64_t totald = 0;
 
     for (auto i = queue.begin (); i != queue.end (); i++)
-        if (!i->info.raw.is_null ())
-            totald += mctrack::get_duration (*i);
+        totald += mctrack::get_duration (*i);
 
     auto guild_player
         = get_player_manager_ptr ()->get_player (event.command.guild_id);

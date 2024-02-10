@@ -1,4 +1,5 @@
 #include "musicat/cmds/search.h"
+#include "musicat/YTDLPTrack.h"
 #include "musicat/cmds.h"
 #include "musicat/function_macros.h"
 #include "musicat/mctrack.h"
@@ -62,11 +63,11 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "query", &query);
 
     event.thinking ();
-    yt_search::YSearchResult res;
+    nlohmann::json res;
 
     try
         {
-            res = yt_search::search (query);
+            res = mctrack::fetch ({ query, 25, false });
         }
     catch (std::exception &e)
         {
@@ -78,7 +79,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    auto tracks = res.trackResults ();
+    auto tracks = YTDLPTrack::get_playlist_entries (res);
 
     size_t pl_siz = tracks.size ();
     if (!pl_siz)
