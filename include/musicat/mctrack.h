@@ -46,6 +46,10 @@ std::string get_url (const yt_search::YTrack &track);
 std::string get_id (const player::MCTrack &track);
 std::string get_id (const yt_search::YTrack &track);
 
+std::string get_length_str (const player::MCTrack &track);
+
+std::string get_channel_name (const player::MCTrack &track);
+
 /**
  * @Brief Search a query or fetch a playlist url
  *        or get the detail of a track

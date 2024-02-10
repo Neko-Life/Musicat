@@ -24,6 +24,10 @@ std::string get_description (const player::MCTrack &track);
 
 std::string get_url (const player::MCTrack &track);
 
+std::string get_length_str (const player::MCTrack &track);
+
+std::string get_channel_name (const player::MCTrack &track);
+
 std::vector<player::MCTrack> get_playlist_entries (const nlohmann::json &data);
 
 } // musicat::YTDLPTrack

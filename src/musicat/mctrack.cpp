@@ -145,6 +145,24 @@ get_id (const yt_search::YTrack &track)
     return track.id ();
 }
 
+std::string
+get_length_str (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_length_str (track);
+
+    return track.length ()
+}
+
+std::string
+get_channel_name (const player::MCTrack &track)
+{
+    if (is_YTDLPTrack (track))
+        return YTDLPTrack::get_channel_name (track);
+
+    return track.channel ().name;
+}
+
 nlohmann::json
 fetch (const search_option_t &options)
 {

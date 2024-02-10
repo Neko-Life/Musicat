@@ -104,8 +104,9 @@ slash_run (const dpp::slashcommand_t &event)
 
             desc += std::string ("`") + std::to_string (cn) + "`: [" + tit_char
                     + (tit.length () > 80 ? "..." : "") + "]("
-                    + mctrack::get_url (t) + ") [" + t.length () + "] - "
-                    + t.channel ().name + "\n";
+                    + mctrack::get_url (t) + ") ["
+                    + mctrack::get_length_str (t) + "] - "
+                    + mctrack::get_channel_name (t) + "\n";
 
             if (count == 10 || cn == pl_siz)
                 {
@@ -116,6 +117,7 @@ slash_run (const dpp::slashcommand_t &event)
                         desc.length () > 2048
                             ? "Description exceeding char limit. rip"
                             : desc);
+
                     embeds.emplace_back (emb);
 
                     emb = dpp::embed ();

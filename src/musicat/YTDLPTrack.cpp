@@ -1,4 +1,5 @@
 #include "musicat/YTDLPTrack.h"
+#include "musicat/musicat.h"
 #include "musicat/player.h"
 
 namespace musicat::YTDLPTrack
@@ -134,6 +135,29 @@ get_url (const player::MCTrack &track)
         return get_str (data, "original_url");
 
     return url;
+}
+
+std::string
+get_length_str (const player::MCTrack &track)
+{
+    uint64_t dur = get_duration (track);
+
+    return format_duration (dur);
+}
+
+std::string
+get_channel_name (const player::MCTrack &track)
+{
+    const nlohmann::json &data = track.raw;
+
+    std::string type = get_str (data, "extractor");
+
+    if (type == "generic")
+        {
+            return get_str (data, "webpage_url_domain");
+        }
+
+    return get_str (data, "channel");
 }
 
 std::vector<player::MCTrack>
