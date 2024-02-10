@@ -151,7 +151,7 @@ get_length_str (const player::MCTrack &track)
     if (is_YTDLPTrack (track))
         return YTDLPTrack::get_length_str (track);
 
-    return track.length ()
+    return track.length ();
 }
 
 std::string
