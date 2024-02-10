@@ -472,7 +472,8 @@ _construct_desc (std::deque<player::MCTrack> &queue,
             else
                 prog = util::get_track_progress (*i);
 
-            desc += "Current track: [" + i->title () + "](" + i->url () + ")"
+            desc += "Current track: [" + mctrack::get_title (*i) + "]("
+                    + mctrack::get_url (*i) + ")"
                     + std::string (
                         !prog.status
                             ? std::string (" [")
@@ -485,8 +486,8 @@ _construct_desc (std::deque<player::MCTrack> &queue,
         {
             uint64_t dur = mctrack::get_duration (*i);
 
-            desc += std::to_string (id) + ": [" + i->title () + "]("
-                    + i->url () + ")"
+            desc += std::to_string (id) + ": [" + mctrack::get_title (*i)
+                    + "](" + mctrack::get_url (*i) + ")"
                     + std::string (dur ? std::string (" [")
                                              + format_duration (dur) + "]"
                                        : "")
