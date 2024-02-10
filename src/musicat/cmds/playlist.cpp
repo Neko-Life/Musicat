@@ -1,6 +1,7 @@
 #include "musicat/cmds/playlist.h"
 #include "musicat/autocomplete.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/util_response.h"
@@ -249,7 +250,7 @@ slash_run (const dpp::slashcommand_t &event)
                     if (debug)
                         fprintf (stderr,
                                  "[playlist::load] Pushed to front: '%s'\n",
-                                 d.title ().c_str ());
+                                 mctrack::get_title (d).c_str ());
 
                     to_iter.push_front (d);
                 }

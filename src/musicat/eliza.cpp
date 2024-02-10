@@ -1,5 +1,6 @@
 #include "musicat/eliza.h"
 #include "musicat/musicat.h"
+#include "musicat/util.h"
 #include <filesystem>
 #include <regex>
 #include <stdio.h>
@@ -39,10 +40,9 @@ handle_message_create (const dpp::message_create_t &event)
     std::string msg_content = event.msg.content;
 
     std::regex re_m (" ?<@!?" + sid.str () + ">");
-    std::regex re_s ("^\\s+|\\s+$");
 
     msg_content = std::regex_replace (msg_content, re_m, "");
-    msg_content = std::regex_replace (msg_content, re_s, "");
+    msg_content = util::trim_str (msg_content);
 
     if (msg_content.empty ())
         return;

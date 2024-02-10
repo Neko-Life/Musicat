@@ -1,0 +1,31 @@
+{
+  "id": "2627_128",
+  "title": "2627_128",
+  "timestamp": null,
+  "direct": true,
+  "formats": [
+    {
+      "format_id": "mpeg",
+      "url": "https://ais-sa3.cdnstream1.com/2627_128.mp3",
+      "ext": "mp3",
+      "vcodec": "none"
+    }
+  ],
+  "subtitles": {},
+  "http_headers": null,
+  "hls_aes": null,
+  "webpage_url": "https://ais-sa3.cdnstream1.com/2627_128.mp3",
+  "original_url": "https://ais-sa3.cdnstream1.com/2627_128.mp3",
+  "webpage_url_basename": "2627_128.mp3",
+  "webpage_url_domain": "ais-sa3.cdnstream1.com",
+  "extractor": "generic",
+  "extractor_key": "Generic",
+  "epoch": 1707490992,
+  "_type": "video",
+  "_version": {
+    "version": "2023.12.30",
+    "current_git_head": null,
+    "release_git_head": "f10589e3453009bb523f55849bba144c9b91cf2a",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}

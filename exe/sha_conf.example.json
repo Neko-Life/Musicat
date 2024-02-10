@@ -18,6 +18,8 @@
     "YTDLP_EXE": "~/Musicat/libs/yt-dlp/yt-dlp.sh", // your yt-dlp command, can be simply "yt-dlp" if you have it installed in your system. You can specify the absolute path to libs/yt-dlp/yt-dlp.sh to use the submodule
     "CORS_ENABLED_ORIGINS": ["https://www.google.com"], // where your dashboard hosted and anywhere you want to communicate with the api from
     "JWT_SECRET": "secret",
-    "STREAM_BUFFER_SIZE": 0.3 // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
-                              // this might need to be adjustable on runtime in the future either from runtime cli or automatically
+    "STREAM_BUFFER_SIZE": 0.3, // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
+                               // this might need to be adjustable on runtime in the future either from runtime cli or automatically
+    "YTDLP_UTIL_EXE": "../src/yt-dlp/ytdlp.py", // assumed the executable is in exe/ dir
+    "YTDLP_LIB_DIR": "../libs/yt-dlp/"          // assumed the executable is in exe/ dir
 }

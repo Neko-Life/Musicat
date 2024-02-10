@@ -40,6 +40,13 @@ enum processor_state_t
     PROCESSOR_DEAD = (1 << 1),
 };
 
+enum track_flag_t
+{
+    TRACK_MC = 0,
+    TRACK_YTDLP_SEARCH = 1,
+    TRACK_YTDLP_DETAILED = (1 << 1),
+};
+
 struct MCTrack : yt_search::YTrack
 {
     /**
@@ -64,21 +71,25 @@ struct MCTrack : yt_search::YTrack
 
     bool seekable;
 
-    // seek query, reset to empty string after seek performed.
-    // ffmpeg -ss value
-    std::string seek_to;
-
     // whether this track is in the process to stop
     // its audio stream
     bool stopping;
+
+    int64_t repeat;
+
+    // seek query, reset to empty string after seek performed.
+    // ffmpeg -ss value
+    std::string seek_to;
 
     // current byte position
     int64_t current_byte;
 
     size_t filesize;
 
+    void init ();
+
     MCTrack ();
-    MCTrack (const yt_search::YTrack &t);
+    explicit MCTrack (const yt_search::YTrack &t);
     ~MCTrack ();
 };
 
@@ -696,7 +707,7 @@ bool player_has_current_track (std::shared_ptr<player::Player> guild_player);
 /**
  * @brief Get track current progress in ms
  */
-player::track_progress get_track_progress (player::MCTrack &track);
+player::track_progress get_track_progress (const player::MCTrack &track);
 
 } // util
 } // musicat

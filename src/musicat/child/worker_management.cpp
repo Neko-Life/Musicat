@@ -11,6 +11,7 @@ namespace worker_management
 int
 shutdown_audio_processor (command::command_options_t &options)
 {
+    /*
     if (options.parent_read_fd > -1)
         {
             // close parent read fd now since processor
@@ -19,6 +20,7 @@ shutdown_audio_processor (command::command_options_t &options)
             close (options.parent_read_fd);
             options.parent_read_fd = -1;
         }
+    */
 
     return 0;
 }

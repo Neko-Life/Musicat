@@ -1,5 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/player_manager_timer.h"
@@ -75,7 +76,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     if (guild_player->saved_config_loaded != true)
         this->load_guild_player_config (event.voice_client->server_id);
 
-    if (guild_player->queue.size () == 0)
+    if (guild_player->queue.empty ())
         {
             if (debug)
                 {
@@ -92,29 +93,36 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     // Do stuff according to loop mode when playback ends
     if (event.track_meta == "e" && !guild_player->is_stopped ())
         {
-            switch (guild_player->loop_mode)
-                {
-                case loop_mode_t::l_none:
+            int64_t rpt = guild_player->current_track.repeat;
+            if (rpt > 0)
+                guild_player->queue.front ().repeat
+                    = --guild_player->current_track.repeat;
+            else
+                switch (guild_player->loop_mode)
                     {
-                        guild_player->queue.pop_front ();
+                    case loop_mode_t::l_none:
+                        {
+                            guild_player->queue.pop_front ();
+                            break;
+                        }
+
+                    case loop_mode_t::l_queue:
+                        {
+                            auto l = guild_player->queue.front ();
+                            guild_player->queue.pop_front ();
+                            guild_player->queue.push_back (l);
+                            break;
+                        }
+
+                    default:
                         break;
                     }
-
-                case loop_mode_t::l_queue:
-                    {
-                        auto l = guild_player->queue.front ();
-                        guild_player->queue.pop_front ();
-                        guild_player->queue.push_back (l);
-                        break;
-                    }
-
-                default:
-                    break;
-                }
         }
     else if (event.track_meta == "rm")
         {
-            const string removed_title = guild_player->queue.front ().title ();
+            const string removed_title
+                = mctrack::get_title (guild_player->queue.front ());
+
             guild_player->queue.pop_front ();
 
             if (debug)
@@ -126,7 +134,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             return false;
         }
 
-    if (guild_player->queue.size () == 0)
+    if (guild_player->queue.empty ())
         {
             if (debug)
                 {
@@ -231,7 +239,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             this->wait_for_download (track.filename);
 
             // check for autoplay
-            const string track_id = track.id ();
+            const string track_id = mctrack::get_id (track);
             std::thread at_t;
             if (!guild_player->auto_play)
                 goto no_autoplay;
@@ -306,8 +314,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                     }
 
                 const string m_content
-                    = "Can't play track: " + track.title () + " (added by <@"
-                      + std::to_string (track.user_id) + ">)";
+                    = "Can't play track: " + mctrack::get_title (track)
+                      + " (added by <@" + std::to_string (track.user_id)
+                      + ">)";
 
                 dpp::message m (channel_id, m_content);
 

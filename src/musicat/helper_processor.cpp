@@ -177,7 +177,7 @@ helper_main (helper_chain_t &options)
 
 int
 create_helper (const audio_processing::helper_chain_option_t &hco,
-               void (*on_fork) ())
+               void (*on_fork) (), const std::string &id)
 {
     helper_chain_t helper_process;
 
@@ -198,8 +198,8 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     helper_process.child_read_fd = sep.first;
     helper_process.write_fd = sep.second;
 
-    helper_process.sem_full_key
-        = audio_processing::get_sem_key (std::to_string (helper_process.pid));
+    helper_process.sem_full_key = audio_processing::get_sem_key (
+        std::to_string (helper_process.pid) + "_" + id);
 
     helper_process.sem
         = audio_processing::create_sem (helper_process.sem_full_key);
@@ -462,7 +462,7 @@ manage_processor (const audio_processing::processor_options_t &options,
     for (const audio_processing::helper_chain_option_t &i :
          options.helper_chain)
         {
-            if ((status = create_helper (i, on_fork)) != 0)
+            if ((status = create_helper (i, on_fork, options.id)) != 0)
                 {
                     fprintf (stderr,
                              "[helper_processor::manage_processor ERROR] "
@@ -1082,9 +1082,12 @@ shutdown_chain (bool discard_output)
             //             true);
             //     }
 
+            // sent INT
+            kill (hci->pid, SIGINT);
+
             int waited_for = 0;
-            int status = 0;
-            while (waitpid (hci->pid, &status, WNOHANG) != hci->pid)
+            int child_status = 0;
+            while (waitpid (hci->pid, &child_status, WNOHANG) != hci->pid)
                 {
                     std::this_thread::sleep_for (
                         std::chrono::milliseconds (20));
@@ -1101,16 +1104,16 @@ shutdown_chain (bool discard_output)
                                      hci->pid);
 
                             kill (hci->pid, SIGKILL);
-                            waitpid (hci->pid, &status, 0);
+                            waitpid (hci->pid, &child_status, 0);
                         }
                 }
 
             if (hci->options.debug)
                 fprintf (stderr,
                          "[helper_processor::manage_processor] chain "
-                         "status: "
+                         "child_status: "
                          "%d `%s`\n",
-                         status, hci->options.raw_args.c_str ());
+                         child_status, hci->options.raw_args.c_str ());
 
             // close_valid_fd (&hci->read_fd);
 

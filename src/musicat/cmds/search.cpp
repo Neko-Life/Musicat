@@ -1,7 +1,10 @@
 #include "musicat/cmds/search.h"
+#include "musicat/YTDLPTrack.h"
 #include "musicat/cmds.h"
 #include "musicat/function_macros.h"
+#include "musicat/mctrack.h"
 #include "musicat/pagination.h"
+#include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 #include "yt-search/yt-search.h"
@@ -13,7 +16,8 @@ get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("search", "Search [for tracks]", sha_id)
         .add_option (dpp::command_option (dpp::co_string, "query",
-                                          "Search [this]", true));
+                                          "Search [this]", true)
+                         .set_max_length (150));
 }
 
 dpp::interaction_modal_response
@@ -56,96 +60,107 @@ modal_enqueue_searched_track_slip ()
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::string query = "";
-    get_inter_param (event, "query", &query);
+    std::thread rt ([event] () {
+        thread_manager::DoneSetter tmds;
 
-    event.thinking ();
-    yt_search::YSearchResult res;
+        std::string query = "";
+        get_inter_param (event, "query", &query);
 
-    try
-        {
-            res = yt_search::search (query);
-        }
-    catch (std::exception &e)
-        {
-            std::cerr << "[command::search::slash_run ERROR] "
-                      << event.command.guild_id << ':' << e.what () << '\n';
+        event.thinking ();
+        nlohmann::json res;
 
-            event.edit_response ("`[FATAL]` Error while searching for query");
+        try
+            {
+                res = mctrack::fetch ({ query, 25, false });
+            }
+        catch (std::exception &e)
+            {
+                std::cerr << "[command::search::slash_run ERROR] "
+                          << event.command.guild_id << ':' << e.what ()
+                          << '\n';
 
-            return;
-        }
+                event.edit_response (
+                    "`[FATAL]` Error while searching for query");
 
-    auto tracks = res.trackResults ();
+                return;
+            }
 
-    size_t pl_siz = tracks.size ();
-    if (!pl_siz)
-        {
-            event.edit_response ("No result found");
-            return;
-        }
+        auto tracks = YTDLPTrack::get_playlist_entries (res);
 
-    std::vector<dpp::embed> embeds = {};
+        size_t pl_siz = tracks.size ();
+        if (!pl_siz)
+            {
+                event.edit_response ("No result found");
+                return;
+            }
 
-    dpp::embed emb;
-    std::string desc = "";
-    size_t count = 0;
-    size_t mult = 0;
+        std::vector<dpp::embed> embeds = {};
 
-    for (auto &t : tracks)
-        {
-            size_t cn = mult * 10 + (++count);
-            const std::string tit = t.title ();
-            char tit_char[512];
-            util::u8_limit_length (tit.c_str (), tit_char, 80);
+        dpp::embed emb;
+        std::string desc = "";
+        size_t count = 0;
+        size_t mult = 0;
 
-            desc += std::string ("`") + std::to_string (cn) + "`: [" + tit_char
-                    + (tit.length () > 80 ? "..." : "") + "](" + t.url ()
-                    + ") [" + t.length () + "] - " + t.channel ().name + "\n";
+        for (auto &t : tracks)
+            {
+                size_t cn = mult * 10 + (++count);
+                const std::string tit = mctrack::get_title (t);
+                char tit_char[512];
+                util::u8_limit_length (tit.c_str (), tit_char, 80);
 
-            if (count == 10 || cn == pl_siz)
-                {
-                    count = 0;
-                    mult++;
+                desc += std::string ("`") + std::to_string (cn) + "`: ["
+                        + tit_char + (tit.length () > 80 ? "..." : "") + "]("
+                        + mctrack::get_url (t) + ") ["
+                        + mctrack::get_length_str (t) + "] - "
+                        + mctrack::get_channel_name (t) + "\n";
 
-                    emb.set_title (query).set_description (
-                        desc.length () > 2048
-                            ? "Description exceeding char limit. rip"
-                            : desc);
-                    embeds.emplace_back (emb);
+                if (count == 10 || cn == pl_siz)
+                    {
+                        count = 0;
+                        mult++;
 
-                    emb = dpp::embed ();
-                    desc = "";
-                }
-        }
+                        emb.set_title (query).set_description (
+                            desc.length () > 2048
+                                ? "Description exceeding char limit. rip"
+                                : desc);
 
-    dpp::message m;
-    m.add_embed (embeds.front ());
-    m.add_component (
-        dpp::component ()
-            .add_component (dpp::component ()
-                                .set_emoji (MUSICAT_U8 ("🎵"))
-                                .set_label ("Add Track")
-                                .set_style (dpp::cos_success)
-                                .set_id ("modal_p/que_s_track"))
-            .add_component (dpp::component ()
-                                .set_emoji (MUSICAT_U8 ("🎵"))
-                                .set_label ("Add Slip")
-                                .set_style (dpp::cos_primary)
-                                .set_id ("modal_p/que_s_track_slip"))
-            .add_component (dpp::component ()
-                                .set_emoji (MUSICAT_U8 ("🎵"))
-                                .set_label ("Add Top")
-                                .set_style (dpp::cos_danger)
-                                .set_id ("modal_p/que_s_track_top")));
+                        embeds.emplace_back (emb);
 
-    bool paginate = embeds.size () > 1;
-    if (paginate)
-        paginate::add_pagination_buttons (&m);
+                        emb = dpp::embed ();
+                        desc = "";
+                    }
+            }
 
-    std::any storage_data = tracks;
-    event.edit_response (
-        m, paginate::get_inter_reply_cb (event, paginate, event.from->creator,
-                                         embeds, storage_data));
+        dpp::message m;
+        m.add_embed (embeds.front ());
+        m.add_component (
+            dpp::component ()
+                .add_component (dpp::component ()
+                                    .set_emoji (MUSICAT_U8 ("🎵"))
+                                    .set_label ("Add Track")
+                                    .set_style (dpp::cos_success)
+                                    .set_id ("modal_p/que_s_track"))
+                .add_component (dpp::component ()
+                                    .set_emoji (MUSICAT_U8 ("🎵"))
+                                    .set_label ("Add Slip")
+                                    .set_style (dpp::cos_primary)
+                                    .set_id ("modal_p/que_s_track_slip"))
+                .add_component (dpp::component ()
+                                    .set_emoji (MUSICAT_U8 ("🎵"))
+                                    .set_label ("Add Top")
+                                    .set_style (dpp::cos_danger)
+                                    .set_id ("modal_p/que_s_track_top")));
+
+        bool paginate = embeds.size () > 1;
+        if (paginate)
+            paginate::add_pagination_buttons (&m);
+
+        std::any storage_data = tracks;
+        event.edit_response (m, paginate::get_inter_reply_cb (
+                                    event, paginate, event.from->creator,
+                                    embeds, storage_data));
+    });
+
+    thread_manager::dispatch (rt);
 }
 } // musicat::command::search

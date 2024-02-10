@@ -41,7 +41,7 @@ execute (command::command_options_t &options)
 
             status = ready_status_t.ERR_SLAVE_EXIST;
             goto ret;
-        };
+        }
 
     if (options.command
         == command::command_execute_commands_t.create_audio_processor)
@@ -58,6 +58,10 @@ execute (command::command_options_t &options)
             slave_manager::clean_up (options.id);
 
             return 0;
+        }
+    else if (options.command == command::command_execute_commands_t.call_ytdlp)
+        {
+            status = worker_command::call_ytdlp (options);
         }
 
     if (status == 0)
@@ -108,6 +112,7 @@ handle_worker_fork ()
     slave_manager::handle_worker_fork ();
 }
 
+// run as main's child process, is helpers/slaves manager
 void
 run ()
 {
@@ -117,7 +122,7 @@ run ()
     size_t read_size = 0;
     while ((read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
         {
-            cmd[CMD_BUFSIZE] = '\n';
+            cmd[read_size] = '\0';
             fprintf (stderr, "[child::worker] Received command: `%s`\n", cmd);
 
             handle_command (cmd);

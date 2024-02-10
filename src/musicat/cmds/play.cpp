@@ -1,7 +1,9 @@
 // !TODO: REFACTOR THIS HORRIBLE FILE
 
 #include "musicat/cmds/play.h"
+#include "musicat/YTDLPTrack.h"
 #include "musicat/autocomplete.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/search-cache.h"
 #include "musicat/thread_manager.h"
@@ -20,7 +22,7 @@ namespace musicat::command::play
 namespace autocomplete
 {
 void
-query (const dpp::autocomplete_t &event, std::string param)
+query (const dpp::autocomplete_t &event, const std::string &param)
 {
     std::vector<std::pair<std::string, std::string> > avail = {};
 
@@ -61,7 +63,8 @@ get_register_obj (const dpp::snowflake &sha_id)
         .add_option (
             dpp::command_option (dpp::co_string, "query",
                                  "Song [to search] or Youtube URL [to play]")
-                .set_auto_complete (true))
+                .set_auto_complete (true)
+                .set_max_length (150))
         .add_option (
             dpp::command_option (dpp::co_integer, "top",
                                  "Add [this song] to the top [of the queue]")
@@ -111,7 +114,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (!vcuser.first)
         return event.reply ("Join a voice channel first you dummy");
 
-    dpp::user *sha_user = dpp::find_user (sha_id);
+    dpp::user const *sha_user = dpp::find_user (sha_id);
 
     uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user),
                                                sha_user, vcuser.first);
@@ -267,13 +270,19 @@ slash_run (const dpp::slashcommand_t &event)
                arg_slip);
 }
 
-std::pair<yt_search::YTrack, int>
-find_track (bool playlist, std::string &arg_query,
-            player::player_manager_ptr_t player_manager, bool from_interaction,
-            dpp::snowflake guild_id, bool no_check_history,
+std::pair<player::MCTrack, int>
+find_track (const bool playlist, const std::string &arg_query,
+            player::player_manager_ptr_t player_manager,
+            const dpp::snowflake guild_id, const bool no_check_history,
             const std::string &cache_id)
 {
+    std::string trimmed_query = util::trim_str (arg_query);
+
+#ifdef USE_SEARCH_CACHE
     bool has_cache_id = !cache_id.empty ();
+#else
+    // bool has_cache_id = false;
+#endif
 
     std::shared_ptr<player::Player> guild_player = NULL;
 
@@ -293,11 +302,12 @@ find_track (bool playlist, std::string &arg_query,
                 }
         }
 
+    // prioritize cache over searching
+    std::vector<player::MCTrack> searches;
+
+#ifdef USE_YTSEARCH_H
     yt_search::YSearchResult search_result = {};
     yt_search::YPlaylist playlist_result = {};
-
-    // prioritize cache over searching
-    std::vector<yt_search::YTrack> searches;
 
 #ifdef USE_SEARCH_CACHE
     if (has_cache_id)
@@ -305,6 +315,7 @@ find_track (bool playlist, std::string &arg_query,
 #endif
 
     size_t searches_size = has_cache_id ? searches.size () : 0;
+
     // quick decide to remove when no result found instead of looking up in the
     // cache map
     size_t cached_size = has_cache_id ? searches_size : 0;
@@ -319,10 +330,11 @@ find_track (bool playlist, std::string &arg_query,
                     searches
                         = playlist
                               ? (playlist_result
-                                 = yt_search::get_playlist (arg_query))
+                                 = yt_search::get_playlist (trimmed_query))
                                     .entries ()
 
-                              : (search_result = yt_search::search (arg_query))
+                              : (search_result
+                                 = yt_search::search (trimmed_query))
                                     .trackResults ();
 
                     searches_size = searches.size ();
@@ -353,6 +365,19 @@ find_track (bool playlist, std::string &arg_query,
 
     searches_size = searches.size ();
 
+#else
+    // use mctrack::fetch
+    // playlist true means autoplay request, which is always a playlist url
+    // query
+    nlohmann::json res = mctrack::fetch ({ trimmed_query, 25, playlist });
+
+    if (res.is_null ())
+        return { {}, 2 };
+
+    searches = YTDLPTrack::get_playlist_entries (res);
+
+#endif
+
 #ifdef USE_SEARCH_CACHE
     // indicate if this cache is updated
     bool update_cache = searched && has_cache_id && searches_size;
@@ -363,13 +388,10 @@ find_track (bool playlist, std::string &arg_query,
 
     if (searches.begin () == searches.end ())
         {
-            if (from_interaction)
-                return { {}, -1 };
-
-            return { {}, 0 };
+            return { {}, -1 };
         }
 
-    yt_search::YTrack result = {};
+    player::MCTrack result = {};
     if (playlist == false || no_check_history)
         // play the first result according to user query
         result = searches.front ();
@@ -380,13 +402,13 @@ find_track (bool playlist, std::string &arg_query,
             // find entry that wasn't played before
             for (const auto &i : searches)
                 {
-                    auto iid = i.id ();
+                    auto iid = mctrack::get_id (i);
                     bool br = false;
 
                     // lookup in current queue
                     for (const auto &a : guild_player->queue)
                         {
-                            if (a.id () != iid)
+                            if (mctrack::get_id (a) != iid)
                                 continue;
 
                             br = true;
@@ -437,10 +459,10 @@ find_track (bool playlist, std::string &arg_query,
 }
 
 std::string
-get_filename_from_result (yt_search::YTrack &result)
+get_filename_from_result (player::MCTrack &result)
 {
-    const auto sid = result.id ();
-    const auto st = result.title ();
+    const auto sid = mctrack::get_id (result);
+    const auto st = mctrack::get_title (result);
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
@@ -497,141 +519,165 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
            const dpp::interaction_create_t event, bool continued,
            int64_t arg_slip, const std::string &cache_id)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            fprintf (stderr,
-                     "[command::play::add_track WARN] Can't add track with "
-                     "query, no manager: %s\n",
-                     arg_query.c_str ());
-
-            return;
-        }
-
-    const bool debug = get_debug_state ();
-
-    auto find_result
-        = find_track (playlist, arg_query, player_manager, from_interaction,
-                      guild_id, false, cache_id);
-
-    switch (find_result.second)
-        {
-        case -1:
-            event.edit_response ("Can't find anything");
-            return;
-        case 1:
-            return;
-        case 0:
-            break;
-        default:
-            fprintf (stderr,
-                     "[command::play::add_track WARN] Unhandled find_track "
-                     "return status: %d\n",
-                     find_result.second);
-        }
-
-    auto result = find_result.first;
-
-    const std::string fname = get_filename_from_result (result);
-
-    if (from_interaction && (vcclient_cont == false || !v))
-        {
-            player_manager->set_connecting (guild_id, channel_id);
-            player_manager->set_waiting_vc_ready (guild_id, fname);
-        }
-
-    const auto result_url = result.url ();
-
-    auto download_result = track_exist (fname, result_url, player_manager,
-                                        from_interaction, guild_id);
-    bool dling = download_result.first;
-
-    switch (download_result.second)
-        {
-        case 2:
-            if (from_interaction)
-                {
-                    event.edit_response ("`[ERROR]` Unable to find track");
-                }
-
-            if (debug)
-                fprintf (stderr,
-                         "[play::add_track ERROR] Unable to download track: "
-                         "`%s` `%s`\n",
-                         fname.c_str (), result_url.c_str ());
-
-            return;
-        case 1:
-            if (dling)
-                {
-                    event.edit_response (
-                        util::response::reply_downloading_track (
-                            result.title ()));
-                }
-            else
-                {
-                    if (debug)
-                        fprintf (stderr,
-                                 "track arg_top arg_slip: '%s' %ld %ld\n",
-                                 result.title ().c_str (), arg_top, arg_slip);
-
-                    event.edit_response (util::response::reply_added_track (
-                        result.title (), arg_top ? arg_top : arg_slip));
-                }
-        case 0:
-            break;
-        default:
-            fprintf (stderr,
-                     "[command::play::add_track WARN] Unhandled track_exist "
-                     "return status: %d\n",
-                     download_result.second);
-        }
-
-    std::thread pjt ([player_manager, from, guild_id] () {
+    std::thread rt ([=] () {
         thread_manager::DoneSetter tmds;
-        player_manager->reconnect (from, guild_id);
-    });
 
-    thread_manager::dispatch (pjt);
+        auto player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            {
+                fprintf (
+                    stderr,
+                    "[command::play::add_track WARN] Can't add track with "
+                    "query, no manager: %s\n",
+                    arg_query.c_str ());
 
-    std::thread dlt (
-        [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-         guild_id, from, continued, arg_slip,
-         event] (yt_search::YTrack result) {
-            dpp::snowflake user_id
-                = from_interaction ? event.command.usr.id : sha_id;
-            auto guild_player = player_manager->create_player (guild_id);
+                return;
+            }
 
-            const dpp::snowflake channel_id = from_interaction
-                                                  ? event.command.channel_id
-                                                  : guild_player->channel_id;
+        const bool debug = get_debug_state ();
 
-            if (dling)
-                {
-                    player_manager->wait_for_download (fname);
-                    if (from_interaction)
+        auto find_result = find_track (playlist, arg_query, player_manager,
+                                       guild_id, false, cache_id);
+
+        switch (find_result.second)
+            {
+            case -1:
+                if (!from_interaction)
+                    break;
+
+                event.edit_response ("Can't find anything");
+                return;
+            case 1:
+                return;
+            case 0:
+                break;
+            case 2:
+                if (!from_interaction)
+                    break;
+
+                event.edit_response ("Error while searching, try again");
+                return;
+            default:
+                fprintf (
+                    stderr,
+                    "[command::play::add_track WARN] Unhandled find_track "
+                    "return status: %d\n",
+                    find_result.second);
+            }
+
+        auto result = find_result.first;
+
+        const std::string fname = get_filename_from_result (result);
+
+        if (from_interaction && (vcclient_cont == false || !v))
+            {
+                player_manager->set_connecting (guild_id, channel_id);
+                player_manager->set_waiting_vc_ready (guild_id, fname);
+            }
+
+        const auto result_url = mctrack::get_url (result);
+
+        auto download_result = track_exist (fname, result_url, player_manager,
+                                            from_interaction, guild_id);
+        bool dling = download_result.first;
+
+        switch (download_result.second)
+            {
+            case 2:
+                if (from_interaction)
+                    {
+                        event.edit_response ("`[ERROR]` Unable to find track");
+                    }
+
+                if (debug)
+                    fprintf (
+                        stderr,
+                        "[play::add_track ERROR] Unable to download track: "
+                        "`%s` `%s`\n",
+                        fname.c_str (), result_url.c_str ());
+
+                return;
+            case 1:
+                if (dling)
+                    {
+                        event.edit_response (
+                            util::response::reply_downloading_track (
+                                mctrack::get_title (result)));
+                    }
+                else
+                    {
+                        if (debug)
+                            fprintf (stderr,
+                                     "track arg_top arg_slip: '%s' %ld %ld\n",
+                                     mctrack::get_title (result).c_str (),
+                                     arg_top, arg_slip);
+
                         event.edit_response (
                             util::response::reply_added_track (
-                                result.title (),
+                                mctrack::get_title (result),
                                 arg_top ? arg_top : arg_slip));
-                }
-            if (from)
-                guild_player->from = from;
+                    }
+            case 0:
+                break;
+            default:
+                fprintf (
+                    stderr,
+                    "[command::play::add_track WARN] Unhandled track_exist "
+                    "return status: %d\n",
+                    download_result.second);
+            }
 
-            player::MCTrack t (result);
-            t.filename = fname;
-            t.user_id = user_id;
+        std::thread pjt ([player_manager, from, guild_id] () {
+            thread_manager::DoneSetter tmds;
+            player_manager->reconnect (from, guild_id);
+        });
 
-            guild_player->add_track (t, arg_top ? true : false, guild_id,
-                                     from_interaction || dling, arg_slip);
+        thread_manager::dispatch (pjt);
 
-            if (from_interaction)
-                guild_player->set_channel (channel_id);
+        std::thread dlt (
+            [player_manager, sha_id, dling, fname, arg_top, from_interaction,
+             guild_id, from, continued, arg_slip,
+             event] (player::MCTrack result) {
+                thread_manager::DoneSetter tmds;
 
-            decide_play (from, guild_id, continued);
-        },
-        result);
-    dlt.detach ();
+                dpp::snowflake user_id
+                    = from_interaction ? event.command.usr.id : sha_id;
+                auto guild_player = player_manager->create_player (guild_id);
+
+                const dpp::snowflake channel_id
+                    = from_interaction ? event.command.channel_id
+                                       : guild_player->channel_id;
+
+                if (dling)
+                    {
+                        player_manager->wait_for_download (fname);
+                        if (from_interaction)
+                            event.edit_response (
+                                util::response::reply_added_track (
+                                    mctrack::get_title (result),
+                                    arg_top ? arg_top : arg_slip));
+                    }
+                if (from)
+                    guild_player->from = from;
+
+                player::MCTrack t (result);
+                t.filename = fname;
+                t.user_id = user_id;
+
+                guild_player->add_track (t, arg_top ? true : false, guild_id,
+                                         from_interaction || dling, arg_slip);
+
+                if (from_interaction)
+                    guild_player->set_channel (channel_id);
+
+                decide_play (from, guild_id, continued);
+            },
+            result);
+
+        thread_manager::dispatch (dlt);
+    });
+
+    thread_manager::dispatch (rt);
 }
 
 void

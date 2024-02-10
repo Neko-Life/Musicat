@@ -3,17 +3,13 @@
 
 #include "musicat/child/command.h"
 
-namespace musicat
-{
-namespace child
-{
-namespace worker_command
+namespace musicat::child::worker_command
 {
 
 int create_audio_processor (command::command_options_t &options);
 
-} // worker_command
-} // child
-} // musicat
+int call_ytdlp (command::command_options_t &options);
+
+} // musicat::child::worker_command
 
 #endif // MUSICAT_CHILD_WORKER_COMMAND_H

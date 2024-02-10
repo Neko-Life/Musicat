@@ -5,13 +5,9 @@
 #include <chrono>
 #include <mutex>
 
-namespace musicat
-{
-namespace child
-{
 // this namespace is mostly still executed in main program/thread
 // with exception of some util function
-namespace command
+namespace musicat::child::command
 {
 
 std::deque<std::string> command_queue;
@@ -23,7 +19,7 @@ std::mutex sr_m;
 std::condition_variable sr_cv;
 
 int
-set_option (command_options_t &options, std::string &cmd_option)
+set_option (command_options_t &options, const std::string &cmd_option)
 {
     std::string opt = "";
     std::string value = "";
@@ -102,6 +98,22 @@ set_option (command_options_t &options, std::string &cmd_option)
         {
             options.force = value == "1";
         }
+    else if (opt == command_options_keys_t.ytdlp_util_exe)
+        {
+            options.ytdlp_util_exe = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_query)
+        {
+            options.ytdlp_query = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_lib_path)
+        {
+            options.ytdlp_lib_path = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_max_entries)
+        {
+            options.ytdlp_max_entries = atoi (value.c_str ());
+        }
 
     return 0;
 }
@@ -128,7 +140,7 @@ wait_for_command ()
     std::unique_lock<std::mutex> ulk (command_mutex);
 
     command_cv.wait (ulk, [] () {
-        return (command_queue.size () > 0) || !get_running_state ();
+        return !command_queue.empty () || !get_running_state ();
     });
 }
 
@@ -141,6 +153,7 @@ handle_child_message (command_options_t &options)
         }
 }
 
+// run in main program thread
 void
 run_command_thread ()
 {
@@ -167,7 +180,7 @@ run_command_thread ()
                     = read (*get_parent_read_fd (), read_buf, CMD_BUFSIZE))
                    > 0))
             {
-                read_buf[CMD_BUFSIZE] = '\0';
+                read_buf[read_size] = '\0';
 
                 fprintf (stderr,
                          "[child::command] Received "
@@ -227,7 +240,7 @@ write_command (const std::string &cmd, const int write_fd, const char *caller)
             return;
         }
 
-    const size_t cmd_size = cmd.size ();
+    size_t cmd_size = cmd.size ();
     if (cmd_size > CMD_BUFSIZE)
         {
             fprintf (stderr, wccfmt, caller, cmd_size, CMD_BUFSIZE);
@@ -348,7 +361,7 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
 }
 
 int
-wait_slave_ready (std::string &id, const int timeout)
+wait_slave_ready (const std::string &id, int timeout)
 {
     {
         std::lock_guard<std::mutex> lk (sr_m);
@@ -392,7 +405,7 @@ wait_slave_ready (std::string &id, const int timeout)
 }
 
 int
-mark_slave_ready (std::string &id, const int status)
+mark_slave_ready (const std::string &id, int status)
 {
     {
         std::lock_guard<std::mutex> lk (sr_m);
@@ -404,6 +417,4 @@ mark_slave_ready (std::string &id, const int status)
     return 0;
 }
 
-} // command
-} // child
-} // musicat
+} // musicat::child::command

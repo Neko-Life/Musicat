@@ -1,0 +1,31 @@
+{
+  "id": "TMKD02-DARKNESS_Kick_test",
+  "title": "TMKD02-DARKNESS_Kick_test",
+  "timestamp": 1456678479.0,
+  "direct": true,
+  "formats": [
+    {
+      "format_id": "mpeg",
+      "url": "https://www.themetalkickdrum.com/free-stuff/audio/TMKD02-DARKNESS_Kick_test.mp3",
+      "ext": "mp3",
+      "vcodec": "none"
+    }
+  ],
+  "subtitles": {},
+  "http_headers": null,
+  "hls_aes": null,
+  "webpage_url": "https://www.themetalkickdrum.com/free-stuff/audio/TMKD02-DARKNESS_Kick_test.mp3",
+  "original_url": "https://www.themetalkickdrum.com/free-stuff/audio/TMKD02-DARKNESS_Kick_test.mp3",
+  "webpage_url_basename": "TMKD02-DARKNESS_Kick_test.mp3",
+  "webpage_url_domain": "themetalkickdrum.com",
+  "extractor": "generic",
+  "extractor_key": "Generic",
+  "epoch": 1707490974,
+  "_type": "video",
+  "_version": {
+    "version": "2023.12.30",
+    "current_git_head": null,
+    "release_git_head": "f10589e3453009bb523f55849bba144c9b91cf2a",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}

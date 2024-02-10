@@ -15,8 +15,9 @@ COPY libs ./libs
 COPY CMakeLists.txt ./
 
 # Install dependencies
-RUN pacman -Syu --needed --noconfirm base-devel libc++ git cmake libsodium opus postgresql-libs clang && \
-      mkdir -p build && cd build && \
+RUN pacman -Syu --needed --noconfirm base-devel libc++ git cmake libsodium opus postgresql-libs clang
+
+RUN mkdir -p build && cd build && \
       export CC=clang && \
       export CXX=clang++ && \
       export LDFLAGS='-flto -stdlib=libc++ -lc++' && \
@@ -37,12 +38,17 @@ COPY --chown=musicat:musicat --from=build \
              /app/build/libs/DPP/library/libdpp.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
              /app/libs/icu/usr/local/lib/lib* \
-             /home/musicat
+             /app/src/yt-dlp/ytdlp.py \
+             /home/musicat/
 #             /app/libs/liboggz/build/lib/liboggz.so* \
 
 COPY --chown=musicat:musicat --from=build \
              /app/libs/yt-dlp \
              /home/musicat/yt-dlp/
+
+COPY --chown=musicat:musicat --from=build \
+             /app/src/yt-dlp/utils \
+             /home/musicat/utils/
 
 ENV LD_LIBRARY_PATH=/home/musicat
 

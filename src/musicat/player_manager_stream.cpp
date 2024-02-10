@@ -981,7 +981,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (debug)
                 std::cerr << "Exiting " << server_id << '\n';
 
-            // commented for testing purpose
             cc::send_command (exit_cmd);
 
             if (!running_state || is_stopping)

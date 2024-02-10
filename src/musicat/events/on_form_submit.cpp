@@ -1,5 +1,6 @@
 #include "musicat/events/on_form_submit.h"
 #include "musicat/cmds/play.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/storage.h"
@@ -61,7 +62,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
             return;
         }
 
-    auto tracks = std::any_cast<std::vector<yt_search::YTrack> > (storage);
+    auto tracks = std::any_cast<std::vector<player::MCTrack> > (storage);
     if (tracks.size () < (size_t)pos)
         return;
 
@@ -73,15 +74,16 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     const std::string prepend_name
         = util::response::str_mention_user (event.command.usr.id);
 
-    std::string edit_response = prepend_name
-                                + util::response::reply_added_track (
-                                    result.title (), top ? 1 : arg_slip);
+    std::string edit_response
+        = prepend_name
+          + util::response::reply_added_track (mctrack::get_title (result),
+                                               top ? 1 : arg_slip);
 
     event.thinking ();
 
     std::string fname = std::regex_replace (
-        result.title () + std::string ("-") + result.id ()
-            + std::string (".opus"),
+        mctrack::get_title (result) + std::string ("-")
+            + mctrack::get_id (result) + std::string (".opus"),
         std::regex ("/"), "", std::regex_constants::match_any);
 
     bool dling = false;
@@ -92,9 +94,9 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     if (!test.is_open ())
         {
             dling = true;
-            event.edit_response (
-                prepend_name
-                + util::response::reply_downloading_track (result.title ()));
+            event.edit_response (prepend_name
+                                 + util::response::reply_downloading_track (
+                                     mctrack::get_title (result)));
 
             auto player_manager = get_player_manager_ptr ();
 
@@ -102,7 +104,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
                 && player_manager->waiting_file_download.find (fname)
                        == player_manager->waiting_file_download.end ())
                 {
-                    auto url = result.url ();
+                    auto url = mctrack::get_url (result);
                     player_manager->download (fname, url, guild_id);
                 }
         }
@@ -115,7 +117,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     std::thread dlt (
         [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
          edit_response] (const dpp::interaction_create_t event,
-                         yt_search::YTrack result) {
+                         player::MCTrack result) {
             thread_manager::DoneSetter tmds;
             auto player_manager = get_player_manager_ptr ();
 

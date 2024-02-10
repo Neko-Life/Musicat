@@ -3,17 +3,7 @@ import os
 import json
 from utils.common import printerr  # , create_dir_name
 
-ytdlp_dir = (os.getenv('YTDLP_DIR')
-             or (os.path.dirname(os.path.abspath(__file__)) +
-                 r'/../../libs/yt-dlp/'))
-
 # printerr(ytdlp_dir)
-
-LIB_PATH = ytdlp_dir
-
-sys.path.insert(0, LIB_PATH)
-
-import yt_dlp
 
 # first page = 25
 # +1 page: 49
@@ -28,7 +18,9 @@ DEFAULT_YTDLP_PROCESS_ARG = False
 
 argvlen = len(sys.argv)
 if argvlen < 2:
-    printerr(r'args: <url> [OPTIONS...]')
+    printerr(
+        'Usage: python ytdlp.py <url> [OPTIONS...]\nOptions:\n\t--ytdlp-dir <path>\n\t--max-entries <int>\tDefault',
+        DEFAULT_PLAYLIST_ENTRY_PER_PAGE)
     exit(1)
 
 max_entries = DEFAULT_PLAYLIST_ENTRY_PER_PAGE
@@ -44,6 +36,13 @@ def exitInvArgVal(arg, val):
     exit(1)
 
 
+# ARG_ROOT_PATH = sys.argv[1]
+# ARG_URL = sys.argv[2]
+
+LIB_PATH = ''
+ARG_URL = ''
+
+skipNext = False
 for i in range(1, argvlen):
     arg = sys.argv[i]
     nextIdx = i + 1
@@ -59,14 +58,32 @@ for i in range(1, argvlen):
 
         if not argVal.isdigit():
             exitInvArgVal(arg, argVal)
+        skipNext = True
 
         max_entries = int(argVal)
+    elif (arg == "--ytdlp-dir"):
+        if not argVal or not len(argVal):
+            exitNoArgVal(arg)
+        skipNext = True
 
-# ARG_ROOT_PATH = sys.argv[1]
-# ARG_URL = sys.argv[2]
-ARG_URL = sys.argv[1]
+        LIB_PATH = argVal
+    elif not skipNext:
+        ARG_URL = arg
+    else:
+        skipNext = False
 
+if not len(LIB_PATH):
+    ytdlp_dir = (os.getenv('YTDLP_DIR')
+                 or (os.path.dirname(os.path.abspath(__file__)) +
+                     r'/../../libs/yt-dlp/'))
+    LIB_PATH = ytdlp_dir
+
+printerr("LIB_PATH:", LIB_PATH)
 printerr("ARG_URL:", ARG_URL)
+
+sys.path.insert(0, LIB_PATH)
+
+import yt_dlp
 
 # ℹ️ See help(yt_dlp.YoutubeDL) for a list of
 # available options and public functions

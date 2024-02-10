@@ -2,6 +2,7 @@
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/helper_processor.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <assert.h>
@@ -60,7 +61,7 @@ read_command (processor_options_t &options)
         && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
         {
             status = 0;
-            cmd_buf[CMD_BUFSIZE] = '\0';
+            cmd_buf[read_cmd_size] = '\0';
 
             if (options.debug)
                 {
@@ -177,8 +178,8 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 
             if (guild_player && guild_player->current_track.filesize)
                 {
-                    const uint64_t duration
-                        = guild_player->current_track.info.duration ();
+                    uint64_t duration
+                        = mctrack::get_duration (guild_player->current_track);
 
                     float byte_per_ms
                         = (float)guild_player->current_track.filesize
@@ -369,8 +370,8 @@ run_processor_error_t
 run_processor (child::command::command_options_t &process_options)
 {
     // !TODO: remove this useless child_write_fd entirely
-    close (process_options.child_write_fd);
-    process_options.child_write_fd = -1;
+    // close (process_options.child_write_fd);
+    // process_options.child_write_fd = -1;
 
     processor_states_t p_info;
 
@@ -470,7 +471,7 @@ run_processor (child::command::command_options_t &process_options)
     creadfd = p_info.cpipefd[0];
     pwritefd = p_info.cpipefd[1];
 
-    sem_full_key = get_sem_key (options.guild_id);
+    sem_full_key = get_sem_key (options.id);
     sem = create_sem (sem_full_key);
 
     // create a child
@@ -644,7 +645,7 @@ run_processor (child::command::command_options_t &process_options)
                     creadfd = p_info.cpipefd[0];
                     pwritefd = p_info.cpipefd[1];
 
-                    sem_full_key = get_sem_key (options.guild_id);
+                    sem_full_key = get_sem_key (options.id);
                     sem = create_sem (sem_full_key);
 
                     p_info.cpid = fork ();

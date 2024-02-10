@@ -144,6 +144,10 @@ int get_server_port ();
 
 std::string get_ytdlp_exe ();
 
+std::string get_ytdlp_util_exe ();
+
+std::string get_ytdlp_lib_path ();
+
 /**
  * @brief Search _find inside _vec
  *
@@ -344,6 +348,8 @@ std::vector<std::string> get_cors_enabled_origins ();
 std::string get_jwt_secret ();
 
 float get_stream_buffer_size ();
+
+const char *get_python_cmd ();
 
 } // musicat
 

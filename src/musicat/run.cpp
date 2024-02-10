@@ -3,6 +3,7 @@
 */
 
 #include "musicat/child.h"
+#include "musicat/child/ytdlp.h"
 #include "musicat/db.h"
 #include "musicat/eliza.h"
 #include "musicat/events.h"
@@ -13,6 +14,12 @@
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
+
+#define RUN_TESTS 0
+
+#if RUN_TESTS
+#include "musicat/tests.h"
+#endif
 
 static const std::string OAUTH_BASE_URL
     = "https://discord.com/api/oauth2/authorize";
@@ -34,6 +41,8 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 float _stream_buffer_size = 0.0f;
+
+int python_v = -1;
 
 dpp::cluster *
 get_client_ptr ()
@@ -334,6 +343,18 @@ get_ytdlp_exe ()
     return get_config_value<std::string> ("YTDLP_EXE", "");
 }
 
+std::string
+get_ytdlp_util_exe ()
+{
+    return get_config_value<std::string> ("YTDLP_UTIL_EXE", "");
+}
+
+std::string
+get_ytdlp_lib_path ()
+{
+    return get_config_value<std::string> ("YTDLP_LIB_DIR", "");
+}
+
 std::vector<std::string>
 get_cors_enabled_origins ()
 {
@@ -381,6 +402,22 @@ get_stream_buffer_size ()
         }
 
     return _stream_buffer_size;
+}
+
+const char *
+get_python_cmd ()
+{
+    switch (python_v)
+        {
+        case 3:
+            return "python3";
+        case 2:
+            return "python2";
+        case 1:
+            return "python";
+        default:
+            return "";
+        }
 }
 
 std::atomic<int> _sigint_count = 0;
@@ -456,8 +493,8 @@ run (int argc, const char *argv[])
             1,
             true,
             dpp::cache_policy::cpol_default,
-            1,
-            1 };
+            12,
+            4 };
 
     if (argc > 1)
         {
@@ -476,6 +513,15 @@ run (int argc, const char *argv[])
                 std::this_thread::sleep_for (std::chrono::seconds (1));
 
             return ret;
+        }
+
+    if ((python_v = child::ytdlp::has_python ()) == -1)
+        {
+            fprintf (stderr,
+                     "[FATAL] Unable to invoke python, this program requires "
+                     "python to use yt-dlp capabilities, exiting...\n");
+
+            return -1;
         }
 
     if (eliza::init () != 0)
@@ -558,6 +604,10 @@ run (int argc, const char *argv[])
     });
 
     thread_manager::dispatch (server_thread);
+
+#if RUN_TESTS
+    tests::test_ytdlp ();
+#endif
 
     time_t last_gc;
     time_t last_recon;

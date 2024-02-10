@@ -1,5 +1,6 @@
 #include "musicat/cmds/seek.h"
 #include "musicat/cmds.h"
+#include "musicat/mctrack.h"
 
 namespace musicat::command::seek
 {
@@ -269,7 +270,7 @@ slash_run (const dpp::slashcommand_t &event)
     // !TODO: probably add a mutex for safety just in case?
     player::MCTrack &track = player->current_track;
 
-    const uint64_t duration = track.info.duration ();
+    uint64_t duration = mctrack::get_duration (track);
 
     if (!duration || !track.filesize)
         {

@@ -75,6 +75,8 @@ ms_to_picos (const long long ms)
 dpp::command_option
 find_focused (const std::vector<dpp::command_option> &options);
 
+std::string trim_str (const std::string &str);
+
 } // musicat::util
 
 #endif // MUSICAT_UTIL_H

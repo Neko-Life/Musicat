@@ -1,5 +1,6 @@
 #include "musicat/player.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include <memory>
 
@@ -9,26 +10,29 @@ namespace player
 {
 using string = std::string;
 
-MCTrack::MCTrack ()
-{
-    seekable = false;
-    seek_to = "";
-    stopping = false;
-    current_byte = 0;
-    filesize = 0;
-}
+MCTrack::MCTrack () { this->init (); }
 
 MCTrack::MCTrack (const YTrack &t)
 {
+    this->init ();
+    this->raw = t.raw;
+
+    if (t.raw.find ("raw_info") != t.raw.end ())
+        this->info.raw = t.raw.value ("raw_info", nullptr);
+}
+
+MCTrack::~MCTrack () = default;
+
+void
+MCTrack::init ()
+{
     seekable = false;
     seek_to = "";
     stopping = false;
     current_byte = 0;
     filesize = 0;
-    this->raw = t.raw;
+    repeat = 0;
 }
-
-MCTrack::~MCTrack () = default;
 
 void
 Player::init ()
@@ -99,14 +103,16 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
 {
     size_t siz = 0;
     {
+        // !TODO: remove this when fully using ytdlp to support non-yt tracks
         if (track.info.raw.is_null ())
             try
                 {
-                    track.info.raw = yt_search::get_track_info (track.url ())
-                                         .audio_info (251)
-                                         .raw;
+                    track.info.raw
+                        = yt_search::get_track_info (mctrack::get_url (track))
+                              .audio_info (251)
+                              .raw;
 
-                    track.thumbnails ();
+                    // track.thumbnails ();
                 }
             catch (std::exception &e)
                 {
@@ -207,6 +213,12 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
     const bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
     const bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
+    if (!this->current_track.raw.is_null ())
+        this->current_track.repeat = 0;
+
+    if (!this->queue.empty ())
+        this->queue.front ().repeat = 0;
+
     std::deque<MCTrack> removed_tracks = {};
     for (int64_t i
          = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s))
@@ -222,12 +234,15 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
             this->queue.pop_front ();
             if (get_debug_state ())
                 fprintf (stderr, "POPPED FROM QUEUE: '%s'\n",
-                         l.title ().c_str ());
+                         mctrack::get_title (l).c_str ());
 
             removed_tracks.push_back (l);
 
             if (!remove && (l_s || l_q))
-                this->queue.push_back (l);
+                {
+                    l.repeat = 0;
+                    this->queue.push_back (l);
+                }
         }
 
     return removed_tracks;
@@ -430,9 +445,9 @@ player_has_current_track (std::shared_ptr<player::Player> guild_player)
 }
 
 player::track_progress
-get_track_progress (player::MCTrack &track)
+get_track_progress (const player::MCTrack &track)
 {
-    const int64_t duration = track.info.duration ();
+    int64_t duration = mctrack::get_duration (track);
 
     if (!duration || !track.filesize)
         return { 0, 0, 1 };

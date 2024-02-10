@@ -4,11 +4,7 @@
 #include "musicat/child.h"
 #include <string>
 
-namespace musicat
-{
-namespace child
-{
-namespace command
+namespace musicat::child::command
 {
 
 // update worker::execute and related routines when changing this
@@ -16,6 +12,21 @@ inline const struct
 {
     const std::string create_audio_processor = "cap";
     const std::string shutdown = "shut";
+
+    /**
+     * Invoking ytdlp cmd and save the output to a json file
+     *
+     * Requires id, ytdlp_util_exe, ytdlp_lib_path and ytdlp_query
+     * Optionally ytdlp_max_entries
+     *
+     * Creates a fifo based on id
+     * Caller should open and read the fifo to get the cmd output
+     * containing file_path of the result to open and read
+     *
+     * If file_path is empty then smt wrong happened
+     * !TODO: result status?
+     */
+    const std::string call_ytdlp = "ytd";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
@@ -40,6 +51,11 @@ inline const struct
      */
     const std::string helper_chain = "ehl"; // str
     const std::string force = "frc";        // bool
+
+    const std::string ytdlp_util_exe = "ytdex";    // str
+    const std::string ytdlp_query = "ytdq";        // str
+    const std::string ytdlp_max_entries = "ytdme"; // int
+    const std::string ytdlp_lib_path = "ytdlibp";  // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -78,13 +94,18 @@ struct command_options_t
      * Some will just ignore it
      */
     bool force;
+
+    std::string ytdlp_util_exe;
+    std::string ytdlp_query;
+    int ytdlp_max_entries;
+    std::string ytdlp_lib_path;
 };
 
 static inline command_options_t
 create_command_options ()
 {
-    return { "", "", false, "", -1, -1, -1,  -1, -1,
-             "", "", false, "", "", "", 100, "", false };
+    return { "",    "", false, "", -1,  -1, -1,    -1, -1, "", "",
+             false, "", "",    "", 100, "", false, "", "", -1, "" };
 }
 
 void command_queue_routine ();
@@ -113,12 +134,10 @@ std::string sanitize_command_key_value (const std::string &key_value);
 void parse_command_to_options (const std::string &cmd,
                                command_options_t &options);
 
-int wait_slave_ready (std::string &id, const int timeout);
+int wait_slave_ready (const std::string &id, int timeout);
 
-int mark_slave_ready (std::string &id, const int status = 0);
+int mark_slave_ready (const std::string &id, int status = 0);
 
-} // command
-} // child
-} // musicat
+} // musicat::child::command
 
 #endif // MUSICAT_CHILD_COMMAND_H

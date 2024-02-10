@@ -1,5 +1,6 @@
 #include "musicat/cmds/move.h"
 #include "musicat/cmds.h"
+#include "musicat/mctrack.h"
 
 namespace musicat::command::move
 {
@@ -63,16 +64,16 @@ slash_run (const dpp::slashcommand_t &event)
             std::string a;
             std::string b;
             {
-                a = guild_player->queue.at (1).title ();
-                b = guild_player->queue.back ().title ();
+                a = mctrack::get_title (guild_player->queue.at (1));
+                b = mctrack::get_title (guild_player->queue.back ());
 
                 guild_player->queue.erase (guild_player->queue.begin () + fr);
                 guild_player->queue.insert (guild_player->queue.begin () + to,
                                             track);
             }
 
-            if (a != guild_player->queue.at (1).title ()
-                || b != guild_player->queue.back ().title ())
+            if (a != mctrack::get_title (guild_player->queue.at (1))
+                || b != mctrack::get_title (guild_player->queue.back ()))
                 try
                     {
                         player_manager->update_info_embed (
@@ -83,7 +84,7 @@ slash_run (const dpp::slashcommand_t &event)
                     }
         }
 
-    event.reply (std::string ("Moved ") + track.title () + " to position "
-                 + std::to_string (to));
+    event.reply (std::string ("Moved ") + mctrack::get_title (track)
+                 + " to position " + std::to_string (to));
 }
 } // musicat::command::move
