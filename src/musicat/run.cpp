@@ -493,8 +493,8 @@ run (int argc, const char *argv[])
             1,
             true,
             dpp::cache_policy::cpol_default,
-            1,
-            1 };
+            12,
+            4 };
 
     if (argc > 1)
         {
