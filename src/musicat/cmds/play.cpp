@@ -628,8 +628,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
 
     std::thread dlt (
         [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-         guild_id, from, continued, arg_slip,
-         event] (yt_search::YTrack result) {
+         guild_id, from, continued, arg_slip, event] (player::MCTrack result) {
             thread_manager::DoneSetter tmds;
 
             dpp::snowflake user_id

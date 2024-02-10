@@ -62,7 +62,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
             return;
         }
 
-    auto tracks = std::any_cast<std::vector<yt_search::YTrack> > (storage);
+    auto tracks = std::any_cast<std::vector<player::MCTrack> > (storage);
     if (tracks.size () < (size_t)pos)
         return;
 
@@ -117,7 +117,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
     std::thread dlt (
         [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
          edit_response] (const dpp::interaction_create_t event,
-                         yt_search::YTrack result) {
+                         player::MCTrack result) {
             thread_manager::DoneSetter tmds;
             auto player_manager = get_player_manager_ptr ();
 
