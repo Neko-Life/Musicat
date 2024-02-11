@@ -4,6 +4,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
 #include "nlohmann/json.hpp"
 #include <libpq-fe.h>
@@ -161,182 +162,194 @@ get_option_obj ()
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
+    std::thread rt ([event] () {
+        thread_manager::DoneSetter tmds;
+
+        auto player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            {
+                return;
+            }
+
+        const std::string p_id = _get_id_arg (event);
+        int64_t arg_top = _get_top_arg (event);
+
+        event.thinking ();
+
+        const bool view
+            = event.command.get_command_interaction ().options.at (0).name
+              == "view";
+
+        std::pair<PGresult *, ExecStatusType> res
+            = database::get_user_playlist (event.command.usr.id, p_id,
+                                           database::gup_raw_only);
+
+        std::pair<std::deque<player::MCTrack>, int> playlist_res
+            = database::get_playlist_from_PGresult (res.first);
+
+        int retnow = 0;
+
+        if (playlist_res.second == -2)
+            {
+                if (!res.first)
+                    {
+                        if (res.second == (ExecStatusType)-3)
+                            event.edit_response ("Invalid `id` format!");
+                        else
+                            {
+                                event.edit_response (
+                                    std::string ("`[ERROR]` Unexpected error "
+                                                 "getting user "
+                                                 "playlist with code: ")
+                                    + std::to_string (res.second));
+                                fprintf (
+                                    stderr,
+                                    "[CMD_PLAYLIST_ERROR] Unexpected error "
+                                    "database::get_user_playlist with code: "
+                                    "%d\n",
+                                    res.second);
+                            }
+                    }
+                else
+                    event.edit_response ("Unknown playlist");
+
+                retnow = 1;
+            }
+        else if (playlist_res.second == -1)
+            {
+                event.edit_response (
+                    "This playlist is empty, save a new one with "
+                    "the same Id to overwrite it");
+                retnow = 1;
+            }
+
+        database::finish_res (res.first);
+        res.first = nullptr;
+
+        if (retnow)
             return;
-        }
 
-    const std::string p_id = _get_id_arg (event);
-    int64_t arg_top = _get_top_arg (event);
+        std::shared_ptr<player::Player> guild_player;
+        size_t count = 0;
 
-    event.thinking ();
+        std::deque<player::MCTrack> q = {};
 
-    const bool view
-        = event.command.get_command_interaction ().options.at (0).name
-          == "view";
+        if (view != true)
+            {
+                guild_player
+                    = player_manager->create_player (event.command.guild_id);
+                guild_player->from = event.from;
+            }
 
-    std::pair<PGresult *, ExecStatusType> res = database::get_user_playlist (
-        event.command.usr.id, p_id, database::gup_raw_only);
+        const bool add_to_top = arg_top ? true : false;
+        const bool debug = get_debug_state ();
 
-    std::pair<std::deque<player::MCTrack>, int> playlist_res
-        = database::get_playlist_from_PGresult (res.first);
+        if (debug)
+            fprintf (stderr, "[playlist::load] arg_top add_to_top: %ld %d\n",
+                     arg_top, add_to_top);
 
-    int retnow = 0;
+        std::deque<player::MCTrack> to_iter = {};
 
-    if (playlist_res.second == -2)
-        {
-            if (!res.first)
-                {
-                    if (res.second == (ExecStatusType)-3)
-                        event.edit_response ("Invalid `id` format!");
-                    else
-                        {
-                            event.edit_response (
-                                std::string (
-                                    "`[ERROR]` Unexpected error getting user "
-                                    "playlist with code: ")
-                                + std::to_string (res.second));
+        if (add_to_top)
+            {
+                for (auto &d : playlist_res.first)
+                    {
+                        if (debug)
                             fprintf (
                                 stderr,
-                                "[CMD_PLAYLIST_ERROR] Unexpected error "
-                                "database::get_user_playlist with code: %d\n",
-                                res.second);
+                                "[playlist::load] Pushed to front: '%s'\n",
+                                mctrack::get_title (d).c_str ());
+
+                        to_iter.push_front (d);
+                    }
+            }
+        else
+            {
+                to_iter = playlist_res.first;
+            }
+
+        for (auto &t : to_iter)
+            {
+                t.user_id = event.command.usr.id;
+                if (view)
+                    q.push_back (t);
+                else
+                    {
+                        guild_player->add_track (
+                            t, add_to_top, event.command.guild_id, false);
+                        count++;
+                    }
+            }
+
+        if (view)
+            paginate::reply_paginated_playlist (event, q, p_id, true);
+        else
+            {
+                if (count)
+                    try
+                        {
+                            player_manager->update_info_embed (
+                                event.command.guild_id);
                         }
-                }
-            else
-                event.edit_response ("Unknown playlist");
+                    catch (...)
+                        {
+                        }
 
-            retnow = 1;
-        }
-    else if (playlist_res.second == -1)
-        {
-            event.edit_response ("This playlist is empty, save a new one with "
-                                 "the same Id to overwrite it");
-            retnow = 1;
-        }
+                event.edit_response (util::response::reply_added_playlist (
+                    p_id, arg_top, count));
 
-    database::finish_res (res.first);
-    res.first = nullptr;
+                // !TODO: this is probably for connect and play when adding
+                // playlist but bot isn't in user vc
+                //
+                // std::pair<dpp::channel*, std::map<dpp::snowflake,
+                // dpp::voicestate>> c; bool has_c = false; bool no_vc = false;
+                // try
+                // {
+                //     c = get_voice_from_gid(event.command.guild_id,
+                //     event.command.usr.id); has_c = true;
+                // }
+                // catch (...) {}
 
-    if (retnow)
-        return;
+                // try
+                // {
+                //     get_voice_from_gid(event.command.guild_id,
+                //     event.from->creator->me.id);
+                // }
+                // catch (...)
+                // {
+                //     no_vc = true;
+                // }
 
-    std::shared_ptr<player::Player> guild_player;
-    size_t count = 0;
+                // if (has_c && no_vc && c.first &&
+                // has_permissions_from_ids(event.command.guild_id,
+                //                                                           event.from->creator->me.id,
+                //                                                           c.first->id,
+                //                                                           {
+                //                                                           dpp::p_view_channel,dpp::p_connect
+                //                                                           }))
+                // {
+                //     guild_player->set_channel(event.command.channel_id);
 
-    std::deque<player::MCTrack> q = {};
+                //     {
+                //         std::lock_guard<std::mutex> lk(player_manager->c_m);
+                //         std::lock_guard<std::mutex>
+                //         lk2(player_manager->wd_m);
+                //         player_manager->connecting.insert_or_assign(event.command.guild_id,
+                //         c.first->id);
+                //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id,
+                //         "2");
+                //     }
 
-    if (view != true)
-        {
-            guild_player
-                = player_manager->create_player (event.command.guild_id);
-            guild_player->from = event.from;
-        }
+                //     std::thread t([player_manager, event]() {
+                //                       player_manager->reconnect(event.from,
+                //                       event.command.guild_id);
+                //                   });
+                //     t.detach();
+                // }
+            }
+    });
 
-    const bool add_to_top = arg_top ? true : false;
-    const bool debug = get_debug_state ();
-
-    if (debug)
-        fprintf (stderr, "[playlist::load] arg_top add_to_top: %ld %d\n",
-                 arg_top, add_to_top);
-
-    std::deque<player::MCTrack> to_iter = {};
-
-    if (add_to_top)
-        {
-            for (auto &d : playlist_res.first)
-                {
-                    if (debug)
-                        fprintf (stderr,
-                                 "[playlist::load] Pushed to front: '%s'\n",
-                                 mctrack::get_title (d).c_str ());
-
-                    to_iter.push_front (d);
-                }
-        }
-    else
-        {
-            to_iter = playlist_res.first;
-        }
-
-    for (auto &t : to_iter)
-        {
-            t.user_id = event.command.usr.id;
-            if (view)
-                q.push_back (t);
-            else
-                {
-                    guild_player->add_track (t, add_to_top,
-                                             event.command.guild_id, false);
-                    count++;
-                }
-        }
-
-    if (view)
-        paginate::reply_paginated_playlist (event, q, p_id, true);
-    else
-        {
-            if (count)
-                try
-                    {
-                        player_manager->update_info_embed (
-                            event.command.guild_id);
-                    }
-                catch (...)
-                    {
-                    }
-
-            event.edit_response (
-                util::response::reply_added_playlist (p_id, arg_top, count));
-
-            // !TODO: this is probably for connect and play when adding
-            // playlist but bot isn't in user vc
-            //
-            // std::pair<dpp::channel*, std::map<dpp::snowflake,
-            // dpp::voicestate>> c; bool has_c = false; bool no_vc = false; try
-            // {
-            //     c = get_voice_from_gid(event.command.guild_id,
-            //     event.command.usr.id); has_c = true;
-            // }
-            // catch (...) {}
-
-            // try
-            // {
-            //     get_voice_from_gid(event.command.guild_id,
-            //     event.from->creator->me.id);
-            // }
-            // catch (...)
-            // {
-            //     no_vc = true;
-            // }
-
-            // if (has_c && no_vc && c.first &&
-            // has_permissions_from_ids(event.command.guild_id,
-            //                                                           event.from->creator->me.id,
-            //                                                           c.first->id,
-            //                                                           {
-            //                                                           dpp::p_view_channel,dpp::p_connect
-            //                                                           }))
-            // {
-            //     guild_player->set_channel(event.command.channel_id);
-
-            //     {
-            //         std::lock_guard<std::mutex> lk(player_manager->c_m);
-            //         std::lock_guard<std::mutex> lk2(player_manager->wd_m);
-            //         player_manager->connecting.insert_or_assign(event.command.guild_id,
-            //         c.first->id);
-            //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id,
-            //         "2");
-            //     }
-
-            //     std::thread t([player_manager, event]() {
-            //                       player_manager->reconnect(event.from,
-            //                       event.command.guild_id);
-            //                   });
-            //     t.detach();
-            // }
-        }
+    thread_manager::dispatch (rt);
 }
 } // load
 

@@ -165,6 +165,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     auto u = get_voice_from_gid (guild_id, user_id);
     if (!u.first)
         throw exception ("You're not in a voice channel", 1);
+
     if (u.first->id != v->channel_id)
         throw exception ("You're not in my voice channel", 0);
 
@@ -377,9 +378,10 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     // Maybe connect/reconnect here if there's
                     // connection error
                     if (e == 2)
-                        msg = "Can't start playback";
+                        msg = "`[ERROR]` Error while streaming, can't start "
+                              "playback";
                     else if (e == 1)
-                        msg = "No connection";
+                        msg = "`[ERROR]` No connection";
 
                     if (!msg.empty ())
                         {

@@ -286,9 +286,9 @@ class Player
      *
      * @return std::deque<MCTrack> list of removed track
      */
-    std::deque<MCTrack> skip_queue (int64_t amount = 1,
-                                    const bool remove = false,
-                                    const bool pop_current = false);
+    std::deque<MCTrack> skip_queue (int64_t amount = 1, bool remove = false,
+                                    bool pop_current = false,
+                                    bool push_back = false);
 
     /**
      * @brief Set player auto play mode
