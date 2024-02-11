@@ -19,6 +19,9 @@ get_track_flag (const nlohmann::json &data)
     auto data_end = data.end ();
     int flag = player::TRACK_MC;
 
+    if (is_short (data))
+        flag |= player::TRACK_SHORT;
+
     if (data.find ("ie_key") != data_end)
         flag |= player::TRACK_YTDLP_SEARCH;
 
@@ -161,6 +164,24 @@ get_channel_name (const player::MCTrack &track)
         return YTDLPTrack::get_channel_name (track);
 
     return track.channel ().name;
+}
+
+bool
+is_url_shorts (const std::string_view &str)
+{
+    return str.find ("/shorts/") != std::string::npos;
+}
+
+bool
+is_short (const nlohmann::json &data)
+{
+    return is_url_shorts (YTDLPTrack::get_url (data));
+}
+
+bool
+is_short (const player::MCTrack &track)
+{
+    return is_url_shorts (mctrack::get_url (track));
 }
 
 nlohmann::json

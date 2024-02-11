@@ -22,6 +22,7 @@ std::string get_thumbnail (const player::MCTrack &track);
 
 std::string get_description (const player::MCTrack &track);
 
+std::string get_url (const nlohmann::json &data);
 std::string get_url (const player::MCTrack &track);
 
 std::string get_length_str (const player::MCTrack &track);

@@ -125,16 +125,22 @@ get_description (const player::MCTrack &track)
 }
 
 std::string
-get_url (const player::MCTrack &track)
+get_url (const nlohmann::json &data)
 {
-    const nlohmann::json &data = track.raw;
-
     std::string url = get_str (data, "url");
 
     if (url.empty ())
         return get_str (data, "original_url");
 
     return url;
+}
+
+std::string
+get_url (const player::MCTrack &track)
+{
+    const nlohmann::json &data = track.raw;
+
+    return get_url (data);
 }
 
 std::string
@@ -150,9 +156,7 @@ get_channel_name (const player::MCTrack &track)
 {
     const nlohmann::json &data = track.raw;
 
-    std::string type = get_str (data, "extractor");
-
-    if (type == "generic")
+    if (get_str (data, "extractor") == "generic")
         {
             return get_str (data, "webpage_url_domain");
         }

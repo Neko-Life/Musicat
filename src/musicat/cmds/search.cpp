@@ -57,6 +57,16 @@ modal_enqueue_searched_track_slip ()
     return modal;
 }
 
+std::string
+search_entry_append_track_info (const player::MCTrack &track)
+{
+    if (mctrack::is_short (track))
+        return " [SHORT]";
+
+    return " [" + mctrack::get_length_str (track) + "] - "
+           + mctrack::get_channel_name (track);
+}
+
 void
 slash_run (const dpp::slashcommand_t &event)
 {
@@ -110,9 +120,8 @@ slash_run (const dpp::slashcommand_t &event)
 
                 desc += std::string ("`") + std::to_string (cn) + "`: ["
                         + tit_char + (tit.length () > 80 ? "..." : "") + "]("
-                        + mctrack::get_url (t) + ") ["
-                        + mctrack::get_length_str (t) + "] - "
-                        + mctrack::get_channel_name (t) + "\n";
+                        + mctrack::get_url (t) + ")"
+                        + search_entry_append_track_info (t) + "\n";
 
                 if (count == 10 || cn == pl_siz)
                     {

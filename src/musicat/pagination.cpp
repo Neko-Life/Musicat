@@ -492,6 +492,7 @@ _construct_desc (std::deque<player::MCTrack> &queue,
                                              + format_duration (dur) + "]"
                                        : "")
                     + " - <@" + std::to_string (i->user_id) + ">\n";
+
             id++;
             count++;
         }

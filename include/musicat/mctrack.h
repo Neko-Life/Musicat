@@ -51,6 +51,18 @@ std::string get_length_str (const player::MCTrack &track);
 std::string get_channel_name (const player::MCTrack &track);
 
 /**
+ * Whether a string has "/shorts/" in it
+ */
+bool is_url_shorts (const std::string_view &str);
+
+/**
+ * Can only detect ytdlp json entry, yt-search doesn't provide actual url but
+ * only construct it from its id therefore it will be always false
+ */
+bool is_short (const nlohmann::json &data);
+bool is_short (const player::MCTrack &track);
+
+/**
  * @Brief Search a query or fetch a playlist url
  *        or get the detail of a track
  *        This is blocking call that WILL block your thread

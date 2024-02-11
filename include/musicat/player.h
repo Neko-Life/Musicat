@@ -45,6 +45,7 @@ enum track_flag_t
     TRACK_MC = 0,
     TRACK_YTDLP_SEARCH = 1,
     TRACK_YTDLP_DETAILED = (1 << 1),
+    TRACK_SHORT = (1 << 2),
 };
 
 struct MCTrack : yt_search::YTrack
