@@ -238,24 +238,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             this->wait_for_download (track.filename);
 
-            // check for autoplay
             const string track_id = mctrack::get_id (track);
-            std::thread at_t;
-            if (!guild_player->auto_play)
-                goto no_autoplay;
 
-            at_t = std::thread (
-                [this] (const std::string &track_id, dpp::discord_client *from,
-                        const dpp::snowflake &server_id) {
-                    thread_manager::DoneSetter tmds;
-
-                    this->get_next_autoplay_track (track_id, from, server_id);
-                },
-                track_id, guild_player->from, guild_player->guild_id);
-
-            thread_manager::dispatch (at_t);
-
-        no_autoplay:
             if (guild_player->max_history_size)
                 {
                     guild_player->history.push_back (track_id);
@@ -305,6 +289,12 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                         // it to playlist first!
                         //
                         // v->insert_marker ("e");
+
+                        // move it to the end of queue instead
+                        guild_player->skip_queue (1, false, true, true);
+
+                        // !TODO: increment guild failed play attempt
+                        // to stop trying to keep playing next song
                     }
 
                 // can't notify user, what else to do?
@@ -329,6 +319,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         has_file:
             if (meta == "r")
                 v->send_silence (60);
+
+            // check for autoplay
+            if (guild_player->auto_play)
+                this->get_next_autoplay_track (track_id, guild_player->from,
+                                               guild_player->guild_id);
 
             // Send play info embed
             try

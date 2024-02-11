@@ -202,16 +202,20 @@ Player::skip (dpp::voiceconn *v)
 }
 
 std::deque<MCTrack>
-Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
+Player::skip_queue (int64_t amount, bool remove, bool pop_current,
+                    bool push_back)
 {
+    this->reset_shifted ();
+
     if (amount < 1)
         amount = 1;
 
     if (amount > 1000)
         amount = 1000;
 
-    const bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
-    const bool l_q = this->loop_mode == loop_mode_t::l_queue;
+    bool l_ = this->loop_mode == loop_mode_t::l_song;
+    bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
+    bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
     if (!this->current_track.raw.is_null ())
         this->current_track.repeat = 0;
@@ -219,12 +223,10 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
     if (!this->queue.empty ())
         this->queue.front ().repeat = 0;
 
+    bool should_pop_current_playback = pop_current || (l_ || l_s);
+
     std::deque<MCTrack> removed_tracks = {};
-    for (int64_t i
-         = (pop_current || ((this->loop_mode == loop_mode_t::l_song) || l_s))
-               ? 0
-               : 1;
-         i < amount; i++)
+    for (int64_t i = should_pop_current_playback ? 0 : 1; i < amount; i++)
         {
             if (this->queue.begin () == this->queue.end ())
                 break;
@@ -238,7 +240,7 @@ Player::skip_queue (int64_t amount, const bool remove, const bool pop_current)
 
             removed_tracks.push_back (l);
 
-            if (!remove && (l_s || l_q))
+            if (!remove && (push_back || l_s || l_q))
                 {
                     l.repeat = 0;
                     this->queue.push_back (l);
@@ -454,7 +456,7 @@ get_track_progress (const player::MCTrack &track)
 
     float byte_per_ms = (float)track.filesize / (float)duration;
 
-    const int64_t current_ms = track.current_byte && byte_per_ms
+    int64_t current_ms = track.current_byte && byte_per_ms
                                    ? (float)track.current_byte / byte_per_ms
                                    : 0;
 
