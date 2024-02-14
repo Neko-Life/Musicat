@@ -92,6 +92,22 @@ add_custom_command(OUTPUT ShashaDeps
 
 add_dependencies(Shasha deps uWebSockets)
 
+add_custom_target(archlinux-dist
+
+	COMMAND cp build/Shasha
+		build/libs/DPP/library/libdpp.so*
+		libs/curlpp/build/libcurlpp.so*
+		libs/icu/usr/local/lib/lib*
+		src/yt-dlp/ytdlp.py
+		archlinux-dist
+
+	COMMAND cp -r libs/yt-dlp
+		src/yt-dlp/utils
+		archlinux-dist
+
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	DEPENDS Shasha)
+
 if (MUSICAT_WITH_CORO) 
 	message("-- INFO: Configuring Musicat with coroutines")
 

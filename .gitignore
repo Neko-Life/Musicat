@@ -6,3 +6,4 @@ ignore
 *.o
 .cache/
 src/test/
+archlinux-dist/
