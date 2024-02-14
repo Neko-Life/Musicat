@@ -321,12 +321,14 @@ player::player_manager_ptr_t get_player_manager_ptr ();
  * @brief Handle bot connected to new vc event, updating _connected_vcs_setting
  * cache
  */
-int vcs_setting_handle_connected (const dpp::channel *channel);
+int vcs_setting_handle_connected (const dpp::channel *channel,
+                                  const dpp::voicestate *state);
 
 /**
  * @brief Handle vc updated event, updating _connected_vcs_setting cache
  */
-int vcs_setting_handle_updated (const dpp::channel *updated);
+int vcs_setting_handle_updated (const dpp::channel *updated,
+                                dpp::voicestate *state);
 
 /**
  * @brief Handle bot disconnected from vc event, updating
@@ -337,7 +339,8 @@ int vcs_setting_handle_disconnected (const dpp::channel *channel);
 /**
  * @brief Get cached vc state from _connected_vcs_setting
  */
-dpp::channel *vcs_setting_get_cache (dpp::snowflake channel_id);
+std::pair<dpp::channel *, dpp::voicestate *>
+vcs_setting_get_cache (dpp::snowflake channel_id);
 
 bool is_voice_channel (dpp::channel_type channel_type);
 

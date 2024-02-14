@@ -660,6 +660,13 @@ class Manager
     void get_next_autoplay_track (const std::string &track_id,
                                   dpp::discord_client *from,
                                   const dpp::snowflake &server_id);
+
+    /**
+     * @brief Set autopause if needed
+     * returns 0 if autopause set, 1 if bad arg, -1 if not set
+     */
+    int set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id,
+                       bool check_listening_user = true);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

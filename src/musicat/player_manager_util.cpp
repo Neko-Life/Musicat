@@ -180,7 +180,7 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
     if (get_debug_state ())
         std::cerr << "[Manager::clear_wait_vc_ready]: " << guild_id << '\n';
 
-    const int err = this->clear_connecting (guild_id);
+    int err = this->clear_connecting (guild_id);
 
     std::lock_guard<std::mutex> lk (this->wd_m);
 
@@ -592,6 +592,51 @@ Manager::get_next_autoplay_track (const string &track_id,
     command::play::add_track (
         true, server_id, query, 0, true, NULL, 0, get_sha_id (), false, from,
         dpp::interaction_create_t (NULL, "{}"), false, 0, track_id);
+}
+
+int
+Manager::set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id,
+                        bool check_listening_user)
+{
+    if (!v || !v->voiceclient)
+        return 1;
+
+    if (this->is_manually_paused (guild_id))
+        return -1;
+
+    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > voice
+        = { nullptr, {} };
+
+    if (!check_listening_user)
+        goto exec_pause_audio;
+
+    voice = get_voice_from_gid (guild_id, get_sha_id ());
+
+    // check whether there's human listening in the vc
+    if (!voice.first)
+        goto exec_pause_audio;
+
+    for (const auto &l : voice.second)
+        {
+            // This only check user in cache,
+            auto a = dpp::find_user (l.first);
+
+            // if user not in cache then skip
+            if (!a)
+                continue;
+
+            // don't count bot as listener
+            if (a->is_bot ())
+                continue;
+
+            // has listening user, abort pause
+            return -1;
+        }
+
+exec_pause_audio:
+    v->voiceclient->pause_audio (true);
+    this->update_info_embed (guild_id);
+    return 0;
 }
 
 } // player

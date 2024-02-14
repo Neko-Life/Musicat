@@ -19,6 +19,7 @@ struct resume_timer_t
     dpp::snowflake uid;
     dpp::snowflake svcid;
     dpp::discord_voice_client *vc;
+    long long min_delay;
 };
 
 struct track_marker_rm_timer_t
@@ -33,7 +34,8 @@ int create_track_marker_rm_timer (const std::string &meta,
 
 int create_resume_timer (const dpp::snowflake &user_id,
                          const dpp::snowflake &user_voice_channel_id,
-                         dpp::discord_voice_client *vc);
+                         dpp::discord_voice_client *vc,
+                         long long min_delay = 1500000000LL);
 
 void check_track_marker_rm_timers ();
 

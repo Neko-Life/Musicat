@@ -38,7 +38,8 @@ player::Manager *player_manager_ptr = nullptr;
 
 nekos_best::endpoint_map _nekos_best_endpoints = {};
 
-std::map<dpp::snowflake, dpp::channel> _connected_vcs_setting = {};
+std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> >
+    _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 float _stream_buffer_size = 0.0f;
 
@@ -104,27 +105,45 @@ get_cached_nekos_best_endpoints ()
 }
 
 int
-vcs_setting_handle_connected (const dpp::channel *channel)
+vcs_setting_handle_connected (const dpp::channel *channel,
+                              const dpp::voicestate *state)
 {
-    if (!channel || !is_voice_channel (channel->get_type ()))
+    if (!channel || !state || !is_voice_channel (channel->get_type ()))
         return -1;
+
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
-    _connected_vcs_setting.insert_or_assign (channel->id,
-                                             dpp::channel (*channel));
+    _connected_vcs_setting.insert_or_assign (
+        channel->id,
+        std::make_pair (dpp::channel (*channel), dpp::voicestate (*state)));
     return 0;
 }
 
 int
-vcs_setting_handle_updated (const dpp::channel *updated)
+vcs_setting_handle_updated (const dpp::channel *updated,
+                            dpp::voicestate *state)
 {
     if (!updated || !is_voice_channel (updated->get_type ()))
         return -1;
 
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
-    _connected_vcs_setting.insert_or_assign (updated->id,
-                                             dpp::channel (*updated));
+    bool prev_state = false;
+    if (!state)
+        {
+            auto i = _connected_vcs_setting.find (updated->id);
+            if (i != _connected_vcs_setting.end ())
+                {
+                    state = &i->second.second;
+                    prev_state = true;
+                }
+        }
+
+    _connected_vcs_setting.insert_or_assign (
+        updated->id, std::make_pair (dpp::channel (*updated),
+                                     prev_state ? std::move (*state)
+                                                : dpp::voicestate (*state)));
+
     return 0;
 }
 
@@ -133,6 +152,7 @@ vcs_setting_handle_disconnected (const dpp::channel *channel)
 {
     if (!channel || !is_voice_channel (channel->get_type ()))
         return -1;
+
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
 
     auto i = _connected_vcs_setting.find (channel->id);
@@ -146,16 +166,16 @@ vcs_setting_handle_disconnected (const dpp::channel *channel)
     return 1;
 }
 
-dpp::channel *
+std::pair<dpp::channel *, dpp::voicestate *>
 vcs_setting_get_cache (dpp::snowflake channel_id)
 {
     std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
     auto i = _connected_vcs_setting.find (channel_id);
 
     if (i != _connected_vcs_setting.end ())
-        return &i->second;
+        return std::make_pair (&i->second.first, &i->second.second);
 
-    return nullptr;
+    return std::make_pair (nullptr, nullptr);
 }
 
 bool

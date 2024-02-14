@@ -28,7 +28,7 @@ on_channel_update (dpp::cluster *client)
         if (!v || !v->channel_id || (event.updated->id != v->channel_id))
             goto on_channel_update_end;
 
-        cached = vcs_setting_get_cache (event.updated->id);
+        cached = vcs_setting_get_cache (event.updated->id).first;
 
         // skip to end if region not changed
         if (!cached || (cached->rtc_region == event.updated->rtc_region))
@@ -61,7 +61,7 @@ on_channel_update (dpp::cluster *client)
 
     on_channel_update_end:
         // update vc cache
-        vcs_setting_handle_updated (event.updated);
+        vcs_setting_handle_updated (event.updated, nullptr);
     });
 }
 } // musicat::events

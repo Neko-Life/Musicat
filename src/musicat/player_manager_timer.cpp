@@ -157,15 +157,15 @@ check_track_marker_rm_timers ()
 int
 create_resume_timer (const dpp::snowflake &user_id,
                      const dpp::snowflake &user_voice_channel_id,
-                     dpp::discord_voice_client *vc)
+                     dpp::discord_voice_client *vc, long long min_delay)
 {
     if (!vc)
         return 1;
 
     std::lock_guard lk (rt_m);
 
-    resume_timer_t rt
-        = { util::get_current_ts (), user_id, user_voice_channel_id, vc };
+    resume_timer_t rt = { util::get_current_ts (), user_id,
+                          user_voice_channel_id, vc, min_delay };
 
     if (get_debug_state ())
         {
@@ -205,7 +205,7 @@ check_resume_timers ()
 
             auto diff = (now - i->ts);
             // less than 1.5 second passed
-            if (diff < 1500000000LL)
+            if (diff < i->min_delay)
                 {
                     i++;
                     continue;

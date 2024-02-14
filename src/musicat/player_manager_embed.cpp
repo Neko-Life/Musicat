@@ -257,8 +257,25 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     // TODO: Refactor this horrendous `update` flag system and check for
     // existing info_message instead
 
+    bool invalid_update = false;
+    dpp::message mn;
+
+    if (player->info_message)
+        {
+            mn = *player->info_message;
+            invalid_update = update && !mn.channel_id && !mn.id;
+
+            if (invalid_update && debug)
+                {
+                    std::cerr << "[MANAGER::SEND_INFO_EMBED WARN] Invalid "
+                                 "update for gid("
+                              << guild_id << ") cid(" << channel_id
+                              << "), fallback to create\n";
+                }
+        }
+
     // not update
-    if (!update)
+    if (!update || invalid_update)
         {
             dpp::message m;
             m.add_embed (e).set_channel_id (channel_id);
@@ -286,10 +303,8 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     // else update
 
     if (!player->info_message)
-        // !TODO: shouldn't be false? is it safe to return false?
-        return true;
+        return false;
 
-    auto mn = *player->info_message;
     if (!mn.embeds.empty ())
         mn.embeds.pop_back ();
 
@@ -299,6 +314,14 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         std::cerr << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
                      "Edit: "
                   << mn.channel_id << " " << mn.id << '\n';
+
+    if (invalid_update)
+        {
+            if (debug)
+                std::cerr << "Canceling Info Embed Update" << '\n';
+
+            return false;
+        }
 
     // m_cb is used after here, set no_clear to clear it on callback
     pec.set_no_clear (true);
