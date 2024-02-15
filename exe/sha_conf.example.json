@@ -21,5 +21,8 @@
     "STREAM_BUFFER_SIZE": 0.3, // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
                                // this might need to be adjustable on runtime in the future either from runtime cli or automatically
     "YTDLP_UTIL_EXE": "../src/yt-dlp/ytdlp.py", // assumed working directory is in exe/ dir, provide absolute path so it's valid to run regardless of working directory
-    "YTDLP_LIB_DIR": "../libs/yt-dlp/"          // assumed working directory is in exe/ dir, provide absolute path so it's valid to run regardless of working directory
+    "YTDLP_LIB_DIR": "../libs/yt-dlp/",         // assumed working directory is in exe/ dir, provide absolute path so it's valid to run regardless of working directory
+    "ADMIN_IDS": [
+      750335181285490760
+    ] // access to bot /owner commands
 }

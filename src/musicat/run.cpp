@@ -45,6 +45,12 @@ float _stream_buffer_size = 0.0f;
 
 int python_v = -1;
 
+std::vector<std::string> cors_enabled_origin = {};
+std::mutex cors_enabled_origin_m;
+
+std::vector<dpp::snowflake> musicat_admins = {};
+std::mutex musicat_admins_m;
+
 dpp::cluster *
 get_client_ptr ()
 {
@@ -378,16 +384,22 @@ get_ytdlp_lib_path ()
 std::vector<std::string>
 get_cors_enabled_origins ()
 {
-    std::vector<std::string> ret = {};
+    return cors_enabled_origin;
+}
+
+void
+load_config_cors_enabled_origin ()
+{
+    std::lock_guard lk (cors_enabled_origin_m);
 
     auto i_a = sha_cfg.find ("CORS_ENABLED_ORIGINS");
 
     if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
-        return ret;
+        return;
 
     size_t i_a_siz = i_a->size ();
 
-    ret.reserve (i_a_siz);
+    cors_enabled_origin.reserve (i_a_siz);
 
     for (size_t i = 0; i < i_a_siz; i++)
         {
@@ -396,10 +408,8 @@ get_cors_enabled_origins ()
             if (!entry.is_string () || !entry.size ())
                 continue;
 
-            ret.push_back (entry.get<std::string> ());
+            cors_enabled_origin.push_back (entry.get<std::string> ());
         }
-
-    return ret;
 }
 
 std::string
@@ -437,6 +447,36 @@ get_python_cmd ()
             return "python";
         default:
             return "";
+        }
+}
+
+bool
+is_musicat_admin (const dpp::snowflake &id)
+{
+    std::lock_guard lk (musicat_admins_m);
+
+    for (const auto &s : musicat_admins)
+        {
+            if (id == s)
+                return true;
+        }
+
+    return false;
+}
+
+void
+load_config_admins ()
+{
+    auto i_a = sha_cfg.find ("ADMIN_IDS");
+
+    if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
+        return;
+
+    std::lock_guard lk (musicat_admins_m);
+
+    for (const auto &a : *i_a)
+        {
+            musicat_admins.push_back (a.get<uint64_t> ());
         }
 }
 
@@ -504,6 +544,9 @@ run (int argc, const char *argv[])
             fprintf (stderr, "[ERROR] No bot user Id provided\n");
             return -1;
         }
+
+    load_config_admins ();
+    load_config_cors_enabled_origin ();
 
     const musicat_cluster_params_t cluster_params
         = { sha_token,

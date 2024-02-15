@@ -307,6 +307,8 @@ dpp::cluster *get_client_ptr ();
  */
 dpp::snowflake get_sha_id ();
 
+std::string get_sha_token ();
+
 /**
  * @brief Get client secret
  */
@@ -353,6 +355,11 @@ std::string get_jwt_secret ();
 float get_stream_buffer_size ();
 
 const char *get_python_cmd ();
+
+/**
+ * @brief Is this user Id an admin
+ */
+bool is_musicat_admin (const dpp::snowflake &id);
 
 } // musicat
 

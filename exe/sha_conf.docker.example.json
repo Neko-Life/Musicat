@@ -21,5 +21,8 @@
     "STREAM_BUFFER_SIZE": 0.3, // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
                                // this might need to be adjustable on runtime in the future either from runtime cli or automatically
     "YTDLP_UTIL_EXE": "/home/musicat/ytdlp.py",
-    "YTDLP_LIB_DIR": "/home/musicat/yt-dlp/"
+    "YTDLP_LIB_DIR": "/home/musicat/yt-dlp/",
+    "ADMIN_IDS": [
+      750335181285490760
+    ] // access to bot /owner commands
 }

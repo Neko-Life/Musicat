@@ -7,7 +7,11 @@ namespace musicat::util::base64
 {
 std::string encode (const std::string &str);
 
+std::string encode_standard (const std::string &str);
+
 std::string decode (const std::string &encoded_str);
+
+std::string decode_standard (const std::string &encoded_str);
 } // musicat::util::base64
 
 #endif // MUSICAT_UTIL_BASE64_H
