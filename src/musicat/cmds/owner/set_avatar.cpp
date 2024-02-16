@@ -4,6 +4,9 @@
 #include "musicat/util/base64.h"
 #include <curlpp/Infos.hpp>
 
+inline constexpr size_t max_avatar_upload_size = 10240 * 1000;
+#define MAX_IMG_SIZE max_avatar_upload_size
+
 namespace musicat::command::owner::set_avatar
 {
 
@@ -105,14 +108,21 @@ slash_run (const dpp::slashcommand_t &event)
             }
 
         std::string base64_data = util::base64::encode_standard (res_body);
+        size_t img_len = base64_data.length ();
 
         bool debug = get_debug_state ();
 
         if (debug)
             {
                 std::cerr << "[command::owner::set_avatar] Image data:\n"
-                          << header_str << "\n\n"
-                          << att.content_type << '\n';
+                          << header_str << "\n\nImage length: " << img_len
+                          << "\nContent Type: " << att.content_type << '\n';
+            }
+
+        if (img_len > MAX_IMG_SIZE)
+            {
+                return event.edit_response (
+                    "File cannot be larger than 10240.0 kb.");
             }
 
         os.str ("");
@@ -166,9 +176,18 @@ slash_run (const dpp::slashcommand_t &event)
                 return;
             }
 
-        if (debug)
+        long s_code = curlpp::Infos::ResponseCode::get (req);
+        bool patch_err = s_code != 200;
+
+        if (patch_err || debug)
             {
-                std::cerr << "PATCH:\n" << os.str () << '\n';
+                std::cerr << "PATCH AVATAR:\n" << os.str () << '\n';
+            }
+
+        if (patch_err)
+            {
+                return event.edit_response ("`[ERROR]` Status "
+                                            + std::to_string (s_code));
             }
 
         event.edit_response ("Done!");
