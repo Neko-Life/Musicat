@@ -23,7 +23,7 @@ decode (const std::string &encoded_str)
     std::string ret;
     ret.reserve (res.size ());
 
-    for (const unsigned char &c : res)
+    for (unsigned char c : res)
         {
             ret += c;
         }
@@ -38,7 +38,7 @@ decode_standard (const std::string &encoded_str)
     std::string ret;
     ret.reserve (res.size ());
 
-    for (const unsigned char &c : res)
+    for (unsigned char c : res)
         {
             ret += c;
         }

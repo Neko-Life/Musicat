@@ -14,12 +14,15 @@ get_register_obj (const dpp::snowflake &sha_id)
 
     // setup command
     set_avatar::setup_subcommand (slash);
+    set_presence::setup_subcommand (slash);
 
     return slash;
 }
 
 static inline constexpr const command_handlers_map_t subcommand_handlers
-    = { { "set_avatar", set_avatar::slash_run }, { NULL, NULL } };
+    = { { "set_avatar", set_avatar::slash_run },
+        { "set_presence", set_presence::slash_run },
+        { NULL, NULL } };
 
 void
 slash_run (const dpp::slashcommand_t &event)

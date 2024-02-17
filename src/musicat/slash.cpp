@@ -80,6 +80,8 @@ get_all (const dpp::snowflake &sha_id)
         volume::get_register_obj (sha_id),
         filters::get_register_obj (sha_id),
         owner::get_register_obj (sha_id),
+
+        // !TODO: finish n register mod cmds
     });
     return slash_commands;
 }
