@@ -489,10 +489,11 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                 }
         }
 
-    if (eaname.empty () && uc)
-        eaname = uc->username;
-    else
-        eaname = "`[ERROR]` User not found";
+    if (eaname.empty ())
+        if (uc)
+            eaname = uc->username;
+        else
+            eaname = "`[ERROR]` User not found";
 
     dpp::embed_author ea;
     ea.name = eaname;
