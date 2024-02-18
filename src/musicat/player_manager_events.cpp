@@ -266,9 +266,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                 // redownload vars
                 string track_info_m;
-                dpp::message res;
-                bool has_res = false;
-                bool can_send = false;
                 bool is_downloading = false;
 
                 if (test.is_open ())
@@ -282,11 +279,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                           ? mctrack::get_title (track) + " (added by <@"
                                 + std::to_string (track.user_id) + ">)"
                           : "";
-                can_send = !track_info_m.empty ();
                 is_downloading = this->waiting_file_download.find (fname)
                                  != this->waiting_file_download.end ();
 
-                if (can_send)
+                if (embed_perms)
                     {
                         const string m_content_redo
                             = (is_downloading
@@ -294,41 +290,14 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                                    : "Missing audio file: ")
                               + track_info_m
                               + (is_downloading ? ""
-                                                : "\nTrying to redownload...");
+                                                : "\nTrying to redownload...\n"
+                                                  "I will add this track to "
+                                                  "the top of the queue once "
+                                                  "it's done downloading");
 
                         dpp::message m (channel_id, m_content_redo);
 
-                        try
-                            {
-                                res = this->cluster->message_create_sync (m);
-
-                                if (res.id)
-                                    has_res = true;
-                            }
-                        catch (...)
-                            {
-                            }
-                    }
-
-                if (!is_downloading)
-                    {
-                        // try redownload
-                        this->waiting_file_download[fname] = guild_id;
-                        this->download (fname, mctrack::get_url (track),
-                                        guild_id);
-                    }
-
-                // wait download
-                this->wait_for_download (fname);
-
-                // test again
-                test.open (absolute_path,
-                           std::ios_base::in | std::ios_base::binary);
-
-                if (test.is_open ())
-                    {
-                        test.close ();
-                        goto has_file;
+                        this->cluster->message_create (m);
                     }
 
                 fprintf (stderr,
@@ -346,36 +315,48 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
                         this->remove_ignore_marker (guild_id);
 
-                        // let the user decide what to do instead of straight
-                        // skipping the unplayable track, maybe i want to save
-                        // it to playlist first!
-                        //
-                        // v->insert_marker ("e");
+                        // skip current track
+                        guild_player->skip_queue (1, true, true);
 
-                        // move it to the end of queue instead
-                        guild_player->skip_queue (1, false, true, true);
+                        // stop playing next song if failed trying 3 times
+                        if (guild_player->failed_playback < 3)
+                            {
+                                guild_player->failed_playback++;
 
-                        // !TODO: increment guild failed play attempt
-                        // to stop trying to keep playing next song
+                                // play next song
+                                v->insert_marker ("e");
+                            }
                     }
 
-                if (has_res)
+                if (!is_downloading)
                     {
-                        const string m_content_fail
-                            = "Can't play track: " + track_info_m
-                              + "\nFailed to download";
+                        // try redownload
+                        this->waiting_file_download[fname] = guild_id;
+                        this->download (fname, mctrack::get_url (track),
+                                        guild_id);
 
-                        res.set_content (m_content_fail);
+                        std::thread dlt (
+                            [this, guild_player, guild_id,
+                             fname] (player::MCTrack result) {
+                                thread_manager::DoneSetter tmds;
 
-                        this->cluster->message_edit (res);
-                        return;
+                                this->wait_for_download (fname);
+
+                                guild_player->add_track (result, true,
+                                                         guild_id, true);
+                            },
+                            track);
+
+                        thread_manager::dispatch (dlt);
                     }
 
-                // no audio file, failed redownload
+                // no audio file
                 return;
             }
 
         has_file:
+            guild_player->failed_playback = 0;
+
             if (meta == "r")
                 v->send_silence (60);
 

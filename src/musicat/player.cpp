@@ -72,6 +72,7 @@ Player::init ()
 
     this->pitch = 0;
     this->set_pitch = false;
+    this->failed_playback = 0;
 }
 
 Player::Player () { this->init (); }

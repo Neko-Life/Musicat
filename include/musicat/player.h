@@ -248,6 +248,8 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
+    int failed_playback;
+
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
