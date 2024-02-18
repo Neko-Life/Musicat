@@ -257,11 +257,73 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                                      dpp::p_embed_links });
 
             {
-                const string absolute_path
-                    = get_music_folder_path () + track.filename;
+                const string fname = track.filename;
+
+                const string absolute_path = get_music_folder_path () + fname;
 
                 std::ifstream test (absolute_path,
                                     std::ios_base::in | std::ios_base::binary);
+
+                // redownload vars
+                string track_info_m;
+                dpp::message res;
+                bool has_res = false;
+                bool can_send = false;
+                bool is_downloading = false;
+
+                if (test.is_open ())
+                    {
+                        test.close ();
+                        goto has_file;
+                    }
+
+                track_info_m
+                    = embed_perms
+                          ? mctrack::get_title (track) + " (added by <@"
+                                + std::to_string (track.user_id) + ">)"
+                          : "";
+                can_send = !track_info_m.empty ();
+                is_downloading = this->waiting_file_download.find (fname)
+                                 != this->waiting_file_download.end ();
+
+                if (can_send)
+                    {
+                        const string m_content_redo
+                            = (is_downloading
+                                   ? "Missing audio file, awaiting download: "
+                                   : "Missing audio file: ")
+                              + track_info_m
+                              + (is_downloading ? ""
+                                                : "\nTrying to redownload...");
+
+                        dpp::message m (channel_id, m_content_redo);
+
+                        try
+                            {
+                                res = this->cluster->message_create_sync (m);
+
+                                if (res.id)
+                                    has_res = true;
+                            }
+                        catch (...)
+                            {
+                            }
+                    }
+
+                if (!is_downloading)
+                    {
+                        // try redownload
+                        this->waiting_file_download[fname] = guild_id;
+                        this->download (fname, mctrack::get_url (track),
+                                        guild_id);
+                    }
+
+                // wait download
+                this->wait_for_download (fname);
+
+                // test again
+                test.open (absolute_path,
+                           std::ios_base::in | std::ios_base::binary);
 
                 if (test.is_open ())
                     {
@@ -297,22 +359,19 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                         // to stop trying to keep playing next song
                     }
 
-                // can't notify user, what else to do?
-                if (!embed_perms)
+                if (has_res)
                     {
+                        const string m_content_fail
+                            = "Can't play track: " + track_info_m
+                              + "\nFailed to download";
+
+                        res.set_content (m_content_fail);
+
+                        this->cluster->message_edit (res);
                         return;
                     }
 
-                const string m_content
-                    = "Can't play track: " + mctrack::get_title (track)
-                      + " (added by <@" + std::to_string (track.user_id)
-                      + ">)";
-
-                dpp::message m (channel_id, m_content);
-
-                this->cluster->message_create (m);
-
-                // no audio file
+                // no audio file, failed redownload
                 return;
             }
 
@@ -539,8 +598,9 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
             if (a.first && v->channel_id)
                 {
 
-                    // reconnect when bot user is in vc but no vc state in dpp
-                    // cache can means bot stays in vc after reboot situation
+                    // reconnect when bot user is in vc but no vc state in
+                    // dpp cache can means bot stays in vc after reboot
+                    // situation
                     if (v->channel_id != a.first->id)
                         {
                             this->stop_stream (e_guild_id);
@@ -578,8 +638,8 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 
                             thread_manager::dispatch (tj);
                         }
-                    // not modifying connection, check for server mute if not
-                    // manually paused
+                    // not modifying connection, check for server mute if
+                    // not manually paused
                     else if (v->voiceclient && !did_manually_paused)
                         {
                             // get state cache
@@ -627,11 +687,14 @@ Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
                                             if (tstatus != 0)
                                                 {
                                                     std::cerr
-                                                        << "[Manager::handle_"
-                                                           "on_voice_state_"
+                                                        << "[Manager::"
+                                                           "handle_"
+                                                           "on_voice_"
+                                                           "state_"
                                                            "update WARN] "
                                                            "timer::create_"
-                                                           "resume_timer uid("
+                                                           "resume_timer "
+                                                           "uid("
                                                         << e_user_id
                                                         << ") sid("
                                                         << e_guild_id

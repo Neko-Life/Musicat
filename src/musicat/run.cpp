@@ -652,6 +652,18 @@ run (int argc, const char *argv[])
 
     events::load_events (client_ptr);
 
+#ifdef MC_EX_VC_REC
+    client.on_voice_receive ([] (const dpp::voice_receive_t &event) {
+        std::cout << "[voice_receive]:\n" << event.raw_event;
+        std::cout << "\n:[voice_receive]\n";
+    });
+
+    client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
+        std::cout << "[voice_receive_combined]:\n" << event.raw_event;
+        std::cout << "\n:[voice_receive_combined]\n";
+    });
+#endif
+
 #ifdef MUSICAT_WS_P_ETF
     client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);
 #endif
