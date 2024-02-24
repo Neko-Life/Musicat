@@ -589,6 +589,12 @@ class Manager
                                        const bool force_playing_status);
 
     void handle_on_voice_ready (const dpp::voice_ready_t &event);
+
+    void
+    handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event);
+    void
+    handle_sha_voice_state_update (const dpp::voice_state_update_t &event);
+
     void handle_on_voice_state_update (const dpp::voice_state_update_t &event);
 
     bool set_info_message_as_deleted (dpp::snowflake id);
