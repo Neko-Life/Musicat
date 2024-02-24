@@ -38,6 +38,7 @@ player::Manager *player_manager_ptr = nullptr;
 
 nekos_best::endpoint_map _nekos_best_endpoints = {};
 
+// doesn't guarantee valid voicestate
 std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> >
     _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
@@ -148,7 +149,8 @@ vcs_setting_handle_updated (const dpp::channel *updated,
     _connected_vcs_setting.insert_or_assign (
         updated->id, std::make_pair (dpp::channel (*updated),
                                      prev_state ? std::move (*state)
-                                                : dpp::voicestate (*state)));
+                                     : state    ? dpp::voicestate (*state)
+                                                : dpp::voicestate ()));
 
     return 0;
 }

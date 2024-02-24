@@ -5,6 +5,7 @@
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
 #include <dirent.h>
+#include <libpq-fe.h>
 
 namespace musicat
 {
@@ -461,6 +462,10 @@ Manager::load_guild_current_queue (const dpp::snowflake &guild_id,
 
     if (player->saved_queue_loaded == true)
         return 0;
+
+    // don't do anything if no db connected
+    if (database::get_conn_status () != CONNECTION_OK)
+        return -1;
 
     player->saved_queue_loaded = true;
 

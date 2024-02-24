@@ -57,6 +57,8 @@ int cancel ();
  */
 void shutdown ();
 
+ConnStatusType get_conn_status ();
+
 /**
  * @brief Reconnect database, setting the conninfo with new one if provided
  *

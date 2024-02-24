@@ -15,6 +15,7 @@
 
 namespace musicat
 {
+// make this a class? add manager too
 namespace database
 {
 std::string conninfo;
@@ -217,6 +218,24 @@ create_table_auths ()
     return status;
 }
 
+ExecStatusType
+create_table_equalizer_presets ()
+{
+    static const char query[]
+        = "CREATE TABLE IF NOT EXISTS "
+          "\"equalizer_presets\" ( \"value\" VARCHAR NOT NULL, "
+          "\"name\" VARCHAR(100) NOT NULL, "
+          "\"uid\" VARCHAR(24) NOT NULL, "
+          "\"is_public\" BOOLEAN DEFAULT TRUE, "
+          "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+          "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
+
+    ExecStatusType status
+        = _create_table (query, "create_table_equalizer_presets");
+
+    return status;
+}
+
 // -----------------------------------------------------------------------
 // INSTANCE MANIPULATION
 // -----------------------------------------------------------------------
@@ -236,6 +255,7 @@ inline constexpr const init_table_handler_t init_table_handlers[]
         { "users", create_table_users },
         */
         { "auths", create_table_auths },
+        { "equalizer_presets", create_table_equalizer_presets },
         { NULL, NULL } };
 
 ConnStatusType
@@ -304,6 +324,14 @@ init (const std::string &_conninfo)
     return status;
 }
 
+// check connection status
+ConnStatusType
+get_conn_status ()
+{
+    std::lock_guard<std::mutex> lk (conn_mutex);
+    return PQstatus (conn);
+}
+
 ConnStatusType
 reconnect (bool force, const std::string &_conninfo)
 {
@@ -311,9 +339,7 @@ reconnect (bool force, const std::string &_conninfo)
 
     if (!should_reconnect)
         {
-            // check connection status
-            std::lock_guard<std::mutex> lk (conn_mutex);
-            ConnStatusType status = PQstatus (conn);
+            ConnStatusType status = get_conn_status ();
 
             if (status == CONNECTION_OK)
                 goto reconnect_ok;

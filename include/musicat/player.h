@@ -585,6 +585,9 @@ class Manager
 
     bool handle_on_track_marker (const dpp::voice_track_marker_t &event);
 
+    void
+    spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event);
+
     dpp::embed get_playing_info_embed (const dpp::snowflake &guild_id,
                                        const bool force_playing_status);
 
