@@ -112,9 +112,7 @@ band_vol_to_str_value (int64_t v)
 std::string
 equalizer_fx_t_to_af_args (const equalizer_fx_t &eq)
 {
-    return "superequalizer="
-           "1b="
-           + band_to_str ((float)eq.bands[0])
+    return "1b=" + band_to_str ((float)eq.bands[0])
            + ":2b=" + band_to_str ((float)eq.bands[1])
            + ":3b=" + band_to_str ((float)eq.bands[2])
            + ":4b=" + band_to_str ((float)eq.bands[3])
@@ -170,7 +168,8 @@ af_args_to_equalizer_fx_t (const std::string &str)
     equalizer_fx_t ret;
 
     /*
-superequalizer=1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.000000:7b=1.000000:8b=0.010000:9b=0.010000:10b=0.010000:11b=0.010000:12b=0.010000:13b=0.010000:14b=0.010000:15b=0.010000:16b=0.010000:17b=0.010000:18b=1.000000,volume=2.000000
+superequalizer=
+1b=1.000000:2b=1.000000:3b=1.000000:4b=1.000000:5b=1.000000:6b=1.000000:7b=1.000000:8b=0.010000:9b=0.010000:10b=0.010000:11b=0.010000:12b=0.010000:13b=0.010000:14b=0.010000:15b=0.010000:16b=0.010000:17b=0.010000:18b=1.000000,volume=2.000000
     */
 
     constexpr const char *searches[]
@@ -347,7 +346,7 @@ balance (const dpp::slashcommand_t &event)
         return;
 
     constexpr const char *new_equalizer
-        = "superequalizer=1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
+        = "1b=0.5:2b=0.5:3b=0.5:4b=0.5:5b=0.5:6b=0.5:7b=0.5:8b="
           "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
           "17b=0.5:18b=0.5,volume=1"; // volume of 1 is 100%
 

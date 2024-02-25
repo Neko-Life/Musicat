@@ -383,7 +383,8 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                       : states.guild_player->set_equalizer;
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
-                              + cc::sanitize_command_value (new_equalizer)
+                              + cc::sanitize_command_value ("superequalizer="
+                                                            + new_equalizer)
                               + ';';
 
             helper_chain_cmd += cmd;
@@ -396,7 +397,8 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         {
             std::string cmd
                 = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (states.guild_player->equalizer)
+                  + cc::sanitize_command_value (
+                      "superequalizer=" + states.guild_player->equalizer)
                   + ';';
 
             helper_chain_cmd += cmd;
@@ -669,7 +671,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             if (!guild_player->equalizer.empty ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
-                       + cc::sanitize_command_value (guild_player->equalizer)
+                       + cc::sanitize_command_value ("superequalizer="
+                                                     + guild_player->equalizer)
                        + ';';
 
             if (guild_player->sampling_rate != -1)

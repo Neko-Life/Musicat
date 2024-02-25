@@ -89,7 +89,9 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "status", &new_status);
     get_inter_param (event, "type", &new_type);
 
-    std::string desc = "";
+    std::string desc
+        = active_presence ? active_presence->activities.at (0).name : "";
+
     get_inter_param (event, "description", &desc);
 
     // replace variables
@@ -115,8 +117,9 @@ slash_run (const dpp::slashcommand_t &event)
                 std::string var_name = sub_match.str ();
 
                 std::string (*handler) (const dpp::slashcommand_t &) = NULL;
+                bool escaped = match_str[0] == '\\';
 
-                if (match_str[0] != '\\')
+                if (!escaped)
                     for (const auto &v : variables)
                         {
                             if (!v.first)
@@ -132,7 +135,9 @@ slash_run (const dpp::slashcommand_t &event)
                 if (handler)
                     final_desc += handler (event);
                 else
-                    final_desc += match_str;
+                    final_desc += (escaped && match_str.length () > 1)
+                                      ? match_str.substr (1)
+                                      : match_str;
 
                 if (std::next (i) == vars_end)
                     final_desc += variable_match.suffix ();

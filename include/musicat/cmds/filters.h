@@ -86,6 +86,15 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // pitch
 
+namespace equalizer_presets
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // equalizer_presets
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H

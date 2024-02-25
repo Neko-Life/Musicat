@@ -224,7 +224,7 @@ create_table_equalizer_presets ()
     static const char query[]
         = "CREATE TABLE IF NOT EXISTS "
           "\"equalizer_presets\" ( \"value\" VARCHAR NOT NULL, "
-          "\"name\" VARCHAR(100) NOT NULL, "
+          "\"name\" VARCHAR(100) UNIQUE PRIMARY KEY NOT NULL, "
           "\"uid\" VARCHAR(24) NOT NULL, "
           "\"is_public\" BOOLEAN DEFAULT TRUE, "
           "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
