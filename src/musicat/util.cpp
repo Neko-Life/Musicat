@@ -225,25 +225,63 @@ get_current_ts ()
         .count ();
 }
 
-dpp::command_option
-find_focused (const std::vector<dpp::command_option> &options)
+find_focused_t<dpp::command_option>
+find_focused (const std::vector<dpp::command_option> &options,
+              const std::vector<std::string> &paths)
 {
     for (const auto &i : options)
         {
+            std::vector<std::string> new_paths = paths;
+            new_paths.push_back (i.name);
+
             if (i.focused)
                 {
-                    return i;
+                    return {
+                        i,
+                        new_paths,
+                    };
                 }
 
             if (!i.options.empty ())
                 {
-                    auto nested_opt = find_focused (i.options);
-                    if (nested_opt.type != (dpp::command_option_type)0)
+                    auto nested_opt = find_focused (i.options, new_paths);
+                    if (nested_opt.focused.type != (dpp::command_option_type)0)
                         return nested_opt;
                 }
         }
 
-    return dpp::command_option ((dpp::command_option_type)0, "", "");
+    return {
+        dpp::command_option ((dpp::command_option_type)0, "", ""),
+        {},
+    };
+}
+
+find_focused_t<dpp::command_data_option>
+find_focused (const std::vector<dpp::command_data_option> &options,
+              const std::vector<std::string> &paths)
+{
+    for (const auto &i : options)
+        {
+            std::vector<std::string> new_paths = paths;
+            new_paths.push_back (i.name);
+
+            if (i.focused)
+                {
+                    return {
+                        i,
+                        new_paths,
+                    };
+                }
+
+            if (!i.options.empty ())
+                {
+                    auto nested_opt = find_focused (i.options, new_paths);
+                    if (nested_opt.focused.type != (dpp::command_option_type)0)
+                        return nested_opt;
+                }
+        }
+
+    return { { "", (dpp::command_option_type)0, 0, {}, false }, {} };
 }
 
 std::string

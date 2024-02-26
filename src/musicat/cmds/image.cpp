@@ -10,7 +10,7 @@ namespace autocomplete
 {
 
 void
-type (const dpp::autocomplete_t &event, std::string param)
+type (const dpp::autocomplete_t &event, const std::string &param)
 {
 
     std::vector<std::pair<std::string, std::string> > avail = {};

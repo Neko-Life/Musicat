@@ -250,6 +250,14 @@ get_user_auth_json_from_PGresult (PGresult *res);
 std::pair<PGresult *, ExecStatusType>
 get_user_auth (const dpp::snowflake &user_id);
 
+std::pair<PGresult *, ExecStatusType> get_all_equalizer_preset_name ();
+
+std::pair<std::pair<std::string, std::string>, ExecStatusType>
+get_equalizer_preset (const std::string &name);
+
+ExecStatusType create_equalizer_preset (const std::string &name,
+                                        const std::string &value,
+                                        const dpp::snowflake &user_id);
 } // database
 } // nusicat
 

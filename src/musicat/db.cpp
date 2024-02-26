@@ -942,6 +942,83 @@ update_user_auth (const dpp::snowflake &user_id, const nlohmann::json &data)
     return finish_res (res, status);
 }
 
+std::pair<PGresult *, ExecStatusType>
+get_all_equalizer_preset_name ()
+{
+    std::string query = "SELECT \"name\" FROM \"equalizer_presets\";";
+
+    std::lock_guard lk (conn_mutex);
+    PGresult *res = _db_exec (query.c_str ());
+
+    ExecStatusType status = _check_status (
+        res, "get_all_equalizer_preset_name", PGRES_TUPLES_OK);
+
+    return std::make_pair (res, status);
+}
+
+std::pair<std::pair<std::string, std::string>, ExecStatusType>
+get_equalizer_preset (const std::string &name)
+{
+    if (name.empty () || !valid_name (name))
+        return std::make_pair (std::make_pair ("", ""), (ExecStatusType)-1);
+
+    std::string query = "SELECT \"value\", \"name\" FROM "
+                        "\"equalizer_presets\" WHERE \"name\" = '"
+                        + name + "';";
+
+    std::lock_guard lk (conn_mutex);
+    PGresult *res = _db_exec (query.c_str ());
+
+    ExecStatusType status
+        = _check_status (res, "get_equalizer_preset", PGRES_TUPLES_OK);
+
+    std::string val, ori_name;
+
+    if (!PQgetisnull (res, 0, 0))
+        {
+            val = std::string (PQgetvalue (res, 0, 0));
+        }
+
+    if (!PQgetisnull (res, 0, 1))
+        {
+            ori_name = std::string (PQgetvalue (res, 0, 1));
+        }
+
+    database::finish_res (res);
+    res = nullptr;
+
+    return std::make_pair (std::make_pair (val, ori_name), status);
+}
+
+ExecStatusType
+create_equalizer_preset (const std::string &name, const std::string &value,
+                         const dpp::snowflake &user_id)
+{
+    if (name.empty ())
+        return (ExecStatusType)-1;
+    if (value.empty ())
+        return (ExecStatusType)-1;
+    if (!user_id)
+        return (ExecStatusType)-1;
+    if (!valid_name (name))
+        return (ExecStatusType)-2;
+
+    std::string escaped_value = _escape_values_query (value);
+
+    std::string str_user_id = std::to_string (user_id);
+
+    std::string query_insert ("INSERT INTO \"equalizer_presets\" "
+                              "(\"uid\", \"value\", \"name\") VALUES ('");
+
+    query_insert += str_user_id + "', " + escaped_value + ", '" + name + "');";
+
+    PGresult *res = _db_exec (query_insert.c_str ());
+
+    ExecStatusType status = _check_status (res, "create_equalizer_preset");
+
+    return finish_res (res, status);
+}
+
 // !TODO: expired user auth clear aggregate
 
 } // database

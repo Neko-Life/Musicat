@@ -72,8 +72,19 @@ ms_to_picos (const long long ms)
     return ms * 1000000LL;
 }
 
-dpp::command_option
-find_focused (const std::vector<dpp::command_option> &options);
+template <typename T> struct find_focused_t
+{
+    T focused;
+    std::vector<std::string> paths;
+};
+
+find_focused_t<dpp::command_option>
+find_focused (const std::vector<dpp::command_option> &options,
+              const std::vector<std::string> &paths = {});
+
+find_focused_t<dpp::command_data_option>
+find_focused (const std::vector<dpp::command_data_option> &options,
+              const std::vector<std::string> &paths = {});
 
 std::string trim_str (const std::string &str);
 

@@ -7,7 +7,7 @@ namespace musicat::command::image
 {
 namespace autocomplete
 {
-void type (const dpp::autocomplete_t &event, std::string param);
+void type (const dpp::autocomplete_t &event, const std::string &param);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);

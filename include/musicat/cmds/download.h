@@ -8,7 +8,7 @@ namespace musicat::command::download
 {
 namespace autocomplete
 {
-void track (const dpp::autocomplete_t &event, std::string param);
+void track (const dpp::autocomplete_t &event, const std::string &param);
 }
 
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);

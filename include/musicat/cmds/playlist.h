@@ -7,7 +7,7 @@ namespace musicat::command::playlist
 {
 namespace autocomplete
 {
-void id (const dpp::autocomplete_t &event, std::string param);
+void id (const dpp::autocomplete_t &event, const std::string &param);
 } // autocomplete
 
 namespace save

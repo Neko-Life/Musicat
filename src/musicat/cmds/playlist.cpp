@@ -55,7 +55,7 @@ namespace musicat::command::playlist
 namespace autocomplete
 {
 void
-id (const dpp::autocomplete_t &event, std::string param)
+id (const dpp::autocomplete_t &event, const std::string &param)
 {
     std::pair<PGresult *, ExecStatusType> res
         = database::get_all_user_playlist (event.command.usr.id,

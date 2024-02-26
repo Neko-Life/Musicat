@@ -1,85 +1,75 @@
 #include "musicat/events/on_autocomplete.h"
 #include "musicat/cmds/download.h"
+#include "musicat/cmds/filters.h"
 #include "musicat/cmds/image.h"
 #include "musicat/cmds/play.h"
 #include "musicat/cmds/playlist.h"
+#include "musicat/util.h"
 
 namespace musicat::events
 {
+struct autocomplete_handler_t
+{
+    void (*handler) (const dpp::autocomplete_t &, const std::string &);
+    std::vector<const char *> paths;
+};
+
+inline const autocomplete_handler_t handlers[]
+    = { { command::play::autocomplete::query, { "play", "query" } },
+        { command::playlist::autocomplete::id, { "playlist", "load", "id" } },
+        { command::playlist::autocomplete::id, { "playlist", "view", "id" } },
+        { command::playlist::autocomplete::id, { "playlist", "save", "id" } },
+        { command::playlist::autocomplete::id,
+          { "playlist", "delete", "id" } },
+        { command::download::autocomplete::track, { "download", "track" } },
+        { command::image::autocomplete::type, { "image", "type" } },
+        { command::filters::equalizer_presets::autocomplete::name,
+          { "filters", "equalizer_presets", "load", "name" } },
+        { command::filters::equalizer_presets::autocomplete::name,
+          { "filters", "equalizer_presets", "view", "name" } },
+        { NULL, {} } };
+
 void
 on_autocomplete (dpp::cluster *client)
 {
     client->on_autocomplete ([] (const dpp::autocomplete_t &event) {
-        const std::string cmd = event.name;
-        std::string opt = "";
-        std::vector<std::string> sub_cmd = {};
-        std::string param = "";
+        auto focused = util::find_focused (
+            event.command.get_autocomplete_interaction ().options,
+            { event.name });
 
-        bool sub_level = true;
+        const std::string &opt = focused.focused.name;
 
-        for (const auto &i : event.options)
+        if (opt.empty ())
+            return;
+
+        size_t fpsiz = focused.paths.size ();
+
+        for (size_t i = 0; handlers[i].handler; i++)
             {
-                if (!i.focused)
+                const auto &handler_data = handlers[i];
+
+                if (handler_data.paths.size () != fpsiz)
                     continue;
 
-                opt = i.name;
-                if (std::holds_alternative<std::string> (i.value))
-                    param = std::get<std::string> (i.value);
-
-                sub_level = false;
-                break;
-            }
-
-        // int cur_sub = 0;
-        std::vector<dpp::command_data_option> eopts
-            = event.command.get_autocomplete_interaction ().options;
-
-        while (sub_level && eopts.begin () != eopts.end ())
-            {
-                // cur_sub++;
-                auto sub = eopts.at (0);
-                sub_cmd.push_back (sub.name);
-                for (const auto &i : sub.options)
+                size_t max_idx = fpsiz - 1;
+                for (size_t i = 0; i < fpsiz; i++)
                     {
-                        if (!i.focused)
-                            continue;
+                        if (focused.paths.at (i) != handler_data.paths.at (i))
+                            {
+                                break;
+                            }
 
-                        opt = i.name;
-                        if (std::holds_alternative<std::string> (i.value))
-                            param = std::get<std::string> (i.value);
+                        if (i == max_idx)
+                            {
+                                std::string param;
 
-                        sub_level = false;
-                        break;
-                    }
+                                if (std::holds_alternative<std::string> (
+                                        focused.focused.value))
+                                    param = std::get<std::string> (
+                                        focused.focused.value);
 
-                if (!sub_level)
-                    break;
-
-                eopts = sub.options;
-            }
-
-        if (!opt.empty ())
-            {
-                if (cmd == "play")
-                    {
-                        if (opt == "query")
-                            command::play::autocomplete::query (event, param);
-                    }
-                else if (cmd == "playlist")
-                    {
-                        if (opt == "id")
-                            command::playlist::autocomplete::id (event, param);
-                    }
-                else if (cmd == "download")
-                    {
-                        if (opt == "track")
-                            command::download::autocomplete::track (event,
-                                                                    param);
-                    }
-                else if (cmd == "image")
-                    {
-                        if (opt == "type")
-                            command::image::autocomplete::type (event, param);
+                                handler_data.handler (event, param);
+                            }
                     }
             }
     });

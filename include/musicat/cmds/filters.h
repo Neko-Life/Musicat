@@ -13,6 +13,32 @@ struct filters_perquisite_t
     std::shared_ptr<player::Player> guild_player;
 };
 
+// ================================================================================
+
+struct equalizer_fx_t
+{
+    int64_t volume;
+    int64_t bands[18];
+};
+
+constexpr int64_t percent_to_dec_base = 100;
+
+equalizer_fx_t create_equalizer_fx_t ();
+
+std::string band_to_str (float v);
+
+std::string vol_to_str (float v);
+
+std::string band_vol_to_str_value (int64_t v);
+
+std::string equalizer_fx_t_to_af_args (const equalizer_fx_t &eq);
+
+std::string equalizer_fx_t_to_slash_args (const equalizer_fx_t &eq);
+
+equalizer_fx_t af_args_to_equalizer_fx_t (const std::string &str);
+
+// ================================================================================
+
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
 
 int perquisite (const dpp::slashcommand_t &event, filters_perquisite_t *fpt);
@@ -88,6 +114,10 @@ void slash_run (const dpp::slashcommand_t &event);
 
 namespace equalizer_presets
 {
+namespace autocomplete
+{
+void name (const dpp::autocomplete_t &event, const std::string &param);
+} // autocomplete
 
 void setup_subcommand (dpp::slashcommand &slash);
 
