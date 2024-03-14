@@ -185,7 +185,7 @@ err1:
 }
 
 int
-run_gnuplot ()
+run_gnuplot (const command::command_options_t &options)
 {
     // read,write
     int crpw[2];
@@ -203,27 +203,26 @@ run_gnuplot ()
             return -1;
         }
 
-    // !TODO
-    int outfd = 0;//open (as_fp.c_str (), O_WRONLY);
+    std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
+    int outfd = open (as_fp.c_str (), O_WRONLY);
 
     if (outfd == -1)
         {
             perror ("open outfd");
-            return -1;
+            return -2;
         }
 
+    std::string sem_full_key = audio_processing::get_sem_key (options.id);
+    sem_t *sem = audio_processing::create_sem (sem_full_key);
+
     // !TODO
-    const char *GNUPLOT_CMD = "";
+    const char *GNUPLOT_CMD = options.gnuplot_cmd.c_str ();
 
     int child_write = prcw[1];
     int child_read = crpw[0];
 
     int parent_write = crpw[1];
     int parent_read = prcw[0];
-
-    // !TODO
-    char semk[] = "full_key";
-    sem_t *sem = audio_processing::create_sem (semk);
 
     pid_t p = fork ();
 
@@ -250,7 +249,7 @@ set term png size 1024,1024
             exit (EXIT_FAILURE);
         }
 
-    audio_processing::do_sem_wait (sem, semk);
+    audio_processing::do_sem_wait (sem, sem_full_key);
 
     close (child_write);
     close (child_read);
@@ -260,7 +259,7 @@ set term png size 1024,1024
 
     std::string label_x_pos = "66";
 
-    // !TODO
+    // !TODO gnuplot_args
     std::string v65 = "100";
     std::string v92 = "100";
     std::string v131 = "100";
@@ -498,11 +497,11 @@ call_gnuplot (command::command_options_t &options)
         {
             worker::handle_worker_fork ();
 
+            int gnuplot_status = run_gnuplot (options);
+
             audio_processing::do_sem_post (sem);
 
-            run_gnuplot ();
-
-            _exit (EXIT_SUCCESS);
+            _exit (gnuplot_status);
         }
 
     audio_processing::do_sem_wait (sem, sem_full_key);

@@ -114,6 +114,10 @@ set_option (command_options_t &options, const std::string &cmd_option)
         {
             options.ytdlp_max_entries = std::stoi (value);
         }
+    else if (opt == command_options_keys_t.gnuplot_cmd)
+        {
+            options.gnuplot_cmd = value;
+        }
 
     return 0;
 }

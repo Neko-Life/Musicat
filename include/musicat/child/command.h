@@ -56,6 +56,8 @@ inline const struct
     const std::string ytdlp_query = "ytdq";        // str
     const std::string ytdlp_max_entries = "ytdme"; // int
     const std::string ytdlp_lib_path = "ytdlibp";  // str
+
+    const std::string gnuplot_cmd = "gplotcmd"; // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -99,13 +101,15 @@ struct command_options_t
     std::string ytdlp_query;
     int ytdlp_max_entries;
     std::string ytdlp_lib_path;
+
+    std::string gnuplot_cmd;
 };
 
 static inline command_options_t
 create_command_options ()
 {
-    return { "",    "", false, "", -1,  -1, -1,    -1, -1, "", "",
-             false, "", "",    "", 100, "", false, "", "", -1, "" };
+    return { "", "", false, "",  -1, -1,    -1, -1, -1, "", "", false,
+             "", "", "",    100, "", false, "", "", -1, "", "" };
 }
 
 void command_queue_routine ();
