@@ -24,5 +24,6 @@
     "YTDLP_LIB_DIR": "/home/musicat/yt-dlp/",
     "ADMIN_IDS": [
       750335181285490760
-    ] // access to bot /owner commands
+    ], // access to bot /owner commands
+    "GNUPLOT_EXE": "./gnuplot"
 }
