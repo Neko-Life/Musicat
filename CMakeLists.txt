@@ -30,11 +30,11 @@ file(GLOB_RECURSE MUSICAT_HEADER_FILES
 file(GLOB_RECURSE MUSICAT_SOURCE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/musicat/*.cpp)
 
-file(GLOB_RECURSE ELIZA_HEADER_FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/*.h)
+# file(GLOB_RECURSE ELIZA_HEADER_FILES
+# 	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/*.h)
 
 file(GLOB_RECURSE ELIZA_SOURCE_FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/*.cpp)
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/eliza.cpp)
 
 # Create an executable
 add_executable(Shasha
@@ -43,7 +43,7 @@ add_executable(Shasha
 	include/nlohmann/json.hpp
 	libs/uWebSockets/uSockets/src/libusockets.h
 	libs/uWebSockets/uSockets/src/quic.h
-	${ELIZA_HEADER_FILES}
+	# ${ELIZA_HEADER_FILES}
 	# !TODO: include/uWebSockets/files
 
 	# impl files
