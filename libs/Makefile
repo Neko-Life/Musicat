@@ -44,7 +44,7 @@ $(LIBOGGZ_SO):
 gnuplot: $(GNUPLOT_BIN)
 
 $(GNUPLOT_BIN): $(GNUPLOT_CONFIGURE)
-	cd $(GNUPLOT_DIR) && $(GNUPLOT_BUILD_ENVS) ./configure --prefix=$(GNUPLOT_BUILD_DIR) --with-texdir=$(GNUPLOT_BUILD_DIR)texmf && $(GNUPLOT_BUILD_ENVS) make install
+	cd $(GNUPLOT_DIR) && $(GNUPLOT_BUILD_ENVS) ./configure --prefix=$(GNUPLOT_BUILD_DIR) --with-texdir=$(GNUPLOT_BUILD_DIR)texmf --with-qt=no --with-x=no && $(GNUPLOT_BUILD_ENVS) make install
 
 $(GNUPLOT_CONFIGURE): $(GNUPLOT_TARFILE)
 	$(tar_extract) $(GNUPLOT_TARFILE)

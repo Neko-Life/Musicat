@@ -80,7 +80,7 @@ set_option (command_options_t &options, const std::string &cmd_option)
         }
     else if (opt == command_options_keys_t.ready)
         {
-            options.ready = atoi (value.c_str ());
+            options.ready = std::stoi (value);
         }
     else if (opt == command_options_keys_t.seek)
         {
@@ -88,7 +88,7 @@ set_option (command_options_t &options, const std::string &cmd_option)
         }
     else if (opt == command_options_keys_t.volume)
         {
-            options.volume = atoi (value.c_str ());
+            options.volume = std::stoi (value);
         }
     else if (opt == command_options_keys_t.helper_chain)
         {
@@ -112,7 +112,11 @@ set_option (command_options_t &options, const std::string &cmd_option)
         }
     else if (opt == command_options_keys_t.ytdlp_max_entries)
         {
-            options.ytdlp_max_entries = atoi (value.c_str ());
+            options.ytdlp_max_entries = std::stoi (value);
+        }
+    else if (opt == command_options_keys_t.gnuplot_cmd)
+        {
+            options.gnuplot_cmd = value;
         }
 
     return 0;

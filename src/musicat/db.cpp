@@ -506,7 +506,7 @@ get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
     if (!user_id)
         return std::make_pair (nullptr, (ExecStatusType)-1);
 
-    if (!valid_name (name))
+    if (name.empty ())
         {
             return std::make_pair (nullptr, (ExecStatusType)-3);
         }
@@ -532,7 +532,7 @@ get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
         }
 
     query += " FROM \"playlists\" WHERE \"uid\" = '" + std::to_string (user_id)
-             + "' AND \"name\" = '" + name + "';";
+             + "' AND \"name\" = " + _escape_values_query (name) + ";";
 
     std::lock_guard<std::mutex> lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
@@ -597,13 +597,16 @@ update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
 
     std::string values = _escape_values_query (jso.dump ());
 
+    std::string escaped_name = _escape_values_query (name);
+
     std::lock_guard<std::mutex> lk (conn_mutex);
 
     std::string query_update (
         "UPDATE \"playlists\" SET "
         "\"raw\" = "
         + values + ", \"uts\" = CURRENT_TIMESTAMP WHERE \"uid\" = '"
-        + str_user_id + "' AND \"name\" = '" + name + "' RETURNING \"name\";");
+        + str_user_id + "' AND \"name\" = " + escaped_name
+        + " RETURNING \"name\";");
 
     PGresult *res = _db_exec (query_update.c_str ());
 
@@ -625,7 +628,7 @@ update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
                 "(\"uid\", \"raw\", \"name\") VALUES ('");
 
             query_insert
-                += str_user_id + "', " + values + ", '" + name + "');";
+                += str_user_id + "', " + values + ", " + escaped_name + ");";
 
             res = _db_exec (query_insert.c_str ());
 
@@ -645,8 +648,8 @@ delete_user_playlist (const dpp::snowflake &user_id, const std::string &name)
     std::string query ("DELETE FROM \"");
     query += "playlists\" "
              "WHERE \"uid\" = '"
-             + std::to_string (user_id) + "' AND \"name\" = '" + name
-             + "' RETURNING \"name\" ;";
+             + std::to_string (user_id) + "' AND \"name\" = "
+             + _escape_values_query (name) + " RETURNING \"name\" ;";
 
     std::lock_guard<std::mutex> lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
@@ -959,12 +962,12 @@ get_all_equalizer_preset_name ()
 std::pair<std::pair<std::string, std::string>, ExecStatusType>
 get_equalizer_preset (const std::string &name)
 {
-    if (name.empty () || !valid_name (name))
+    if (name.empty () /*|| !valid_name (name)*/)
         return std::make_pair (std::make_pair ("", ""), (ExecStatusType)-1);
 
     std::string query = "SELECT \"value\", \"name\" FROM "
-                        "\"equalizer_presets\" WHERE \"name\" = '"
-                        + name + "';";
+                        "\"equalizer_presets\" WHERE \"name\" = "
+                        + _escape_values_query (name) + ";";
 
     std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
@@ -994,14 +997,10 @@ ExecStatusType
 create_equalizer_preset (const std::string &name, const std::string &value,
                          const dpp::snowflake &user_id)
 {
-    if (name.empty ())
+    if (name.empty () || value.empty () || !user_id)
         return (ExecStatusType)-1;
-    if (value.empty ())
-        return (ExecStatusType)-1;
-    if (!user_id)
-        return (ExecStatusType)-1;
-    if (!valid_name (name))
-        return (ExecStatusType)-2;
+    // if (!valid_name (name))
+    //     return (ExecStatusType)-2;
 
     std::string escaped_value = _escape_values_query (value);
 
@@ -1010,7 +1009,8 @@ create_equalizer_preset (const std::string &name, const std::string &value,
     std::string query_insert ("INSERT INTO \"equalizer_presets\" "
                               "(\"uid\", \"value\", \"name\") VALUES ('");
 
-    query_insert += str_user_id + "', " + escaped_value + ", '" + name + "');";
+    query_insert += str_user_id + "', " + escaped_value + ", "
+                    + _escape_values_query (name) + ");";
 
     PGresult *res = _db_exec (query_insert.c_str ());
 

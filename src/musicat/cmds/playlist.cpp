@@ -94,12 +94,12 @@ get_option_obj ()
 {
     return dpp::command_option (dpp::co_sub_command, "save",
                                 "Save [current playlist]")
-        .add_option (
-            dpp::command_option (dpp::co_string, "id",
-                                 "Playlist name, must match validation regex "
-                                 "/^[0-9a-zA-Z_-]{1,100}$/",
-                                 true)
-                .set_auto_complete (true));
+        .add_option (dpp::command_option (
+                         dpp::co_string, "id",
+                         "Playlist name", //", must match validation regex "
+                         // "/^[0-9a-zA-Z_-]{1,100}$/",
+                         true)
+                         .set_auto_complete (true));
 }
 
 void
@@ -122,11 +122,11 @@ slash_run (const dpp::slashcommand_t &event)
 
     const std::string p_id = _get_id_arg (event);
 
-    if (!database::valid_name (p_id))
-        {
-            event.reply ("Invalid `id` format!");
-            return;
-        }
+    // if (!database::valid_name (p_id))
+    //     {
+    //         event.reply ("Invalid `id` format!");
+    //         return;
+    //     }
 
     event.thinking ();
 
@@ -390,11 +390,11 @@ slash_run (const dpp::slashcommand_t &event)
     const std::string p_id = _get_id_arg (event);
     event.thinking ();
 
-    if (!database::valid_name (p_id))
-        {
-            event.edit_response ("Invalid `id` format!");
-            return;
-        }
+    // if (!database::valid_name (p_id))
+    //     {
+    //         event.edit_response ("Invalid `id` format!");
+    //         return;
+    //     }
 
     if (database::delete_user_playlist (event.command.usr.id, p_id)
         == PGRES_TUPLES_OK)

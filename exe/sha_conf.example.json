@@ -24,5 +24,6 @@
     "YTDLP_LIB_DIR": "../libs/yt-dlp/",         // assumed working directory is in exe/ dir, provide absolute path so it's valid to run regardless of working directory
     "ADMIN_IDS": [
       750335181285490760
-    ] // access to bot /owner commands
+    ], // access to bot /owner commands
+    "GNUPLOT_EXE": "./gnuplot" // gnuplot cmd
 }

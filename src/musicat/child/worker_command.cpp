@@ -1,10 +1,12 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
+#include "musicat/child/gnuplot.h"
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
 #include <stdlib.h>
+#include <sys/poll.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -165,157 +167,341 @@ call_ytdlp (command::command_options_t &options)
 
             audio_processing::do_sem_post (sem);
 
-            int write_fifo = -1;
-            status = -1;
-            FILE *jsonout = NULL;
-            int jsonout_status = -1;
-            int read_fd = -1, write_fd = -1;
-            std::pair<int, int> ppfds;
+            _exit (ytdlp::run (options, sem, sem_full_key));
+        }
 
-            // result options to write to parent fifo
-            std::string resopt;
+    audio_processing::do_sem_wait (sem, sem_full_key);
 
-            std::string outfname
-                = ytdlp::get_ytdout_json_out_filename (options.id);
+    options.pid = status;
 
-            // check if outname already exists
-            struct stat filestat;
-            if (stat (outfname.c_str (), &filestat) == 0
-                && (filestat.st_mode & S_IFREG))
-                {
-                    goto write_res;
-                }
+    return 0;
 
-            // create pipe to get call output
-            ppfds = worker::create_pipe ();
+err4:
+    audio_processing::do_sem_post (sem);
+    audio_processing::do_sem_wait (sem, sem_full_key);
+    unlink (as_fp.c_str ());
+err1:
+    return status;
+}
 
-            read_fd = ppfds.first;
+int
+run_gnuplot (const command::command_options_t &options)
+{
+    // read,write
+    int crpw[2];
+    int prcw[2];
 
-            if (read_fd == -1)
-                {
-                    status = 3;
-                    goto exit_failure;
-                }
+    if (pipe (crpw) != 0)
+        {
+            perror ("pipe 1");
+            return -1;
+        }
 
-            write_fd = ppfds.second;
+    if (pipe (prcw) != 0)
+        {
+            perror ("pipe 2");
+            return -1;
+        }
 
-            // run query
-            status = fork ();
+    std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
+    int outfd = open (as_fp.c_str (), O_WRONLY);
 
-            if (status < 0)
-                {
-                    perror ("worker_command::call_ytdlp fork_child");
-                    status = 2;
-                    goto exit_failure;
-                }
+    if (outfd == -1)
+        {
+            perror ("open outfd");
+            return -2;
+        }
 
-            if (status == 0)
-                {
-                    // call ytdlp
-                    close (read_fd);
-                    read_fd = -1;
+    std::string sem_full_key = audio_processing::get_sem_key (options.id);
+    sem_t *sem = audio_processing::create_sem (sem_full_key);
 
-                    // redirect stdout to write_fd
-                    dup2 (write_fd, STDOUT_FILENO);
-                    close (write_fd);
-                    write_fd = -1;
+    // !TODO
+    const char *GNUPLOT_CMD = options.gnuplot_cmd.c_str ();
 
-                    // redirect stderr to /dev/null?
+    int child_write = prcw[1];
+    int child_read = crpw[0];
 
-                    const char *exe = options.ytdlp_util_exe.c_str ();
-                    const char *query = options.ytdlp_query.c_str ();
+    int parent_write = crpw[1];
+    int parent_read = prcw[0];
 
-                    bool has_lib_path = !options.ytdlp_lib_path.empty ();
-                    bool has_max_entries = options.ytdlp_max_entries > 0;
+    pid_t p = fork ();
 
-                    const char *lib_path
-                        = has_lib_path ? options.ytdlp_lib_path.c_str () : "";
-                    std::string me_str
-                        = has_max_entries
-                              ? std::to_string (options.ytdlp_max_entries)
-                              : "";
-                    const char *max_entries = me_str.c_str ();
+    if (p == 0)
+        {
+            // child
+            /*
+set term png size 1024,1024
+*/
+            close (parent_write);
+            close (parent_read);
 
-                    char *args[32] = {
-                        "python3",
-                        (char *)exe,
-                        (char *)query,
-                    };
-                    int args_idx = 3;
+            dup2 (child_read, STDIN_FILENO);
+            dup2 (child_write, STDOUT_FILENO);
 
-                    if (has_lib_path)
-                        {
-                            args[args_idx++] = "--ytdlp-dir";
-                            args[args_idx++] = (char *)lib_path;
-                        }
+            close (child_write);
+            close (child_read);
 
-                    if (has_max_entries)
-                        {
-                            args[args_idx++] = "--max-entries";
-                            args[args_idx++] = (char *)max_entries;
-                        }
+            char *args[] = { (char *)GNUPLOT_CMD, (char *)NULL };
 
-                    args[args_idx++] = (char *)NULL;
+            audio_processing::do_sem_post (sem);
+            execvp (GNUPLOT_CMD, args);
 
-                    audio_processing::do_sem_post (sem);
+            exit (EXIT_FAILURE);
+        }
 
-                    execvp ("python3", args);
-                    _exit (EXIT_FAILURE);
-                }
+    audio_processing::do_sem_wait (sem, sem_full_key);
 
-            close (write_fd);
-            write_fd = -1;
+    close (child_write);
+    close (child_read);
 
-            audio_processing::do_sem_wait (sem, sem_full_key);
+    int base_y_pos = 4;
+    int y_pos_gap = 4;
 
-            // open out json file, no need to delete it for cache!
-            jsonout = fopen (outfname.c_str (), "w");
+    std::string label_x_pos = "66";
 
-            // read and write output to file
-            if (jsonout)
-                {
-                    constexpr size_t bsize = 4096;
-                    char buf[bsize];
-                    ssize_t read_size = 0;
-                    while ((read_size = read (read_fd, buf, bsize)) > 0)
-                        {
-                            fwrite (buf, 1, read_size, jsonout);
-                        }
-                    fclose (jsonout);
-                    jsonout = NULL;
+    // !TODO gnuplot_args
+    std::string v65 = "100";
+    std::string v92 = "100";
+    std::string v131 = "100";
+    std::string v185 = "100";
+    std::string v262 = "100";
+    std::string v370 = "100";
+    std::string v523 = "100";
+    std::string v740 = "100";
+    std::string v1047 = "100";
+    std::string v1480 = "100";
+    std::string v2093 = "100";
+    std::string v2960 = "100";
+    std::string v4186 = "100";
+    std::string v5920 = "100";
+    std::string v8372 = "100";
+    std::string v11840 = "100";
+    std::string v16744 = "100";
+    std::string v20000 = "100";
 
-                    jsonout_status = 0;
-                }
+    std::string cmd1
+        = "set term png size 1920,1080 font \"Mono,14\"\n"
+          "set ylabel 'Volume Percentage'\n"
+          "set xlabel 'Hz'\n"
+          "set xrange [64:21000]\n"
+          "set yrange [0:200]\n"
+          "set logscale x\n"
+          // "set logscale y\n"
 
-        write_res:
-            close (read_fd);
-            read_fd = -1;
+          "set mxtics 18\n"
+          "set ytics 10\n"
+          // "set mytics 10\n"
 
-            write_fifo = open (as_fp.c_str (), O_WRONLY);
+          "set grid x y mx my\n"
 
-            if (write_fifo < 0)
-                {
-                    perror ("worker_command::call_ytdlp write_fifo open");
-                    status = 1;
-                    goto exit_failure;
-                }
+          "$data << EOD\n"
+          "65 "
+          + v65
+          + "\n"
+            "92 "
+          + v92
+          + "\n"
+            "131 "
+          + v131
+          + "\n"
+            "185 "
+          + v185
+          + "\n"
+            "262 "
+          + v262
+          + "\n"
+            "370 "
+          + v370
+          + "\n"
+            "523 "
+          + v523
+          + "\n"
+            "740 "
+          + v740
+          + "\n"
+            "1047 "
+          + v1047
+          + "\n"
+            "1480 "
+          + v1480
+          + "\n"
+            "2093 "
+          + v2093
+          + "\n"
+            "2960 "
+          + v2960
+          + "\n"
+            "4186 "
+          + v4186
+          + "\n"
+            "5920 "
+          + v5920
+          + "\n"
+            "8372 "
+          + v8372
+          + "\n"
+            "11840 "
+          + v11840
+          + "\n"
+            "16744 "
+          + v16744
+          + "\n"
+            "20000 "
+          + v20000
+          + "\n"
+            "EOD\n"
+            "set label 1 'b1  65Hz    "
+          + v65 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 17))
+          + "\n"
+            "set label 2 'b2  92Hz    "
+          + v92 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 16))
+          + "\n"
+            "set label 3 'b3  131Hz   "
+          + v131 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 15))
+          + "\n"
+            "set label 4 'b4  185Hz   "
+          + v185 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 14))
+          + "\n"
+            "set label 5 'b5  262Hz   "
+          + v262 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 13))
+          + "\n"
+            "set label 6 'b6  370Hz   "
+          + v370 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 12))
+          + "\n"
+            "set label 7 'b7  523Hz   "
+          + v523 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 11))
+          + "\n"
+            "set label 8 'b8  740Hz   "
+          + v740 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 10))
+          + "\n"
+            "set label 9 'b9  1047Hz  "
+          + v1047 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 9))
+          + "\n"
+            "set label 10 'b10 1480Hz  "
+          + v1480 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 8))
+          + "\n"
+            "set label 11 'b11 2093Hz  "
+          + v2093 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 7))
+          + "\n"
+            "set label 12 'b12 2960Hz  "
+          + v2960 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 6))
+          + "\n"
+            "set label 13 'b13 4186Hz  "
+          + v4186 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 5))
+          + "\n"
+            "set label 14 'b14 5920Hz  "
+          + v5920 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 4))
+          + "\n"
+            "set label 15 'b15 8372Hz  "
+          + v8372 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 3))
+          + "\n"
+            "set label 16 'b16 11840Hz "
+          + v11840 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + (y_pos_gap * 2))
+          + "\n"
+            "set label 17 'b17 16744Hz "
+          + v16744 + "' at " + label_x_pos + ","
+          + std::to_string (base_y_pos + y_pos_gap)
+          + "\n"
+            "set label 18 'b18 20000Hz "
+          + v20000 + "' at " + label_x_pos + "," + std::to_string (base_y_pos)
+          + "\n"
+            "unset k\n"
+            "plot $data lt 7 ps 1.5 t \"Bands\", \"\" smooth sbezier lw 4\n";
 
-            // write output fp to write_fifo
-            resopt += command::command_options_keys_t.id + '='
-                      + command::sanitize_command_value (options.id) + ';'
-                      + command::command_options_keys_t.command + '='
-                      + command::command_execute_commands_t.call_ytdlp + ';'
-                      + command::command_options_keys_t.file_path + '='
-                      + command::sanitize_command_value (outfname) + ';';
+    write (parent_write, cmd1.c_str (), cmd1.length () + 1);
 
-            command::write_command (resopt, write_fifo,
-                                    "worker_command::call_ytdlp resopt");
+    size_t bufsiz = 4096;
+    char buf[bufsiz];
+    ssize_t cur_read = 0;
 
-            close (write_fifo);
-            write_fifo = -1;
+    struct pollfd prfds[1];
+    prfds[0].events = POLLIN;
+    prfds[0].fd = parent_read;
 
-        exit_failure:
-            _exit (status);
+    int pollwait = 200;
+
+    bool read_ready = true;
+
+    while (read_ready && (cur_read = read (parent_read, buf, bufsiz)) > 0)
+        {
+            fprintf (stderr, "read %ld\n", cur_read);
+            write (outfd, buf, cur_read);
+
+            read_ready = (poll (prfds, 1, pollwait) > 0)
+                         && (prfds[0].revents & POLLIN);
+        }
+
+    close (outfd);
+    outfd = -1;
+
+    char cmd2[] = "q\n";
+
+    // child will exit with this cmd
+    write (parent_write, cmd2, sizeof (cmd2) / sizeof (*cmd2));
+
+    close (parent_write);
+    close (parent_read);
+
+    return 0;
+}
+
+int
+call_gnuplot (command::command_options_t &options)
+{
+    pid_t status = -1;
+
+    std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
+
+    std::string sem_full_key;
+    sem_t *sem;
+
+    unlink (as_fp.c_str ());
+
+    const auto fifo_bitmask
+        = audio_processing::get_audio_stream_fifo_mode_t ();
+
+    if ((status = mkfifo (as_fp.c_str (), fifo_bitmask)) < 0)
+        {
+            perror ("worker_command::call_gnuplot as_fp");
+            goto err1;
+        }
+
+    sem_full_key = audio_processing::get_sem_key (options.id);
+    sem = audio_processing::create_sem (sem_full_key);
+
+    status = fork ();
+
+    if (status < 0)
+        {
+            perror ("worker_command::call_gnuplot fork");
+            goto err4;
+        }
+
+    if (status == 0)
+        {
+            worker::handle_worker_fork ();
+
+            int gnuplot_status = run_gnuplot (options);
+
+            audio_processing::do_sem_post (sem);
+
+            _exit (gnuplot_status);
         }
 
     audio_processing::do_sem_wait (sem, sem_full_key);
