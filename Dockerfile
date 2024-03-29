@@ -23,7 +23,8 @@ RUN mkdir -p build && cd build && \
       export LDFLAGS='-flto -stdlib=libc++ -lc++' && \
       export CFLAGS='-flto' && \
       export CXXFLAGS='-flto -stdlib=libc++' && \
-      cmake -DCOMPILE_GNUPLOT=ON .. && make all -j12
+      cmake .. && make all -j12
+      # cmake -DCOMPILE_GNUPLOT=ON .. && make all -j12
 
 FROM init as deploy
 
@@ -38,9 +39,10 @@ COPY --chown=musicat:musicat --from=build \
              /app/build/libs/DPP/library/libdpp.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
              /app/libs/icu/usr/local/lib/lib* \
-             /app/libs/gnuplot-*/build/bin/gnuplot \
              /app/src/yt-dlp/ytdlp.py \
              /home/musicat/
+
+# /app/libs/gnuplot-*/build/bin/gnuplot \
 
 COPY --chown=musicat:musicat --from=build \
              /app/libs/yt-dlp \
