@@ -19,7 +19,7 @@ set(WITH_COMPILE_GNUPLOT 0)
 
 if (COMPILE_GNUPLOT)
 	set(WITH_COMPILE_GNUPLOT 1)
-	set(GNUPLOT_VERSION 5.4.9)
+	set(GNUPLOT_VERSION 6.0.0)
 
 	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
 endif()
@@ -92,6 +92,10 @@ add_custom_command(OUTPUT ShashaDeps
 
 add_dependencies(Shasha deps uWebSockets)
 
+add_custom_target(archlinux-dist-folder
+	COMMAND mkdir -p archlinux-dist
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_custom_target(archlinux-dist
 
 	COMMAND cp build/Shasha
@@ -106,7 +110,19 @@ add_custom_target(archlinux-dist
 		archlinux-dist
 
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS Shasha)
+	DEPENDS archlinux-dist-folder Shasha)
+
+if (COMPILE_GNUPLOT)
+	add_custom_target(archlinux-dist-cp-gnuplot
+
+		COMMAND cp libs/gnuplot-${GNUPLOT_VERSION}/build/bin/gnuplot
+			archlinux-dist
+
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		DEPENDS archlinux-dist-folder Shasha)
+
+	add_dependencies(archlinux-dist archlinux-dist-cp-gnuplot)
+endif()
 
 if (MUSICAT_WITH_CORO) 
 	message("-- INFO: Configuring Musicat with coroutines")
