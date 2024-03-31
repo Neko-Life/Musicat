@@ -77,9 +77,6 @@ struct helper_chain_option_t
     bool debug;
     std::string raw_args;
     bool parsed;
-
-    // !TODO: to be implemented
-    // std::string i18_band_equalizer;
 };
 
 // update create_options impl below when changing this struct

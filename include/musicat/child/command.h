@@ -236,6 +236,13 @@ create_arg_sanitize_value (const std::string &key, const std::string &value)
 }
 
 inline std::string
+get_dbg_str_arg ()
+{
+    return create_arg (command_options_keys_t.debug,
+                       get_debug_state () ? "1" : "0");
+}
+
+inline std::string
 get_exit_command (const std::string &id)
 {
     return create_arg (command_options_keys_t.id, id)

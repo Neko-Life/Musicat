@@ -1,7 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
-#include "musicat/child/worker.h"
 #include "musicat/config.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -222,13 +221,14 @@ void
 handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
     bool track_seek_queried = !states.track.seek_to.empty ();
+    const std::string dbg_str_arg = cc::get_dbg_str_arg ();
 
     if (track_seek_queried)
         {
             std::string cmd = cc::command_options_keys_t.command + '='
                               + cc::command_options_keys_t.seek + ';'
                               + cc::command_options_keys_t.seek + '='
-                              + states.track.seek_to + ';';
+                              + states.track.seek_to + ';' + dbg_str_arg;
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
@@ -308,7 +308,8 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                 = cc::command_options_keys_t.command + '='
                   + cc::command_options_keys_t.volume + ';'
                   + cc::command_options_keys_t.volume + '='
-                  + std::to_string (states.guild_player->set_volume) + ';';
+                  + std::to_string (states.guild_player->set_volume) + ';'
+                  + dbg_str_arg;
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
@@ -539,7 +540,8 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     if (!should_write_helper_chain_cmd)
         return;
 
-    cc::write_command (helper_chain_cmd, states.command_fd, "Manager::stream");
+    cc::write_command (helper_chain_cmd + dbg_str_arg, states.command_fd,
+                       "Manager::stream");
 }
 
 #if !defined(MUSICAT_USE_PCM)

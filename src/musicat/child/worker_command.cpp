@@ -1,8 +1,6 @@
 #include "musicat/audio_processing.h"
-#include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/child/gnuplot.h"
-#include "musicat/child/slave_manager.h"
 #include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
 #include <stdlib.h>
