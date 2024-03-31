@@ -196,7 +196,8 @@ set (const dpp::slashcommand_t &event)
 
     std::string set_str = equalizer_fx_t_to_af_args (arg);
 
-    ftp.guild_player->set_equalizer = set_str;
+    ftp.guild_player->equalizer = set_str;
+    ftp.guild_player->set_equalizer = true;
 
     std::string rply = "Setting equalizer with args: ```md\n"
                        + equalizer_fx_t_to_slash_args (arg) + "```";
@@ -217,7 +218,8 @@ balance (const dpp::slashcommand_t &event)
           "0.5:9b=0.5:10b=0.5:11b=0.5:12b=0.5:13b=0.5:14b=0.5:15b=0.5:16b=0.5:"
           "17b=0.5:18b=0.5,volume=1"; // volume of 1 is 100%
 
-    ftp.guild_player->set_equalizer = new_equalizer;
+    ftp.guild_player->equalizer = new_equalizer;
+    ftp.guild_player->set_equalizer = true;
 
     event.reply ("Balancing...");
 }
@@ -230,7 +232,8 @@ reset (const dpp::slashcommand_t &event)
     if (perquisite (event, &ftp))
         return;
 
-    ftp.guild_player->set_equalizer = "0"; // new_equalizer;
+    ftp.guild_player->equalizer = "0"; // new_equalizer;
+    ftp.guild_player->set_equalizer = true;
 
     event.reply ("Resetting...");
 }

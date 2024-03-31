@@ -176,7 +176,8 @@ load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
             return event.edit_response (
                 "Current settings already match preset");
 
-        guild_player->set_equalizer = val;
+        guild_player->equalizer = val;
+        guild_player->set_equalizer = true;
 
         event.edit_response (
             "Setting preset:```md\n"

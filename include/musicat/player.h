@@ -204,12 +204,6 @@ class Player
     std::string equalizer;
 
     /**
-     * @brief Equalizer raw ffmpeg opt
-     * !TODO: change this to bool
-     */
-    std::string set_equalizer;
-
-    /**
      * @brief Default -1
      */
     int64_t sampling_rate;
@@ -221,10 +215,11 @@ class Player
     bool set_vibrato;
     bool set_tremolo;
 
-    bool tried_continuing;
-
     bool set_tempo;
     bool set_pitch;
+
+    bool tried_continuing;
+    int failed_playback;
 
     // -400-100, default 0
     int pitch;
@@ -248,7 +243,10 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
-    int failed_playback;
+    /**
+     * @brief Should set equalizer?
+     */
+    bool set_equalizer;
 
     /**
      * @brief Thread safety mutex. Must lock this whenever doing the

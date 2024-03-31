@@ -220,9 +220,9 @@ get_effect_states_list ()
 void
 handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
-    bool track_seek_queried = !states.track.seek_to.empty ();
     const std::string dbg_str_arg = cc::get_dbg_str_arg ();
 
+    bool track_seek_queried = !states.track.seek_to.empty ();
     if (track_seek_queried)
         {
             std::string cmd = cc::command_options_keys_t.command + '='
@@ -301,7 +301,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     bool volume_queried = states.guild_player->set_volume != -1;
-
     if (volume_queried)
         {
             std::string cmd
@@ -339,16 +338,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_tempo = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (states.guild_player->tempo != 1.0)
-        {
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (
-                      "atempo=" + std::to_string (states.guild_player->tempo))
-                  + ';';
-
-            helper_chain_cmd += cmd;
-        }
 
     bool pitch_queried = states.guild_player->set_pitch;
     if (pitch_queried)
@@ -364,50 +353,26 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_pitch = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (states.guild_player->pitch != 0)
-        {
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (
-                      get_ffmpeg_pitch_args (states.guild_player->pitch))
-                  + ';';
 
-            helper_chain_cmd += cmd;
-        }
-
-    bool equalizer_queried = !states.guild_player->set_equalizer.empty ();
-
+    bool equalizer_queried = states.guild_player->set_equalizer;
     if (equalizer_queried)
         {
             std::string new_equalizer
-                = states.guild_player->set_equalizer == "0"
+                = states.guild_player->equalizer == "0"
                       ? ""
-                      : states.guild_player->set_equalizer;
+                      : "superequalizer=" + states.guild_player->equalizer;
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
-                              + cc::sanitize_command_value ("superequalizer="
-                                                            + new_equalizer)
+                              + cc::sanitize_command_value (new_equalizer)
                               + ';';
 
             helper_chain_cmd += cmd;
 
-            states.guild_player->equalizer = new_equalizer;
-            states.guild_player->set_equalizer = "";
+            states.guild_player->set_equalizer = false;
             should_write_helper_chain_cmd = true;
-        }
-    else if (!states.guild_player->equalizer.empty ())
-        {
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (
-                      "superequalizer=" + states.guild_player->equalizer)
-                  + ';';
-
-            helper_chain_cmd += cmd;
         }
 
     bool resample_queried = states.guild_player->set_sampling_rate;
-
     if (resample_queried)
         {
             std::string new_resample
@@ -425,17 +390,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             states.guild_player->set_sampling_rate = false;
             should_write_helper_chain_cmd = true;
-        }
-    else if (states.guild_player->sampling_rate != -1)
-        {
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value (
-                      "aresample="
-                      + std::to_string (states.guild_player->sampling_rate))
-                  + ';';
-
-            helper_chain_cmd += cmd;
         }
 
     bool vibrato_queried = states.guild_player->set_vibrato;
@@ -463,17 +417,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_vibrato = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (has_vibrato_f || has_vibrato_d)
-        {
-            std::string v_args = get_ffmpeg_vibrato_args (
-                has_vibrato_f, has_vibrato_d, states.guild_player);
-
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value ("vibrato=" + v_args) + ';';
-
-            helper_chain_cmd += cmd;
-        }
 
     bool tremolo_queried = states.guild_player->set_tremolo;
     bool has_tremolo_f, has_tremolo_d;
@@ -500,17 +443,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             states.guild_player->set_tremolo = false;
             should_write_helper_chain_cmd = true;
         }
-    else if (has_tremolo_f || has_tremolo_d)
-        {
-            std::string v_args = get_ffmpeg_tremolo_args (
-                has_tremolo_f, has_tremolo_d, states.guild_player);
-
-            std::string cmd
-                = cc::command_options_keys_t.helper_chain + '='
-                  + cc::sanitize_command_value ("tremolo=" + v_args) + ';';
-
-            helper_chain_cmd += cmd;
-        }
 
     bool earwax_queried
         = states.guild_player->set_earwax != states.guild_player->earwax;
@@ -529,16 +461,88 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             should_write_helper_chain_cmd = true;
         }
-    else if (states.guild_player->earwax)
+
+    if (!should_write_helper_chain_cmd)
+        return;
+
+    // check for existed non queried and add it to cmd
+
+    if (!tempo_queried && states.guild_player->tempo != 1.0)
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      "atempo=" + std::to_string (states.guild_player->tempo))
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!pitch_queried && states.guild_player->pitch != 0)
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      get_ffmpeg_pitch_args (states.guild_player->pitch))
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!equalizer_queried && !states.guild_player->equalizer.empty ())
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      "superequalizer=" + states.guild_player->equalizer)
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!resample_queried && states.guild_player->sampling_rate != -1)
+        {
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value (
+                      "aresample="
+                      + std::to_string (states.guild_player->sampling_rate))
+                  + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!vibrato_queried && (has_vibrato_f || has_vibrato_d))
+        {
+            std::string v_args = get_ffmpeg_vibrato_args (
+                has_vibrato_f, has_vibrato_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("vibrato=" + v_args) + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!tremolo_queried && (has_tremolo_f || has_tremolo_d))
+        {
+            std::string v_args = get_ffmpeg_tremolo_args (
+                has_tremolo_f, has_tremolo_d, states.guild_player);
+
+            std::string cmd
+                = cc::command_options_keys_t.helper_chain + '='
+                  + cc::sanitize_command_value ("tremolo=" + v_args) + ';';
+
+            helper_chain_cmd += cmd;
+        }
+
+    if (!earwax_queried && states.guild_player->earwax)
         {
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
                               + cc::sanitize_command_value ("earwax") + ';';
 
             helper_chain_cmd += cmd;
         }
-
-    if (!should_write_helper_chain_cmd)
-        return;
 
     cc::write_command (helper_chain_cmd + dbg_str_arg, states.command_fd,
                        "Manager::stream");
