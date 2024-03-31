@@ -4,9 +4,6 @@
 #include "musicat/child/slave_manager.h"
 #include "musicat/child/worker_command.h"
 #include "musicat/musicat.h"
-#include <condition_variable>
-#include <deque>
-#include <map>
 #include <stddef.h>
 #include <stdio.h>
 #include <string>

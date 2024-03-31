@@ -823,6 +823,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     total_read += current_read;
 
                     if ((is_stopping = is_stream_stopping (server_id)))
+                        // !TODO: send shutdown command instead of breaking and
+                        // abruptly closing output fd?
                         break;
 
                     if (read_size != STREAM_BUFSIZ)
