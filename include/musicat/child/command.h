@@ -2,6 +2,7 @@
 #define MUSICAT_CHILD_COMMAND_H
 
 #include "musicat/child.h"
+#include "musicat/musicat.h"
 #include <string>
 
 namespace musicat::child::command
@@ -58,6 +59,8 @@ inline const struct
     const std::string ytdlp_lib_path = "ytdlibp";  // str
 
     const std::string gnuplot_cmd = "gplotcmd"; // str
+
+    const std::string sys_cmd = "syscmd"; // str
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -93,7 +96,7 @@ struct command_options_t
 
     /**
      * Not every command support this flag
-     * Some will just ignore it
+     * Many will just ignore it
      */
     bool force;
 
@@ -103,13 +106,92 @@ struct command_options_t
     std::string ytdlp_lib_path;
 
     std::string gnuplot_cmd;
+
+    std::string sys_cmd;
 };
 
-static inline command_options_t
+inline command_options_t
 create_command_options ()
 {
     return { "", "", false, "",  -1, -1,    -1, -1, -1, "", "", false,
-             "", "", "",    100, "", false, "", "", -1, "", "" };
+             "", "", "",    100, "", false, "", "", -1, "", "", "" };
+}
+
+inline int
+assign_command_option_key_value (command_options_t &options,
+                                 const std::string_view &opt,
+                                 const std::string &value)
+{
+    // every value in command_options_keys_t should be handled here
+    if (opt == command_options_keys_t.id)
+        {
+            options.id = value;
+        }
+    else if (opt == command_options_keys_t.command)
+        {
+            options.command = value;
+        }
+    else if (opt == command_options_keys_t.file_path)
+        {
+            options.file_path = value;
+        }
+    else if (opt == command_options_keys_t.debug)
+        {
+            // !TODO: remove every struct having this member
+            // and use global debug state instead
+            options.debug = value == "1";
+            set_debug_state (options.debug);
+        }
+    else if (opt == command_options_keys_t.guild_id)
+        {
+            options.guild_id = value;
+        }
+    else if (opt == command_options_keys_t.ready)
+        {
+            options.ready = std::stoi (value);
+        }
+    else if (opt == command_options_keys_t.seek)
+        {
+            options.seek = value;
+        }
+    else if (opt == command_options_keys_t.volume)
+        {
+            options.volume = std::stoi (value);
+        }
+    else if (opt == command_options_keys_t.helper_chain)
+        {
+            options.helper_chain += '@' + value + '@';
+        }
+    else if (opt == command_options_keys_t.force)
+        {
+            options.force = value == "1";
+        }
+    else if (opt == command_options_keys_t.ytdlp_util_exe)
+        {
+            options.ytdlp_util_exe = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_query)
+        {
+            options.ytdlp_query = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_lib_path)
+        {
+            options.ytdlp_lib_path = value;
+        }
+    else if (opt == command_options_keys_t.ytdlp_max_entries)
+        {
+            options.ytdlp_max_entries = std::stoi (value);
+        }
+    else if (opt == command_options_keys_t.gnuplot_cmd)
+        {
+            options.gnuplot_cmd = value;
+        }
+    else if (opt == command_options_keys_t.sys_cmd)
+        {
+            options.sys_cmd = value;
+        }
+
+    return 0;
 }
 
 void command_queue_routine ();

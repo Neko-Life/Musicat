@@ -15,7 +15,8 @@ get_register_obj (const dpp::snowflake &sha_id)
                 .add_choice (dpp::command_option_choice ("Disable", 0)))
         .add_option (
             dpp::command_option (dpp::co_integer, "no-duplicate-threshold",
-                                 "Number of duplicate guard, max 1000"));
+                                 "Number of duplicate guard, max 1000")
+                .set_max_value (1000));
 }
 
 void
@@ -23,9 +24,7 @@ slash_run (const dpp::slashcommand_t &event)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
-        {
-            return;
-        }
+        return;
 
     int64_t arg_state = -1;
     int64_t arg_no_duplicate_threashold = -1;
@@ -69,9 +68,7 @@ slash_run (const dpp::slashcommand_t &event)
                      + std::to_string (arg_no_duplicate_threashold);
         }
     else
-        {
-            reply += "No-Duplicate Threshold is " + std::to_string (st);
-        }
+        reply += "No-Duplicate Threshold is " + std::to_string (st);
 
     event.reply (reply);
 

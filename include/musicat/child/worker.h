@@ -12,6 +12,7 @@ namespace worker
 
 inline constexpr const struct
 {
+    const int TIMEOUT = -1;
     const int SUCCESS = 0;
     const int ERR_SLAVE_EXIST = 875;
 } ready_status_t;

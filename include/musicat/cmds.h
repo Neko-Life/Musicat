@@ -1,13 +1,8 @@
 #ifndef MUSICAT_COMMAND_H
 #define MUSICAT_COMMAND_H
 
-#include "musicat/musicat.h"
-#include "musicat/player.h"
 #include <dpp/dpp.h>
-#include <memory>
-#include <mutex>
 #include <string>
-#include <vector>
 
 namespace musicat::command
 {
@@ -33,6 +28,14 @@ enum handle_command_status_e
 };
 
 handle_command_status_e handle_command (const handle_command_params_t &params);
+
+/**
+ * @brief Create dpp::command_option with type integer with
+ *        `Yes`(1) and `No`(1) choice
+ */
+dpp::command_option create_yes_no_option (const std::string &name,
+                                          const std::string &description,
+                                          bool required = false);
 
 } // musicat::command
 

@@ -1,5 +1,6 @@
 #include "musicat/cmds/skip.h"
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 
@@ -11,10 +12,8 @@ get_register_obj (const dpp::snowflake &sha_id)
     return dpp::slashcommand ("skip", "Skip [currently playing] song", sha_id)
         .add_option (dpp::command_option (dpp::co_integer, "amount",
                                           "How many [song] to skip"))
-        .add_option (dpp::command_option (dpp::co_integer, "remove",
-                                          "Remove [song] while skipping")
-                         .add_choice (dpp::command_option_choice ("Yes", 1))
-                         .add_choice (dpp::command_option_choice ("No", 0)));
+        .add_option (
+            create_yes_no_option ("remove", "Remove [song] while skipping"));
 }
 
 void

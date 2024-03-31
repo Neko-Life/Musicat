@@ -1,8 +1,6 @@
 #include "musicat/cmds.h"
 
-namespace musicat
-{
-namespace command
+namespace musicat::command
 {
 
 handle_command_status_e
@@ -28,5 +26,13 @@ handle_command (const handle_command_params_t &params)
     return HANDLE_SLASH_COMMAND_SUCCESS;
 }
 
-} // command
-} // musicat
+dpp::command_option
+create_yes_no_option (const std::string &name, const std::string &description,
+                      bool required)
+{
+    return dpp::command_option (dpp::co_integer, name, description, required)
+        .add_choice (dpp::command_option_choice ("Yes", 1))
+        .add_choice (dpp::command_option_choice ("No", 0));
+}
+
+} // musicat::command
