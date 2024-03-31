@@ -106,8 +106,6 @@ run_command_thread ()
             }
     });
 
-    // !TODO: create a thread to read from worker
-    // and do stuff like notify cv
     std::thread notify_thread ([] () {
         thread_manager::DoneSetter tmds;
 
@@ -166,7 +164,7 @@ inline constexpr const char *wccfmt
     = "[%s child::command::write_command ERROR] Command size bigger than read "
       "buffer size: %ld > %d\n";
 inline constexpr const char *wccfmt2
-    = "[%s child::command::write_command ERROR] Dropping command: %s\n";
+    = "[%s child::command::write_command ERROR] Dropping command: `%s`\n";
 inline constexpr const char *wccfmt3
     = "[%s child::command::write_command] fd %d: `%s`\n";
 
@@ -196,7 +194,7 @@ write_command (const std::string &cmd, const int write_fd, const char *caller)
     write (write_fd, cpy.c_str (), CMD_BUFSIZE);
 }
 
-static const std::string to_sanitize_command_value ("\\=;");
+static inline const std::string to_sanitize_command_value ("\\=;");
 
 bool
 should_sanitize (char tc)
@@ -210,11 +208,20 @@ should_sanitize (char tc)
     return false;
 }
 
+inline constexpr const char *ccscv
+    = "[child::command::sanitize_command_value] value: `%s`\n";
+inline constexpr const char *ccscv2
+    = "[child::command::sanitize_command_value] new_value: `%s`\n";
+
 // should be called before send_command when setting value
 std::string
 sanitize_command_value (const std::string &value)
 {
-    // fprintf (stderr, "value: %s\n", value.c_str ());
+    bool debug = get_debug_state ();
+
+    if (debug)
+        fprintf (stderr, ccscv, value.c_str ());
+
     std::string new_value = "";
 
     for (char c : value)
@@ -227,15 +234,25 @@ sanitize_command_value (const std::string &value)
             new_value += c;
         }
 
-    // fprintf (stderr, "new_value: %s\n", new_value.c_str ());
+    if (debug)
+        fprintf (stderr, ccscv2, new_value.c_str ());
 
     return new_value;
 }
 
+inline constexpr const char *ccsckv
+    = "[child::command::sanitize_command_key_value] key_value: `%s`\n";
+inline constexpr const char *ccsckv2
+    = "[child::command::sanitize_command_key_value] new_key_value: `%s`\n";
+
 std::string
 sanitize_command_key_value (const std::string &key_value)
 {
-    // fprintf (stderr, "key_value: %s\n", key_value.c_str ());
+    bool debug = get_debug_state ();
+
+    if (debug)
+        fprintf (stderr, ccsckv, key_value.c_str ());
+
     std::string new_key_value = "";
 
     bool should_check = false;
@@ -254,7 +271,8 @@ sanitize_command_key_value (const std::string &key_value)
             new_key_value += c;
         }
 
-    // fprintf (stderr, "new_key_value: %s\n", new_key_value.c_str ());
+    if (debug)
+        fprintf (stderr, ccsckv2, new_key_value.c_str ());
 
     return new_key_value;
 }

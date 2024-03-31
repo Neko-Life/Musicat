@@ -214,6 +214,18 @@ void write_command (const std::string &cmd,
 // and use the return string as value
 std::string sanitize_command_value (const std::string &value);
 
+inline std::string
+create_arg (const std::string &key, const std::string &value)
+{
+    return key + '=' + value + ';';
+}
+
+inline std::string
+create_arg_sanitize_value (const std::string &key, const std::string &value)
+{
+    return create_arg (key, sanitize_command_value (value));
+}
+
 // mostly internal use
 std::string sanitize_command_key_value (const std::string &key_value);
 

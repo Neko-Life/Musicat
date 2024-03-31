@@ -10,14 +10,14 @@
 
 #include "musicat/player.h"
 
-#define YDLP_DEFAULT_MAX_ENTRIES 25
+#define YDLP_DEFAULT_MAX_ENTRIES 20
 
 namespace musicat::mctrack
 {
 struct search_option_t
 {
     const std::string &query;
-    // should always be populated, default is 25
+    // should always be populated, default is 20
     const int max_entries;
     // should always be populated
     const bool is_url;

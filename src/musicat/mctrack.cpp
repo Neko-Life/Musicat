@@ -10,6 +10,9 @@
 
 namespace musicat::mctrack
 {
+namespace cc = child::command;
+namespace cw = child::worker;
+
 int
 get_track_flag (const nlohmann::json &data)
 {
@@ -188,8 +191,6 @@ nlohmann::json
 fetch (const search_option_t &options)
 {
     // id, ytdlp_util_exe, ytdlp_lib_path and ytdlp_query
-    namespace cc = child::command;
-
     std::string q = options.query;
 
     if (q.empty ())
@@ -201,40 +202,40 @@ fetch (const search_option_t &options)
     if (!options.is_url)
         q = "ytsearch" + std::to_string (options.max_entries) + ":" + q;
 
-    std::string qid = util::base64::encode (q);
+    const std::string qid = util::base64::encode (q);
 
-    std::string ytdlp_cmd
-        = cc::command_options_keys_t.command + '='
-          + cc::command_execute_commands_t.call_ytdlp + ';'
-          + cc::command_options_keys_t.id + '='
-          + cc::sanitize_command_value (qid) + ';'
-          + cc::command_options_keys_t.ytdlp_util_exe + '='
-          + cc::sanitize_command_value (get_ytdlp_util_exe ()) + ';'
-          + cc::command_options_keys_t.ytdlp_lib_path + '='
-          + cc::sanitize_command_value (get_ytdlp_lib_path ()) + ';'
-          + cc::command_options_keys_t.ytdlp_query + '='
-          + cc::sanitize_command_value (q) + ';';
+    const bool has_max_entries = options.max_entries >= 1;
 
-    if (options.max_entries != YDLP_DEFAULT_MAX_ENTRIES)
-        {
-            ytdlp_cmd += cc::command_options_keys_t.ytdlp_max_entries + '='
-                         + std::to_string (options.max_entries) + ';';
-        }
+    const std::string ytdlp_cmd
+        = cc::create_arg (cc::command_options_keys_t.command,
+                          cc::command_execute_commands_t.call_ytdlp)
+          + cc::create_arg_sanitize_value (cc::command_options_keys_t.id, qid)
+          + cc::create_arg_sanitize_value (
+              cc::command_options_keys_t.ytdlp_util_exe, get_ytdlp_util_exe ())
+          + cc::create_arg_sanitize_value (
+              cc::command_options_keys_t.ytdlp_lib_path, get_ytdlp_lib_path ())
+          + cc::create_arg_sanitize_value (
+              cc::command_options_keys_t.ytdlp_query, q)
+          + (has_max_entries ? cc::create_arg (
+                 cc::command_options_keys_t.ytdlp_max_entries,
+                 std::to_string (options.max_entries))
+                             : "");
 
     const std::string exit_cmd
-        = cc::command_options_keys_t.id + '=' + qid + ';'
-          + cc::command_options_keys_t.command + '='
-          + cc::command_execute_commands_t.shutdown + ';';
+        = cc::create_arg (cc::command_options_keys_t.id, qid)
+          + cc::create_arg (cc::command_options_keys_t.command,
+                            cc::command_execute_commands_t.shutdown);
 
     cc::send_command (ytdlp_cmd);
 
     int status = cc::wait_slave_ready (qid, 10);
 
-    if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
+    if (cw::should_bail_out_afayc (status))
         {
             // status won't be 0 if this block is executed
             const std::string force_exit_cmd
-                = exit_cmd + cc::command_options_keys_t.force + "=1;";
+                = exit_cmd
+                  + cc::create_arg (cc::command_options_keys_t.force, "1");
 
             cc::send_command (force_exit_cmd);
         }
@@ -244,6 +245,7 @@ fetch (const search_option_t &options)
             fprintf (
                 stderr,
                 "[mctrack::fetch ERROR] Fetch query already in progress\n");
+
             return nullptr;
         }
 
@@ -260,6 +262,9 @@ fetch (const search_option_t &options)
 
     char cmd_buf[CMD_BUFSIZE + 1];
     ssize_t sizread = read (out_fifo, cmd_buf, CMD_BUFSIZE);
+
+    cc::send_command (exit_cmd);
+
     cmd_buf[sizread] = '\0';
 
     if (get_debug_state ())
@@ -272,8 +277,6 @@ fetch (const search_option_t &options)
     // fprintf (stderr, "id: %s\n", opt.id.c_str ());
     // fprintf (stderr, "command: %s\n", opt.command.c_str ());
     // fprintf (stderr, "file_path: %s\n", opt.file_path.c_str ());
-
-    cc::send_command (exit_cmd);
 
     if (opt.file_path.empty ())
         {

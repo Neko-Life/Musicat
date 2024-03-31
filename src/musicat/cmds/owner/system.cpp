@@ -3,10 +3,12 @@
 #include "musicat/cmds.h"
 #include "musicat/cmds/owner.h"
 #include "musicat/musicat.h"
+#include "musicat/thread_manager.h"
 
 namespace musicat::command::owner::system
 {
 namespace cc = child::command;
+namespace cw = child::worker;
 
 void
 setup_subcommand (dpp::slashcommand &slash)
@@ -42,44 +44,46 @@ slash_run (const dpp::slashcommand_t &event)
     if (sys_cmd.empty ())
         return event.reply ("No command?");
 
-    std::string cmd_id
-        = "sys_cmd."
-          + std::to_string (
-              std::chrono::system_clock::now ().time_since_epoch ().count ())
-          + "." + std::to_string (event.command.guild_id) + "."
-          + std::to_string (event.command.usr.id);
+    std::thread a ([event, sys_cmd] () {
+        thread_manager::DoneSetter tmds;
 
-    std::string child_cmd = cc::command_options_keys_t.command + '='
-                            + cc::command_options_keys_t.sys_cmd + ';'
-                            + cc::command_options_keys_t.sys_cmd + '='
-                            + cc::sanitize_command_value (sys_cmd) + ';'
-                            + cc::command_options_keys_t.id + '=' + cmd_id
-                            + ';';
+        std::string cmd_id
+            = "sc."
+              + std::to_string (std::chrono::system_clock::now ()
+                                    .time_since_epoch ()
+                                    .count ())
+              + "." + event.command.guild_id.str () + "."
+              + event.command.usr.id.str ();
 
-    cc::write_command (sys_cmd);
+        std::string child_cmd;
+        cc::set_arg (child_cmd, cc::command_options_keys_t.id, cmd_id);
+        cc::set_arg (child_cmd, cc::command_options_keys_t.command,
+                     cc::command_options_keys_t.sys_cmd);
+        cc::set_arg_sanitize_value (
+            child_cmd, cc::command_options_keys_t.sys_cmd, sys_cmd);
 
-    int status = cc::wait_slave_ready (cmd_id, 10);
+        cc::write_command (child_cmd);
 
-    const std::string exit_cmd
-        = cc::command_options_keys_t.id + '=' + cmd_id + ';'
-          + cc::command_options_keys_t.command + '='
-          + cc::command_execute_commands_t.shutdown + ';';
+        int status = cc::wait_slave_ready (cmd_id, 10);
 
-    if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST
-        || status == child::worker::ready_status_t.TIMEOUT)
-        {
-            // status won't be 0 if this block is executed
-            const std::string force_exit_cmd
-                = exit_cmd + cc::command_options_keys_t.force + "=1;";
+        std::string exit_cmd;
+        cc::set_arg (exit_cmd, cc::command_options_keys_t.id, cmd_id);
+        cc::set_arg (exit_cmd, cc::command_options_keys_t.command,
+                     cc::command_execute_commands_t.shutdown);
 
-            cc::send_command (force_exit_cmd);
+        if (cw::should_bail_out_afayc (status))
+            {
+                // status won't be 0 if this block is executed
+                const std::string force_exit_cmd
+                    = exit_cmd + cc::command_options_keys_t.force + "=1;";
 
-            return event.edit_response ("Command timeout :(");
-        }
+                cc::send_command (force_exit_cmd);
 
-    if (status == 0)
-        {
-        }
+                return event.edit_response ("Command timed out ... :<");
+            }
+    });
+
+    thread_manager::dispatch (a);
 }
 
 } // musicat::command::owner::system

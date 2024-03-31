@@ -1,5 +1,6 @@
 #include "musicat/cmds/playlist.h"
 #include "musicat/autocomplete.h"
+#include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
@@ -152,11 +153,8 @@ get_option_obj ()
         .add_option (dpp::command_option (dpp::co_string, "id",
                                           "Playlist name [to load]", true)
                          .set_auto_complete (true))
-        .add_option (
-            dpp::command_option (dpp::co_integer, "top",
-                                 "Add [these song] to the top [of the queue]")
-                .add_choice (dpp::command_option_choice ("Yes", 1))
-                .add_choice (dpp::command_option_choice ("No", 0)));
+        .add_option (create_yes_no_option (
+            "top", "Add [these song] to the top [of the queue]"));
 }
 
 void

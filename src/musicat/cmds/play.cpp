@@ -3,6 +3,7 @@
 #include "musicat/cmds/play.h"
 #include "musicat/YTDLPTrack.h"
 #include "musicat/autocomplete.h"
+#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/search-cache.h"
@@ -65,11 +66,8 @@ get_register_obj (const dpp::snowflake &sha_id)
                                  "Song [to search] or Youtube URL [to play]")
                 .set_auto_complete (true)
                 .set_max_length (150))
-        .add_option (
-            dpp::command_option (dpp::co_integer, "top",
-                                 "Add [this song] to the top [of the queue]")
-                .add_choice (dpp::command_option_choice ("Yes", 1))
-                .add_choice (dpp::command_option_choice ("No", 0)))
+        .add_option (create_yes_no_option (
+            "top", "Add [this song] to the top [of the queue]"))
         .add_option (dpp::command_option (dpp::co_integer, "slip",
                                           "Slip [this song to this] position "
                                           "[in the queue]"));
@@ -369,7 +367,8 @@ find_track (const bool playlist, const std::string &arg_query,
     // use mctrack::fetch
     // playlist true means autoplay request, which is always a playlist url
     // query
-    nlohmann::json res = mctrack::fetch ({ trimmed_query, 25, playlist });
+    nlohmann::json res = mctrack::fetch (
+        { trimmed_query, YDLP_DEFAULT_MAX_ENTRIES, playlist });
 
     if (res.is_null ())
         return { {}, 2 };

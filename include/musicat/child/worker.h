@@ -1,13 +1,9 @@
 #ifndef MUSICAT_CHILD_WORKER_H
 #define MUSICAT_CHILD_WORKER_H
 
-#include <string>
+#include <utility>
 
-namespace musicat
-{
-namespace child
-{
-namespace worker
+namespace musicat::child::worker
 {
 
 inline constexpr const struct
@@ -16,6 +12,19 @@ inline constexpr const struct
     const int SUCCESS = 0;
     const int ERR_SLAVE_EXIST = 875;
 } ready_status_t;
+
+bool
+should_bail_out_afayc (int command_status)
+{
+    switch (command_status)
+        {
+        case ready_status_t.ERR_SLAVE_EXIST:
+        case ready_status_t.TIMEOUT:
+            return true;
+        default:
+            return false;
+        }
+}
 
 void set_fds (int r, int w);
 
@@ -30,8 +39,6 @@ void run ();
  */
 std::pair<int, int> create_pipe ();
 
-} // worker
-} // child
-} // musicat
+} // musicat::child::worker
 
 #endif // MUSICAT_CHILD_WORKER_H

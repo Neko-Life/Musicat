@@ -39,6 +39,7 @@ inline constexpr long DRAIN_CHUNK_OPUS = BUFSIZ / 4;
 namespace musicat::player
 {
 namespace cc = child::command;
+namespace cw = child::worker;
 
 struct mc_oggz_user_data
 {
@@ -726,7 +727,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             int status = cc::wait_slave_ready (slave_id, 10);
 
-            if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
+            if (cw::should_bail_out_afayc (status))
                 {
                     // status won't be 0 if this block is executed
                     const std::string force_exit_cmd

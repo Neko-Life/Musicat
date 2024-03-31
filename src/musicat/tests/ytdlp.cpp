@@ -13,6 +13,7 @@ test_ytdlp ()
 {
     // test ytdlp, id, ytdlp_util_exe, ytdlp_lib_path and ytdlp_query
     namespace cc = child::command;
+    namespace cw = child::worker;
 
     std::string q = "ytsearch25:How to train your dragon";
     std::string qid = util::base64::encode (q);
@@ -37,7 +38,7 @@ test_ytdlp ()
 
     int status = cc::wait_slave_ready (qid, 10);
 
-    if (status == child::worker::ready_status_t.ERR_SLAVE_EXIST)
+    if (cw::should_bail_out_afayc (status))
         {
             // status won't be 0 if this block is executed
             const std::string force_exit_cmd

@@ -1,13 +1,12 @@
 #include "musicat/cmds/search.h"
 #include "musicat/YTDLPTrack.h"
-#include "musicat/cmds.h"
 #include "musicat/function_macros.h"
 #include "musicat/mctrack.h"
+#include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
-#include "yt-search/yt-search.h"
 
 namespace musicat::command::search
 {
@@ -76,12 +75,16 @@ slash_run (const dpp::slashcommand_t &event)
         std::string query = "";
         get_inter_param (event, "query", &query);
 
+        if (query.empty ())
+            return event.reply ("No query?");
+
         event.thinking ();
         nlohmann::json res;
 
         try
             {
-                res = mctrack::fetch ({ query, 25, false });
+                res = mctrack::fetch (
+                    { query, YDLP_DEFAULT_MAX_ENTRIES, false });
             }
         catch (std::exception &e)
             {
