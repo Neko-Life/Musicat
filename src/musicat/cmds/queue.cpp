@@ -1,5 +1,5 @@
 #include "musicat/cmds/queue.h"
-#include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/pagination.h"
 
 namespace musicat::command::queue

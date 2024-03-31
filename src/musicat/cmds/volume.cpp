@@ -1,6 +1,5 @@
 #include "musicat/cmds/volume.h"
 #include "musicat/musicat.h"
-#include "musicat/util.h"
 
 #define MIN_PERCENTAGE 1
 #define MIN_PERCENTAGE_STR "1"

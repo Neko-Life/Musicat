@@ -1,6 +1,6 @@
 #include "musicat/cmds/move.h"
-#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
+#include "musicat/musicat.h"
 
 namespace musicat::command::move
 {

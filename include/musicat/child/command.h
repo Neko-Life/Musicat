@@ -121,8 +121,9 @@ struct command_options_t
 inline command_options_t
 create_command_options ()
 {
-    return { "", "", false, "",  -1, -1,    -1, -1, -1, "", "", false,
-             "", "", "",    100, "", false, "", "", -1, "", "", "" };
+    return { "", "", false, "", -1, -1, -1,    -1,    -1,
+             "", "", false, "", "", "", 100,   "",    false,
+             "", "", -1,    "", "", "", 10000, false, false };
 }
 
 inline int

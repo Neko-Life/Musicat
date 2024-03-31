@@ -1,5 +1,6 @@
 #include "musicat/cmds/owner.h"
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 
 namespace musicat::command::owner

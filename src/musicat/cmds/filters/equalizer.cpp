@@ -64,6 +64,7 @@ up the volume threshold to 500
 
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 
 namespace musicat::command::filters::equalizer

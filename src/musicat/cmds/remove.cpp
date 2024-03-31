@@ -1,6 +1,6 @@
 #include "musicat/cmds/remove.h"
-#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 
 namespace musicat::command::remove

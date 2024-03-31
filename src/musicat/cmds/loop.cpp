@@ -1,6 +1,6 @@
 #include "musicat/cmds/loop.h"
-#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 
 #define MIN_VAL 0

@@ -1,7 +1,7 @@
 #include "musicat/cmds/download.h"
-#include "musicat/cmds.h"
 #include "musicat/cmds/play.h"
 #include "musicat/mctrack.h"
+#include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
 #include <sys/stat.h>
 

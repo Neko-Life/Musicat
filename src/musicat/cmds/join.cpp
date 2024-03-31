@@ -1,5 +1,5 @@
 #include "musicat/cmds/join.h"
-#include "musicat/cmds.h"
+#include "musicat/musicat.h"
 
 namespace musicat::command
 {

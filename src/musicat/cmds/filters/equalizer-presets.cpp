@@ -3,6 +3,7 @@
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
 #include "musicat/db.h"
+#include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
 #include <libpq-fe.h>
 

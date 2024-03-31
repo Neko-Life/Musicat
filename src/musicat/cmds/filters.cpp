@@ -1,5 +1,6 @@
 #include "musicat/cmds/filters.h"
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 
 // status, save, load, delete filters manage subcommand
 namespace musicat::command::filters

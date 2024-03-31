@@ -1,5 +1,4 @@
 #include "musicat/cmds/filters.h"
-#include "musicat/musicat.h"
 #include <dpp/dpp.h>
 
 namespace musicat::command::filters::earwax

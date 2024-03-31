@@ -1,5 +1,6 @@
 #include "musicat/cmds/pause.h"
 #include "musicat/cmds.h"
+#include "musicat/musicat.h"
 
 namespace musicat::command::pause
 {

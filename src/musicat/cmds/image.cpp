@@ -1,6 +1,6 @@
 #include "musicat/cmds/image.h"
 #include "musicat/autocomplete.h"
-#include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 #include "nekos-best++.hpp"
 

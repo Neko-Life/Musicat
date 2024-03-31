@@ -15,7 +15,7 @@ inline constexpr const struct
 
 // yes, afayc is as fast as you can!
 
-bool
+inline bool
 should_bail_out_afayc (int command_status)
 {
     switch (command_status)

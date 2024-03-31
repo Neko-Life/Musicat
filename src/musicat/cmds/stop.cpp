@@ -1,5 +1,5 @@
 #include "musicat/cmds/stop.h"
-#include "musicat/cmds.h"
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 
 namespace musicat::command::stop

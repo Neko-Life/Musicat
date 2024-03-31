@@ -10,8 +10,6 @@
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
-#include "yt-search/yt-playlist.h"
-#include "yt-search/yt-search.h"
 #include <memory>
 #include <regex>
 #include <vector>

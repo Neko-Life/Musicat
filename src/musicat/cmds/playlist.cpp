@@ -7,7 +7,6 @@
 #include "musicat/pagination.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
-#include "nlohmann/json.hpp"
 #include <libpq-fe.h>
 #include <memory>
 #include <variant>

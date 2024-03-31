@@ -1,5 +1,5 @@
 #include "musicat/cmds/autoplay.h"
-#include "musicat/cmds.h"
+#include "musicat/musicat.h"
 
 namespace musicat::command::autoplay
 {

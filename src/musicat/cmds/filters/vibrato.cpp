@@ -1,9 +1,7 @@
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
 #include "musicat/cmds/filters/modulation.h"
-#include "musicat/musicat.h"
 #include <dpp/dpp.h>
-#include <string>
 
 namespace musicat::command::filters::vibrato
 {
