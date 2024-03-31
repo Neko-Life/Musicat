@@ -718,23 +718,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // track.current_byte
             // + ';';
 
-            const std::string exit_cmd
-                = cc::command_options_keys_t.id + '=' + slave_id + ';'
-                  + cc::command_options_keys_t.command + '='
-                  + cc::command_execute_commands_t.shutdown + ';';
+            const std::string exit_cmd = cc::get_exit_command (slave_id);
 
-            cc::send_command (cmd);
-
-            int status = cc::wait_slave_ready (slave_id, 10);
-
-            if (cw::should_bail_out_afayc (status))
-                {
-                    // status won't be 0 if this block is executed
-                    const std::string force_exit_cmd
-                        = exit_cmd + cc::command_options_keys_t.force + "=1;";
-
-                    cc::send_command (force_exit_cmd);
-                }
+            int status = cc::send_command_wr (cmd, exit_cmd, slave_id, 10);
 
             if (status != 0)
                 {
@@ -754,12 +740,14 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             int read_fd = open (fifo_stream_path.c_str (), O_RDONLY);
             if (read_fd < 0)
                 {
+                    cc::send_command (exit_cmd);
                     throw 2;
                 }
 
             int command_fd = open (fifo_command_path.c_str (), O_WRONLY);
             if (command_fd < 0)
                 {
+                    cc::send_command (exit_cmd);
                     close (read_fd);
                     throw 2;
                 }
@@ -767,6 +755,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             int notification_fd = open (fifo_notify_path.c_str (), O_RDONLY);
             if (notification_fd < 0)
                 {
+                    cc::send_command (exit_cmd);
                     close (read_fd);
                     close (command_fd);
                     throw 2;
@@ -797,6 +786,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (!processor_read_ready)
                 {
                     fprintf (stderr, msprrfmt, slave_id.c_str ());
+                    cc::send_command (exit_cmd);
                     close (read_fd);
                     close (command_fd);
                     close (notification_fd);

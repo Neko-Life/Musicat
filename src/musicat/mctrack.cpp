@@ -3,7 +3,6 @@
 #include "musicat/player.h"
 
 #include "musicat/child/command.h"
-#include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
 #include "musicat/util/base64.h"
@@ -64,8 +63,8 @@ is_YTDLPTrack (const player::MCTrack &track)
 bool
 is_YTDLPTrack (int track_flag)
 {
-    return track_flag & player::TRACK_YTDLP_SEARCH
-           || track_flag & player::TRACK_YTDLP_DETAILED;
+    return ((track_flag & player::TRACK_YTDLP_SEARCH) != 0)
+           || ((track_flag & player::TRACK_YTDLP_DETAILED) != 0);
 }
 
 bool
@@ -221,24 +220,9 @@ fetch (const search_option_t &options)
                  std::to_string (options.max_entries))
                              : "");
 
-    const std::string exit_cmd
-        = cc::create_arg (cc::command_options_keys_t.id, qid)
-          + cc::create_arg (cc::command_options_keys_t.command,
-                            cc::command_execute_commands_t.shutdown);
+    const std::string exit_cmd = cc::get_exit_command (qid);
 
-    cc::send_command (ytdlp_cmd);
-
-    int status = cc::wait_slave_ready (qid, 10);
-
-    if (cw::should_bail_out_afayc (status))
-        {
-            // status won't be 0 if this block is executed
-            const std::string force_exit_cmd
-                = exit_cmd
-                  + cc::create_arg (cc::command_options_keys_t.force, "1");
-
-            cc::send_command (force_exit_cmd);
-        }
+    int status = cc::send_command_wr (ytdlp_cmd, exit_cmd, qid, 10);
 
     if (status != 0)
         {
@@ -248,6 +232,8 @@ fetch (const search_option_t &options)
 
             return nullptr;
         }
+    // sending exit_cmd once before returning
+    // is a requirement starting from here!
 
     std::string out_fifo_path = child::ytdlp::get_ytdout_fifo_path (qid);
 
@@ -257,12 +243,17 @@ fetch (const search_option_t &options)
         {
             fprintf (stderr,
                      "[mctrack::fetch ERROR] Failed to open outfifo\n");
+
+            cc::send_command (exit_cmd);
+
             return nullptr;
         }
 
+    // get child output
     char cmd_buf[CMD_BUFSIZE + 1];
     ssize_t sizread = read (out_fifo, cmd_buf, CMD_BUFSIZE);
 
+    // command exit right away after getting output
     cc::send_command (exit_cmd);
 
     cmd_buf[sizread] = '\0';
@@ -289,6 +280,7 @@ fetch (const search_option_t &options)
         {
             fprintf (stderr,
                      "[mctrack::fetch ERROR] Unable to open result file\n");
+
             return nullptr;
         }
 

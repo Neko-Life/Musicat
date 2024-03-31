@@ -13,6 +13,8 @@ inline constexpr const struct
     const int ERR_SLAVE_EXIST = 875;
 } ready_status_t;
 
+// yes, afayc is as fast as you can!
+
 bool
 should_bail_out_afayc (int command_status)
 {

@@ -2,6 +2,7 @@
 #define MUSICAT_CHILD_COMMAND_H
 
 #include "musicat/child.h"
+#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include <string>
 
@@ -226,6 +227,14 @@ create_arg_sanitize_value (const std::string &key, const std::string &value)
     return create_arg (key, sanitize_command_value (value));
 }
 
+inline std::string
+get_exit_command (const std::string &id)
+{
+    return create_arg (command_options_keys_t.id, id)
+           + create_arg (command_options_keys_t.command,
+                         command_execute_commands_t.shutdown);
+}
+
 // mostly internal use
 std::string sanitize_command_key_value (const std::string &key_value);
 
@@ -234,7 +243,37 @@ void parse_command_to_options (const std::string &cmd,
 
 int wait_slave_ready (const std::string &id, int timeout);
 
-int mark_slave_ready (const std::string &id, int status = 0);
+int mark_slave_ready (const std::string &id, int status);
+
+inline void
+bail_out_afayc (const std::string &exit_cmd)
+{
+    const std::string force_exit_cmd
+        = exit_cmd
+          + command::create_arg (command::command_options_keys_t.force, "1");
+
+    command::send_command (force_exit_cmd);
+}
+
+// send command and wait slave ready
+// 0 on success, else error code of `wait_slave_ready()`
+inline int
+send_command_wr (const std::string &cmd, const std::string &exit_cmd,
+                 const std::string &id, int timeout)
+{
+    namespace cw = child::worker;
+
+    send_command (cmd);
+
+    int status = wait_slave_ready (id, timeout);
+
+    if (cw::should_bail_out_afayc (status))
+        {
+            bail_out_afayc (exit_cmd);
+        }
+
+    return status;
+}
 
 } // musicat::child::command
 

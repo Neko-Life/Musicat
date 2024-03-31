@@ -29,23 +29,9 @@ test_ytdlp ()
           + cc::command_options_keys_t.ytdlp_query + '='
           + cc::sanitize_command_value (q) + ';';
 
-    const std::string exit_cmd
-        = cc::command_options_keys_t.id + '=' + qid + ';'
-          + cc::command_options_keys_t.command + '='
-          + cc::command_execute_commands_t.shutdown + ';';
+    const std::string exit_cmd = cc::get_exit_command (qid);
 
-    cc::send_command (ytdlp_cmd);
-
-    int status = cc::wait_slave_ready (qid, 10);
-
-    if (cw::should_bail_out_afayc (status))
-        {
-            // status won't be 0 if this block is executed
-            const std::string force_exit_cmd
-                = exit_cmd + cc::command_options_keys_t.force + "=1;";
-
-            cc::send_command (force_exit_cmd);
-        }
+    int status = cc::send_command_wr (ytdlp_cmd, exit_cmd, qid, 10);
 
     if (status != 0)
         {
