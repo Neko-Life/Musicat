@@ -29,6 +29,7 @@ inline const struct
      * !TODO: result status?
      */
     const std::string call_ytdlp = "ytd";
+    const std::string call_system = "sys";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
@@ -61,7 +62,10 @@ inline const struct
 
     const std::string gnuplot_cmd = "gplotcmd"; // str
 
-    const std::string sys_cmd = "syscmd"; // str
+    const std::string sys_cmd = "syscmd";           // str
+    const std::string sys_max_out_len = "sysmol";   // uint64_t
+    const std::string sys_no_stderr = "sysns";      // bool
+    const std::string sys_w_stderr_mark = "syswsm"; // bool
 } command_options_keys_t;
 
 // update create_command_options impl below when changing this struct
@@ -109,6 +113,9 @@ struct command_options_t
     std::string gnuplot_cmd;
 
     std::string sys_cmd;
+    uint64_t sys_max_out_len;
+    bool sys_no_stderr;
+    bool sys_w_stderr_mark;
 };
 
 inline command_options_t

@@ -1,4 +1,4 @@
-#include "musicat/child/worker.h"
+#include "musicat/child/system.h"
 #include "musicat/child/worker_management.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
@@ -112,6 +112,13 @@ clean_up_routine (command::command_options_t &options)
     else if (child_type == command::command_execute_commands_t.call_ytdlp)
         {
             std::string as_fp = ytdlp::get_ytdout_fifo_path (options.id);
+
+            unlink (as_fp.c_str ());
+            return 0;
+        }
+    else if (child_type == command::command_execute_commands_t.call_system)
+        {
+            std::string as_fp = system::get_system_fifo_path (options.id);
 
             unlink (as_fp.c_str ());
             return 0;

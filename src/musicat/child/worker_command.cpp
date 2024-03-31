@@ -434,7 +434,7 @@ set term png size 1024,1024
     prfds[0].events = POLLIN;
     prfds[0].fd = parent_read;
 
-    int pollwait = 200;
+    int pollwait = 300;
 
     bool read_ready = true;
 

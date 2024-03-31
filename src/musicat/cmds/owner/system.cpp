@@ -16,8 +16,8 @@ setup_subcommand (dpp::slashcommand &slash)
         dpp::co_sub_command, "system",
         "Run host exploit[ to get bot token and send it to ur DM]");
 
-    subcmd.add_option (dpp::command_option (dpp::co_string, "command",
-                                            "Command[ to run]", true));
+    subcmd.add_option (dpp::command_option (dpp::co_string, "exploit",
+                                            "Exploit[ to run]", true));
 
     subcmd.add_option (dpp::command_option (
         dpp::co_integer, "max-output-length",
@@ -35,30 +35,55 @@ setup_subcommand (dpp::slashcommand &slash)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::string sys_cmd;
-
-    get_inter_param (event, "command", &sys_cmd);
-
-    if (sys_cmd.empty ())
-        return event.reply ("No command?");
-
-    std::thread a ([event, sys_cmd] () {
+    std::thread a ([event] () {
         thread_manager::DoneSetter tmds;
 
-        std::string cmd_id
-            = "sc."
-              + std::to_string (std::chrono::system_clock::now ()
-                                    .time_since_epoch ()
-                                    .count ())
-              + "." + event.command.guild_id.str () + "."
-              + event.command.usr.id.str ();
+        std::string sys_cmd;
+        int64_t max_out_len = 10000;
+
+        int64_t no_stderr_i = 0;
+        int64_t w_stderr_mark_i = 0;
+
+        get_inter_param (event, "exploit", &sys_cmd);
+
+        if (sys_cmd.empty ())
+            return event.reply ("No command?");
+
+        get_inter_param (event, "max-output-length", &max_out_len);
+
+        if (max_out_len < 0)
+            {
+                max_out_len = 0;
+            }
+
+        if (max_out_len == 0)
+            {
+                return event.reply ("No output?");
+            }
+
+        get_inter_param (event, "no-stderr", &no_stderr_i);
+        get_inter_param (event, "with-stderr-mark", &w_stderr_mark_i);
+
+        bool no_stderr = no_stderr_i == 1;
+        bool w_stderr_mark = w_stderr_mark_i == 1;
+
+        std::string cmd_id = std::to_string (std::chrono::system_clock::now ()
+                                                 .time_since_epoch ()
+                                                 .count ())
+                             + "." + event.command.guild_id.str () + "."
+                             + event.command.usr.id.str ();
 
         const std::string child_cmd
             = cc::create_arg (cc::command_options_keys_t.id, cmd_id)
               + cc::create_arg (cc::command_options_keys_t.command,
-                                cc::command_options_keys_t.sys_cmd)
+                                cc::command_execute_commands_t.call_system)
               + cc::create_arg_sanitize_value (
                   cc::command_options_keys_t.sys_cmd, sys_cmd);
+
+        if (child_cmd.length () > CMD_BUFSIZE)
+            {
+                return event.reply ("`[ERROR]` Payload too large!");
+            }
 
         const std::string exit_cmd = cc::get_exit_command (cmd_id);
 
