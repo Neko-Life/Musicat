@@ -135,10 +135,6 @@ slash_run (const dpp::slashcommand_t &event)
         cc::command_options_t opt = cc::create_command_options ();
         cc::parse_command_to_options (cmd_buf, opt);
 
-        fprintf (stderr, "id: %s\n", opt.id.c_str ());
-        fprintf (stderr, "command: %s\n", opt.command.c_str ());
-        fprintf (stderr, "file_path: %s\n", opt.file_path.c_str ());
-
         if (opt.file_path.empty ())
             {
                 fprintf (stderr, "[command::owner::system] No result file\n");

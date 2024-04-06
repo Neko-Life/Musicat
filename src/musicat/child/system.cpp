@@ -138,7 +138,6 @@ process_outfile (const command::command_options_t &options, int read_fd,
             nfds_t new_prfds_size = manage_pollfds_stack (prfds, fd_tracker);
             if (prfds_size != new_prfds_size)
                 {
-                    fprintf (stderr, "has_event value is: %d\n", has_event);
                     prfds_size = new_prfds_size;
                     continue;
                 }
