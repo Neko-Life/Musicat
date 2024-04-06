@@ -2,7 +2,6 @@
 #include "musicat/child.h"
 #include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
-#include <chrono>
 #include <mutex>
 
 // this namespace is mostly still executed in main program/thread

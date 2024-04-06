@@ -213,6 +213,18 @@ assign_command_option_key_value (command_options_t &options,
         {
             options.sys_cmd = value;
         }
+    else if (opt == command_options_keys_t.sys_max_out_len)
+        {
+            options.sys_max_out_len = value.empty () ? 1 : std::stoull (value);
+        }
+    else if (opt == command_options_keys_t.sys_no_stderr)
+        {
+            options.sys_no_stderr = value == "1";
+        }
+    else if (opt == command_options_keys_t.sys_w_stderr_mark)
+        {
+            options.sys_w_stderr_mark = value == "1";
+        }
 
     return 0;
 }
