@@ -85,7 +85,9 @@ slash_run (const dpp::slashcommand_t &event)
               + cc::create_arg (cc::command_options_keys_t.sys_no_stderr,
                                 no_stderr ? "1" : "0")
               + cc::create_arg (cc::command_options_keys_t.sys_w_stderr_mark,
-                                w_stderr_mark ? "1" : "0");
+                                w_stderr_mark ? "1" : "0")
+              + cc::create_arg (cc::command_options_keys_t.sys_max_out_len,
+                                std::to_string (max_out_len));
 
         if (child_cmd.length () > CMD_BUFSIZE)
             {
