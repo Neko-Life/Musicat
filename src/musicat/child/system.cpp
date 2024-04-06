@@ -155,7 +155,7 @@ process_outfile (const command::command_options_t &options, int read_fd,
                           "=============\n";
 
                     constexpr const char err_mark_end[]
-                        = "==========================="
+                        = "\n==========================="
                           "============= ^ STDERR ^ "
                           "==========================="
                           "=============\n";
