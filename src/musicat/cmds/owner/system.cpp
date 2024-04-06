@@ -1,7 +1,9 @@
 #include "musicat/child/system.h"
+#include "message.h"
 #include "musicat/child/command.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/owner.h"
+#include "musicat/function_macros.h"
 #include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
 
@@ -146,6 +148,16 @@ slash_run (const dpp::slashcommand_t &event)
 
         dpp::message msg (event.command.channel_id, "");
         msg.add_file ("stdio.txt", dpp::utility::read_file (fullpath));
+
+        dpp::component c;
+        c.add_component (dpp::component ()
+                             .set_emoji (MUSICAT_U8 ("🚮"))
+                             .set_id ("message/d")
+                             .set_type (dpp::cot_button)
+                             .set_style (dpp::cos_primary));
+
+        msg.add_component (c);
+
         event.edit_response (
             msg, [fullpath] (const dpp::confirmation_callback_t &data) {
                 unlink (fullpath.c_str ());

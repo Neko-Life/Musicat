@@ -148,6 +148,32 @@ on_button_click (dpp::cluster *client)
                             param.c_str ());
                     }
             }
+        else if (cmd == "message")
+            {
+                const std::string param = event.custom_id.substr (fsub + 1, 1);
+
+                if (param.empty ())
+                    {
+                        fprintf (stderr,
+                                 "[WARN] command \"message\" have no param\n");
+
+                        return;
+                    }
+
+                if (param == "d")
+                    {
+                        event.from->creator->message_delete (
+                            event.command.msg.id,
+                            event.command.msg.channel_id);
+                    }
+                else
+                    {
+                        fprintf (
+                            stderr,
+                            "[WARN] message param isn't handled: \"%s\"\n",
+                            param.c_str ());
+                    }
+            }
     });
 }
 } // musicat::events
