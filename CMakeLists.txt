@@ -136,6 +136,7 @@ endif()
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+	# set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
 # Linking libraries
