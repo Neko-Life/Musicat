@@ -1,3 +1,4 @@
+#include "musicat/child/system.h"
 #include "musicat/child/command.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/owner.h"
@@ -78,12 +79,18 @@ slash_run (const dpp::slashcommand_t &event)
               + cc::create_arg (cc::command_options_keys_t.command,
                                 cc::command_execute_commands_t.call_system)
               + cc::create_arg_sanitize_value (
-                  cc::command_options_keys_t.sys_cmd, sys_cmd);
+                  cc::command_options_keys_t.sys_cmd, sys_cmd)
+              + cc::create_arg (cc::command_options_keys_t.sys_no_stderr,
+                                no_stderr ? "1" : "0")
+              + cc::create_arg (cc::command_options_keys_t.sys_w_stderr_mark,
+                                w_stderr_mark ? "1" : "0");
 
         if (child_cmd.length () > CMD_BUFSIZE)
             {
                 return event.reply ("`[ERROR]` Payload too large!");
             }
+
+        event.thinking ();
 
         const std::string exit_cmd = cc::get_exit_command (cmd_id);
 
@@ -94,8 +101,59 @@ slash_run (const dpp::slashcommand_t &event)
                 return event.edit_response ("Command timed out ... :<");
             }
 
-        // !TODO
+        std::string out_fifo_path
+            = child::system::get_system_fifo_path (cmd_id);
+
+        int out_fifo = open (out_fifo_path.c_str (), O_RDONLY);
+
+        if (out_fifo < 0)
+            {
+                fprintf (
+                    stderr,
+                    "[command::owner::system ERROR] Failed to open outfifo\n");
+
+                cc::send_command (exit_cmd);
+
+                return event.edit_response ("Unable to open output?!");
+            }
+
+        // get child output
+        char cmd_buf[CMD_BUFSIZE + 1];
+        ssize_t sizread = read (out_fifo, cmd_buf, CMD_BUFSIZE);
+
+        // command exit right away after getting output
         cc::send_command (exit_cmd);
+
+        cmd_buf[sizread] = '\0';
+
+        if (get_debug_state ())
+            fprintf (
+                stderr,
+                "[command::owner::system] Received result: qid(%s)\n'%s'\n",
+                cmd_id.c_str (), cmd_buf);
+
+        cc::command_options_t opt = cc::create_command_options ();
+        cc::parse_command_to_options (cmd_buf, opt);
+
+        fprintf (stderr, "id: %s\n", opt.id.c_str ());
+        fprintf (stderr, "command: %s\n", opt.command.c_str ());
+        fprintf (stderr, "file_path: %s\n", opt.file_path.c_str ());
+
+        if (opt.file_path.empty ())
+            {
+                fprintf (stderr, "[command::owner::system] No result file\n");
+
+                return event.edit_response ("Error while running command...");
+            }
+
+        const std::string fullpath = opt.file_path;
+
+        dpp::message msg (event.command.channel_id, "");
+        msg.add_file ("stdio.txt", dpp::utility::read_file (fullpath));
+        event.edit_response (
+            msg, [fullpath] (const dpp::confirmation_callback_t &data) {
+                unlink (fullpath.c_str ());
+            });
     });
 
     thread_manager::dispatch (a);

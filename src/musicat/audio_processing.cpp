@@ -4,18 +4,13 @@
 #include "musicat/helper_processor.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/util.h"
-#include <assert.h>
-#include <chrono>
 #include <fcntl.h>
-#include <iostream>
 #include <poll.h>
 #include <stdio.h>
 #include <string>
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <thread>
 #include <unistd.h>
 
 namespace musicat::audio_processing
@@ -267,9 +262,10 @@ run_standalone (const processor_options_t &options,
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
             perror ("child standalone prctl");
-            do_sem_post (sem);
+            child::do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
+
     preadfd = p_info.ppipefd[0];
     int cwritefd = p_info.ppipefd[1];
     int creadfd = p_info.cpipefd[0];
@@ -284,7 +280,7 @@ run_standalone (const processor_options_t &options,
     if (status == -1)
         {
             perror ("child standalone dout");
-            do_sem_post (sem);
+            child::do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -293,7 +289,7 @@ run_standalone (const processor_options_t &options,
     if (status == -1)
         {
             perror ("child standalone din");
-            do_sem_post (sem);
+            child::do_sem_post (sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -358,7 +354,7 @@ run_standalone (const processor_options_t &options,
                 fprintf (stderr, "%s\n", args[i]);
             }
 
-    do_sem_post (sem);
+    child::do_sem_post (sem);
     execvp ("ffmpeg", args);
 
     perror ("child standalone exit");
@@ -471,8 +467,8 @@ run_processor (child::command::command_options_t &process_options)
     creadfd = p_info.cpipefd[0];
     pwritefd = p_info.cpipefd[1];
 
-    sem_full_key = get_sem_key (options.id);
-    sem = create_sem (sem_full_key);
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
 
     // create a child
     p_info.cpid = fork ();
@@ -481,7 +477,7 @@ run_processor (child::command::command_options_t &process_options)
             perror ("fork");
             init_error = ERR_SFORK;
 
-            clear_sem (sem, sem_full_key);
+            child::clear_sem (sem, sem_full_key);
 
             goto err_sfork;
         }
@@ -500,7 +496,7 @@ run_processor (child::command::command_options_t &process_options)
     cwritefd = -1;
     creadfd = -1;
 
-    do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
     sem = SEM_FAILED;
 
     // prepare required data for polling
@@ -645,8 +641,8 @@ run_processor (child::command::command_options_t &process_options)
                     creadfd = p_info.cpipefd[0];
                     pwritefd = p_info.cpipefd[1];
 
-                    sem_full_key = get_sem_key (options.id);
-                    sem = create_sem (sem_full_key);
+                    sem_full_key = child::get_sem_key (options.id);
+                    sem = child::create_sem (sem_full_key);
 
                     p_info.cpid = fork ();
                     if (p_info.cpid == -1)
@@ -666,7 +662,7 @@ run_processor (child::command::command_options_t &process_options)
                             pwritefd = -1;
                             creadfd = -1;
 
-                            clear_sem (sem, sem_full_key);
+                            child::clear_sem (sem, sem_full_key);
 
                             break;
                         }
@@ -685,7 +681,7 @@ run_processor (child::command::command_options_t &process_options)
                     cwritefd = -1;
                     creadfd = -1;
 
-                    do_sem_wait (sem, sem_full_key);
+                    child::do_sem_wait (sem, sem_full_key);
                     sem = SEM_FAILED;
 
                     // update fd to poll
@@ -804,55 +800,6 @@ std::string
 get_audio_stream_stdout_path (const std::string &id)
 {
     return std::string ("/tmp/musicat.") + id + ".stdout";
-}
-
-std::string
-get_sem_key (const std::string &key)
-{
-    return std::string ("musicat.") + key + '.'
-           + std::to_string (util::get_current_ts ());
-}
-
-sem_t *
-create_sem (const std::string &full_key)
-{
-    return sem_open (full_key.c_str (), O_CREAT, 0600, 0);
-}
-
-int
-do_sem_post (sem_t *sem)
-{
-    int status = sem_post (sem);
-    if (status)
-        {
-            perror ("do_sem_post");
-        }
-
-    return status;
-}
-
-int
-clear_sem (sem_t *sem, const std::string &full_key)
-{
-    sem_close (sem);
-
-    sem_unlink (full_key.c_str ());
-
-    return 0;
-}
-
-int
-do_sem_wait (sem_t *sem, const std::string &full_key)
-{
-    int status = sem_wait (sem);
-    if (status)
-        {
-            perror ("do_sem_wait");
-        }
-
-    clear_sem (sem, full_key);
-
-    return status;
 }
 
 } // musicat::audio_processing

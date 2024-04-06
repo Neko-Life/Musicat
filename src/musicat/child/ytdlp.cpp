@@ -1,7 +1,8 @@
 #include "musicat/child/ytdlp.h"
-#include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
 #include "musicat/child/worker.h"
+#include <linux/prctl.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -90,6 +91,13 @@ run (const command::command_options_t &options, sem_t *sem,
 
     if (status == 0)
         {
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("call_ytdlp prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
             // call ytdlp
             close (read_fd);
             read_fd = -1;
@@ -135,7 +143,7 @@ run (const command::command_options_t &options, sem_t *sem,
 
             args[args_idx++] = (char *)NULL;
 
-            audio_processing::do_sem_post (sem);
+            child::do_sem_post (sem);
 
             execvp ("python3", args);
             _exit (EXIT_FAILURE);
@@ -144,7 +152,7 @@ run (const command::command_options_t &options, sem_t *sem,
     close (write_fd);
     write_fd = -1;
 
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
 
     // open out json file, no need to delete it for cache!
     jsonout = fopen (outfname.c_str (), "w");

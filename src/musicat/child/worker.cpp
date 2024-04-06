@@ -60,6 +60,11 @@ execute (command::command_options_t &options)
         {
             status = worker_command::call_ytdlp (options);
         }
+    else if (options.command
+             == command::command_execute_commands_t.call_system)
+        {
+            status = worker_command::call_system (options);
+        }
 
     if (status == 0)
         {

@@ -2,15 +2,14 @@
 #include "musicat/child/command.h"
 #include "musicat/child/worker.h"
 #include "musicat/thread_manager.h"
+#include "musicat/util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-namespace musicat
-{
-namespace child
+namespace musicat::child
 {
 
 static int pm_write_fd = -1;
@@ -65,16 +64,16 @@ init ()
 
     if (cm_pid == 0)
         {
-            close (pm_read_fd);
-            close (pm_write_fd);
-            pm_read_fd = -1;
-            pm_write_fd = -1;
-
             if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
                 {
                     perror ("child prctl");
                     _exit (EXIT_FAILURE);
                 }
+
+            close (pm_read_fd);
+            close (pm_write_fd);
+            pm_read_fd = -1;
+            pm_write_fd = -1;
 
             worker::set_fds (cm_read_fd, cm_write_fd);
             worker::run ();
@@ -107,5 +106,53 @@ shutdown ()
     close (pm_read_fd);
 }
 
-} // child
-} // musicat
+std::string
+get_sem_key (const std::string &key)
+{
+    return std::string ("musicat.") + key + '.'
+           + std::to_string (util::get_current_ts ());
+}
+
+sem_t *
+create_sem (const std::string &full_key)
+{
+    return sem_open (full_key.c_str (), O_CREAT, 0600, 0);
+}
+
+int
+do_sem_post (sem_t *sem)
+{
+    int status = sem_post (sem);
+    if (status)
+        {
+            perror ("do_sem_post");
+        }
+
+    return status;
+}
+
+int
+clear_sem (sem_t *sem, const std::string &full_key)
+{
+    sem_close (sem);
+
+    sem_unlink (full_key.c_str ());
+
+    return 0;
+}
+
+int
+do_sem_wait (sem_t *sem, const std::string &full_key)
+{
+    int status = sem_wait (sem);
+    if (status)
+        {
+            perror ("do_sem_wait");
+        }
+
+    clear_sem (sem, full_key);
+
+    return status;
+}
+
+} // musicat::child

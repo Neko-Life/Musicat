@@ -67,6 +67,10 @@ shutdown_routine (command::command_options_t &options)
         {
             return 0;
         }
+    else if (child_type == command::command_execute_commands_t.call_system)
+        {
+            return 0;
+        }
 
     return 1;
 }

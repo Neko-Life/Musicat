@@ -29,6 +29,20 @@ inline const struct
      * !TODO: result status?
      */
     const std::string call_ytdlp = "ytd";
+
+    /**
+     * Call system
+     *
+     * Requires sys_cmd (the command gonna be passed to system()),
+     * sys_max_out_len (max output length), sys_no_stderr (hide stderr output),
+     * sys_w_stderr_mark (mark stderr output) command is call_system, and ofc
+     * id too
+     *
+     * Write to an output file and write to out fifo with file path
+     *
+     * Caller manage (eg. manually delete) the output file after this job
+     * exited
+     */
     const std::string call_system = "sys";
 } command_execute_commands_t;
 

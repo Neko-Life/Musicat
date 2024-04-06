@@ -1,10 +1,13 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
 #include "musicat/child/gnuplot.h"
+#include "musicat/child/system.h"
 #include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
+#include <linux/prctl.h>
 #include <stdlib.h>
 #include <sys/poll.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -66,8 +69,8 @@ create_audio_processor (command::command_options_t &options)
     options.audio_stream_stdin_path = si_fp;
     options.audio_stream_stdout_path = so_fp;
 
-    sem_full_key = audio_processing::get_sem_key (options.id);
-    sem = audio_processing::create_sem (sem_full_key);
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
 
     status = fork ();
 
@@ -81,11 +84,18 @@ create_audio_processor (command::command_options_t &options)
         {
             worker::handle_worker_fork ();
 
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("create_audio_processor prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
             // close (read_fd);
 
             // options.child_write_fd = write_fd;
 
-            audio_processing::do_sem_post (sem);
+            child::do_sem_post (sem);
 
             status = audio_processing::run_processor (options);
             _exit (status);
@@ -93,7 +103,7 @@ create_audio_processor (command::command_options_t &options)
 
     // close (write_fd);
 
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
 
     options.pid = status;
     // options.parent_read_fd = read_fd;
@@ -102,8 +112,8 @@ create_audio_processor (command::command_options_t &options)
 
 err4:
     unlink (so_fp.c_str ());
-    audio_processing::do_sem_post (sem);
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_post (sem);
+    child::do_sem_wait (sem, sem_full_key);
 err3:
     unlink (si_fp.c_str ());
 err2:
@@ -148,8 +158,8 @@ call_ytdlp (command::command_options_t &options)
             goto err1;
         }
 
-    sem_full_key = audio_processing::get_sem_key (options.id);
-    sem = audio_processing::create_sem (sem_full_key);
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
 
     status = fork ();
 
@@ -163,20 +173,27 @@ call_ytdlp (command::command_options_t &options)
         {
             worker::handle_worker_fork ();
 
-            audio_processing::do_sem_post (sem);
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("call_ytdlp prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
+            child::do_sem_post (sem);
 
             _exit (ytdlp::run (options, sem, sem_full_key));
         }
 
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
 
     options.pid = status;
 
     return 0;
 
 err4:
-    audio_processing::do_sem_post (sem);
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_post (sem);
+    child::do_sem_wait (sem, sem_full_key);
     unlink (as_fp.c_str ());
 err1:
     return status;
@@ -210,8 +227,8 @@ run_gnuplot (const command::command_options_t &options)
             return -2;
         }
 
-    std::string sem_full_key = audio_processing::get_sem_key (options.id);
-    sem_t *sem = audio_processing::create_sem (sem_full_key);
+    std::string sem_full_key = child::get_sem_key (options.id);
+    sem_t *sem = child::create_sem (sem_full_key);
 
     // !TODO
     const char *GNUPLOT_CMD = options.gnuplot_cmd.c_str ();
@@ -230,6 +247,13 @@ run_gnuplot (const command::command_options_t &options)
             /*
 set term png size 1024,1024
 */
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("call_gnuplot prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
             close (parent_write);
             close (parent_read);
 
@@ -241,13 +265,13 @@ set term png size 1024,1024
 
             char *args[] = { (char *)GNUPLOT_CMD, (char *)NULL };
 
-            audio_processing::do_sem_post (sem);
+            child::do_sem_post (sem);
             execvp (GNUPLOT_CMD, args);
 
             exit (EXIT_FAILURE);
         }
 
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
 
     close (child_write);
     close (child_read);
@@ -480,8 +504,8 @@ call_gnuplot (command::command_options_t &options)
             goto err1;
         }
 
-    sem_full_key = audio_processing::get_sem_key (options.id);
-    sem = audio_processing::create_sem (sem_full_key);
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
 
     status = fork ();
 
@@ -495,22 +519,91 @@ call_gnuplot (command::command_options_t &options)
         {
             worker::handle_worker_fork ();
 
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("call_gnuplot prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
             int gnuplot_status = run_gnuplot (options);
 
-            audio_processing::do_sem_post (sem);
+            child::do_sem_post (sem);
 
             _exit (gnuplot_status);
         }
 
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_wait (sem, sem_full_key);
 
     options.pid = status;
 
     return 0;
 
 err4:
-    audio_processing::do_sem_post (sem);
-    audio_processing::do_sem_wait (sem, sem_full_key);
+    child::do_sem_post (sem);
+    child::do_sem_wait (sem, sem_full_key);
+    unlink (as_fp.c_str ());
+err1:
+    return status;
+}
+
+int
+call_system (command::command_options_t &options)
+{
+    pid_t status = -1;
+
+    std::string as_fp = system::get_system_fifo_path (options.id);
+
+    std::string sem_full_key;
+    sem_t *sem;
+
+    unlink (as_fp.c_str ());
+
+    const auto fifo_bitmask
+        = audio_processing::get_audio_stream_fifo_mode_t ();
+
+    if ((status = mkfifo (as_fp.c_str (), fifo_bitmask)) < 0)
+        {
+            perror ("worker_command::call_system as_fp");
+            goto err1;
+        }
+
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
+
+    status = fork ();
+
+    if (status < 0)
+        {
+            perror ("worker_command::call_system fork");
+            goto err4;
+        }
+
+    if (status == 0)
+        {
+            worker::handle_worker_fork ();
+
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("call_system prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
+            child::do_sem_post (sem);
+
+            _exit (system::run (options, sem, sem_full_key));
+        }
+
+    child::do_sem_wait (sem, sem_full_key);
+
+    options.pid = status;
+
+    return 0;
+
+err4:
+    child::do_sem_post (sem);
+    child::do_sem_wait (sem, sem_full_key);
     unlink (as_fp.c_str ());
 err1:
     return status;

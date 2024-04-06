@@ -10,6 +10,8 @@ namespace musicat::child::system
 
 std::string get_system_fifo_path (const std::string &id);
 
+std::string get_system_out_filename (const std::string &id);
+
 int run (const command::command_options_t &options, sem_t *sem,
          const std::string &sem_full_key);
 

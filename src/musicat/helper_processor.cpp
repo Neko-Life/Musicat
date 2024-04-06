@@ -2,7 +2,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/worker.h"
 #include "musicat/musicat.h"
-#include <limits.h>
 #include <stdio.h>
 #include <sys/poll.h>
 #include <sys/prctl.h>
@@ -100,7 +99,7 @@ helper_main (helper_chain_t &options)
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
         {
             perror ("helper_processor::helper_main prctl");
-            audio_processing::do_sem_post (options.sem);
+            child::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -110,7 +109,7 @@ helper_main (helper_chain_t &options)
     if (status == -1)
         {
             perror ("helper_processor::helper_main dout");
-            audio_processing::do_sem_post (options.sem);
+            child::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -119,7 +118,7 @@ helper_main (helper_chain_t &options)
     if (status == -1)
         {
             perror ("helper_processor::helper_main din");
-            audio_processing::do_sem_post (options.sem);
+            child::do_sem_post (options.sem);
             _exit (EXIT_FAILURE);
         }
 
@@ -168,7 +167,7 @@ helper_main (helper_chain_t &options)
                 fprintf (stderr, "%s\n", args[i]);
             }
 
-    audio_processing::do_sem_post (options.sem);
+    child::do_sem_post (options.sem);
     execvp ("ffmpeg", args);
 
     perror ("helper_processor::helper_main exit");
@@ -198,17 +197,15 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     helper_process.child_read_fd = sep.first;
     helper_process.write_fd = sep.second;
 
-    helper_process.sem_full_key = audio_processing::get_sem_key (
-        std::to_string (helper_process.pid) + "_" + id);
+    helper_process.sem_full_key
+        = child::get_sem_key (std::to_string (helper_process.pid) + "_" + id);
 
-    helper_process.sem
-        = audio_processing::create_sem (helper_process.sem_full_key);
+    helper_process.sem = child::create_sem (helper_process.sem_full_key);
 
     pid = fork ();
     if (pid == -1)
         {
-            audio_processing::clear_sem (helper_process.sem,
-                                         helper_process.sem_full_key);
+            child::clear_sem (helper_process.sem, helper_process.sem_full_key);
 
             goto err3;
         }
@@ -235,8 +232,7 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     helper_process.child_write_fd = -1;
     helper_process.child_read_fd = -1;
 
-    audio_processing::do_sem_wait (helper_process.sem,
-                                   helper_process.sem_full_key);
+    child::do_sem_wait (helper_process.sem, helper_process.sem_full_key);
 
     active_helpers.push_back (helper_process);
 
