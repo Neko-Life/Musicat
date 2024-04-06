@@ -142,34 +142,30 @@ process_outfile (const command::command_options_t &options, int read_fd,
                     continue;
                 }
 
+            constexpr const char err_mark[] = "==========================="
+                                              "============= V STDERR V "
+                                              "==========================="
+                                              "=============\n";
+
+            constexpr const char err_mark_end[]
+                = "\n==========================="
+                  "============= ^ STDERR ^ "
+                  "==========================="
+                  "=============\n";
+
+            constexpr size_t len_mark = sizeof (err_mark) / sizeof (*err_mark);
+
+            constexpr size_t len_mark_end
+                = sizeof (err_mark_end) / sizeof (*err_mark_end);
+
             for (nfds_t i = 0; i < prfds_size; i++)
                 {
                     bool read_ready = prfds[i].revents & POLLIN;
-
                     bool is_out = fd_tracker.at (i) == 'o';
-
-                    constexpr const char err_mark[]
-                        = "==========================="
-                          "============= V STDERR V "
-                          "==========================="
-                          "=============\n";
-
-                    constexpr const char err_mark_end[]
-                        = "\n==========================="
-                          "============= ^ STDERR ^ "
-                          "==========================="
-                          "=============\n";
-
-                    constexpr size_t len_mark
-                        = sizeof (err_mark) / sizeof (*err_mark);
-
-                    constexpr size_t len_mark_end
-                        = sizeof (err_mark_end) / sizeof (*err_mark_end);
+                    bool wrote_stderr = false;
 
                     size_t max_out_len = options.sys_max_out_len;
                     size_t max_outsiz = 0;
-
-                    bool wrote_stderr = false;
                     while (
                         read_ready
                         && ((read_size = read (prfds[i].fd, buf, bsize)) > 0))
@@ -184,9 +180,7 @@ process_outfile (const command::command_options_t &options, int read_fd,
                                     size_t r = out_siz + this_iter_outsiz;
 
                                     if (r > max_out_len)
-                                        {
-                                            sub = r - max_out_len;
-                                        }
+                                        sub = r - max_out_len;
                                 }
 
                             max_outsiz = this_iter_outsiz - sub;
@@ -198,12 +192,12 @@ process_outfile (const command::command_options_t &options, int read_fd,
                                         err_mark, sizeof (*err_mark),
                                         cmp_available (len_mark, max_outsiz),
                                         outfile);
+
                                     out_siz += c_w;
-
                                     max_outsiz -= c_w;
-                                }
 
-                            wrote_stderr = true;
+                                    wrote_stderr = true;
+                                }
 
                             if (max_outsiz > 0)
                                 {
@@ -211,8 +205,8 @@ process_outfile (const command::command_options_t &options, int read_fd,
                                         buf, 1,
                                         cmp_available (read_size, max_outsiz),
                                         outfile);
-                                    out_siz += c_w;
 
+                                    out_siz += c_w;
                                     max_outsiz -= c_w;
                                 }
 
@@ -224,8 +218,9 @@ process_outfile (const command::command_options_t &options, int read_fd,
                             if (has_event == -1)
                                 break;
 
-                            read_ready
-                                = has_event > 0 && pfd[0].revents & POLLIN;
+                            read_ready = has_event > 0
+                                         && (pfd[0].revents & POLLIN)
+                                         && !revents_has_err (pfd[0].revents);
                         }
 
                     if (is_out || !wrote_stderr || !mark_stderr
