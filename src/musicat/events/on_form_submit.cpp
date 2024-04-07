@@ -6,7 +6,6 @@
 #include "musicat/storage.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
-#include "yt-search/yt-search.h"
 #include <regex>
 
 namespace musicat::events

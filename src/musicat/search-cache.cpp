@@ -1,9 +1,6 @@
 #include "musicat/search-cache.h"
-#include "yt-search/yt-search.h"
-#include <map>
 #include <mutex>
 #include <string>
-#include <vector>
 
 namespace musicat
 {
