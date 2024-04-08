@@ -141,7 +141,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
                 }
 
             written += current_written;
-        };
+        }
 
     *size = 0;
 
@@ -317,8 +317,12 @@ run_standalone (const processor_options_t &options,
             args[args_idx++] = (char *)options.seek_to.c_str ();
         }
 
-    std::string vol_arg
+    const std::string vol_arg
         = "volume=" + std::to_string ((float)options.volume / (float)100);
+
+#ifdef AUDIO_INPUT_USE_EXCITER
+    const std::string fargs = "aexciter," + vol_arg;
+#endif
 
     char *rest_args[] = { "-v",
                           "debug",
@@ -329,7 +333,11 @@ run_standalone (const processor_options_t &options,
                           "-i",
                           (char *)file_path.c_str (),
                           "-af",
+#ifdef AUDIO_INPUT_USE_EXCITER
+                          (char *)fargs.c_str (),
+#else
                           (char *)vol_arg.c_str (),
+#endif
                           "-ac",
                           "2",
                           "-ar",
