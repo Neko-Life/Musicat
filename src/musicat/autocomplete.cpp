@@ -1,6 +1,5 @@
 #include "musicat/autocomplete.h"
 #include "musicat/util.h"
-#include "musicat/musicat.h"
 #include <dpp/dpp.h>
 
 namespace musicat
