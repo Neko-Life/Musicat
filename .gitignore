@@ -1,5 +1,5 @@
 libs/**
-build/**
+build*/**
 exe/*
 ignore
 *.d
