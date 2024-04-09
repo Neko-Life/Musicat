@@ -61,6 +61,7 @@ add_executable(Shasha
 	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
+# uWebSockets
 if (UNIX)
 	set(USOCKETS_OBJECT_FILES
 		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
@@ -88,24 +89,21 @@ if (UNIX)
 		COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 make
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
 		DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
+
+	add_dependencies(Shasha deps uWebSockets)
 endif()
 
-add_custom_target(deps
-	DEPENDS ShashaDeps)
-
+# others
 if (MSVC)
-	add_custom_command(OUTPUT ShashaDeps
-		COMMAND make.bat
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+	# just link compiled libs here!
 elseif (UNIX)
+	add_custom_target(deps
+		DEPENDS ShashaDeps)
+
 	add_custom_command(OUTPUT ShashaDeps
 		COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
-endif()
 
-add_dependencies(Shasha deps uWebSockets)
-
-if (UNIX)
 	add_custom_target(archlinux-dist-folder
 		COMMAND mkdir -p archlinux-dist
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -157,50 +155,54 @@ if (MUSICAT_DEBUG_SYMBOL)
 	endif()
 endif()
 
-# Linking libraries
-target_link_libraries(Shasha
-	dpp
-	# oggz
-	# ogg
-	pq
-	curlpp
-	curl
-	cppcodec
-	icui18n
-	icuuc
-	icudata
-	icuio
-	${USOCKETS_OBJECT_FILES}
-	ssl
-	crypto
-	z
-	pthread
-	# Add any other libs you want to use here
-	)
+if (MSVC)
+	# add includes, libs
+elseif (UNIX)
+	# Linking libraries
+	target_link_libraries(Shasha
+		dpp
+		# oggz
+		# ogg
+		pq
+		curlpp
+		curl
+		cppcodec
+		icui18n
+		icuuc
+		icudata
+		icuio
+		${USOCKETS_OBJECT_FILES}
+		ssl
+		crypto
+		z
+		pthread
+		# Add any other libs you want to use here
+		)
 
-# Specify includes
-target_include_directories(Shasha PRIVATE
-	include
-	# uWebSockets
-	libs
-	libs/DPP/include
-	libs/yt-search.h/include
-	libs/nekos-bestpp/include
-	libs/uWebSockets/uSockets/src
-	libs/icu/usr/local/include
-	libs/curlpp/include
-	# libs/liboggz/include
-	libs/jwt-cpp/include
-	/usr/include/postgresql
-	libs/ELIZA/src
-	# Remember to add the include directories of any other libraries too
-	)
+	# Specify includes
+	target_include_directories(Shasha PRIVATE
+		include
+		# uWebSockets
+		libs
+		libs/DPP/include
+		libs/yt-search.h/include
+		libs/nekos-bestpp/include
+		libs/uWebSockets/uSockets/src
+		libs/icu/usr/local/include
+		libs/curlpp/include
+		# libs/liboggz/include
+		libs/jwt-cpp/include
+		/usr/include/postgresql
+		libs/ELIZA/src
+		# Remember to add the include directories of any other libraries too
+		)
 
-target_link_directories(Shasha PRIVATE
-	libs/curlpp/build
-	libs/icu/usr/local/lib
-	# libs/liboggz/build/lib
-	)
+	target_link_directories(Shasha PRIVATE
+		libs/curlpp/build
+		libs/icu/usr/local/lib
+		# libs/liboggz/build/lib
+		)
+endif()
 
 # Set C++ version
 set_target_properties(Shasha PROPERTIES
