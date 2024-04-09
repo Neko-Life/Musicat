@@ -353,6 +353,7 @@ std::vector<std::string> get_cors_enabled_origins ();
 std::string get_jwt_secret ();
 
 float get_stream_buffer_size ();
+int64_t get_stream_sleep_on_buffer_threshold_ms ();
 
 const char *get_python_cmd ();
 

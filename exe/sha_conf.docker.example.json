@@ -20,6 +20,8 @@
     "JWT_SECRET": "secret",
     "STREAM_BUFFER_SIZE": 0.3, // buffer size in seconds, if you don't have powerful enough cpu (eg. lagging audio) you need to increase this thus degrading audio processing response time
                                // this might need to be adjustable on runtime in the future either from runtime cli or automatically
+    "STREAM_SLEEP_ON_BUFFER_THRESHOLD_MS": 100, // how long stream thread should sleep to wait for enqueued buffer to be sent in ms, lower uses more CPU and higher can cause "late buffer"
+                                                // best setting is typically between 1/3 and 1/2 of STREAM_BUFFER_SIZE amount
     "YTDLP_UTIL_EXE": "/home/musicat/ytdlp.py",
     "YTDLP_LIB_DIR": "/home/musicat/yt-dlp/",
     "ADMIN_IDS": [

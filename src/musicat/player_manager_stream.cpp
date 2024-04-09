@@ -583,7 +583,7 @@ run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
                           > dpp_audio_buffer_length_second)
                 {
                     std::this_thread::sleep_for (std::chrono::milliseconds (
-                        SLEEP_ON_BUFFER_THRESHOLD_MS));
+                        dpp_audio_sleep_on_buffer_threshold_ms));
                 }
 
             // eof
@@ -802,6 +802,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             EffectStatesListing esl (server_id, &effect_states);
 
             float dpp_audio_buffer_length_second = get_stream_buffer_size ();
+            int64_t dpp_audio_sleep_on_buffer_threshold_ms
+                = get_stream_sleep_on_buffer_threshold_ms ();
 
             // I LOVE C++!!!
 
@@ -891,7 +893,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                             std::this_thread::sleep_for (
                                 std::chrono::milliseconds (
-                                    SLEEP_ON_BUFFER_THRESHOLD_MS));
+                                    dpp_audio_sleep_on_buffer_threshold_ms));
                         }
                 }
 

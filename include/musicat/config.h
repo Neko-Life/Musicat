@@ -1,8 +1,6 @@
 #ifndef MUSICAT_CONFIG_H
 #define MUSICAT_CONFIG_H
 
-#define SLEEP_ON_BUFFER_THRESHOLD_MS 60
-
 // use etf websocket protocol
 // #define MUSICAT_WS_P_ETF
 
