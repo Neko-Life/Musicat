@@ -63,6 +63,7 @@ run (const command::command_options_t &options, sem_t *sem,
     if (stat (outfname.c_str (), &filestat) == 0
         && (filestat.st_mode & S_IFREG))
         {
+            jsonout_status = 0;
             goto write_res;
         }
 
