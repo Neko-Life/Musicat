@@ -13,7 +13,12 @@ option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(DPP_USE_EXTERNAL_JSON ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+
+if (MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall /W4")
+elseif (UNIX)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+endif()
 
 set(WITH_COMPILE_GNUPLOT 0)
 
@@ -56,6 +61,7 @@ add_executable(Shasha
 	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
+if (UNIX)
 set(USOCKETS_OBJECT_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
@@ -82,13 +88,16 @@ add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
 	COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
 	DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
+endif()
 
 add_custom_target(deps
 	DEPENDS ShashaDeps)
 
+if (UNIX)
 add_custom_command(OUTPUT ShashaDeps
 	COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+endif()
 
 add_dependencies(Shasha deps uWebSockets)
 
