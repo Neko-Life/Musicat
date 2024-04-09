@@ -286,7 +286,22 @@ fetch (const search_option_t &options)
 
     nlohmann::json json_res;
 
-    scs >> json_res;
+    try
+        {
+            scs >> json_res;
+        }
+    catch (const nlohmann::detail::parse_error &e)
+        {
+            fprintf (stderr,
+                     "[mctrack::fetch ERROR] parse_error: %s\n"
+                     "\tDeleting `%s`\n",
+                     e.what (), opt.file_path.c_str ());
+
+            unlink (opt.file_path.c_str ());
+
+            json_res = nullptr;
+        }
+
     scs.close ();
 
     return json_res;
