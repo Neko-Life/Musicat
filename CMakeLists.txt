@@ -93,7 +93,11 @@ endif()
 add_custom_target(deps
 	DEPENDS ShashaDeps)
 
-if (UNIX)
+if (MSVC)
+	add_custom_command(OUTPUT ShashaDeps
+		COMMAND make.bat
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+elseif (UNIX)
 	add_custom_command(OUTPUT ShashaDeps
 		COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
@@ -101,36 +105,38 @@ endif()
 
 add_dependencies(Shasha deps uWebSockets)
 
-add_custom_target(archlinux-dist-folder
-	COMMAND mkdir -p archlinux-dist
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+if (UNIX)
+	add_custom_target(archlinux-dist-folder
+		COMMAND mkdir -p archlinux-dist
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_custom_target(archlinux-dist
+	add_custom_target(archlinux-dist
 
-	COMMAND cp build/Shasha
-		build/libs/DPP/library/libdpp.so*
-		libs/curlpp/build/libcurlpp.so*
-		libs/icu/usr/local/lib/lib*
-		src/yt-dlp/ytdlp.py
-		archlinux-dist
+		COMMAND cp build/Shasha
+			build/libs/DPP/library/libdpp.so*
+			libs/curlpp/build/libcurlpp.so*
+			libs/icu/usr/local/lib/lib*
+			src/yt-dlp/ytdlp.py
+			archlinux-dist
 
-	COMMAND cp -r libs/yt-dlp
-		src/yt-dlp/utils
-		archlinux-dist
-
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	DEPENDS archlinux-dist-folder Shasha)
-
-if (COMPILE_GNUPLOT)
-	add_custom_target(archlinux-dist-cp-gnuplot
-
-		COMMAND cp libs/gnuplot-${GNUPLOT_VERSION}/build/bin/gnuplot
+		COMMAND cp -r libs/yt-dlp
+			src/yt-dlp/utils
 			archlinux-dist
 
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		DEPENDS archlinux-dist-folder Shasha)
 
-	add_dependencies(archlinux-dist archlinux-dist-cp-gnuplot)
+	if (COMPILE_GNUPLOT)
+		add_custom_target(archlinux-dist-cp-gnuplot
+
+			COMMAND cp libs/gnuplot-${GNUPLOT_VERSION}/build/bin/gnuplot
+				archlinux-dist
+
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+			DEPENDS archlinux-dist-folder Shasha)
+
+		add_dependencies(archlinux-dist archlinux-dist-cp-gnuplot)
+	endif()
 endif()
 
 if (MUSICAT_WITH_CORO) 
@@ -144,8 +150,11 @@ endif()
 
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-	# set(CMAKE_BUILD_TYPE "Debug")
+	if (MSVC)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Debug")
+	elseif (UNIX)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+	endif()
 endif()
 
 # Linking libraries
