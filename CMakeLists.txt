@@ -91,12 +91,7 @@ if (UNIX)
 		DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
 
 	add_dependencies(Shasha deps uWebSockets)
-endif()
 
-# others
-if (MSVC)
-	# just link compiled libs here!
-elseif (UNIX)
 	add_custom_target(deps
 		DEPENDS ShashaDeps)
 
@@ -156,7 +151,38 @@ if (MUSICAT_DEBUG_SYMBOL)
 endif()
 
 if (MSVC)
-	# add includes, libs
+	# vcpkg cmake confs
+
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows)
+	set(FIND_PATH_HINTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include")
+
+	# uwebsockets
+	find_path(UWEBSOCKETS_INCLUDE_DIRS "uwebsockets/App.h"
+		HINTS ${FIND_PATH_HINTS}
+	)
+	target_include_directories(Shasha PRIVATE ${UWEBSOCKETS_INCLUDE_DIRS})
+
+	# curlpp
+	# find_package(unofficial-curlpp CONFIG REQUIRED)
+	# target_link_libraries(Shasha PRIVATE unofficial::curlpp::curlpp)
+
+	# libpq
+	find_package(PostgreSQL REQUIRED)
+    target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
+
+	# submodules
+	target_include_directories(Shasha PRIVATE
+		include
+		libs
+		libs/DPP/include
+		libs/yt-search.h/include
+		libs/nekos-bestpp/include
+		libs/icu/usr/local/include
+		libs/jwt-cpp/include
+		libs/ELIZA/src
+		# Remember to add the include directories of any other libraries too
+		)
+
 elseif (UNIX)
 	# Linking libraries
 	target_link_libraries(Shasha
@@ -211,10 +237,14 @@ set_target_properties(Shasha PROPERTIES
 	EXPORT_COMPILE_COMMANDS ON
 	)
 
-# Add DPP as dependency
+# Add submodule cmake dependency
 add_subdirectory(libs/DPP)
 add_subdirectory(libs/cppcodec)
-# You can also add any other libs you want to use
+
+# windows build
+if (MSVC)
+	add_subdirectory(libs/curlpp)
+endif()
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")
 
