@@ -1,9 +1,12 @@
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player::events
 {
+#ifndef MUSICAT_NO_SERVER
 
 void
 subscription (uws_ws_t *ws, std::string_view topic, int idk1, int idk2)
@@ -17,4 +20,5 @@ subscription (uws_ws_t *ws, std::string_view topic, int idk1, int idk2)
         }
 }
 
+#endif
 } // musicat::server::ws::player::events

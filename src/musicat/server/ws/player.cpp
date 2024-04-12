@@ -1,7 +1,9 @@
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/ws/player_events.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player
 {
