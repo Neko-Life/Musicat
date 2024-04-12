@@ -78,45 +78,44 @@ add_executable(Shasha
 
 # uWebSockets
 if (UNIX)
-	set(USOCKETS_OBJECT_FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
-
-	file(GLOB_RECURSE USOCKETS_SOURCE_FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/src/*.c)
-
-	file(GLOB_RECURSE UWEBSOCKETS_HEADER_FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/src/*.h)
-
-	add_custom_target(uWebSockets
-		DEPENDS ${USOCKETS_OBJECT_FILES})
-
-	add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
-		COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 make
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
-		DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
-
-	add_dependencies(Shasha deps)
-
 	if (NOT MUSICAT_NO_SERVER)
+		set(USOCKETS_OBJECT_FILES
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
+
+		file(GLOB_RECURSE USOCKETS_SOURCE_FILES
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/src/*.c)
+
+		file(GLOB_RECURSE UWEBSOCKETS_HEADER_FILES
+			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/src/*.h)
+
+		add_custom_target(uWebSockets
+			DEPENDS ${USOCKETS_OBJECT_FILES})
+
+		add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
+			COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 make
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
+			DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
+
 		add_dependencies(Shasha uWebSockets)
 	endif()
-
-	add_custom_target(deps
-		DEPENDS ShashaDeps)
 
 	add_custom_command(OUTPUT ShashaDeps
 		COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+
+	add_custom_target(deps
+		DEPENDS ShashaDeps)
+	add_dependencies(Shasha deps)
 
 	add_custom_target(archlinux-dist-folder
 		COMMAND mkdir -p archlinux-dist

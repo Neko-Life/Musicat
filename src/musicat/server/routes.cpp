@@ -11,6 +11,7 @@
 
 namespace musicat::server::routes
 {
+#ifndef MUSICAT_NO_SERVER
 
 // any route
 void
@@ -84,4 +85,5 @@ define_routes (APIApp *app)
         }
 }
 
+#endif
 } // musicat::server::routes

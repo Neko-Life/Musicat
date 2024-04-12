@@ -11,6 +11,7 @@
 
 namespace musicat::server::states
 {
+#ifndef MUSICAT_NO_SERVER
 // this should always be used inside server thread, hence no mutex
 auth::jwt_verifier_t *_jwt_verifier = nullptr;
 
@@ -298,4 +299,5 @@ get_oauth_timer (const std::string &val)
     return { 0, 0, "", NULL, NULL };
 }
 
+#endif
 } // musicat::server::states

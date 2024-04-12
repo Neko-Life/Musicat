@@ -3,6 +3,7 @@
 
 namespace musicat::server::routes
 {
+#ifndef MUSICAT_NO_SERVER
 
 void
 get_root (APIResponse *res, APIRequest *req)
@@ -36,4 +37,5 @@ get_root (APIResponse *res, APIRequest *req)
     res->end (r.dump ());
 }
 
+#endif
 } // musicat::server::routes
