@@ -126,7 +126,7 @@ if (NOT MSVC)
 
 		COMMAND cp build/Shasha
 			build/libs/DPP/library/libdpp.so*
-			libs/curlpp/build/libcurlpp.so*
+			build/libs/curlpp/libcurlpp.so*
 			libs/icu/usr/local/lib/lib*
 			src/yt-dlp/ytdlp.py
 			archlinux-dist
@@ -165,11 +165,17 @@ endif()
 
 if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
+
+	# Debug, Release, RelWithDebInfo and MinSizeRel
+	set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+
 	if (MSVC)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Debug")
 	else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 	endif()
+else()
+	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 if (MSVC)
@@ -202,7 +208,6 @@ if (MSVC)
 		libs/yt-search.h/include
 		libs/nekos-bestpp/include
 		libs/icu/usr/local/include
-		libs/jwt-cpp/include
 		libs/ELIZA/src
 		# Remember to add the include directories of any other libraries too
 		)
@@ -248,9 +253,7 @@ else()
 		)
 
 	target_link_directories(Shasha PRIVATE
-		libs/curlpp/build
 		libs/icu/usr/local/lib
-		# libs/liboggz/build/lib
 		)
 endif()
 
@@ -264,11 +267,7 @@ set_target_properties(Shasha PROPERTIES
 # Add submodule cmake dependency
 add_subdirectory(libs/DPP)
 add_subdirectory(libs/cppcodec)
-
-# windows build
-if (MSVC)
-	add_subdirectory(libs/curlpp)
-endif()
+add_subdirectory(libs/curlpp)
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")
 
