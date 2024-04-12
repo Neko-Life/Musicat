@@ -2,6 +2,7 @@
 
 namespace musicat::server::ws
 {
+#ifndef MUSICAT_NO_SERVER
 
 // inline constexpr const ws_handler_t ws_handlers[] = {};
 
@@ -12,4 +13,5 @@ define_ws_routes (APIApp *app)
                                  ws::player::get_behavior ());
 }
 
+#endif
 } // musicat::server::ws

@@ -2,6 +2,7 @@
 
 namespace musicat::server::response
 {
+#ifndef MUSICAT_NO_SERVER
 
 nlohmann::json
 payload (const nlohmann::json &data)
@@ -16,4 +17,5 @@ error (error_code_e code, const std::string &message)
              { "data", { { "code", code }, { "message", message } } } };
 }
 
+#endif
 } // musicat::server::response
