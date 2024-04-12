@@ -178,6 +178,16 @@ else()
 	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+list(APPEND MUSICAT_INC_DIRS
+	"include"
+	"libs/DPP/include"
+	"libs/yt-search.h/include"
+	"libs/nekos-bestpp/include"
+	"libs/icu/usr/local/include"
+	"libs/curlpp/include"
+	"libs/jwt-cpp/include"
+	"libs/ELIZA/src")
+
 if (MSVC)
 	# vcpkg cmake confs, PLANNED TO BE UNUSED
 	# set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows)
@@ -198,63 +208,45 @@ if (MSVC)
 	# target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
 
 	# manual installation (non-vcpkg)
-
-
-	# submodules
-	target_include_directories(Shasha PRIVATE
-		include
-		libs
-		libs/DPP/include
-		libs/yt-search.h/include
-		libs/nekos-bestpp/include
-		libs/icu/usr/local/include
-		libs/ELIZA/src
-		# Remember to add the include directories of any other libraries too
-		)
-
 else()
-	# Linking libraries
-	target_link_libraries(Shasha
-		dpp
-		# oggz
-		# ogg
-		pq
-		curlpp
-		curl
-		cppcodec
-		icui18n
-		icuuc
-		icudata
-		icuio
-		${USOCKETS_OBJECT_FILES}
-		ssl
-		crypto
-		z
-		pthread
-		# Add any other libs you want to use here
-		)
-
-	# Specify includes
-	target_include_directories(Shasha PRIVATE
-		include
+	list(APPEND MUSICAT_INC_DIRS
 		# uWebSockets
-		libs
-		libs/DPP/include
-		libs/yt-search.h/include
-		libs/nekos-bestpp/include
-		libs/uWebSockets/uSockets/src
-		libs/icu/usr/local/include
-		libs/curlpp/include
-		# libs/liboggz/include
-		libs/jwt-cpp/include
-		/usr/include/postgresql
-		libs/ELIZA/src
-		# Remember to add the include directories of any other libraries too
-		)
+		"libs"
+		"libs/uWebSockets/uSockets/src"
+		"/usr/include/postgresql")
 
-	target_link_directories(Shasha PRIVATE
-		libs/icu/usr/local/lib
+	list(APPEND MUSICAT_LN_DIRS
+		"libs/icu/usr/local/lib")
+
+	list(APPEND MUSICAT_LN_LIBS
+		"dpp"
+		"pq"
+		"curlpp"
+		"curl"
+		"cppcodec"
+		"icui18n"
+		"icuuc"
+		"icudata"
+		"icuio"
+		${USOCKETS_OBJECT_FILES}
+		"ssl"
+		"crypto"
+		"z"
+		"pthread"
 		)
+endif()
+
+target_include_directories(Shasha PRIVATE
+	${MUSICAT_INC_DIRS})
+
+if (MUSICAT_LN_DIRS)
+	target_link_directories(Shasha PRIVATE
+		${MUSICAT_LN_DIRS})
+endif()
+
+if (MUSICAT_LN_LIBS)
+	target_link_libraries(Shasha
+		${MUSICAT_LN_LIBS})
 endif()
 
 # Set C++ version
