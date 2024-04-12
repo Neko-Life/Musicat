@@ -19,6 +19,7 @@
 
 namespace musicat::server
 {
+#ifndef MUSICAT_NO_SERVER
 // SSLApp would be <true, true, SocketData>
 // update accordingly
 using MCWsApp = uWS::WebSocket<SERVER_WITH_SSL, true, ws::player::SocketData>;
@@ -30,6 +31,7 @@ std::atomic<bool> running = false;
 APIApp *_app_ptr = nullptr;
 uWS::Loop *_loop_ptr = nullptr;
 us_listen_socket_t *_listen_socket_ptr = nullptr;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -176,6 +178,7 @@ _handle_res (MCWsApp *ws, const std::string &nonce, nlohmann::json &d)
     } *
 }
 */
+#ifndef MUSICAT_NO_SERVER
 /**
  * @brief `d` is guaranteed object
  */
@@ -260,16 +263,22 @@ _handle_event (MCWsApp *ws, const int64_t event, nlohmann::json &d)
     /* fprintf (stderr, "%s\n", resd.dump (2).c_str ()); */
     /* if (emit) _emit_event (ws, event_name, resd); */
 }
+#endif
 
 bool
 get_running_state ()
 {
+#ifndef MUSICAT_NO_SERVER
     return running;
+#else
+    return false;
+#endif
 }
 
 int
 run ()
 {
+#ifndef MUSICAT_NO_SERVER
     if (running)
         {
             fprintf (stderr, "[server ERROR] Instance already running!\n");
@@ -345,11 +354,15 @@ run ()
     _app_ptr = nullptr;
 
     return 0;
+#else
+    return -1;
+#endif
 }
 
 int
 defer (std::function<void ()> cb)
 {
+#ifndef MUSICAT_NO_SERVER
     if (!_app_ptr)
         {
             return 1;
@@ -363,11 +376,15 @@ defer (std::function<void ()> cb)
     _loop_ptr->defer (cb);
 
     return 0;
+#else
+    return -1;
+#endif
 }
 
 int
 publish (const std::string &topic, const std::string &message)
 {
+#ifndef MUSICAT_NO_SERVER
     return defer ([topic, message] () {
         if (!_app_ptr)
             {
@@ -381,11 +398,15 @@ publish (const std::string &topic, const std::string &message)
 
         _app_ptr->publish (topic, message, uWS::OpCode::BINARY);
     });
+#else
+    return -1;
+#endif
 }
 
 int
 shutdown ()
 {
+#ifndef MUSICAT_NO_SERVER
     if (!_app_ptr)
         {
             return 1;
@@ -425,13 +446,18 @@ shutdown ()
     fprintf (stderr, "[server] Shutting down callback dispatched\n");
 
     return 0;
+#else
+    return -1;
+#endif
 }
 
 void
 main_loop_routine ()
 {
+#ifndef MUSICAT_NO_SERVER
     states::check_timers ();
     service_cache::check_timers ();
+#endif
 }
 
 } // musicat::server

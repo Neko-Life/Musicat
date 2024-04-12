@@ -6,6 +6,7 @@
 namespace musicat::server::ws::player
 {
 
+#ifndef MUSICAT_NO_SERVER
 uWS::TemplatedApp<SERVER_WITH_SSL>::WebSocketBehavior<SocketData>
 get_behavior ()
 {
@@ -55,4 +56,5 @@ create (const socket_event_e event, const nlohmann::json &data)
 }
 */
 
+#endif
 } // musicat::server::ws::player

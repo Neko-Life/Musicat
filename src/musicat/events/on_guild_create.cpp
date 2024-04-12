@@ -7,9 +7,11 @@ namespace musicat::events
 void
 on_guild_create (dpp::cluster *client)
 {
+#ifndef MUSICAT_NO_SERVER
     client->on_guild_create ([] (const dpp::guild_create_t &e) {
         server::service_cache::handle_guild_create (e);
     });
+#endif
 }
 
 } // musicat::events

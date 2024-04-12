@@ -7,6 +7,7 @@
 namespace musicat::server::ws::player::events
 {
 
+#ifndef MUSICAT_NO_SERVER
 void upgrade (APIResponse *res, APIRequest *req,
               struct us_socket_context_t *sock);
 
@@ -23,6 +24,7 @@ void pong (uws_ws_t *ws, std::string_view msg);
 void subscription (uws_ws_t *ws, std::string_view topic, int idk1, int idk2);
 
 void close (uws_ws_t *ws, int code, std::string_view message);
+#endif
 
 } // musicat::server::ws::player::events
 

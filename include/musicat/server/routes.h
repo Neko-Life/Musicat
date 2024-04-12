@@ -6,6 +6,7 @@
 namespace musicat::server::routes
 {
 
+#ifndef MUSICAT_NO_SERVER
 enum route_method_e
 {
     ROUTE_METHOD_NULL,
@@ -23,6 +24,7 @@ struct route_handler_t
 };
 
 void define_routes (APIApp *app);
+#endif
 
 } // musicat::server::ws
 
