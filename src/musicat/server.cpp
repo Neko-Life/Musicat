@@ -12,10 +12,13 @@
 #include "yt-search/encode.h"
 #include <chrono>
 #include <stdio.h>
+
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
 /*#include "uWebSockets/AsyncFileReader.h"
 #include "uWebSockets/AsyncFileStreamer.h"
 #include "uWebSockets/Middleware.h"*/
+#endif
 
 namespace musicat::server
 {

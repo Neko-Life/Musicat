@@ -105,7 +105,11 @@ if (UNIX)
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
 		DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
 
-	add_dependencies(Shasha deps uWebSockets)
+	add_dependencies(Shasha deps)
+
+	if (NOT MUSICAT_NO_SERVER)
+		add_dependencies(Shasha uWebSockets)
+	endif()
 
 	add_custom_target(deps
 		DEPENDS ShashaDeps)

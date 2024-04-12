@@ -1,9 +1,12 @@
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player::events
 {
+#ifndef MUSICAT_NO_SERVER
 
 inline constexpr const socket_event_handler_t socket_event_handlers[]
     = { { SOCKET_EVENT_ERROR, NULL } };
@@ -86,4 +89,5 @@ message (uws_ws_t *ws, std::string_view msg, uWS::OpCode code)
         }
 }
 
+#endif
 } // musicat::server::ws::player::events

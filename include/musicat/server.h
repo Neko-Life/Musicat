@@ -3,12 +3,13 @@
 
 #include <mutex>
 #include <string>
+
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 #define SERVER_WITH_SSL false
 #define BOT_AVATAR_SIZE 480
-
-#define MUSICAT_NO_SERVER
 
 namespace musicat::server
 {
