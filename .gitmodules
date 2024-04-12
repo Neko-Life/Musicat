@@ -29,3 +29,6 @@
 [submodule "libs/cppcodec"]
 	path = libs/cppcodec
 	url = https://github.com/tplgy/cppcodec.git
+[submodule "windows/libs/postgres"]
+	path = windows/libs/postgres
+	url = https://github.com/postgres/postgres.git
