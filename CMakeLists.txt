@@ -20,7 +20,7 @@ if (MSVC)
 
 	# disable server on windows
 	set(MUSICAT_NO_SERVER ON)
-elseif (UNIX)
+else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
@@ -76,8 +76,8 @@ add_executable(Shasha
 	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
-# uWebSockets
-if (UNIX)
+if (NOT MSVC)
+	# uWebSockets
 	if (NOT MUSICAT_NO_SERVER)
 		set(USOCKETS_OBJECT_FILES
 			${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/bsd.o
@@ -109,6 +109,7 @@ if (UNIX)
 		add_dependencies(Shasha uWebSockets)
 	endif()
 
+	# other deps specified in libs/Makefile
 	add_custom_command(OUTPUT ShashaDeps
 		COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
@@ -148,6 +149,9 @@ if (UNIX)
 
 		add_dependencies(archlinux-dist archlinux-dist-cp-gnuplot)
 	endif()
+else()
+	# MSVC deps
+
 endif()
 
 if (MUSICAT_WITH_CORO) 
@@ -163,30 +167,32 @@ if (MUSICAT_DEBUG_SYMBOL)
 	message("-- INFO: Will build Musicat with debug symbol")
 	if (MSVC)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Debug")
-	elseif (UNIX)
+	else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 	endif()
 endif()
 
 if (MSVC)
-	# vcpkg cmake confs
-
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows)
-	set(FIND_PATH_HINTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include")
+	# vcpkg cmake confs, PLANNED TO BE UNUSED
+	# set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows)
+	# set(FIND_PATH_HINTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include")
 
 	# uwebsockets
-	find_path(UWEBSOCKETS_INCLUDE_DIRS "uwebsockets/App.h"
-		HINTS ${FIND_PATH_HINTS}
-	)
-	target_include_directories(Shasha PRIVATE ${UWEBSOCKETS_INCLUDE_DIRS})
+	# find_path(UWEBSOCKETS_INCLUDE_DIRS "uwebsockets/App.h"
+	# 	HINTS ${FIND_PATH_HINTS}
+	# )
+	# target_include_directories(Shasha PRIVATE ${UWEBSOCKETS_INCLUDE_DIRS})
 
 	# curlpp
 	# find_package(unofficial-curlpp CONFIG REQUIRED)
 	# target_link_libraries(Shasha PRIVATE unofficial::curlpp::curlpp)
 
 	# libpq
-	find_package(PostgreSQL REQUIRED)
-	target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
+	# find_package(PostgreSQL REQUIRED)
+	# target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
+
+	# manual installation (non-vcpkg)
+
 
 	# submodules
 	target_include_directories(Shasha PRIVATE
@@ -201,7 +207,7 @@ if (MSVC)
 		# Remember to add the include directories of any other libraries too
 		)
 
-elseif (UNIX)
+else()
 	# Linking libraries
 	target_link_libraries(Shasha
 		dpp
