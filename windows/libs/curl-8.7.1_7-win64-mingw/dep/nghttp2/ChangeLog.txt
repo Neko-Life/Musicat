@@ -1,0 +1,856 @@
+commit d76b8331d16200df3d969d94438a96495ffbe42b
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-04
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Update bash_completion
+
+commit 0655cb3be4e98dabdfc51c8ff261c4c9bc7f3004
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-04
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Update manual pages
+
+commit 7a88a0d019fa94f66e3ec4c786511daab16f0638
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-04
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Bump package and library versions
+
+commit 086103193aba69d5587d77c28786073b8af32271
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-04
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Update AUTHORS
+
+commit d71a4668c6bead55805d18810d633fbb98315af9
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-09
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Add nghttp2_option_set_max_continuations
+
+commit 00201ecd8f982da3b67d4f6868af72a1b03b14e0
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-09
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    Limit CONTINUATION frames following an incoming HEADER frame
+
+commit 605d9fdd6845e984ee2d1d39f14905d9b61ac04e
+Merge: c68456cc 749e1d8b
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-04-04
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-04-04
+
+    Merge pull request #2134 from nghttp2/nghttpd-fix-stall
+    
+    nghttpd: Fix read stall
+
+commit 749e1d8bd29adcd0670c26c3a2cc879da3ad2475
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-04
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-04
+
+    nghttpd: Fix read stall
+
+commit c68456cc688fdbe0896f3cf08a9e4430dcbec640
+Merge: fe063640 68f71ad5
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-04-03
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-04-03
+
+    Merge pull request #2133 from nghttp2/nghttpx-fix-error-message
+    
+    nghttpx: Fix error message
+
+commit fe0636401128993e33315d961e899a9076e785df
+Merge: b0b14bf5 f15e3713
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-04-03
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-04-03
+
+    Merge pull request #2131 from nghttp2/bump-munit
+    
+    Bump munit
+
+commit 68f71ad5fbf7c5fa55c7f4a1c664a6c8f2c82031
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-03
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-03
+
+    nghttpx: Fix error message
+
+commit f15e3713ad81c681e46e774233d835327baa1496
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-03
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-03
+
+    Bump munit
+
+commit b0b14bf5b659bd5f752ac6cd4aa5bd433a397338
+Merge: c9c4f0bb d3232465
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-04-03
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-04-03
+
+    Merge pull request #2132 from nghttp2/nghttpx-ares-getaddrinfo
+    
+    nghttpx: Migrate to ares_getaddrinfo
+
+commit d32324658a05fae40fa435021f3340c77413c7c1
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-04-03
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-04-03
+
+    nghttpx: Migrate to ares_getaddrinfo
+
+commit c9c4f0bb1803fabfd9689d12675ccb185bcd39ba
+Merge: 4c74be62 fbcb9154
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-31
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-31
+
+    Merge pull request #2129 from nghttp2/nghttpx-quic-lb
+    
+    nghttpx: Allocate 3 bits for QUIC configuration in Connection ID
+
+commit 4c74be62e3b6db8a0e0b2cfb9ebe85ae93bea511
+Merge: 241b1973 7a507f9a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-31
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-31
+
+    Merge pull request #2128 from jimmy-park/fix-cmake-warning
+    
+    cmake: check `SSL_provide_quic_data` when `ENABLE_HTTP3` is `ON`
+
+commit fbcb9154fcba4158d19b2c037c2c043c4a5f4701
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-31
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-31
+
+    nghttpx: Allocate 3 bits for QUIC configuration in Connection ID
+    
+    Allocate 3 bits for QUIC configuration in Connection ID that matches
+    the current QUIC LB draft.
+
+commit 7a507f9a617e5513fce76ade89015007de32f894
+Author:     Jiwoo Park <jiwoo_90@naver.com>
+AuthorDate: 2024-03-31
+Commit:     Jiwoo Park <jiwoo_90@naver.com>
+CommitDate: 2024-03-31
+
+    Check SSL_provide_quic_data when ENABLE_HTTP3 is ON
+
+commit 241b1973cb62694eb588cce045fa9950fe3c48e7
+Merge: 5483edde e8c45f4b
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-31
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-31
+
+    Merge pull request #2127 from nghttp2/bpf-drop-bad-quic-packet
+    
+    bpf: Drop bad QUIC packet
+
+commit e8c45f4bfdaba0896aa8f72095a85233dfbc45bf
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-31
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-31
+
+    bpf: Drop bad QUIC packet
+    
+    Drop QUIC packet if it is less than valid QUIC packet or it is coming
+    from one of remote ports that are known to be a UDP service that can
+    be used as a UDP reflection attack.
+
+commit 5483edded8523e394a144e21af71c04aa306bb0b
+Merge: cd7d5166 edd2070a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-31
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-31
+
+    Merge pull request #2126 from nghttp2/nghttpx-worker-process-thread
+    
+    nghttpx: Split thread into worker_process and thread
+
+commit edd2070a11a438ca2f10fe08a80fb05f2120c107
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-31
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-31
+
+    nghttpx: Split thread into worker_process and thread
+    
+    Split thread into worker_process and thread.  Use thread to O(1)
+    lookup for Worker.  This new machinery is not compatible to the
+    previous version.  The old instance of nghttpx must not be upgraded
+    with USR2 signal.  It should be restarted instead.
+
+commit cd7d5166f19470d9620b540e45513610ce270f95
+Merge: 4dea77ce 6e57c137
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-30
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-30
+
+    Merge pull request #2125 from nghttp2/nghttpx-faster-worker-lookup
+    
+    Nghttpx faster worker lookup
+
+commit 6e57c13727c2f0df8d38ef8b74cd7878f9ffb2fb
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-30
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-30
+
+    Faster worker lookup
+
+commit a2f8f751456c55bdfeaac3bb83876b83f8110e91
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-30
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-30
+
+    Rename iwps to lwps
+
+commit 4dea77ce391cb35dbfcaab5dd717300390153e74
+Merge: c97376d4 ab4b37af
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-30
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-30
+
+    Merge pull request #2124 from nghttp2/nghttpx-cid
+    
+    nghttpx: Rework Connection ID construction
+
+commit ab4b37afab035b8ba704ec49f89a9c4b7d5fd868
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-29
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-30
+
+    nghttpx: Rework Connection ID construction
+
+commit c97376d456a8dbc3e790541aac7a09c06ce8e9d9
+Merge: 408149ce b3bb189c
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-28
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-28
+
+    Merge pull request #2122 from nghttp2/nghttpx-stateless-reset
+    
+    Further reduce Stateless reset emission
+
+commit b3bb189cb8ce4bebb391fb9fdba00f55fd10b4ea
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-28
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-28
+
+    Further reduce Stateless reset emission
+
+commit 408149ce5e3dfcf3cdd74521354b744d143bf4f6
+Merge: cd993a96 f35defd5
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-25
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-25
+
+    Merge pull request #2120 from nghttp2/no-rfc7540-priority-fix
+    
+    No rfc7540 priority fix
+
+commit f35defd57aab76931e2ef663631e118465bdfcca
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-25
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-25
+
+    Remove stream from queue on deletion
+    
+    Remove stream from queue on deletion.  Run on_stream_close_callback
+    before deallocating item in case that a frame is submitted in the
+    callback which is highly unusual in practice.
+
+commit 97c4b72b6abc31154766f9b812788e1f51633eea
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-25
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-25
+
+    Decrement num_idle_streams when opening idle stream
+
+commit 9277c1ab4027c170c090ab570324baef70242a7d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-25
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-25
+
+    Detach item from stream on memory allocation failure
+
+commit cd993a96483d6d3b28aad27c73e37b6c970d9501
+Merge: f08e3393 d5cf5621
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-25
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-25
+
+    Merge pull request #2119 from nghttp2/nghttp-keylog
+    
+    nghttp: Support SSLKEYLOGFILE
+
+commit d5cf5621d7affc82c52be44115f799e221d0c17d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-25
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-25
+
+    nghttp: Support SSLKEYLOGFILE
+
+commit f08e3393cb634257963f1323e6926fe44f454658
+Merge: eecff14c 8c885ca0
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-23
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-23
+
+    Merge pull request #2117 from nghttp2/nghttpx-discard-short-quic-pkt
+    
+    nghttpx: Discard UDP datagram that is too short to be a valid QUIC packet
+
+commit 8c885ca0f47670d77c25c281d51f01322fb9c26c
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-23
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-23
+
+    nghttpx: Discard UDP datagram that is too short to be a valid QUIC packet
+
+commit eecff14cf2b06e922185b97caac7444d14bd5352
+Merge: e98df054 2a52b957
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-23
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-23
+
+    Merge pull request #2116 from nghttp2/stale
+    
+    Add actions/stale
+
+commit 2a52b957735844ad5601e5c9a0c7d0901b2b44a5
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-23
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-23
+
+    Add actions/stale
+
+commit e98df054327ad7a7cb8e7854fb0f5c8e6ed26fc5
+Merge: 58ba3b17 d242dc8b
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-22
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-22
+
+    Merge pull request #2115 from nghttp2/nghttpx-quic-more-prohibited-ports
+    
+    nghttpx: More QUIC prohibited ports
+
+commit d242dc8bd5f62f829544b9b59a5667538b79bc4e
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-22
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-22
+
+    nghttpx: More QUIC prohibited ports
+
+commit 58ba3b178bdc2a78078c2053cd0a06289293c70c
+Merge: bf06b483 4c246298
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-22
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-22
+
+    Merge pull request #2114 from nghttp2/nghttpx-quic-stateless-reset-size
+    
+    nghttpx: Rework QUIC stateless reset packet size
+
+commit 4c246298546bc4c9e412a78d7d4e52ad7d9cf8c5
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-22
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-22
+
+    nghttpx: Rework QUIC stateless reset packet size
+
+commit bf06b48368b4d71d542cf26b5c67f7f35fe07717
+Merge: fc2ee9f4 c4d150de
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-21
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-21
+
+    Merge pull request #2113 from nghttp2/h2load-host-override
+    
+    h2load: Allow host header to be overridden
+
+commit c4d150dec6be745a735eab3595efc2fd9e6ed070
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-21
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-21
+
+    h2load: Allow host header to be overridden
+    
+    Remove :host header override which is deprecated SPDY header.
+    Instead, add host header to the override header list.
+
+commit fc2ee9f41ea3bae99875c1b5a2a880a8bfc920ee
+Merge: 78ab8b13 bbddd550
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-21
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-21
+
+    Merge pull request #2112 from nghttp2/nghttpx-fix-port
+    
+    nghttpx: Fix port byte order
+
+commit bbddd550c60a541bd08f7b0537a8c3c7fbf1d004
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-21
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-21
+
+    nghttpx: Fix port byte order
+
+commit 78ab8b13302bae1da3c5f455c1cf09b85c9fbcc9
+Merge: 29b87d54 5acd3c75
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-21
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-21
+
+    Merge pull request #2111 from nghttp2/nghttpx-quic-port
+    
+    nghttpx: Drop a UDP datagram from well-known port
+
+commit 5acd3c75f720a2b5c8bb782f7cc3c90432d75bc4
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-21
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-21
+
+    nghttpx: Drop a UDP datagram from well-known port
+
+commit 29b87d54341053974d9c151bfb748f90faa98288
+Merge: ab30dbaf 39cc6fd8
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-20
+
+    Merge pull request #2110 from nghttp2/tar-pax
+    
+    autotools: Switch to tar-pax
+
+commit 39cc6fd8b271ec023880825b9572016d662eefaa
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-20
+
+    autotools: Switch to tar-pax
+
+commit ab30dbaf00b44f681b9bc0cd6bbf3d1b71f5016e
+Merge: a50f408a c3fe715b
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-20
+
+    Merge pull request #2109 from nghttp2/automate-release
+    
+    Automate release process
+
+commit a50f408acf75eed2aa1caf5bf661006a1d129a6e
+Merge: 747e9e67 bb0f2e82
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-20
+
+    Merge pull request #2108 from nghttp2/tar-ustar
+    
+    autotools: Use tar-ustar automake option
+
+commit bb0f2e822d0967b344e7631fc636774dc7b30a3d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-20
+
+    autotools: Use tar-ustar automake option
+
+commit c3fe715be2640bea9b9395b3126dbdd3b75b2373
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-20
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-20
+
+    Automate release process
+
+commit 747e9e676dab9c717cebd99298faecebead63d16
+Merge: 4bda611e d1025ea7
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-20
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-20
+
+    Merge pull request #2107 from nghttp2/dependabot/go_modules/github.com/quic-go/quic-go-0.42.0
+    
+    build(deps): bump github.com/quic-go/quic-go from 0.41.0 to 0.42.0
+
+commit d1025ea7e6b9d3414e1aa59a97478cf0a9791b04
+Author:     dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+AuthorDate: 2024-03-18
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-18
+
+    build(deps): bump github.com/quic-go/quic-go from 0.41.0 to 0.42.0
+    
+    Bumps [github.com/quic-go/quic-go](https://github.com/quic-go/quic-go) from 0.41.0 to 0.42.0.
+    - [Release notes](https://github.com/quic-go/quic-go/releases)
+    - [Changelog](https://github.com/quic-go/quic-go/blob/master/Changelog.md)
+    - [Commits](https://github.com/quic-go/quic-go/compare/v0.41.0...v0.42.0)
+    
+    ---
+    updated-dependencies:
+    - dependency-name: github.com/quic-go/quic-go
+      dependency-type: direct:production
+      update-type: version-update:semver-minor
+    ...
+    
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+commit 4bda611ee462848c6613ee86adafd1f02917181e
+Merge: 7d516c23 ffea7c87
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-18
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-18
+
+    Merge pull request #2106 from nghttp2/nghttpx-simplify-cc-handling
+    
+    nghttpx: Simplify quic connection close handling
+
+commit ffea7c8793ea679971eab6b41d9a98c23fea3934
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-18
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-18
+
+    nghttpx: Simplify quic connection close handling
+    
+    Simplify quic connection close handling with new ngtcp2 API.
+
+commit 7d516c23c25fd3e6e115b822a0a3d07dd455ccd2
+Merge: a46950e9 fe9a989a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-18
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-18
+
+    Merge pull request #2105 from nghttp2/bump-ngtcp2
+    
+    Bump ngtcp2
+
+commit fe9a989a39a5b95717b1bb4e9f0cdbfb12497e1d
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-18
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-18
+
+    boringssl requires C++ runtime
+
+commit 9c30ba7f35e80a6b6acbe06eea3e34eace435ae6
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-18
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-18
+
+    Bump ngtcp2
+
+commit a46950e9729e7da6051850ec6ea0106173940cfe
+Merge: 7c644e49 945940e1
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-17
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-17
+
+    Merge pull request #2103 from nghttp2/base-nossl
+    
+    Switch to distroless/base-nossl
+
+commit 7c644e498289740f4a812061f445076a1487f957
+Merge: 061998e6 be512f82
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-17
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-17
+
+    Merge pull request #2102 from nghttp2/rewrite-hexdump
+    
+    Rewrite hexdump
+
+commit 945940e1312b3346614f73afcbbd34784ce1d2af
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-17
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-17
+
+    Switch to distroless/base-nossl
+
+commit be512f8298b8eed3ab2866d56ffa3c991a112dda
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-17
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-17
+
+    Rewrite hexdump
+
+commit 061998e6cff705e94d42df6a6b0341c110c8f541
+Merge: a7379389 ceccba09
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-16
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-16
+
+    Merge pull request #2101 from nghttp2/nghttpx-fix-header-timeout-in-conf
+    
+    nghttpx: Fix frontend-header-timeout does not work in config file
+
+commit ceccba099784b6100db5b86294b9f5e99bec5cc9
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-16
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-16
+
+    nghttpx: Fix frontend-header-timeout does not work in config file
+
+commit a7379389f1ee5f089df89739540c3920e2f144ab
+Merge: 566737cc 9fbde385
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-16
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-16
+
+    Merge pull request #2100 from nghttp2/nghttpx-header-idle-timeout
+    
+    Nghttpx header idle timeout
+
+commit 9fbde38571d2a45cecd2cfa65a9ec39b4bd18244
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-16
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-16
+
+    Rename frontend-*-read-timeout to frontend-*-idle-timeout
+    
+    Rename frontend-*-read-timeout to frontend-*-idle-timeout so that the
+    name of the option suggests what it does.
+
+commit c8e149994e4211d63f3b7a1050a695f0538b1b9c
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-16
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-16
+
+    nghttpx: Add frontend-header-timeout option
+    
+    Add frontend-header-timeout option.  frontend-read-timeout is
+    deprecated and has no effect.  Use frontend-header-timeout as a
+    replacement.  This also fixes the bug that HTTP/3 header timeout is
+    not set per stream.
+
+commit 566737ccc85b6973338859ae3c0fc443fa749035
+Merge: 208b3caa f28d385e
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-15
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-15
+
+    Merge pull request #2099 from nghttp2/docker-copy-link
+    
+    docker: Use copy --link
+
+commit f28d385e78ee782657c117cce114210aa9e9e042
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-15
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-15
+
+    docker: Use copy --link
+
+commit 208b3caa0f0b83f83341af7485c5001e0427c8e3
+Merge: b922740e 7ebd0a84
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-15
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-15
+
+    Merge pull request #2098 from nghttp2/llvm-workaround
+    
+    Workaround llvm issue on github ubuntu runner
+
+commit 7ebd0a84ec29f6e7fda89fa558361e6677fa3861
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-15
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-15
+
+    Workaround llvm issue on github ubuntu runner
+
+commit b922740e56c4290f13e549252dd6ecf8173caeed
+Merge: a35f3d16 d8bb6d2a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-15
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-15
+
+    Merge pull request #2097 from nghttp2/dependabot/go_modules/golang.org/x/net-0.22.0
+    
+    build(deps): bump golang.org/x/net from 0.21.0 to 0.22.0
+
+commit d8bb6d2afeb259af4ccad96600a9772b15dba4ef
+Author:     dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+AuthorDate: 2024-03-11
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-11
+
+    build(deps): bump golang.org/x/net from 0.21.0 to 0.22.0
+    
+    Bumps [golang.org/x/net](https://github.com/golang/net) from 0.21.0 to 0.22.0.
+    - [Commits](https://github.com/golang/net/compare/v0.21.0...v0.22.0)
+    
+    ---
+    updated-dependencies:
+    - dependency-name: golang.org/x/net
+      dependency-type: direct:production
+      update-type: version-update:semver-minor
+    ...
+    
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+commit a35f3d16dbe0127a65e7e6d9bc48faa13199aeda
+Merge: ebb92d2f be76c13d
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-06
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-06
+
+    Merge pull request #2092 from jonaski/cmake_static
+    
+    Respect BUILD_STATIC_LIBS and add option for tests
+
+commit be76c13da86870c23ac4cfb157cd6ab3cf354b03
+Author:     Jonas Kvinge <jonas@jkvinge.net>
+AuthorDate: 2024-03-04
+Commit:     Jonas Kvinge <jonas@jkvinge.net>
+CommitDate: 2024-03-04
+
+    build: Add BUILD_STATIC_LIBS and BUILD_TESTING
+
+commit b8a307ec63ccd8ec6762582855428e7f36ae20ef
+Author:     Jonas Kvinge <jonas@jkvinge.net>
+AuthorDate: 2024-03-02
+Commit:     Jonas Kvinge <jonas@jkvinge.net>
+CommitDate: 2024-03-04
+
+    CMake: Respect BUILD_STATIC_LIBS
+    
+    Respect BUILD_STATIC_LIBS and add option for tests.
+    
+    This also fixes the library conflict with MSVC by setting STATIC_LIB_SUFFIX so it's using "nghttp2_static" when both static and shared library is built, since the lib name currently conflicts with the shared when STATIC_LIB_SUFFIX was not set.
+    
+    Fixes #2088
+
+commit ebb92d2ff73c77bf0d3587f665d8e7c38b6df547
+Merge: ac2e671d ce39c2ad
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-04
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-04
+
+    Merge pull request #2093 from jonaski/ci
+    
+    Checkout with submodules
+
+commit ce39c2ade0fb7b3e64547e5a922bd49adf041e44
+Author:     Jonas Kvinge <jonas@jkvinge.net>
+AuthorDate: 2024-03-02
+Commit:     Jonas Kvinge <jonas@jkvinge.net>
+CommitDate: 2024-03-03
+
+    docker: Checkout with submodules
+
+commit 3cf262f23128f4e7c7d887745b905df9076d452e
+Author:     Jonas Kvinge <jonas@jkvinge.net>
+AuthorDate: 2024-03-02
+Commit:     Jonas Kvinge <jonas@jkvinge.net>
+CommitDate: 2024-03-03
+
+    build: Checkout with submodules
+
+commit ac2e671d80fdc2268850c3cfd920efb1ede408ec
+Merge: 99e74139 86049b7a
+Author:     Tatsuhiro Tsujikawa <404610+tatsuhiro-t@users.noreply.github.com>
+AuthorDate: 2024-03-02
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2024-03-02
+
+    Merge pull request #2087 from nghttp2/nghttpx-h3-trailer-shutdown-read
+    
+    nghttpx: Shutdown h3 stream read with trailer as well
+
+commit 86049b7af2bb2d8776c44b9d26245f35f3f10449
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-02
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-02
+
+    nghttpx: Shutdown h3 stream read with trailer as well
+
+commit 99e74139383d0a812bf81dd718c8ad63e975f5a6
+Author:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+AuthorDate: 2024-03-01
+Commit:     Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
+CommitDate: 2024-03-01
+
+    Bump package version
