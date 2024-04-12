@@ -1,7 +1,5 @@
 {
   "dependencies": [
-    "curl",
-    "libpq",
-    "uwebsockets"
+    "curl"
   ]
 }
