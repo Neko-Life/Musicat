@@ -6,7 +6,9 @@
 namespace musicat::server::routes
 {
 
+#ifndef MUSICAT_NO_SERVER
 void get_guilds (APIResponse *res, APIRequest *req);
+#endif
 
 } // musicat::server::routes
 

@@ -9,6 +9,7 @@
 namespace musicat::server::middlewares
 {
 
+#ifndef MUSICAT_NO_SERVER
 static std::vector<std::string> _cors_enabled_origins = {};
 
 header_v_t
@@ -280,5 +281,6 @@ set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild)
     auto i_member = g->members.find (user_id);
     guild["is_mutual"] = i_member != g->members.end ();
 }
+#endif
 
 } // musicat::server::middlewares

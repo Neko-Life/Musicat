@@ -23,6 +23,7 @@
 namespace musicat::server::ws::player
 {
 
+#ifndef MUSICAT_NO_SERVER
 struct SocketData
 {
     dpp::snowflake server_id;
@@ -53,6 +54,7 @@ nlohmann::json create_error_data (const socket_err_code_e code,
 // utils to create json payload
 nlohmann::json create (const socket_event_e event, const nlohmann::json &data);
 */
+#endif
 } // musicat::server::ws::player
 
 #endif // MUSICAT_SERVER_WS_PLAYER_H

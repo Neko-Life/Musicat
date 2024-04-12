@@ -9,6 +9,7 @@ project(Musicat
 option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
 option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" ON)
 option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
+option(MUSICAT_NO_SERVER "Disable Musicat server" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
@@ -16,6 +17,9 @@ set(DPP_USE_EXTERNAL_JSON ON)
 
 if (MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall /W4")
+
+	# disable server on windows
+	set(MUSICAT_NO_SERVER ON)
 elseif (UNIX)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
@@ -41,23 +45,34 @@ file(GLOB_RECURSE MUSICAT_SOURCE_FILES
 file(GLOB_RECURSE ELIZA_SOURCE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/ELIZA/src/eliza.cpp)
 
+list(APPEND MUSICAT_HEADER_FILES 
+	"include/nlohmann/json.hpp")
+
+if (MUSICAT_NO_SERVER)
+	message("-- INFO: Musicat uWebSockets server disabled")
+	add_compile_definitions(MUSICAT_NO_SERVER)
+else()
+	list(APPEND MUSICAT_HEADER_FILES
+		"libs/uWebSockets/uSockets/src/libusockets.h"
+		"libs/uWebSockets/uSockets/src/quic.h")
+endif()
+
+list(APPEND MUSICAT_SOURCE_FILES
+	"libs/yt-search.h/src/yt-search/encode.cpp"
+	"libs/yt-search.h/src/yt-search/yt-playlist.cpp"
+	"libs/yt-search.h/src/yt-search/yt-search.cpp"
+	"libs/yt-search.h/src/yt-search/yt-track-info.cpp"
+	"libs/nekos-bestpp/src/nekos-best++.cpp")
+
 # Create an executable
 add_executable(Shasha
 	# include files
 	${MUSICAT_HEADER_FILES}
-	include/nlohmann/json.hpp
-	libs/uWebSockets/uSockets/src/libusockets.h
-	libs/uWebSockets/uSockets/src/quic.h
 	# ${ELIZA_HEADER_FILES}
 	# !TODO: include/uWebSockets/files
 
 	# impl files
 	${MUSICAT_SOURCE_FILES}
-	libs/yt-search.h/src/yt-search/encode.cpp
-	libs/yt-search.h/src/yt-search/yt-playlist.cpp
-	libs/yt-search.h/src/yt-search/yt-search.cpp
-	libs/yt-search.h/src/yt-search/yt-track-info.cpp
-	libs/nekos-bestpp/src/nekos-best++.cpp
 	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
@@ -168,7 +183,7 @@ if (MSVC)
 
 	# libpq
 	find_package(PostgreSQL REQUIRED)
-    target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
+	target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
 
 	# submodules
 	target_include_directories(Shasha PRIVATE

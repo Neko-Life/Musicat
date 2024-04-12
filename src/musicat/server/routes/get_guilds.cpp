@@ -6,6 +6,7 @@
 namespace musicat::server::routes
 {
 
+#ifndef MUSICAT_NO_SERVER
 void
 set_guilds_is_mutual (const std::string &user_id, nlohmann::json &guilds)
 {
@@ -120,5 +121,6 @@ get_guilds (APIResponse *res, APIRequest *req)
     middlewares::set_content_type_json (res);
     res->end (response::payload (r).dump ());
 }
+#endif
 
 } // musicat::server::routes

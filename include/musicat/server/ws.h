@@ -7,7 +7,9 @@
 namespace musicat::server::ws
 {
 
+#ifndef MUSICAT_NO_SERVER
 void define_ws_routes (APIApp *app);
+#endif
 
 } // musicat::server::ws
 

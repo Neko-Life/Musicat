@@ -8,9 +8,12 @@
 #define SERVER_WITH_SSL false
 #define BOT_AVATAR_SIZE 480
 
+#define MUSICAT_NO_SERVER
+
 namespace musicat::server
 {
 
+#ifndef MUSICAT_NO_SERVER
 #if SERVER_WITH_SSL == true
 using APIApp = uWS::SSLApp;
 #else
@@ -19,6 +22,7 @@ using APIApp = uWS::App;
 
 using APIResponse = uWS::HttpResponse<SERVER_WITH_SSL>;
 using APIRequest = uWS::HttpRequest;
+#endif
 
 inline constexpr const struct
 {

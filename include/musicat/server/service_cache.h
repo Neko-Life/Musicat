@@ -1,6 +1,7 @@
 #ifndef MUSICAT_SERVER_SERVICE_CACHE_H
 #define MUSICAT_SERVER_SERVICE_CACHE_H
 
+#include "musicat/server.h"
 #include "nlohmann/json.hpp"
 #include <dpp/dpp.h>
 #include <mutex>
@@ -8,6 +9,7 @@
 namespace musicat::server::service_cache
 {
 
+#ifndef MUSICAT_NO_SERVER
 /* extern std::mutex cache_m; // EXTERN_VARIABLE */
 
 void set (const std::string &key, const nlohmann::json &value);
@@ -33,6 +35,7 @@ void set_cached_user_guilds (const std::string &user_id,
 void handle_guild_create (const dpp::guild_create_t &e);
 
 void handle_guild_delete (const dpp::guild_delete_t &e);
+#endif
 
 } // musicat::server::service_cache
 

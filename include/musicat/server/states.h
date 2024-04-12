@@ -9,6 +9,7 @@
 namespace musicat::server::states
 {
 
+#ifndef MUSICAT_NO_SERVER
 struct recv_body_t
 {
     long long ts;
@@ -67,6 +68,7 @@ int remove_timer (const oauth_timer_t &t);
 int check_timers ();
 int remove_all_timers ();
 oauth_timer_t get_oauth_timer (const std::string &val);
+#endif
 
 } // musicat::server::states
 
