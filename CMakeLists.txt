@@ -153,7 +153,7 @@ if (NOT MSVC)
 	endif()
 else()
 	# MSVC deps
-	set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/bin/libcurl-x64.dll")
+	set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/bin/libcurl-x64.lib")
 	set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/include/")
 endif()
 
@@ -206,6 +206,7 @@ if (MSVC)
 	# target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
 
 	# manual installation (non-vcpkg)
+	list(APPEND MUSICAT_INC_DIRS ${CURL_INCLUDE_DIR})
 else()
 	list(APPEND MUSICAT_INC_DIRS
 		# uWebSockets
