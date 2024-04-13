@@ -6,8 +6,10 @@ project(Musicat
 	LANGUAGES CXX
 	DESCRIPTION "Discord Music Bot written in C++")
 
+	
+# CMAKE_BUILD_TYPE : Debug, Release, RelWithDebInfo and MinSizeRel
+
 option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
-option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" ON)
 option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 option(MUSICAT_NO_SERVER "Disable Musicat server" OFF)
 
@@ -164,19 +166,14 @@ if (MUSICAT_WITH_CORO)
 	set(MUSICAT_CXX_STANDARD 20)
 endif()
 
-if (MUSICAT_DEBUG_SYMBOL)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 	message("-- INFO: Will build Musicat with debug symbol")
-
-	# Debug, Release, RelWithDebInfo and MinSizeRel
-	set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 
 	if (MSVC)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Debug")
 	else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 	endif()
-else()
-	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 list(APPEND MUSICAT_INC_DIRS
