@@ -196,7 +196,10 @@ Player::skip (dpp::voiceconn *v)
                 }
 
             if (skipped)
-                return { removed_tracks, 0 };
+                {
+                    v->voiceclient->insert_marker ("e");
+                    return { removed_tracks, 0 };
+                }
         }
 
     return { {}, -1 };
@@ -458,8 +461,8 @@ get_track_progress (const player::MCTrack &track)
     float byte_per_ms = (float)track.filesize / (float)duration;
 
     int64_t current_ms = track.current_byte && byte_per_ms
-                                   ? (float)track.current_byte / byte_per_ms
-                                   : 0;
+                             ? (float)track.current_byte / byte_per_ms
+                             : 0;
 
     return { current_ms, duration, 0 };
 }
