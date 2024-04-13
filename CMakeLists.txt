@@ -17,13 +17,11 @@ set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(DPP_USE_EXTERNAL_JSON ON)
 
-if (MINGW)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall /W4")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
+if (MINGW)
 	# disable server on windows
 	set(MUSICAT_NO_SERVER ON)
-else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
 set(WITH_COMPILE_GNUPLOT 0)

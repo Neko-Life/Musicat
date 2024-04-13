@@ -2,12 +2,15 @@
 #define MUSICAT_CHILD_H
 
 #include <string>
-
+/*
 #ifdef WIN32
 #include <windows.h>
 #else
+*/
 #include <semaphore.h>
+/*
 #endif
+*/
 
 #define CMD_BUFSIZE BUFSIZ
 
