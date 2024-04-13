@@ -17,7 +17,7 @@ set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(DPP_USE_EXTERNAL_JSON ON)
 
-if (MSVC)
+if (MINGW)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall /W4")
 
 	# disable server on windows
@@ -78,7 +78,7 @@ add_executable(Shasha
 	${ELIZA_SOURCE_FILES}
 	src/main.cpp)
 
-if (NOT MSVC)
+if (NOT MINGW)
 	# uWebSockets
 	if (NOT MUSICAT_NO_SERVER)
 		set(USOCKETS_OBJECT_FILES
@@ -152,9 +152,9 @@ if (NOT MSVC)
 		add_dependencies(archlinux-dist archlinux-dist-cp-gnuplot)
 	endif()
 else()
-	# MSVC deps
-	set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/bin/libcurl-x64.lib")
-	set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/include/")
+	# MINGW deps
+	# set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/bin/libcurl-x64.lib")
+	# set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/include/")
 endif()
 
 if (MUSICAT_WITH_CORO) 
@@ -169,7 +169,7 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 	message("-- INFO: Will build Musicat with debug symbol")
 
-	if (MSVC)
+	if (MINGW)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Debug")
 	else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
@@ -186,7 +186,7 @@ list(APPEND MUSICAT_INC_DIRS
 	"libs/jwt-cpp/include"
 	"libs/ELIZA/src")
 
-if (MSVC)
+if (MINGW)
 	# vcpkg cmake confs, PLANNED TO BE UNUSED
 	# set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows)
 	# set(FIND_PATH_HINTS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include")
@@ -206,7 +206,8 @@ if (MSVC)
 	# target_link_libraries(Shasha PRIVATE PostgreSQL::PostgreSQL)
 
 	# manual installation (non-vcpkg)
-	list(APPEND MUSICAT_INC_DIRS ${CURL_INCLUDE_DIR})
+	# list(APPEND MUSICAT_INC_DIRS "C:/msys64/usr/include")
+	# list(APPEND MUSICAT_LN_DIRS "C:/msys64/usr/bin")
 else()
 	list(APPEND MUSICAT_INC_DIRS
 		# uWebSockets
