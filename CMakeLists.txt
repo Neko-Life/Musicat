@@ -151,7 +151,8 @@ if (NOT MSVC)
 	endif()
 else()
 	# MSVC deps
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};"${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/")
+	set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/bin/libcurl-x64.dll")
+	set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/windows/libs/curl-8.7.1_7-win64-mingw/include/")
 endif()
 
 if (MUSICAT_WITH_CORO) 
