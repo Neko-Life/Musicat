@@ -334,6 +334,32 @@ class Player
     void set_stopped (const bool &val);
 
     bool is_stopped () const;
+
+    // ============================== FILTERS =============================
+
+    // methods to check if any filter is active
+
+    bool fx_is_tempo_active () const;
+    bool fx_is_pitch_active () const;
+    bool fx_is_equalizer_active () const;
+    bool fx_is_sampling_rate_active () const;
+
+    bool fx_has_vibrato_f () const;
+    bool fx_has_vibrato_d () const;
+    bool fx_is_vibrato_active () const;
+
+    bool fx_has_tremolo_f () const;
+    bool fx_has_tremolo_d () const;
+    bool fx_is_tremolo_active () const;
+
+    bool fx_is_earwax_active () const;
+
+    // !TODO: methods to check if any filter should update
+
+    // get active fx count
+    int fx_get_active_count () const;
+
+    // ====================================================================
 };
 
 class Manager

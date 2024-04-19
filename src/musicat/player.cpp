@@ -435,6 +435,102 @@ Player::is_stopped () const
 {
     return this->stopped;
 }
+
+// ============================== FILTERS =============================
+
+// methods to check if any filter is or should be active
+
+bool
+Player::fx_is_tempo_active () const
+{
+    return this->tempo != 1.0;
+}
+
+bool
+Player::fx_is_pitch_active () const
+{
+    return this->pitch != 0;
+}
+
+bool
+Player::fx_is_equalizer_active () const
+{
+    return !this->equalizer.empty ();
+}
+
+bool
+Player::fx_is_sampling_rate_active () const
+{
+    return this->sampling_rate != -1;
+}
+
+bool
+Player::fx_has_vibrato_f () const
+{
+    return this->vibrato_f != -1;
+}
+
+bool
+Player::fx_has_vibrato_d () const
+{
+    return this->vibrato_d != -1;
+}
+
+bool
+Player::fx_is_vibrato_active () const
+{
+    return this->fx_has_vibrato_f () || this->fx_has_vibrato_d ();
+}
+
+bool
+Player::fx_has_tremolo_f () const
+{
+    return this->tremolo_f != -1;
+}
+bool
+Player::fx_has_tremolo_d () const
+{
+    return this->tremolo_d != -1;
+}
+
+bool
+Player::fx_is_tremolo_active () const
+{
+    return this->fx_has_tremolo_f () || this->fx_has_tremolo_d ();
+}
+
+bool
+Player::fx_is_earwax_active () const
+{
+    return this->earwax;
+}
+
+// get active fx count
+int
+Player::fx_get_active_count () const
+{
+    int count = 0;
+
+    if (this->fx_is_tempo_active ())
+        count++;
+    if (this->fx_is_pitch_active ())
+        count++;
+    if (this->fx_is_equalizer_active ())
+        count++;
+    if (this->fx_is_sampling_rate_active ())
+        count++;
+    if (this->fx_is_vibrato_active ())
+        count++;
+    if (this->fx_is_tremolo_active ())
+        count++;
+    if (this->fx_is_earwax_active ())
+        count++;
+
+    return count;
+}
+
+// ====================================================================
+
 } // player
 
 namespace util

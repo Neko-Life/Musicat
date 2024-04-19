@@ -1,3 +1,4 @@
+#include "musicat/function_macros.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -506,10 +507,9 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     if (!ua.empty ())
         ea.icon_url = ua;
 
-    static const char *l_mode[]
-        = { "Repeat one", "Repeat queue", "Repeat one/queue" };
+    static const char *l_mode[] = { "LO", "LQ", "LOQ" };
 
-    static const char *p_mode[] = { "Paused", "Playing" };
+    static const char *p_mode[] = { MUSICAT_U8 ("⏸️"), MUSICAT_U8 ("▶️") };
 
     string et = mctrack::get_thumbnail (track);
 
@@ -554,7 +554,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                 {
                     has_p = true;
                     if (!ft.empty ())
-                        ft += " | ";
+                        ft += " ";
 
                     if (con->voiceclient->is_paused ())
                         ft += p_mode[0];
@@ -566,7 +566,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     if (force_playing_status && !has_p)
         {
             if (!ft.empty ())
-                ft += " | ";
+                ft += " ";
 
             ft += p_mode[1];
         }
@@ -609,6 +609,18 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                 ft += " | ";
 
             ft += string ("R ") + std::to_string (rpt);
+        }
+
+    int fx_count = guild_player->fx_get_active_count ();
+
+    if (fx_count > 0)
+        {
+            if (!ft.empty ())
+                ft += " | ";
+
+            ft += string ("FX")
+                  + (fx_count > 1 ? " (" + std::to_string (fx_count) + ")"
+                                  : "");
         }
 
     if (!ft.empty ())

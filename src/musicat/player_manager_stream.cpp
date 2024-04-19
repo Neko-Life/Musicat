@@ -664,58 +664,54 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                    + cc::command_options_keys_t.volume + '='
                    + std::to_string (guild_player->volume) + ';';
 
-            if (guild_player->tempo != 1.0)
+            if (guild_player->fx_is_tempo_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (
                            "atempo=" + std::to_string (guild_player->tempo))
                        + ';';
 
-            if (guild_player->pitch != 0)
+            if (guild_player->fx_is_pitch_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (
                            get_ffmpeg_pitch_args (guild_player->pitch))
                        + ';';
 
-            if (!guild_player->equalizer.empty ())
+            if (guild_player->fx_is_equalizer_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value ("superequalizer="
                                                      + guild_player->equalizer)
                        + ';';
 
-            if (guild_player->sampling_rate != -1)
+            if (guild_player->fx_is_sampling_rate_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (
                            "aresample="
                            + std::to_string (guild_player->sampling_rate))
                        + ';';
 
-            bool has_vibrato_f = guild_player->vibrato_f != -1,
-                 has_vibrato_d = guild_player->vibrato_d != -1;
-
-            if (has_vibrato_f || has_vibrato_d)
+            if (guild_player->fx_is_vibrato_active ())
                 {
                     std::string v_args = get_ffmpeg_vibrato_args (
-                        has_vibrato_f, has_vibrato_d, guild_player);
+                        guild_player->fx_has_vibrato_f (),
+                        guild_player->fx_has_vibrato_d (), guild_player);
 
                     cmd += cc::command_options_keys_t.helper_chain + '='
                            + cc::sanitize_command_value ("vibrato=" + v_args)
                            + ';';
                 }
 
-            bool has_tremolo_f = guild_player->tremolo_f != -1,
-                 has_tremolo_d = guild_player->tremolo_d != -1;
-
-            if (has_tremolo_f || has_tremolo_d)
+            if (guild_player->fx_is_tremolo_active ())
                 {
                     std::string v_args = get_ffmpeg_tremolo_args (
-                        has_tremolo_f, has_tremolo_d, guild_player);
+                        guild_player->fx_has_tremolo_f (),
+                        guild_player->fx_has_tremolo_d (), guild_player);
 
                     cmd += cc::command_options_keys_t.helper_chain + '='
                            + cc::sanitize_command_value ("tremolo=" + v_args)
                            + ';';
                 }
 
-            if (guild_player->earwax)
+            if (guild_player->fx_is_earwax_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value ("earwax") + ';';
 
