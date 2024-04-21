@@ -338,20 +338,22 @@ Manager::voice_ready (const dpp::snowflake &guild_id,
     return true;
 }
 
-void
+// !TODO: stop_stream should check if audio_processing loop still running!
+// and return status whether flag is set or not
+int
 Manager::stop_stream (const dpp::snowflake &guild_id)
 {
     auto vs = get_voice_from_gid (guild_id, get_sha_id ());
     if (!vs.first)
-        return;
+        return -1;
 
     auto guild_player = this->get_player (guild_id);
 
-    if (!guild_player)
-        return;
+    if (!guild_player || !guild_player->processing_audio)
+        return -1;
 
     guild_player->current_track.stopping = true;
-    set_stream_stopping (guild_id);
+    return set_stream_stopping (guild_id);
 }
 
 bool

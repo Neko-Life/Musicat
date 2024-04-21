@@ -197,7 +197,6 @@ Player::skip (dpp::voiceconn *v)
 
             if (skipped)
                 {
-                    v->voiceclient->insert_marker ("e");
                     return { removed_tracks, 0 };
                 }
         }

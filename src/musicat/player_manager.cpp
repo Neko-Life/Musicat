@@ -229,8 +229,9 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     auto removed_tracks = guild_player->skip_queue (amount, remove);
 
+    bool stopping = false;
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
-        this->stop_stream (guild_id);
+        stopping = this->stop_stream (guild_id) == 0;
 
     // !TODO: bugfix skip not clearing track repeat
     //
@@ -243,6 +244,9 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     if (remove && !guild_player->stopped && v && v->voiceclient)
         v->voiceclient->insert_marker ("rm");
+
+    if (status == 0 && !stopping)
+        v->voiceclient->insert_marker ("e");
 
     return { removed_tracks, status };
 }
@@ -352,8 +356,13 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                 std::cerr << "[Manager::play] Attempt to stream: " << server_id
                           << ' ' << voice_channel_id << '\n';
 
+            auto guild_player = this->get_player (server_id);
+
             try
                 {
+                    if (guild_player)
+                        guild_player->processing_audio = true;
+
                     this->stream (v, track);
                 }
             catch (int e)
@@ -393,6 +402,9 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 
         skip_send_msg:
             track.stopping = false;
+
+            if (guild_player)
+                guild_player->processing_audio = false;
 
             if (v && !v->terminating)
                 {

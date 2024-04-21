@@ -249,6 +249,11 @@ class Player
     bool set_equalizer;
 
     /**
+     * @brief Is processing audio?
+     */
+    bool processing_audio;
+
+    /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
@@ -506,7 +511,7 @@ class Manager
     /**
      * @brief Stop guild player audio stream
      */
-    void stop_stream (const dpp::snowflake &guild_id);
+    int stop_stream (const dpp::snowflake &guild_id);
 
     /**
      * @brief Skip currently playing song
