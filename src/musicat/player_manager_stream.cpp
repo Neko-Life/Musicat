@@ -368,6 +368,9 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
             helper_chain_cmd += cmd;
 
+            if (new_equalizer.empty ())
+                states.guild_player->equalizer.clear ();
+
             states.guild_player->set_equalizer = false;
             should_write_helper_chain_cmd = true;
         }
