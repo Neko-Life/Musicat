@@ -125,6 +125,15 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // equalizer_presets
 
+namespace list_filters
+{
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // list_filters
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H
