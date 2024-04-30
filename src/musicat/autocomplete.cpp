@@ -23,13 +23,14 @@ filter_candidates (
             if (fuzzy)
                 // use fuzzy search algorithm
                 {
-                    if (util::fuzzy_match (param, i.first, true)) 
+                    if (util::fuzzy_match (param, i.first, true))
                         is_match = true;
                 }
             // default algorithm
             else
                 {
-                    // !TODO: move this to util::basic_match (search, str, case_insensitive)
+                    // !TODO: move this to util::basic_match (search, str,
+                    // case_insensitive)
                     std::string i2 = i.first;
                     for (char &j : i2)
                         j = std::tolower (j);
@@ -59,11 +60,11 @@ create_response (
 
     for (const std::pair<std::string, std::string> &i : avail)
         {
-            char v[512];
-            char v2[512];
+            std::string v;
+            std::string v2;
 
-            util::u8_limit_length(i.first.c_str(), v);
-            util::u8_limit_length(i.second.c_str(), v2);
+            util::u8_limit_length (i.first.c_str (), v);
+            util::u8_limit_length (i.second.c_str (), v2);
 
             r.add_autocomplete_choice (dpp::command_option_choice (v, v2));
             if (b_25 && r.autocomplete_choices.size () == 25U)

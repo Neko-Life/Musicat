@@ -118,12 +118,13 @@ slash_run (const dpp::slashcommand_t &event)
             {
                 size_t cn = mult * 10 + (++count);
                 const std::string tit = mctrack::get_title (t);
-                char tit_char[512];
+                std::string tit_char;
                 util::u8_limit_length (tit.c_str (), tit_char, 80);
 
                 desc += std::string ("`") + std::to_string (cn) + "`: ["
-                        + tit_char + (tit.length () > 80 ? "..." : "") + "]("
-                        + mctrack::get_url (t) + ")"
+                        + tit_char
+                        + (tit.length () > tit_char.length () ? "..." : "")
+                        + "](" + mctrack::get_url (t) + ")"
                         + search_entry_append_track_info (t) + "\n";
 
                 if (count == 10 || cn == pl_siz)

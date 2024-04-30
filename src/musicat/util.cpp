@@ -17,24 +17,27 @@ join (const bool join, const std::string &str, const std::string &join_str)
     return join ? str + join_str : str;
 }
 
-void
-u8_limit_length (const char *unicode_str, char *buf, int32_t max_length)
+std::string
+u8_limit_length (const char *unicode_str, std::string &out, int32_t max_length)
 {
-    icu_73::UnicodeString unicodeKey (unicode_str);
+    const icu_73::UnicodeString unicodeKey (unicode_str);
 
     const bool debug = get_debug_state ();
 
-    auto v_s = unicodeKey.extract (0, max_length, buf, max_length);
-    buf[max_length] = '\0';
+    const auto unicodeSub = unicodeKey.tempSubString (0, max_length);
+
+    unicodeSub.toUTF8String (out);
 
     if (debug)
         {
             fprintf (stderr,
-                     "[util::u8_limit_length] need_length buf "
-                     "extracted_length max_length: '%d' '%s' "
-                     "'%ld' '%d'\n",
-                     v_s, buf, strnlen (buf, max_length * 4), max_length);
+                     "[util::u8_limit_length] "
+                     "out_length max_length out ori: "
+                     "'%ld' '%d' VVV\n'%s'\n'%s'\n",
+                     out.length (), max_length, out.c_str (), unicode_str);
         }
+
+    return out;
 }
 
 void
