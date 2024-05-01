@@ -61,7 +61,9 @@ read_command (processor_options_t &options)
             status = 0;
             cmd_buf[read_cmd_size] = '\0';
 
-            if (options.debug)
+            const bool debug = get_debug_state ();
+
+            if (debug)
                 {
                     write (STDERR_FILENO, audio_cmd_str, audio_cmd_str_size);
 
@@ -348,8 +350,10 @@ run_standalone (const processor_options_t &options,
             _exit (EXIT_FAILURE);
         }
 
+    bool debug = get_debug_state ();
+
     // redirect ffmpeg stderr to /dev/null
-    if (!options.debug)
+    if (!debug)
         {
             // redirect ffmpeg stderr to /dev/null
             int dnull = open ("/dev/null", O_WRONLY);
@@ -408,7 +412,7 @@ run_standalone (const processor_options_t &options,
          i++)
         args[args_idx++] = rest_args[i];
 
-    if (options.debug)
+    if (debug)
         for (unsigned long i = 0; i < (sizeof (args) / sizeof (args[0])); i++)
             {
                 if (!args[i])
@@ -436,10 +440,12 @@ run_processor (child::command::command_options_t &process_options)
 
     processor_options_t options = create_options ();
     options.file_path = process_options.file_path;
-    options.debug = process_options.debug;
+    /* options.debug = process_options.debug; */
     options.id = process_options.id;
     options.guild_id = process_options.guild_id;
     options.volume = process_options.volume;
+
+    bool debug = get_debug_state ();
 
     run_processor_error_t init_error = SUCCESS;
     run_processor_error_t error_status = SUCCESS;
@@ -645,6 +651,8 @@ run_processor (child::command::command_options_t &process_options)
                 }
 
             read_command (options);
+            debug = get_debug_state ();
+
             if (options.panic_break)
                 break;
 
@@ -663,7 +671,7 @@ run_processor (child::command::command_options_t &process_options)
 
                     // wait for child to finish transferring data
                     waitpid (p_info.cpid, &cstatus, 0);
-                    if (options.debug)
+                    if (debug)
                         fprintf (stderr, "processor child status: %d\n",
                                  cstatus);
 
@@ -802,19 +810,19 @@ run_processor (child::command::command_options_t &process_options)
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
-    if (options.debug)
+    if (debug)
         fprintf (stderr, "waiting for child\n");
 
     cstatus = 0;
 
     waitpid (p_info.cpid, &cstatus, 0); /* Wait for child */
-    if (options.debug)
+    if (debug)
         fprintf (stderr, "processor child status: %d\n", cstatus);
 
     close_valid_fd (&preadfd);
     close_valid_fd (&write_fifo);
 
-    if (options.debug)
+    if (debug)
         fprintf (stderr, "fds closed\n");
 
     close (STDOUT_FILENO);

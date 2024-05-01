@@ -122,8 +122,10 @@ helper_main (helper_chain_t &options)
             _exit (EXIT_FAILURE);
         }
 
+    const bool debug = get_debug_state ();
+
     // redirect ffmpeg stderr to /dev/null
-    if (!options.options.debug)
+    if (!debug)
         {
             // redirect ffmpeg stderr to /dev/null
             int dnull = open ("/dev/null", O_WRONLY);
@@ -158,7 +160,7 @@ helper_main (helper_chain_t &options)
                      "-",
                      (char *)NULL };
 
-    if (options.options.debug)
+    if (debug)
         for (unsigned long i = 0; i < (sizeof (args) / sizeof (args[0])); i++)
             {
                 if (!args[i])
@@ -252,6 +254,7 @@ void
 handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
                          bool is_last_p, bool discard_output)
 {
+    const bool debug = get_debug_state ();
     close_valid_fd (&hci->write_fd);
 
     ssize_t buf_size = 0;
@@ -279,7 +282,7 @@ handle_first_chain_stop (std::deque<helper_chain_t>::iterator hci,
     int status = 0;
     waitpid (hci->pid, &status, 0);
 
-    if (hci->options.debug)
+    if (debug)
         fprintf (stderr,
                  "[helper_processor::manage_processor] chain "
                  "status: "
@@ -501,6 +504,7 @@ init_helpers_pollfd (nfds_t fds_n, bool close_first_write_fd,
 
             if (hi == 0 && close_first_write_fd)
                 {
+                    remove_pending (&pending_write, hc.write_fd);
                     close_valid_fd (&hc.write_fd);
 
                     pfds[fdi].fd = hc.read_fd;
@@ -541,6 +545,27 @@ close_pfds_ni (struct pollfd *pfds, nfds_t ni, nfds_t &fds_n,
     nfds_t new_fds_n = fds_n - 1;
 
     fds_state.clear ();
+
+    if (new_fds_n == 0)
+        {
+            // last fd to process, free resources and return early
+            int fd = pfds[ni].fd;
+
+            char mode = cpy_fds_state.at (ni);
+            bool read_mode = mode == 'r';
+
+            remove_pending (read_mode ? &pending_read : &pending_write, fd);
+
+            close (fd);
+
+            free (pfds);
+            pfds = NULL;
+
+            fds_n = new_fds_n;
+
+            return NULL;
+        }
+
     fds_state.reserve (new_fds_n);
 
     size_t alloc_size = sizeof (struct pollfd) * new_fds_n;
@@ -564,14 +589,17 @@ close_pfds_ni (struct pollfd *pfds, nfds_t ni, nfds_t &fds_n,
         {
             int fd = pfds[hi].fd;
 
+            char mode = cpy_fds_state.at (hi);
+            bool read_mode = mode == 'r';
+
             if (hi == ni)
                 {
+                    remove_pending (read_mode ? &pending_read : &pending_write,
+                                    fd);
+
                     close (fd);
                     continue;
                 }
-
-            char mode = cpy_fds_state.at (hi);
-            bool read_mode = mode == 'r';
 
             new_pfds[fdi].fd = fd;
             new_pfds[fdi++].events = read_mode ? POLLIN : POLLOUT;
@@ -822,9 +850,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     pfds = close_pfds_ni (pfds, ni, fds_n,
                                                           fds_state);
 
-                                    if (!pfds)
-                                        break;
-
                                     if (first_fd)
                                         {
                                             // all hup, lets break and reap all
@@ -1053,6 +1078,28 @@ shutdown_chain (bool discard_output)
 
     int status = run_through_chain (NULL, NULL, discard_output);
 
+    if (!pending_write.empty ())
+        {
+            std::cerr
+                << "[helper_processor::shutdown_chain WARN] Pending write:";
+            for (int c : pending_write)
+                {
+                    std::cerr << " " << c;
+                }
+            std::cerr << "\n";
+        }
+
+    if (!pending_read.empty ())
+        {
+            std::cerr
+                << "[helper_processor::shutdown_chain WARN] Pending read:";
+            for (int c : pending_read)
+                {
+                    std::cerr << " " << c;
+                }
+            std::cerr << "\n";
+        }
+
     pending_write.clear ();
     pending_read.clear ();
 
@@ -1064,25 +1111,12 @@ shutdown_chain (bool discard_output)
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
-            // close_valid_fd (&hci->write_fd);
-
-            // ssize_t buf_size = 0;
-            // uint8_t buf[PROCESSOR_BUFFER_SIZE];
-            // while ((buf_size = read (hci->read_fd, buf,
-            // PROCESSOR_BUFFER_SIZE))
-            //        > 0)
-            //     {
-            //         if (!discard_output)
-            //             // write read buffer to stdout
-            //             audio_processing::write_stdout (buf, &buf_size,
-            //             true);
-            //     }
-
+            int child_status = 0;
+#ifdef SHUTDOWN_WNOHANG
             // sent INT
             kill (hci->pid, SIGINT);
 
             int waited_for = 0;
-            int child_status = 0;
             while (waitpid (hci->pid, &child_status, WNOHANG) != hci->pid)
                 {
                     std::this_thread::sleep_for (
@@ -1103,15 +1137,16 @@ shutdown_chain (bool discard_output)
                             waitpid (hci->pid, &child_status, 0);
                         }
                 }
+#else
+            waitpid (hci->pid, &child_status, 0);
+#endif // SHUTDOWN_WNOHANG
 
-            if (hci->options.debug)
+            if (get_debug_state ())
                 fprintf (stderr,
                          "[helper_processor::manage_processor] chain "
                          "child_status: "
                          "%d `%s`\n",
                          child_status, hci->options.raw_args.c_str ());
-
-            // close_valid_fd (&hci->read_fd);
 
             hci = active_helpers.erase (hci);
         }
