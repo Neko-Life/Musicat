@@ -151,7 +151,8 @@ ssize_t write_stdout (uint8_t *buffer, ssize_t *size,
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient,
                         uint16_t *send_buffer, ssize_t *send_buffer_length,
-                        bool no_wait = false);
+                        bool no_wait = false,
+                        OpusEncoder *opus_encoder = NULL);
 
 // should be run as a child process
 run_processor_error_t

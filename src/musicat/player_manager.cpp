@@ -5,6 +5,7 @@
 #include <chrono>
 #include <dirent.h>
 #include <memory>
+#include <opus/opus.h>
 #include <regex>
 #include <sys/stat.h>
 #include <thread>
@@ -352,16 +353,53 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
             auto server_id = v->server_id;
             auto voice_channel_id = v->channel_id;
 
+            auto guild_player = this->get_player (server_id);
+
             if (debug)
                 std::cerr << "[Manager::play] Attempt to stream: " << server_id
                           << ' ' << voice_channel_id << '\n';
 
-            auto guild_player = this->get_player (server_id);
+            if (!guild_player)
+                {
+                    std::cerr << "[Manager::play ERROR] Guild player missing: "
+                              << server_id << "\n";
+                    return;
+                }
 
             try
                 {
-                    if (guild_player)
-                        guild_player->processing_audio = true;
+                    int error;
+                    guild_player->opus_encoder = opus_encoder_create (
+                        48000, 2, OPUS_APPLICATION_AUDIO, &error);
+
+                    if (error != OPUS_OK)
+                        {
+                            std::cerr << "[Manager::play ERROR] "
+                                         "opus_encoder_create() failure: "
+                                      << error << "\n";
+
+                            guild_player->opus_encoder = NULL;
+
+                            return;
+                        }
+
+                    if ((error = opus_encoder_ctl (
+                             guild_player->opus_encoder,
+                             OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
+                        != OPUS_OK)
+                        {
+
+                            std::cerr << "[Manager::play ERROR] "
+                                         "opus_encoder_ctl() failure: "
+                                      << error << "\n";
+
+                            opus_encoder_destroy (guild_player->opus_encoder);
+                            guild_player->opus_encoder = NULL;
+
+                            return;
+                        }
+
+                    guild_player->processing_audio = true;
 
                     this->stream (v, track);
                 }
@@ -401,10 +439,15 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                 }
 
         skip_send_msg:
+            if (guild_player->opus_encoder)
+                {
+                    opus_encoder_destroy (guild_player->opus_encoder);
+                    guild_player->opus_encoder = NULL;
+                }
+
             track.stopping = false;
 
-            if (guild_player)
-                guild_player->processing_audio = false;
+            guild_player->processing_audio = false;
 
             if (v && !v->terminating)
                 {

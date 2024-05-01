@@ -72,7 +72,14 @@ Player::init ()
 
     this->pitch = 0;
     this->set_pitch = false;
+
+    this->set_equalizer = false;
+
+    this->tried_continuing = false;
     this->failed_playback = 0;
+
+    this->processing_audio = false;
+    this->opus_encoder = NULL;
 }
 
 Player::Player () { this->init (); }

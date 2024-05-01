@@ -243,6 +243,8 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
+    OpusEncoder *opus_encoder;
+
     /**
      * @brief Should set equalizer?
      */

@@ -1,9 +1,12 @@
 #include "musicat/audio_processing.h"
+#include "musicat/audio_config.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
+#include "musicat/config.h"
 #include "musicat/helper_processor.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "opus/opus.h"
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -152,7 +155,8 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 // inside the streaming thread
 int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
-                    ssize_t *send_buffer_length, bool no_wait)
+                    ssize_t *send_buffer_length, bool no_wait,
+                    OpusEncoder *opus_encoder)
 {
     // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
@@ -161,6 +165,8 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
         {
             return 1;
         }
+
+    const bool debug = get_debug_state ();
 
     // calculate duration
     if ((*send_buffer_length > 0))
@@ -204,7 +210,56 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 
     try
         {
-            vclient->send_audio_raw (send_buffer, *send_buffer_length);
+            if (!opus_encoder)
+                return 2;
+
+            /* vclient->send_audio_raw (send_buffer, *send_buffer_length); */
+            std::vector<uint16_t> pcmbuf (send_buffer,
+                                          send_buffer + *send_buffer_length);
+
+            while (!pcmbuf.empty ())
+                {
+                    uint8_t packet[MAX_PACKET];
+
+                    const auto pbufsiz = pcmbuf.size ();
+                    if (pbufsiz < ENCODE_BUFFER_SIZE)
+                        {
+                            if (debug)
+                                {
+                                    fprintf (stderr,
+                                             "[audio_processing::send_audio_"
+                                             "routine] Found last chunk of "
+                                             "PCM buffer with size: %ld\n",
+                                             pbufsiz);
+                                }
+
+                            pcmbuf.resize (ENCODE_BUFFER_SIZE);
+                        }
+
+                    int len = opus_encode (opus_encoder,
+                                           (opus_int16 *)pcmbuf.data (),
+                                           FRAME_SIZE, packet, MAX_PACKET);
+
+                    if (len < 0 || len > MAX_PACKET)
+                        {
+                            fprintf (
+                                stderr,
+                                "[audio_processing::send_audio_routine ERROR] "
+                                "opus_encode() returned %d\n",
+                                len);
+
+                            return len;
+                        }
+
+                    if (len > 2)
+                        {
+                            vclient->send_audio_opus (packet, len,
+                                                      SEND_DURATION);
+                        }
+
+                    pcmbuf.erase (pcmbuf.begin (),
+                                  pcmbuf.begin () + ENCODE_BUFFER_SIZE);
+                }
         }
     catch (const dpp::voice_exception &e)
         {

@@ -1,3 +1,4 @@
+#include "musicat/audio_config.h"
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
@@ -9,31 +10,6 @@
 #include <sys/poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-#ifdef MUSICAT_USE_PCM
-
-#define STREAM_BUFSIZ STREAM_BUFSIZ_PCM
-#define CHUNK_READ CHUNK_READ_PCM
-#define DRAIN_CHUNK DRAIN_CHUNK_PCM
-
-#else
-
-#include <oggz/oggz.h>
-
-#define STREAM_BUFSIZ STREAM_BUFSIZ_OPUS
-#define CHUNK_READ CHUNK_READ_OPUS
-#define DRAIN_CHUNK DRAIN_CHUNK_OPUS
-
-#endif
-
-// correct frame size with timescale for dpp
-#define STREAM_BUFSIZ_PCM dpp::send_audio_raw_max_length
-inline constexpr long CHUNK_READ_PCM = BUFSIZ * 2;
-inline constexpr long DRAIN_CHUNK_PCM = BUFSIZ / 2;
-
-inline constexpr long STREAM_BUFSIZ_OPUS = BUFSIZ / 8;
-inline constexpr long CHUNK_READ_OPUS = BUFSIZ / 2;
-inline constexpr long DRAIN_CHUNK_OPUS = BUFSIZ / 4;
 
 namespace musicat::player
 {
@@ -623,6 +599,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 throw 2;
 
             guild_player->tried_continuing = false;
+            OpusEncoder *opus_encoder = guild_player->opus_encoder;
 
             FILE *ofile = fopen (file_path.c_str (), "r");
 
@@ -836,7 +813,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                  total_read, read_size);
 
                     if (audio_processing::send_audio_routine (
-                            v, (uint16_t *)buffer, &read_size))
+                            v, (uint16_t *)buffer, &read_size, false,
+                            opus_encoder))
                         break;
 
                     handle_effect_chain_change (effect_states);
@@ -903,7 +881,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                  (total_read += read_size), read_size);
 
                     audio_processing::send_audio_routine (
-                        v, (uint16_t *)buffer, &read_size, true);
+                        v, (uint16_t *)buffer, &read_size, true, opus_encoder);
                 }
 
             close (read_fd);
