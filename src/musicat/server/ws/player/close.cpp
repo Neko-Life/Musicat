@@ -1,9 +1,12 @@
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player::events
 {
+#ifndef MUSICAT_NO_SERVER
 
 void
 close (uws_ws_t *ws, int code, std::string_view message)
@@ -18,4 +21,5 @@ close (uws_ws_t *ws, int code, std::string_view message)
         }
 }
 
+#endif
 } // musicat::server::ws::player::events

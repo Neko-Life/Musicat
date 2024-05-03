@@ -5,6 +5,7 @@
 namespace musicat::server::auth
 {
 
+#ifndef MUSICAT_NO_SERVER
 std::string
 create_jwt_token (const std::string &user_id)
 {
@@ -63,5 +64,6 @@ verify_jwt_token (const std::string &token)
 
     return uid;
 }
+#endif
 
 } // musicat::server::auth

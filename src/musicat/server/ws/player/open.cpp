@@ -1,9 +1,12 @@
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player::events
 {
+#ifndef MUSICAT_NO_SERVER
 
 nlohmann::json
 get_bot_info_payload (dpp::cluster *bot)
@@ -100,4 +103,5 @@ open (uws_ws_t *ws)
     */
 }
 
+#endif
 } // musicat::server::ws::player::events

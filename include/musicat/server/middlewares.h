@@ -7,6 +7,7 @@
 
 namespace musicat::server::middlewares
 {
+#ifndef MUSICAT_NO_SERVER
 using header_v_t = std::vector<std::pair<std::string, std::string> >;
 
 void load_cors_enabled_origin ();
@@ -30,7 +31,7 @@ process_curlpp_response_t (const services::curlpp_response_t &resp,
                            const char *callee);
 
 void set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild);
-
+#endif
 } // musicat::server::middlewares
 
 #endif // MUSICAT_SERVER_MIDDLEWARES_H

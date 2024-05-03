@@ -7,3 +7,8 @@ ignore
 .cache/
 src/test/
 archlinux-dist/
+
+# vs specific files
+.vs/
+out/
+vcpkg_installed/

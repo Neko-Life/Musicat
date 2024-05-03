@@ -8,13 +8,18 @@
 #include "musicat/musicat.h"
 #include "opus/opus.h"
 #include <fcntl.h>
-#include <poll.h>
 #include <stdio.h>
 #include <string>
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <poll.h>
+#endif
 
 namespace musicat::audio_processing
 {

@@ -9,6 +9,7 @@
 namespace musicat::server::routes
 {
 
+#ifndef MUSICAT_NO_SERVER
 void
 handle_post_login_creds (
     APIResponse *res, const std::string &redirect,
@@ -472,5 +473,6 @@ post_login (APIResponse *res, APIRequest *req)
 
     */
 }
+#endif
 
 } // musicat::server::routes

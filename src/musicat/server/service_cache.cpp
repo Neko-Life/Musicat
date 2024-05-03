@@ -7,6 +7,7 @@
 namespace musicat::server::service_cache
 {
 
+#ifndef MUSICAT_NO_SERVER
 struct invalidate_timer_t
 {
     long long ts;
@@ -220,5 +221,6 @@ handle_guild_delete (const dpp::guild_delete_t &e)
             i = _cache.erase (i);
         }
 }
+#endif
 
 } // musicat::server::service_cache

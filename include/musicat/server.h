@@ -3,7 +3,10 @@
 
 #include <mutex>
 #include <string>
+
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 #define SERVER_WITH_SSL false
 #define BOT_AVATAR_SIZE 480
@@ -11,6 +14,7 @@
 namespace musicat::server
 {
 
+#ifndef MUSICAT_NO_SERVER
 #if SERVER_WITH_SSL == true
 using APIApp = uWS::SSLApp;
 #else
@@ -19,6 +23,7 @@ using APIApp = uWS::App;
 
 using APIResponse = uWS::HttpResponse<SERVER_WITH_SSL>;
 using APIRequest = uWS::HttpRequest;
+#endif
 
 inline constexpr const struct
 {

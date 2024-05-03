@@ -694,6 +694,7 @@ run (int argc, const char *argv[])
     _nekos_best_endpoints = nekos_best::get_available_endpoints ();
     client.start (true);
 
+#ifndef MUSICAT_NO_SERVER
     // start server
     std::thread server_thread ([] () {
         thread_manager::DoneSetter tmds;
@@ -702,6 +703,7 @@ run (int argc, const char *argv[])
     });
 
     thread_manager::dispatch (server_thread);
+#endif
 
 #if RUN_TESTS
     tests::test_ytdlp ();

@@ -1,10 +1,13 @@
 #include "musicat/server/middlewares.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/util.h"
+#ifndef MUSICAT_NO_SERVER
 #include <uWebSockets/src/App.h>
+#endif
 
 namespace musicat::server::ws::player::events
 {
+#ifndef MUSICAT_NO_SERVER
 
 void
 upgrade (APIResponse *res, APIRequest *req, struct us_socket_context_t *ctx)
@@ -42,4 +45,5 @@ upgrade (APIResponse *res, APIRequest *req, struct us_socket_context_t *ctx)
         req->getHeader ("sec-websocket-extensions"), ctx);
 }
 
+#endif
 } // musicat::server::ws::player::events
