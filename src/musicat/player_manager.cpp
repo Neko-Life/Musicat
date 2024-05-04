@@ -2,14 +2,15 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
-#include <chrono>
 #include <dirent.h>
 #include <memory>
 #include <opus/opus.h>
 #include <regex>
-#include <sys/stat.h>
 #include <thread>
-// #include <opus/opusfile.h>
+
+#include <sys/stat.h>
+#include <time.h>
+#include <utime.h>
 
 namespace musicat::player
 {
@@ -283,13 +284,17 @@ Manager::download (const string &fname, const string &url,
                     std::filesystem::create_directory (music_folder_path);
             }
 
+            const string filepath = music_folder_path + fname;
+
+            const string sanitized_filepath
+                = music_folder_path
+                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
+                                        std::regex_constants::match_any);
+
             string cmd
                 = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
                   + string ("' -x --audio-format opus --audio-quality 0 -o '")
-                  + music_folder_path
-                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
-                                        std::regex_constants::match_any)
-                  + string ("'");
+                  + sanitized_filepath + string ("'");
 
             bool debug = get_debug_state ();
 
@@ -311,8 +316,34 @@ Manager::download (const string &fname, const string &url,
                 std::lock_guard<std::mutex> lk (this->dl_m);
                 this->waiting_file_download.erase (fname);
 
-                // tells main loop to control music cache
-                set_should_check_music_cache (true);
+                // update newly downloaded file access time
+                bool utimeerr = false;
+                struct stat downloaded_stat;
+                struct utimbuf new_times;
+
+                if (stat (filepath.c_str (), &downloaded_stat) == 0)
+                    {
+                        new_times.actime
+                            = time (NULL); /* set atime to current time */
+                        new_times.modtime
+                            = downloaded_stat
+                                  .st_mtime; /* keep mtime unchanged */
+                        if (utime (filepath.c_str (), &new_times) < 0)
+                            {
+                                perror (filepath.c_str ());
+                                utimeerr = true;
+                            }
+                    }
+                else
+                    {
+                        perror (filepath.c_str ());
+                        utimeerr = true;
+                    }
+
+                // if above access time update success
+                if (!utimeerr)
+                    // tells main loop to control music cache
+                    set_should_check_music_cache (true);
             }
 
             this->dl_cv.notify_all ();
