@@ -1,11 +1,14 @@
-{
+{       // remove all these comments as json doesnt allow comments and it will cause json parse error
     "SHA_TKN": "", // bot token
     "SHA_ID": 0, // bot user id
     "SHA_SECRET": '', // bot user secret
     "SHA_DB": "dbname=musicat host=db port=5432 user=musicat password=musicat application_name=Musicat", // PostgreSQL connect configuration. See https://www.postgresql.org/docs/14/libpq-connect.html#LIBPQ-PARAMKEYWORDS
     "DEBUG": false, // Default debug mode state on boot
-    "RUNTIME_CLI": false, // You better disable runtime cli since there will be no stdin for Musicat to read, else it will go full throttle in a read loop
+    "RUNTIME_CLI": true, // Whether to enable runtime cli, enter `help` in console when the bot is running
     "MUSIC_FOLDER": "/home/musicat/music/", // use music volume inside docker
+    "MAX_MUSIC_CACHE_SIZE": 8589934592,   // max size of MUSIC_FOLDER dir in bytes, Musicat can still go over this limit and
+                                          // if it does Musicat will clean up old cached music until the size is less than this limit
+                                          // specifying 0 will disable cache limit, specifying negative integer is undefined behavior
 
     // used to construct invite link, oauth login and oauth invite
     "INVITE_PERMISSIONS": "416653036608",

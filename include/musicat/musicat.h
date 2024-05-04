@@ -319,6 +319,8 @@ std::string get_sha_secret ();
  */
 player::player_manager_ptr_t get_player_manager_ptr ();
 
+int set_cached_nekos_best_endpoints (const nekos_best::endpoint_map &em);
+
 /**
  * @brief Handle bot connected to new vc event, updating _connected_vcs_setting
  * cache
@@ -361,6 +363,10 @@ const char *get_python_cmd ();
  * @brief Is this user Id an admin
  */
 bool is_musicat_admin (const dpp::snowflake &id);
+
+void set_should_check_music_cache (bool v);
+
+size_t get_max_music_cache_size ();
 
 } // musicat
 

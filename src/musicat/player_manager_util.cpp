@@ -6,12 +6,111 @@
 #include "musicat/thread_manager.h"
 #include <dirent.h>
 #include <libpq-fe.h>
+#include <sys/stat.h>
 
 namespace musicat
 {
 namespace player
 {
 using string = std::string;
+
+std::mutex gat_m;
+std::vector<gat_t> gat_ret_cache;
+time_t gat_last_uc = 0;
+bool gat_last_has_stat = false;
+
+std::vector<gat_t>
+get_available_tracks (const size_t &amount, bool with_stat)
+{
+    std::lock_guard lk (gat_m);
+
+    time_t cur_t = time (NULL);
+
+    // cache last updated was less than 11 second ago
+    if ((cur_t - gat_last_uc) < 11)
+        if (with_stat == false || gat_last_has_stat)
+            return gat_ret_cache;
+
+    std::vector<gat_t> ret = {};
+    const std::string musicdir = get_music_folder_path ();
+
+    size_t c = 0;
+    DIR *dir = opendir (musicdir.c_str ());
+
+    if (dir == NULL)
+        return ret;
+
+    dirent *file = readdir (dir);
+
+    // full filename
+    string s;
+    // full file path
+    string fpath;
+    size_t slen;
+    size_t opus_ext_idx;
+    // while also getting size why not get last access too
+    time_t last_access = 0;
+    size_t siz = 0;
+
+    while (file != NULL)
+        {
+            last_access = 0;
+            siz = 0;
+
+            // skip non regular file (dir, fifo etc)
+            if (file->d_type != DT_REG)
+                goto cont;
+
+            s = string (file->d_name);
+
+            slen = s.length ();
+            opus_ext_idx = slen > 5 ? (slen - 5) : (size_t)-1;
+
+            // skip non opus file
+            if (opus_ext_idx == (size_t)-1 || s.find (".opus") != opus_ext_idx)
+                goto cont;
+
+            fpath = musicdir + s;
+
+            if (with_stat)
+                {
+                    struct stat st;
+                    // musicdir always have trailing slash /
+                    if (stat (fpath.c_str (), &st) != 0)
+                        {
+                            perror ("[Manager::get_available_"
+                                    "tracks] stat");
+
+                            fprintf (stderr, "^^^ Failed stating '%s'\n",
+                                     fpath.c_str ());
+
+                            goto sk_stat;
+                        }
+
+                    siz = st.st_size;
+                    last_access = st.st_atime;
+                }
+        sk_stat:
+            ret.push_back (
+                { s.substr (0, opus_ext_idx), s, fpath, siz, last_access });
+
+            if (amount && ++c == amount)
+                break;
+
+        cont:
+            file = readdir (dir);
+        }
+
+    closedir (dir);
+
+    gat_ret_cache = ret;
+    gat_last_uc = cur_t;
+    gat_last_has_stat = with_stat;
+
+    return ret;
+}
+
+// ================================================================================
 
 bool
 Manager::is_disconnecting (const dpp::snowflake &guild_id)
@@ -375,33 +474,6 @@ Manager::wait_for_download (const string &file_name)
         return this->waiting_file_download.find (file_name)
                == this->waiting_file_download.end ();
     });
-}
-
-std::vector<std::string>
-Manager::get_available_tracks (const size_t &amount) const
-{
-    std::vector<std::string> ret = {};
-    size_t c = 0;
-    auto dir = opendir (get_music_folder_path ().c_str ());
-
-    if (dir != NULL)
-        {
-            auto file = readdir (dir);
-            while (file != NULL)
-                {
-                    if (file->d_type == DT_REG)
-                        {
-                            string s = string (file->d_name);
-                            ret.push_back (s.substr (0, s.length () - 5));
-                        }
-
-                    if (amount && ++c == amount)
-                        break;
-                    file = readdir (dir);
-                }
-            closedir (dir);
-        }
-    return ret;
 }
 
 bool

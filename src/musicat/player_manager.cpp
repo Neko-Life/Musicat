@@ -310,6 +310,9 @@ Manager::download (const string &fname, const string &url,
             {
                 std::lock_guard<std::mutex> lk (this->dl_m);
                 this->waiting_file_download.erase (fname);
+
+                // tells main loop to control music cache
+                set_should_check_music_cache (true);
             }
 
             this->dl_cv.notify_all ();

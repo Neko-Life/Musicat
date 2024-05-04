@@ -29,9 +29,13 @@ namespace musicat
 {
 nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
+// ================================================================================
+
+// use this mutex for every state stored here
+std::mutex main_mutex;
+
 std::atomic<bool> running = false;
 bool debug = false;
-std::mutex main_mutex;
 
 dpp::snowflake sha_id = 0;
 dpp::cluster *client_ptr = nullptr;
@@ -39,10 +43,7 @@ player::Manager *player_manager_ptr = nullptr;
 
 nekos_best::endpoint_map _nekos_best_endpoints = {};
 
-// doesn't guarantee valid voicestate
-std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> >
-    _connected_vcs_setting = {};
-std::mutex _connected_vcs_setting_mutex;
+// config stuff ========================================
 
 // in second
 float _stream_buffer_size = 0.0f;
@@ -51,10 +52,21 @@ int64_t _stream_sleep_on_buffer_threshold_ms = 0;
 int python_v = -1;
 
 std::vector<std::string> cors_enabled_origin = {};
-std::mutex cors_enabled_origin_m;
-
 std::vector<dpp::snowflake> musicat_admins = {};
-std::mutex musicat_admins_m;
+
+size_t max_music_cache_size = -1;
+
+// main loop usage only
+std::atomic<bool> should_check_music_cache = true;
+
+// ================================================================================
+
+// doesn't guarantee valid voicestate
+std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> >
+    _connected_vcs_setting = {};
+std::mutex _connected_vcs_setting_mutex;
+
+// ================================================================================
 
 dpp::cluster *
 get_client_ptr ()
@@ -109,9 +121,18 @@ get_player_manager_ptr ()
     return player_manager_ptr;
 }
 
+int
+set_cached_nekos_best_endpoints (const nekos_best::endpoint_map &em)
+{
+    std::lock_guard lk (main_mutex);
+    _nekos_best_endpoints = em;
+    return 0;
+}
+
 nekos_best::endpoint_map
 get_cached_nekos_best_endpoints ()
 {
+    std::lock_guard lk (main_mutex);
     return _nekos_best_endpoints;
 }
 
@@ -396,7 +417,7 @@ get_cors_enabled_origins ()
 void
 load_config_cors_enabled_origin ()
 {
-    std::lock_guard lk (cors_enabled_origin_m);
+    std::lock_guard lk (main_mutex);
 
     auto i_a = sha_cfg.find ("CORS_ENABLED_ORIGINS");
 
@@ -427,6 +448,8 @@ get_jwt_secret ()
 float
 get_stream_buffer_size ()
 {
+    std::lock_guard lk (main_mutex);
+
     if (_stream_buffer_size < 0.1f)
         {
             float set_v = get_config_value<float> ("STREAM_BUFFER_SIZE", 0.0f);
@@ -443,6 +466,8 @@ get_stream_buffer_size ()
 int64_t
 get_stream_sleep_on_buffer_threshold_ms ()
 {
+    std::lock_guard lk (main_mutex);
+
     if (_stream_sleep_on_buffer_threshold_ms < 1)
         {
             int64_t set_v = get_config_value<int64_t> (
@@ -476,7 +501,7 @@ get_python_cmd ()
 bool
 is_musicat_admin (const dpp::snowflake &id)
 {
-    std::lock_guard lk (musicat_admins_m);
+    std::lock_guard lk (main_mutex);
 
     for (const auto &s : musicat_admins)
         {
@@ -495,13 +520,37 @@ load_config_admins ()
     if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
         return;
 
-    std::lock_guard lk (musicat_admins_m);
+    std::lock_guard lk (main_mutex);
 
     for (const auto &a : *i_a)
         {
             musicat_admins.push_back (a.get<uint64_t> ());
         }
 }
+
+void
+set_should_check_music_cache (bool v)
+{
+    should_check_music_cache = v;
+}
+
+size_t
+get_max_music_cache_size ()
+{
+    std::lock_guard lk (main_mutex);
+
+    if (max_music_cache_size == (size_t)-1)
+        {
+            size_t set_v
+                = get_config_value<size_t> ("MAX_MUSIC_CACHE_SIZE", (size_t)0);
+
+            max_music_cache_size = set_v;
+        }
+
+    return max_music_cache_size;
+}
+
+// ================================================================================
 
 std::atomic<int> _sigint_count = 0;
 
@@ -691,7 +740,7 @@ run (int argc, const char *argv[])
     client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);
 #endif
 
-    _nekos_best_endpoints = nekos_best::get_available_endpoints ();
+    set_cached_nekos_best_endpoints (nekos_best::get_available_endpoints ());
     client.start (true);
 
     // start server
@@ -708,19 +757,22 @@ run (int argc, const char *argv[])
 #endif
 
     time_t last_gc;
-    time_t last_recon;
-    time (&last_gc);
-    time (&last_recon);
+    time_t last_5sec;
+    time_t last_music_cache_check = 0;
 
-    while (get_running_state ())
+    time (&last_gc);
+    time (&last_5sec);
+
+    bool r_s;
+    while ((r_s = get_running_state ()))
         {
             std::this_thread::sleep_for (std::chrono::milliseconds (750));
 
-            bool r_s = get_running_state ();
             bool debug = get_debug_state ();
+            time_t cur_time = time (NULL);
 
             // GC
-            if (!r_s || (time (NULL) - last_gc) > ONE_HOUR_SECOND)
+            if (!r_s || (cur_time - last_gc) > ONE_HOUR_SECOND)
                 {
                     if (debug)
                         fprintf (stderr, "[GC] Starting scheduled gc\n");
@@ -743,17 +795,100 @@ run (int argc, const char *argv[])
                                  done.count ());
                 }
 
-            if (r_s && !no_db && (time (NULL) - last_recon) > 5)
+            if (r_s && (cur_time - last_5sec) > 5)
                 {
-                    ConnStatusType status
-                        = database::reconnect (false, db_connect_param);
+                    // db reconnect check
+                    if (!no_db)
+                        {
+                            ConnStatusType status = database::reconnect (
+                                false, db_connect_param);
 
-                    time (&last_recon);
+                            if (status != CONNECTION_OK && debug)
+                                fprintf (
+                                    stderr,
+                                    "[ERROR DB_RECONNECT] Status code: %d\n",
+                                    status);
+                        }
 
-                    if (status != CONNECTION_OK && debug)
-                        fprintf (stderr,
-                                 "[ERROR DB_RECONNECT] Status code: %d\n",
-                                 status);
+                    const size_t mcs = get_max_music_cache_size ();
+                    if ((should_check_music_cache
+                         || ((cur_time - last_music_cache_check)
+                             > ONE_HOUR_SECOND))
+                        && mcs != 0)
+                        {
+                            size_t cur_cache_size = 0;
+                            auto ats = player::get_available_tracks (0, true);
+
+                            for (const player::gat_t &g : ats)
+                                cur_cache_size += g.size;
+
+                            fprintf (stderr,
+                                     "[main::loop] Current cached music: %ld "
+                                     "files (%ld bytes)\n",
+                                     ats.size (), cur_cache_size);
+
+                            // currect cached music is over the limit defined
+                            // in conf
+                            if (cur_cache_size > mcs)
+                                {
+                                    fprintf (
+                                        stderr,
+                                        "[main::loop] Current cached music "
+                                        "size goes over %ld bytes limit, "
+                                        "cleaning old music...\n",
+                                        mcs);
+
+                                    // sort by oldest first
+                                    std::sort (ats.begin (), ats.end (),
+                                               [] (const player::gat_t &a,
+                                                   const player::gat_t &b) {
+                                                   return a.last_access
+                                                          < b.last_access;
+                                               });
+
+                                    size_t prev_cache_size = cur_cache_size;
+                                    size_t rc = 0;
+
+                                    // delete everything until size is less
+                                    // than limit
+                                    for (const player::gat_t &g : ats)
+                                        {
+                                            if (cur_cache_size < mcs)
+                                                break;
+
+                                            fprintf (stderr,
+                                                     "[main::loop] "
+                                                     "Unlinking '%s'\n",
+                                                     g.fullpath.c_str ());
+
+                                            if (unlink (g.fullpath.c_str ())
+                                                == 0)
+                                                {
+                                                    cur_cache_size -= g.size;
+                                                    rc++;
+                                                    continue;
+                                                }
+
+                                            perror ("[main::loop] unlink");
+                                            fprintf (stderr,
+                                                     "^^^ Failed unlink "
+                                                     "'%s'\n",
+                                                     g.fullpath.c_str ());
+                                        }
+
+                                    fprintf (stderr,
+                                             "[main::loop] Cleaned up %ld "
+                                             "music files and %ld bytes worth "
+                                             "of storage space\n",
+                                             rc,
+                                             prev_cache_size - cur_cache_size);
+                                }
+
+                            should_check_music_cache = false;
+                            last_music_cache_check = cur_time;
+                        }
+
+                    time (&last_5sec);
                 }
 
             player::timer::check_track_marker_rm_timers ();
