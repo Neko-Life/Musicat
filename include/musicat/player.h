@@ -101,6 +101,33 @@ struct track_progress
     int status;
 };
 
+struct gat_t
+{
+    // Stripped .opus extension
+    std::string name;
+    std::string fullname;
+    std::string fullpath;
+    // File size in bytes
+    // Will be 0 with with_size = false
+    size_t size;
+    // Timestamp when file last accessed
+    // Will be 0 with with_size = false
+    time_t last_access;
+};
+
+/**
+ * @brief Get all available track to use, locks a mutex since readdir is
+ *        not thread safe
+ * @param amount Amount of track to return
+ * @param with_stat Stat the file
+ *
+ * @return std::vector<gat_t>
+ */
+std::vector<gat_t> get_available_tracks (const size_t &amount = 0,
+                                         bool with_stat = false);
+
+// ================================================================================
+
 class Manager;
 using player_manager_ptr_t = Manager *;
 
@@ -604,15 +631,6 @@ class Manager
     bool delete_info_embed (const dpp::snowflake &guild_id,
                             dpp::command_completion_event_t callback
                             = dpp::utility::log_error ());
-
-    /**
-     * @brief Get all available track to use
-     * @param amount Amount of track to return
-     *
-     * @return std::vector<std::string>
-     */
-    std::vector<std::string> get_available_tracks (const size_t &amount
-                                                   = 0) const;
 
     bool handle_on_track_marker (const dpp::voice_track_marker_t &event);
 

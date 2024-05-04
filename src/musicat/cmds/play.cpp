@@ -27,17 +27,13 @@ query (const dpp::autocomplete_t &event, const std::string &param)
 
     bool no_len = param.empty ();
 
-    auto player_manager = get_player_manager_ptr ();
-
-    std::vector<std::string> get = {};
-
-    if (player_manager)
-        get = player_manager->get_available_tracks (no_len ? 25U : 0U);
+    const std::vector<player::gat_t> get
+        = player::get_available_tracks (no_len ? 25U : 0U);
 
     avail.reserve (get.size ());
 
-    for (const std::string &i : get)
-        avail.push_back (std::make_pair (i, i));
+    for (const player::gat_t &i : get)
+        avail.emplace_back (i.name, i.name);
 
     if (!no_len)
         avail = musicat::autocomplete::filter_candidates (avail, param);
