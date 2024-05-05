@@ -204,7 +204,7 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
 
     helper_process.sem = child::create_sem (helper_process.sem_full_key);
 
-    pid = fork ();
+    pid = child::worker::call_fork ();
     if (pid == -1)
         {
             child::clear_sem (helper_process.sem, helper_process.sem_full_key);

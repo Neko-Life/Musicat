@@ -72,7 +72,7 @@ create_audio_processor (command::command_options_t &options)
     sem_full_key = child::get_sem_key (options.id);
     sem = child::create_sem (sem_full_key);
 
-    status = fork ();
+    status = child::worker::call_fork ();
 
     if (status < 0)
         {
@@ -161,7 +161,7 @@ call_ytdlp (command::command_options_t &options)
     sem_full_key = child::get_sem_key (options.id);
     sem = child::create_sem (sem_full_key);
 
-    status = fork ();
+    status = child::worker::call_fork ();
 
     if (status < 0)
         {
@@ -239,7 +239,7 @@ run_gnuplot (const command::command_options_t &options)
     int parent_write = crpw[1];
     int parent_read = prcw[0];
 
-    pid_t p = fork ();
+    pid_t p = child::worker::call_fork ();
 
     if (p == 0)
         {
@@ -507,7 +507,7 @@ call_gnuplot (command::command_options_t &options)
     sem_full_key = child::get_sem_key (options.id);
     sem = child::create_sem (sem_full_key);
 
-    status = fork ();
+    status = child::worker::call_fork ();
 
     if (status < 0)
         {
@@ -571,7 +571,7 @@ call_system (command::command_options_t &options)
     sem_full_key = child::get_sem_key (options.id);
     sem = child::create_sem (sem_full_key);
 
-    status = fork ();
+    status = child::worker::call_fork ();
 
     if (status < 0)
         {

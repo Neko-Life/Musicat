@@ -54,7 +54,7 @@ init ()
     int cm_write_fd = pipe_fds[3];
     pm_read_fd = pipe_fds[2];
 
-    cm_pid = fork ();
+    cm_pid = child::worker::call_fork ();
     if (cm_pid < 0)
         {
             fprintf (stderr, "[child ERROR] Can't fork\n");

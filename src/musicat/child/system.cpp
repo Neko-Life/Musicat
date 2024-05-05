@@ -300,7 +300,7 @@ run (const command::command_options_t &options, sem_t *sem,
     writeerr_fd = ppfds.second;
 
     // run query
-    status = fork ();
+    status = child::worker::call_fork ();
 
     if (status < 0)
         {

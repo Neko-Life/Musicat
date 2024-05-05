@@ -41,6 +41,8 @@ void run ();
  */
 std::pair<int, int> create_pipe ();
 
+pid_t call_fork ();
+
 } // musicat::child::worker
 
 #endif // MUSICAT_CHILD_WORKER_H

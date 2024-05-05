@@ -164,6 +164,18 @@ create_pipe ()
     return { fds[0], fds[1] };
 }
 
+pid_t
+call_fork ()
+{
+    struct sigaction act = { 0 };
+
+    sa.sa_handler = SIG_DFL;
+    if (sigaction (SIGCHLD, &sa, nullptr) == -1)
+        perror ("[child::worker::call_fork] sigaction");
+
+    return fork ();
+}
+
 } // worker
 } // child
 } // musicat

@@ -539,7 +539,7 @@ run_processor (child::command::command_options_t &process_options)
     sem = child::create_sem (sem_full_key);
 
     // create a child
-    p_info.cpid = fork ();
+    p_info.cpid = child::worker::call_fork ();
     if (p_info.cpid == -1)
         {
             perror ("fork");
@@ -714,7 +714,7 @@ run_processor (child::command::command_options_t &process_options)
                     sem_full_key = child::get_sem_key (options.id);
                     sem = child::create_sem (sem_full_key);
 
-                    p_info.cpid = fork ();
+                    p_info.cpid = child::worker::call_fork ();
                     if (p_info.cpid == -1)
                         {
                             perror ("fork");
