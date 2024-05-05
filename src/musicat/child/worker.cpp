@@ -167,7 +167,7 @@ create_pipe ()
 pid_t
 call_fork ()
 {
-    struct sigaction act = { 0 };
+    struct sigaction act = {};
 
     sa.sa_handler = SIG_DFL;
     if (sigaction (SIGCHLD, &sa, nullptr) == -1)
