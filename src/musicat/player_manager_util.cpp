@@ -14,22 +14,79 @@ namespace player
 {
 using string = std::string;
 
+enum gat_cache_completeness_e
+{
+    GATCC_NONE = 0,
+    GATCC_ZERO_AMOUNT = 1,
+    GATCC_HAS_STAT = 1 << 1,
+};
+
 std::mutex gat_m;
 std::vector<gat_t> gat_ret_cache;
 time_t gat_last_uc = 0;
-bool gat_last_has_stat = false;
+int gat_cache_completeness = 0;
+
+// returns true if gat_cache_completeness is missing flag
+// and required by rc
+bool
+gatcc_rnot (int rc, int flag)
+{
+    return (rc & flag) == flag && (gat_cache_completeness & flag) != flag;
+}
+
+bool
+gatcc_is_complete ()
+{
+    constexpr const int complete_f = GATCC_ZERO_AMOUNT | GATCC_HAS_STAT;
+    return (gat_cache_completeness & complete_f) == complete_f;
+}
+
+bool
+gatcc_rnot_zero_amount (int rc)
+{
+    return gatcc_rnot (rc, GATCC_ZERO_AMOUNT);
+}
+
+bool
+gatcc_rnot_has_stat (int rc)
+{
+    return gatcc_rnot (rc, GATCC_HAS_STAT);
+}
 
 std::vector<gat_t>
 get_available_tracks (const size_t &amount, bool with_stat)
 {
     std::lock_guard lk (gat_m);
 
+    int required_completeness = 0;
+
+    if (amount == 0)
+        {
+            required_completeness |= GATCC_ZERO_AMOUNT;
+        }
+
+    if (with_stat)
+        {
+            required_completeness |= GATCC_HAS_STAT;
+        }
+
     time_t cur_t = time (NULL);
 
     // cache last updated was less than 11 second ago
     if ((cur_t - gat_last_uc) < 11)
-        if (with_stat == false || gat_last_has_stat)
-            return gat_ret_cache;
+        {
+            // check for cache completeness
+            bool is_sufficient = true;
+
+            if (!gatcc_is_complete ())
+                is_sufficient
+                    = !gatcc_rnot_zero_amount (required_completeness)
+                      && !gatcc_rnot_has_stat (required_completeness);
+
+            // returns cache if sufficient
+            if (is_sufficient)
+                return gat_ret_cache;
+        }
 
     std::vector<gat_t> ret = {};
     const std::string musicdir = get_music_folder_path ();
@@ -105,7 +162,7 @@ get_available_tracks (const size_t &amount, bool with_stat)
 
     gat_ret_cache = ret;
     gat_last_uc = cur_t;
-    gat_last_has_stat = with_stat;
+    gat_cache_completeness = required_completeness;
 
     return ret;
 }
