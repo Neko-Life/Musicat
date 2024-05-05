@@ -165,7 +165,8 @@ get_ffmpeg_pitch_args (int pitch)
         -400=144000,3.0=+96000,+2.0
     */
 
-    return "aresample=" + std::to_string (sample)
+    // exclusive effect
+    return "!aresample=" + std::to_string (sample)
            + ",atempo=" + std::to_string (tempo);
 }
 
@@ -303,7 +304,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             std::string new_fx
                 = states.guild_player->tempo == 1.0
                       ? ""
-                      : "atempo="
+                      : "!atempo="
                             + std::to_string (states.guild_player->tempo);
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
@@ -451,7 +452,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             std::string cmd
                 = cc::command_options_keys_t.helper_chain + '='
                   + cc::sanitize_command_value (
-                      "atempo=" + std::to_string (states.guild_player->tempo))
+                      "!atempo=" + std::to_string (states.guild_player->tempo))
                   + ';';
 
             helper_chain_cmd += cmd;
@@ -647,7 +648,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (guild_player->fx_is_tempo_active ())
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value (
-                           "atempo=" + std::to_string (guild_player->tempo))
+                           "!atempo=" + std::to_string (guild_player->tempo))
                        + ';';
 
             if (guild_player->fx_is_pitch_active ())

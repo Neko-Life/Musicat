@@ -91,7 +91,6 @@ read_command (processor_options_t &options)
                 else if (command_options.command
                          == command_options_keys_t.helper_chain)
                     {
-                        options.helper_chain.clear ();
                         parse_helper_chain_option (command_options, options);
                     }
             }

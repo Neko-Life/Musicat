@@ -27,7 +27,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     if (!event.voice_client || event.voice_client->terminating
         || !get_running_state ())
         {
-            fprintf (stderr, "NO CLIENT\n");
+            if (debug)
+                fprintf (stderr,
+                         "[Manager::handle_on_track_marker WARN] NO CLIENT\n");
+
             return false;
         }
 
@@ -35,22 +38,34 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         std::cerr << "Handling voice marker: \"" << event.track_meta
                   << "\" in guild " << event.voice_client->server_id << '\n';
 
-    this->clear_manually_paused (event.voice_client->server_id);
-
-    if (this->is_disconnecting (event.voice_client->server_id))
-        {
-            if (debug)
-                fprintf (stderr, "RETURN DISCONNECTING\n");
-
-            return false;
-        }
-
     auto guild_player = this->get_player (event.voice_client->server_id);
 
     if (!guild_player)
         {
             if (debug)
-                fprintf (stderr, "NO PLAYER\n");
+                fprintf (stderr,
+                         "[Manager::handle_on_track_marker WARN] NO PLAYER\n");
+
+            return false;
+        }
+
+    if (guild_player->processing_audio)
+        {
+            if (debug)
+                std::cerr << "[Manager::handle_on_track_marker WARN] "
+                             "PLAYER ALREADY PLAYING: "
+                          << event.voice_client->server_id << "\n";
+
+            return false;
+        }
+
+    this->clear_manually_paused (event.voice_client->server_id);
+
+    if (this->is_disconnecting (event.voice_client->server_id))
+        {
+            if (debug)
+                fprintf (stderr, "[Manager::handle_on_track_marker WARN] "
+                                 "RETURN DISCONNECTING\n");
 
             return false;
         }
@@ -80,7 +95,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         {
             if (debug)
                 {
-                    fprintf (stderr, "NO SIZE BEFORE: %d\n",
+                    fprintf (stderr,
+                             "[Manager::handle_on_track_marker WARN] NO SIZE "
+                             "BEFORE: %d\n",
                              guild_player->loop_mode);
                 }
 
@@ -138,7 +155,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         {
             if (debug)
                 {
-                    fprintf (stderr, "NO SIZE AFTER: %d\n",
+                    fprintf (stderr,
+                             "[Manager::handle_on_track_marker WARN] NO SIZE "
+                             "AFTER: %d\n",
                              guild_player->loop_mode);
                 }
 
@@ -188,7 +207,8 @@ end_err:
 
     if (debug)
         {
-            fprintf (stderr, "RETURN NO TRACK SIZE\n");
+            fprintf (stderr, "[Manager::handle_on_track_marker WARN] RETURN "
+                             "NO TRACK SIZE\n");
         }
 
     return false;

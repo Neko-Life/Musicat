@@ -7,6 +7,11 @@
 #include <memory>
 #include <stdio.h>
 
+// this will be enabled for now since
+// merged helper processor doesn't seems
+// to behave as expected
+#define EHL_ALL_EXCLUSIVE
+
 #ifdef MUSICAT_USE_PCM
 
 #define USING_FORMAT FORMAT_USING_PCM
@@ -112,10 +117,28 @@ parse_helper_chain_option (
     const child::command::command_options_t &command_options,
     processor_options_t &processor_options)
 {
+    // reset processor chain list
+    processor_options.helper_chain.clear ();
+
+    // parse ehl string args
     size_t co_length = command_options.helper_chain.length ();
     size_t start_d = 0;
+    bool exclusive = false;
+#ifndef EHL_ALL_EXCLUSIVE
+    std::string main_args;
+    std::vector<std::string> ehl_args;
+#endif
+
     for (size_t i = 0; i < co_length; i++)
         {
+            if (start_d != 0 && start_d == i
+                && command_options.helper_chain[i] == '!')
+                {
+                    start_d++;
+                    exclusive = true;
+                    continue;
+                }
+
             if (command_options.helper_chain[i] != '@')
                 continue;
 
@@ -133,12 +156,39 @@ parse_helper_chain_option (
                     continue;
                 }
 
-            processor_options.helper_chain.push_back (
-                { command_options.debug,
-                  command_options.helper_chain.substr (start_d, res), false });
+            const std::string rarg
+                = command_options.helper_chain.substr (start_d, res);
 
+#ifndef EHL_ALL_EXCLUSIVE
+            if (exclusive)
+                {
+                    ehl_args.push_back (rarg);
+                }
+            else
+                {
+                    main_args += (main_args.empty () ? "" : ",") + rarg;
+                }
+#else
+            processor_options.helper_chain.push_back (
+                { command_options.debug, rarg, false });
+#endif
+
+            exclusive = false;
             start_d = 0;
         }
+
+#ifndef EHL_ALL_EXCLUSIVE
+    if (!main_args.empty ())
+        {
+            ehl_args.push_back (main_args);
+        }
+
+    for (const auto &arg : ehl_args)
+        {
+            processor_options.helper_chain.push_back (
+                { command_options.debug, arg, false });
+        }
+#endif
 
     return 0;
 }
