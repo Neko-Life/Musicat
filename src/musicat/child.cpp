@@ -99,8 +99,7 @@ shutdown ()
 
     close (pm_write_fd);
 
-    int cm_status = 0;
-    waitpid (cm_pid, &cm_status, 0);
+    int cm_status = child::worker::call_waitpid (cm_pid);
     fprintf (stderr, "[child] Status: %d\n", cm_status);
 
     close (pm_read_fd);

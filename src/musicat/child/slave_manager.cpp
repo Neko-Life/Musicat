@@ -91,9 +91,7 @@ wait_routine (command::command_options_t &options, bool force_kill)
             kill (options.pid, SIGKILL);
         }
 
-    int status = 0;
-    waitpid (options.pid, &status, 0);
-
+    int status = child::worker::call_waitpid (options.pid);
     fprintf (stderr, wrefmt, options.id.c_str (), options.pid, status);
 
     return status;

@@ -974,35 +974,7 @@ shutdown_chain (bool discard_output)
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
-            int child_status = 0;
-#ifdef SHUTDOWN_WNOHANG
-            // sent INT
-            kill (hci->pid, SIGINT);
-
-            int waited_for = 0;
-            while (waitpid (hci->pid, &child_status, WNOHANG) != hci->pid)
-                {
-                    std::this_thread::sleep_for (
-                        std::chrono::milliseconds (20));
-
-                    waited_for += 20;
-
-                    // stuck for one second, kill it!
-                    if (waited_for >= 1000)
-                        {
-                            fprintf (stderr,
-                                     "[helper_processor::shutdown_chain WARN] "
-                                     "Stuck for 1 second waiting %d, killing "
-                                     "it...\n",
-                                     hci->pid);
-
-                            kill (hci->pid, SIGKILL);
-                            waitpid (hci->pid, &child_status, 0);
-                        }
-                }
-#else
-            waitpid (hci->pid, &child_status, 0);
-#endif // SHUTDOWN_WNOHANG
+            int child_status = child::worker::call_waitpid (hci->pid);
 
             if (get_debug_state ())
                 fprintf (stderr,

@@ -669,7 +669,7 @@ run_processor (child::command::command_options_t &process_options)
                         ;
 
                     // wait for child to finish transferring data
-                    waitpid (p_info.cpid, &cstatus, 0);
+                    cstatus = child::worker::call_waitpid (p_info.cpid);
                     if (debug)
                         fprintf (stderr, "processor child status: %d\n",
                                  cstatus);
@@ -814,7 +814,7 @@ run_processor (child::command::command_options_t &process_options)
 
     cstatus = 0;
 
-    waitpid (p_info.cpid, &cstatus, 0); /* Wait for child */
+    cstatus = child::worker::call_waitpid (p_info.cpid); /* Wait for child */
     if (debug)
         fprintf (stderr, "processor child status: %d\n", cstatus);
 

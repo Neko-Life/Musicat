@@ -176,6 +176,40 @@ call_fork ()
     return fork ();
 }
 
+int
+call_waitpid (pid_t cpid)
+{
+    int wstatus;
+    int exitstatus = -1;
+    pid_t w;
+
+    do
+        {
+            w = waitpid (cpid, &wstatus, 0);
+            if (w == -1)
+                {
+                    perror ("waitpid");
+                    return -1;
+                }
+
+            if (WIFEXITED (wstatus))
+                {
+                    exitstatus = WEXITSTATUS (wstatus);
+                }
+            else if (WIFSIGNALED (wstatus))
+                {
+                    exitstatus = WTERMSIG (wstatus);
+                    fprintf (stderr,
+                             "[child::worker::call_waitpid] %d: received "
+                             "signal %d\n",
+                             cpid, exitstatus);
+                }
+        }
+    while (!WIFEXITED (wstatus) && !WIFSIGNALED (wstatus));
+
+    return exitstatus;
+}
+
 } // worker
 } // child
 } // musicat
