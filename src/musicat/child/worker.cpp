@@ -167,11 +167,11 @@ create_pipe ()
 pid_t
 call_fork ()
 {
-    struct sigaction sa = {};
+    // struct sigaction sa = {};
 
-    sa.sa_handler = SIG_DFL;
-    if (sigaction (SIGCHLD, &sa, nullptr) == -1)
-        perror ("[child::worker::call_fork] sigaction");
+    // sa.sa_handler = SIG_DFL;
+    // if (sigaction (SIGCHLD, &sa, nullptr) == -1)
+    //     perror ("[child::worker::call_fork] sigaction");
 
     return fork ();
 }

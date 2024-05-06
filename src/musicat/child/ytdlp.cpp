@@ -174,10 +174,12 @@ run (const command::command_options_t &options, sem_t *sem,
             jsonout_status = 0;
         }
 
-write_res:
     close (read_fd);
     read_fd = -1;
 
+    child::worker::call_waitpid (status);
+
+write_res:
     write_fifo = open (as_fp.c_str (), O_WRONLY);
 
     if (write_fifo < 0)

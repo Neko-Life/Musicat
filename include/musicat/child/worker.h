@@ -1,6 +1,7 @@
 #ifndef MUSICAT_CHILD_WORKER_H
 #define MUSICAT_CHILD_WORKER_H
 
+#include <sys/types.h>
 #include <utility>
 
 namespace musicat::child::worker

@@ -87,7 +87,7 @@ cmp_available (size_t want, size_t avail)
 
 int
 process_outfile (const command::command_options_t &options, int read_fd,
-                 int readerr_fd)
+                 int *readerr_fd)
 {
     bool out_stderr = !options.sys_no_stderr;
     bool mark_stderr = options.sys_w_stderr_mark;
@@ -113,15 +113,15 @@ process_outfile (const command::command_options_t &options, int read_fd,
     if (out_stderr)
         {
             prfds[1].events = POLLIN;
-            prfds[1].fd = readerr_fd;
+            prfds[1].fd = *readerr_fd;
             fd_tracker.push_back ('e');
 
             prfds_size++;
         }
     else
         {
-            close (readerr_fd);
-            readerr_fd = -1;
+            close (*readerr_fd);
+            *readerr_fd = -1;
         }
 
     constexpr size_t bsize = 4096;
@@ -368,10 +368,10 @@ run (const command::command_options_t &options, sem_t *sem,
         {
             perror ("worker_command::system::run write_fifo open");
             status = 1;
-            goto exit_failure;
+            goto exit_failure2;
         }
 
-    outfile_status = process_outfile (options, read_fd, readerr_fd);
+    outfile_status = process_outfile (options, read_fd, &readerr_fd);
 
     // write output fp to write_fifo
     resopt += command::create_arg_sanitize_value (
@@ -388,6 +388,11 @@ run (const command::command_options_t &options, sem_t *sem,
 
     close (write_fifo);
     write_fifo = -1;
+
+exit_failure2:
+    close_valid_fd (&read_fd);
+    close_valid_fd (&readerr_fd);
+    child::worker::call_waitpid (status);
 
 exit_failure:
     return status;
