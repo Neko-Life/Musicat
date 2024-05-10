@@ -185,6 +185,8 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
     std::pair<int, int> fip, sep;
     pid_t pid;
 
+    const std::string fdbg = "helper_main:" + id;
+
     fip = child::worker::create_pipe ();
     if (fip.first == -1)
         goto err1;
@@ -204,7 +206,7 @@ create_helper (const audio_processing::helper_chain_option_t &hco,
 
     helper_process.sem = child::create_sem (helper_process.sem_full_key);
 
-    pid = child::worker::call_fork ();
+    pid = child::worker::call_fork (fdbg.c_str ());
     if (pid == -1)
         {
             child::clear_sem (helper_process.sem, helper_process.sem_full_key);
@@ -970,13 +972,15 @@ shutdown_chain (bool discard_output)
     fprintf (stderr, "REAPING PROCESSES\n");
 #endif
 
+    const bool debug = get_debug_state ();
+
     // shutdown all helpers
     auto hci = active_helpers.begin ();
     while (hci != active_helpers.end ())
         {
             int child_status = child::worker::call_waitpid (hci->pid);
 
-            if (get_debug_state ())
+            if (debug)
                 fprintf (stderr,
                          "[helper_processor::manage_processor] chain "
                          "child_status: "

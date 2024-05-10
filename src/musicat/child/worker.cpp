@@ -143,7 +143,7 @@ run ()
     if (read_size < 0)
         {
             fprintf (stderr, "[child::worker ERROR] Error reading command\n");
-            perror ("child::worker main_loop");
+            perror ("[child::worker::main_loop ERROR] read");
             _exit (read_size);
         }
 
@@ -156,7 +156,7 @@ create_pipe ()
     int fds[2];
     if (pipe (fds) == -1)
         {
-            perror ("create_pipe");
+            perror ("[child::worker::create_pipe ERROR] pipe");
 
             return { -1, -1 };
         }
@@ -165,7 +165,7 @@ create_pipe ()
 }
 
 pid_t
-call_fork ()
+call_fork (const char *debug_child_name)
 {
     // struct sigaction sa = {};
 
@@ -173,7 +173,15 @@ call_fork ()
     // if (sigaction (SIGCHLD, &sa, nullptr) == -1)
     //     perror ("[child::worker::call_fork] sigaction");
 
-    return fork ();
+    pid_t pid = fork ();
+
+    if (pid == -1)
+        perror ("[child::worker::call_fork ERROR] fork");
+    else if (debug_child_name)
+        fprintf (stderr, "[child::worker::call_fork] New child: %s (%d)\n",
+                 debug_child_name, pid);
+
+    return pid;
 }
 
 int
@@ -183,12 +191,15 @@ call_waitpid (pid_t cpid)
     int exitstatus = -1;
     pid_t w;
 
+    fprintf (stderr, "[child::worker::call_waitpid] Reaping child: %d\n",
+             cpid);
+
     do
         {
             w = waitpid (cpid, &wstatus, 0);
             if (w == -1)
                 {
-                    perror ("waitpid");
+                    perror ("[child::worker::call_waitpid ERROR] waitpid");
                     return -1;
                 }
 

@@ -458,6 +458,8 @@ run_processor (child::command::command_options_t &process_options)
     ssize_t last_read_size = 0;
     uint8_t rest_buffer[BUFFER_SIZE];
 
+    const std::string fdbg = "run_standalone:" + options.id;
+
     processor_options_t current_options = copy_options (options);
     parse_helper_chain_option (process_options, options);
 
@@ -539,7 +541,7 @@ run_processor (child::command::command_options_t &process_options)
     sem = child::create_sem (sem_full_key);
 
     // create a child
-    p_info.cpid = child::worker::call_fork ();
+    p_info.cpid = child::worker::call_fork (fdbg.c_str ());
     if (p_info.cpid == -1)
         {
             perror ("fork");
@@ -714,7 +716,7 @@ run_processor (child::command::command_options_t &process_options)
                     sem_full_key = child::get_sem_key (options.id);
                     sem = child::create_sem (sem_full_key);
 
-                    p_info.cpid = child::worker::call_fork ();
+                    p_info.cpid = child::worker::call_fork (fdbg.c_str ());
                     if (p_info.cpid == -1)
                         {
                             perror ("fork");

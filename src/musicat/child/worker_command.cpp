@@ -199,6 +199,8 @@ err1:
     return status;
 }
 
+// unused anywhere yet, make sure fork waitpid and the likes been used
+// correctly here!
 int
 run_gnuplot (const command::command_options_t &options)
 {

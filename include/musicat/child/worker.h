@@ -42,7 +42,7 @@ void run ();
  */
 std::pair<int, int> create_pipe ();
 
-pid_t call_fork ();
+pid_t call_fork (const char *debug_child_name = NULL);
 
 int call_waitpid (pid_t cpid);
 
