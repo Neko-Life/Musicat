@@ -132,12 +132,28 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
             notified = true;
         }
 
+    // poll to check for HUP and ERR
+    struct pollfd pwr[1];
+
+    // we dont actually care about waiting for non-blocking write here
+    pwr[0].events = POLLOUT;
+    pwr[0].fd = write_fifo;
+
+    int has_event = poll (pwr, 1, 0);
+
+    bool hup = has_event != 0
+               // check for both HUP and ERR since both means fd is bad
+               // and shouldnt be used for writing anymore
+               && ((pwr[0].revents & POLLHUP) == POLLHUP
+                   || (pwr[0].revents & POLLERR) == POLLERR);
+
     ssize_t written = 0;
     ssize_t current_written = 0;
-    while (((current_written
-             = write (write_fifo, buffer + written, *size - written))
-            > 0)
-           || (written < *size))
+    while (!hup
+           && (((current_written
+                 = write (write_fifo, buffer + written, *size - written))
+                > 0)
+               || (written < *size)))
         {
             if (current_written < 0)
                 {
@@ -145,7 +161,17 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
                 }
 
             written += current_written;
+
+            has_event = poll (pwr, 1, 0);
+
+            hup = has_event != 0
+                  && ((pwr[0].revents & POLLHUP) == POLLHUP
+                      || (pwr[0].revents & POLLERR) == POLLERR);
         }
+
+    if (hup)
+        // return error when got hup
+        return -1;
 
     *size = 0;
 
@@ -431,9 +457,11 @@ run_standalone (const processor_options_t &options,
 run_processor_error_t
 run_processor (child::command::command_options_t &process_options)
 {
-    // !TODO: remove this useless child_write_fd entirely
-    // close (process_options.child_write_fd);
-    // process_options.child_write_fd = -1;
+    // since Musicat main process can stop in the middle of stream
+    // and thus force closing the output fd (write_fifo) we should
+    // ignore SIGPIPE signal to avoid child terminates and to be able to
+    // check for HUP
+    signal (SIGPIPE, SIG_IGN);
 
     processor_states_t p_info;
 
@@ -469,6 +497,8 @@ run_processor (child::command::command_options_t &process_options)
 
     sem_t *sem;
     std::string sem_full_key;
+    bool finish = false;
+    bool write_stdout_err = false;
 
     write_fifo
         = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY);
@@ -581,8 +611,8 @@ run_processor (child::command::command_options_t &process_options)
         {
             // poll ffmpeg stdout
             int read_has_event = poll (prfds, 1, 10);
-            bool read_ready
-                = (read_has_event > 0) && (prfds[0].revents & POLLIN);
+            bool read_ready = (read_has_event > 0)
+                              && (prfds[0].revents & POLLIN) == POLLIN;
 
             ssize_t input_read_size = 0;
 
@@ -610,6 +640,7 @@ run_processor (child::command::command_options_t &process_options)
                                         == -1)
                                         {
                                             options.panic_break = true;
+                                            write_stdout_err = true;
                                             break;
                                         }
 
@@ -624,8 +655,9 @@ run_processor (child::command::command_options_t &process_options)
                                 }
 
                             read_has_event = poll (prfds, 1, 0);
-                            read_ready = (read_has_event > 0)
-                                         && (prfds[0].revents & POLLIN);
+                            read_ready
+                                = (read_has_event > 0)
+                                  && (prfds[0].revents & POLLIN) == POLLIN;
                         }
 
                     // empties the last buffer that usually size less than
@@ -639,15 +671,17 @@ run_processor (child::command::command_options_t &process_options)
                                 == -1)
                                 {
                                     options.panic_break = true;
+                                    write_stdout_err = true;
                                     break;
-                                };
+                                }
                         }
                 }
-            else if ((prfds[0].revents & POLLERR)
-                     || (prfds[0].revents & POLLHUP))
+            else if ((prfds[0].revents & POLLERR) == POLLERR
+                     || (prfds[0].revents & POLLHUP) == POLLHUP)
                 {
-                    // we got doomed
-                    perror ("main poll");
+                    // ffmpeg done reading, lets break
+                    // set this flag to not attempt a last read
+                    finish = true;
                     break;
                 }
 
@@ -783,6 +817,10 @@ run_processor (child::command::command_options_t &process_options)
                           + '\n';
                     const char *buf = str_buf.c_str ();
 
+                    // !TODO: poll pwfds?
+                    // we can trust ffmpeg to not randomly close its stdin tho
+                    // for now
+
                     write (pwritefd, buf, str_buf.size () + 1);
                     current_options.volume = options.volume;
                 }
@@ -792,22 +830,31 @@ run_processor (child::command::command_options_t &process_options)
     // fds to close: preadfd pwritefd write_fifo
     close_valid_fd (&pwritefd);
 
-    // signal ffmpeg to stop keep reading input file
-    kill (p_info.cpid, SIGTERM);
-
-    // read the rest of data before closing ffmpeg stdout
-    // as it was signaled to terminate, we can read until its stdout is done
-    // transferring data and finally closed
-    while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE)) > 0)
+    if (!finish)
         {
-            if (write_stdout (rest_buffer, &last_read_size) == -1)
+            // might be a panic brake
+            // signal ffmpeg to stop keep reading input file
+            // this is required for stopping at the middle of stream
+            // which might be the cause of panic break
+            kill (p_info.cpid, SIGTERM);
+
+            // read the rest of data before closing ffmpeg stdout
+            // as it was signaled to terminate, we can read until its stdout is
+            // done transferring data and finally closed
+            while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE))
+                   > 0)
                 {
-                    options.panic_break = true;
-                    break;
-                };
+                    // try write if no error detected
+                    if (!write_stdout_err)
+                        {
+                            write_stdout_err
+                                = write_stdout (rest_buffer, &last_read_size)
+                                  == -1;
+                        }
+                }
         }
 
-    helper_processor::shutdown_chain ();
+    helper_processor::shutdown_chain (write_stdout_err);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies

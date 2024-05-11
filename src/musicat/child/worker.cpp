@@ -177,7 +177,7 @@ call_fork (const char *debug_child_name)
 
     if (pid == -1)
         perror ("[child::worker::call_fork ERROR] fork");
-    else if (debug_child_name)
+    else if (debug_child_name && pid != 0)
         fprintf (stderr, "[child::worker::call_fork] New child: %s (%d)\n",
                  debug_child_name, pid);
 
@@ -191,7 +191,7 @@ call_waitpid (pid_t cpid)
     int exitstatus = -1;
     pid_t w;
 
-    fprintf (stderr, "[child::worker::call_waitpid] Reaping child: %d\n",
+    fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n",
              cpid);
 
     do
@@ -217,6 +217,8 @@ call_waitpid (pid_t cpid)
                 }
         }
     while (!WIFEXITED (wstatus) && !WIFSIGNALED (wstatus));
+
+    fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n", cpid);
 
     return exitstatus;
 }
