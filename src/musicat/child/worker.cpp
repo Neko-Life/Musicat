@@ -158,18 +158,25 @@ run ()
                               || (pfd[0].revents & POLLERR) == POLLERR);
                 }
 
-            if (!shutdown_queue.empty ())
+            // loop through shutdown_queue to reap queued child
+            auto i = shutdown_queue.begin ();
+            while (i != shutdown_queue.end ())
                 {
-                    auto i = shutdown_queue.begin ();
+                    // !TODO: currently unused, remove this or make use of
+                    // this?
+                    /* slave_manager::shutdown (i->id); */
 
-                    slave_manager::shutdown (i->id);
+                    // this calls waitpid with nohang flag
                     int status = slave_manager::wait (i->id, i->force);
 
                     if (status != -1 && status != -2)
                         {
                             slave_manager::clean_up (i->id);
-                            shutdown_queue.erase (i);
+                            i = shutdown_queue.erase (i);
+                            continue;
                         }
+
+                    i++;
                 }
         }
 
@@ -294,9 +301,10 @@ call_waitpid_nohang (pid_t cpid)
 
     if (w != cpid)
         {
-            fprintf (stderr,
-                     "[child::worker::call_waitpid_nohang] %d: w is not cpid\n",
-                     cpid);
+            fprintf (
+                stderr,
+                "[child::worker::call_waitpid_nohang] %d: w is not cpid\n",
+                cpid);
         }
 
     if (WIFEXITED (wstatus))
