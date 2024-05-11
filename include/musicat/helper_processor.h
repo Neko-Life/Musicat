@@ -43,7 +43,7 @@ int manage_processor (const audio_processing::processor_options_t &options,
 ssize_t run_through_chain (uint8_t *buffer, ssize_t *size,
                            bool shutdown_discard_output = false);
 
-int shutdown_chain (bool discard_output = false);
+ssize_t shutdown_chain (bool discard_output = false);
 
 } // helper_processor
 } // musicat

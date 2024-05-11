@@ -115,7 +115,11 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 
     if (!no_effect_chain)
         {
-            helper_processor::run_through_chain (buffer, size);
+            ssize_t status
+                = helper_processor::run_through_chain (buffer, size);
+
+            if (status == -1)
+                return -1;
 
             /* if (debug) */
             // fprintf (stderr, necdfmt, *size);
@@ -497,7 +501,6 @@ run_processor (child::command::command_options_t &process_options)
 
     sem_t *sem;
     std::string sem_full_key;
-    bool finish = false;
     bool write_stdout_err = false;
 
     write_fifo
@@ -680,8 +683,6 @@ run_processor (child::command::command_options_t &process_options)
                      || (prfds[0].revents & POLLHUP) == POLLHUP)
                 {
                     // ffmpeg done reading, lets break
-                    // set this flag to not attempt a last read
-                    finish = true;
                     break;
                 }
 
@@ -695,6 +696,7 @@ run_processor (child::command::command_options_t &process_options)
             if (!options.seek_to.empty ())
                 {
                     close (pwritefd);
+                    pwritefd = -1;
 
                     // signal ffmpeg to stop keep reading input file
                     kill (p_info.cpid, SIGTERM);
@@ -712,7 +714,6 @@ run_processor (child::command::command_options_t &process_options)
 
                     // close read fd
                     close (preadfd);
-
                     preadfd = -1;
 
                     cstatus = 0;
@@ -829,32 +830,7 @@ run_processor (child::command::command_options_t &process_options)
     // exiting, clean up
     // fds to close: preadfd pwritefd write_fifo
     close_valid_fd (&pwritefd);
-
-    if (!finish)
-        {
-            // might be a panic brake
-            // signal ffmpeg to stop keep reading input file
-            // this is required for stopping at the middle of stream
-            // which might be the cause of panic break
-            kill (p_info.cpid, SIGTERM);
-
-            // read the rest of data before closing ffmpeg stdout
-            // as it was signaled to terminate, we can read until its stdout is
-            // done transferring data and finally closed
-            while ((last_read_size = read (preadfd, rest_buffer, BUFFER_SIZE))
-                   > 0)
-                {
-                    // try write if no error detected
-                    if (!write_stdout_err)
-                        {
-                            write_stdout_err
-                                = write_stdout (rest_buffer, &last_read_size)
-                                  == -1;
-                        }
-                }
-        }
-
-    helper_processor::shutdown_chain (write_stdout_err);
+    close_valid_fd (&preadfd);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
@@ -867,7 +843,8 @@ run_processor (child::command::command_options_t &process_options)
     if (debug)
         fprintf (stderr, "processor child status: %d\n", cstatus);
 
-    close_valid_fd (&preadfd);
+    helper_processor::shutdown_chain (write_stdout_err);
+
     close_valid_fd (&write_fifo);
 
     if (debug)

@@ -18,9 +18,6 @@
 // of shutdown iteration
 #define MAX_SHUTDOWN_ITER 50000
 
-// #define DEBUG_LOG
-// #define DEBUG_LOG_2
-
 namespace musicat
 {
 namespace helper_processor
@@ -488,24 +485,8 @@ pass_buf (int ni_fd, int prev_fd, uint8_t *buf, ssize_t buf_size, nfds_t ni,
 
     if ((buf_size = read (ni_fd, buf, PROCESSOR_BUFFER_SIZE)) > 0)
         {
-#ifdef DEBUG_LOG
-            fprintf (stderr,
-                     "READ FROM "
-                     "%lu: %lu\n",
-                     ni, buf_size);
-#endif
-
             if (!discard_output)
-                {
-                    ssize_t wr = write (prev_fd, buf, buf_size);
-
-#ifdef DEBUG_LOG
-                    fprintf (stderr,
-                             "WROTE TO "
-                             "%lu: %lu\n",
-                             prev_ni, wr);
-#endif
-                }
+                ssize_t wr = write (prev_fd, buf, buf_size);
 
             status = 0;
 
@@ -516,7 +497,7 @@ pass_buf (int ni_fd, int prev_fd, uint8_t *buf, ssize_t buf_size, nfds_t ni,
     return status;
 }
 
-int
+ssize_t
 read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
                        bool discard_output = false)
 {
@@ -527,37 +508,27 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
     uint8_t buf[BUFFER_SIZE];
     ssize_t read_size;
 
-    int status = -1;
-
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-    fprintf (stderr,
-             "READING FROM "
-             "CHAIN: first_read_fd_ready: %d\n",
-             *first_read_fd_ready);
-#endif
+    ssize_t written = 0;
+    ssize_t last_wrote_siz = -1;
 
     while (*first_read_fd_ready
            && (read_size = read (ni_fd, buf, BUFFER_SIZE)) > 0)
         {
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-            fprintf (stderr,
-                     "READ FROM "
-                     "CHAIN: %lu\n",
-                     read_size);
-#endif
+            if (discard_output)
+                goto skip_write;
 
-            if (!discard_output)
-                audio_processing::write_stdout (buf, &read_size, true);
+            last_wrote_siz
+                = audio_processing::write_stdout (buf, &read_size, true);
 
-            status = 0;
+            if (last_wrote_siz == -1)
+                {
+                    written = -1;
+                    break;
+                }
 
-            // break on last buffer
-            // don't need this when we
-            // use standard buffer size
-            //
-            // if (read_size < (const ssize_t)BUFFER_SIZE)
-            //     break;
+            written += last_wrote_siz;
 
+        skip_write:
             // make sure there's no more buffer by waiting a bit longer
             int crevent = poll (crpfd, 1, 20);
 
@@ -565,10 +536,10 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
                 = (crevent > 0) && (crpfd[0].revents & POLLIN);
         }
 
-    if (status == 0)
+    if (written != -1)
         remove_pending (&pending_read, ni_fd);
 
-    return status;
+    return written;
 }
 
 ssize_t
@@ -593,10 +564,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
     if (helper_size == 0)
         return 0;
-
-#ifdef DEBUG_LOG
-    fprintf (stderr, "SHOULD PROCESS %lu BYTES\n", *size);
-#endif
 
     // gather fds to poll
     // each process have 2 fd, stdin and stdout
@@ -632,6 +599,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     bool first_read_fd_ready = true;
     size_t iter = 0;
 
+    ssize_t written = 0;
     bool shutdown_is_last_hup = false;
 
     while (pfds)
@@ -645,7 +613,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                     free (pfds);
                     pfds = NULL;
 
-                    return 1;
+                    return 0;
                 }
 
             bool current_has_read = false;
@@ -668,16 +636,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                     int prev_fd = pfds[prev_ni].fd;
                     short prev_revents = pfds[prev_ni].revents;
 
-#ifdef DEBUG_LOG
-                    fprintf (stderr,
-                             "read_idx: %d ni_fd: %d ni_revents: %d "
-                             "skip_check: %d "
-                             "first_fd: %d last_fd: %d "
-                             "prev_ni: %lu prev_fd: %d prev_revents: %d\n",
-                             read_idx, ni_fd, ni_revents, skip_check, first_fd,
-                             last_fd, prev_ni, prev_fd, prev_revents);
-#endif
-
                     // invalid if last_fd=true
                     // nfds_t next_ni = last_fd ? 0 : ni - 1;
                     // int next_fd = pfds[next_ni].fd;
@@ -693,23 +651,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 
                     if (shutdown)
                         {
-#ifdef DEBUG_LOG_2
-                            fprintf (
-                                stderr,
-                                "SHUTDOWN HUP CHECK first_fd: %d got_hup: %d "
-                                "read_idx: %d prev_ni: %lu allow_read: %d "
-                                "allow_write: %d\n",
-                                first_fd, got_hup, read_idx, prev_ni,
-                                allow_read, allow_write);
-
-                            fprintf (stderr, "fds_state:");
-                            for (char c : fds_state)
-                                {
-                                    fprintf (stderr, " %c", c);
-                                }
-                            fprintf (stderr, "\n");
-#endif
-
                             if (got_hup && !allow_read && !allow_write)
                                 {
                                     pfds = close_pfds_ni (pfds, ni, fds_n,
@@ -750,25 +691,19 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                             skip_check = true;
 
                             if (!shutdown && ni == 1)
-                                {
-#ifdef DEBUG_LOG_2
-                                    fprintf (stderr,
-                                             "TOTAL WROTE TO CHAIN ON READ "
-                                             "READY: %lu\n",
-                                             total_wrote_to_chain);
-#endif
-
-                                    total_wrote_to_chain = 0;
-                                }
+                                total_wrote_to_chain = 0;
 
                             if (first_fd)
                                 {
-                                    int status = read_first_fd_routine (
+                                    written = read_first_fd_routine (
                                         ni_fd, &first_read_fd_ready,
                                         shutdown_discard_output);
 
-                                    if (status == 0)
-                                        current_has_read = true;
+                                    if (written == -1)
+                                        // error, bail out afayc!
+                                        break;
+
+                                    current_has_read = true;
 
                                     if (last_fd)
                                         break;
@@ -799,13 +734,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     continue;
                                 }
 
-#ifdef DEBUG_LOG
-                            fprintf (stderr,
-                                     "CURRENT: %lu CANT WRITE TO "
-                                     "%lu, add to pending read\n",
-                                     ni, prev_ni);
-#endif
-
                             // can't write to prev fd, mark this
                             // read_fd pending
                             add_pending (&pending_read, ni_fd);
@@ -832,30 +760,12 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     total_wrote_to_chain += wr;
 
                                     *size = 0;
-
                                     ori_buffer_written = true;
-
-#ifdef DEBUG_LOG
-                                    fprintf (stderr, "WROTE TO CHAIN: %lu\n",
-                                             wr);
-#endif
-#ifdef DEBUG_LOG_2
-                                    fprintf (stderr,
-                                             "TOTAL WROTE TO CHAIN: %lu\n",
-                                             total_wrote_to_chain);
-#endif
 
                                     remove_pending (&pending_write, ni_fd);
 
                                     break;
                                 }
-
-#ifdef DEBUG_LOG
-                            fprintf (stderr,
-                                     "PENDING WRITE "
-                                     "%lu\n",
-                                     ni);
-#endif
 
                             // mark pending, let the read handler
                             // do all the work
@@ -902,22 +812,14 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                         }
 
                     if (last_fd)
-                        {
-                            break;
-                        }
+                        break;
                 }
 
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-            fprintf (stderr,
-                     "ori_buffer_written: %d current_has_read: %d iter: %lu "
-                     "shutdown_is_last_hup: %d\n",
-                     ori_buffer_written, current_has_read, iter,
-                     shutdown_is_last_hup);
-#endif
-
-            if ((shutdown ? (shutdown_is_last_hup || iter >= MAX_SHUTDOWN_ITER)
-                          : ori_buffer_written)
-                && !current_has_read)
+            if (written == -1
+                || ((shutdown
+                         ? (shutdown_is_last_hup || iter >= MAX_SHUTDOWN_ITER)
+                         : ori_buffer_written)
+                    && !current_has_read))
                 break;
         }
 
@@ -927,21 +829,13 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
             pfds = NULL;
         }
 
-#ifdef DEBUG_LOG
-    fprintf (stderr, "LOOP DONE: %lu\n", iter);
-#endif
-
-    return 0;
+    return written;
 }
 
-int
+ssize_t
 shutdown_chain (bool discard_output)
 {
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-    fprintf (stderr, "SHUTTING DOWN CHAIN\n");
-#endif
-
-    int status = run_through_chain (NULL, NULL, discard_output);
+    ssize_t written = run_through_chain (NULL, NULL, discard_output);
 
     if (!pending_write.empty ())
         {
@@ -968,10 +862,6 @@ shutdown_chain (bool discard_output)
     pending_write.clear ();
     pending_read.clear ();
 
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-    fprintf (stderr, "REAPING PROCESSES\n");
-#endif
-
     const bool debug = get_debug_state ();
 
     // shutdown all helpers
@@ -990,11 +880,7 @@ shutdown_chain (bool discard_output)
             hci = active_helpers.erase (hci);
         }
 
-#if defined(DEBUG_LOG) || defined(DEBUG_LOG_2)
-    fprintf (stderr, "DONE SHUTTING DOWN\n");
-#endif
-
-    return status;
+    return written;
 }
 
 } // helper_processor
