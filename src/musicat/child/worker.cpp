@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string>
+#include <sys/poll.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -20,6 +21,8 @@ namespace worker
 
 static int read_fd = -1;
 static int write_fd = -1;
+
+inline std::vector<command::command_options_t> shutdown_queue;
 
 int
 execute (command::command_options_t &options)
@@ -50,9 +53,7 @@ execute (command::command_options_t &options)
             if (slave_info.first != 0)
                 return slave_info.first;
 
-            slave_manager::shutdown (options.id);
-            slave_manager::wait (options.id, options.force);
-            slave_manager::clean_up (options.id);
+            shutdown_queue.push_back (options);
 
             return 0;
         }
@@ -122,12 +123,54 @@ run ()
 
     // main_loop
     size_t read_size = 0;
-    while ((read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
-        {
-            cmd[read_size] = '\0';
-            fprintf (stderr, "[child::worker] Received command: `%s`\n", cmd);
+    struct pollfd pfd[1];
+    pfd[0].events = POLLIN;
+    pfd[0].fd = read_fd;
+    int has_event;
+    bool read_ready;
+    bool err;
 
-            handle_command (cmd);
+    while (true)
+        {
+            has_event = poll (pfd, 1, 1000);
+            read_ready = has_event != 0 && (pfd[0].revents & POLLIN) == POLLIN;
+            err = has_event != 0
+                  && ((pfd[0].revents & POLLHUP) == POLLHUP
+                      || (pfd[0].revents & POLLERR) == POLLERR);
+
+            if (err)
+                break;
+
+            while (!err && read_ready
+                   && (read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
+                {
+                    cmd[read_size] = '\0';
+                    fprintf (stderr,
+                             "[child::worker] Received command: `%s`\n", cmd);
+
+                    handle_command (cmd);
+
+                    has_event = poll (pfd, 1, 0);
+                    read_ready = has_event != 0
+                                 && (pfd[0].revents & POLLIN) == POLLIN;
+                    err = has_event != 0
+                          && ((pfd[0].revents & POLLHUP) == POLLHUP
+                              || (pfd[0].revents & POLLERR) == POLLERR);
+                }
+
+            if (!shutdown_queue.empty ())
+                {
+                    auto i = shutdown_queue.begin ();
+
+                    slave_manager::shutdown (i->id);
+                    int status = slave_manager::wait (i->id, i->force);
+
+                    if (status != -1 && status != -2)
+                        {
+                            slave_manager::clean_up (i->id);
+                            shutdown_queue.erase (i);
+                        }
+                }
         }
 
     close (read_fd);
@@ -191,8 +234,7 @@ call_waitpid (pid_t cpid)
     int exitstatus = -1;
     pid_t w;
 
-    fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n",
-             cpid);
+    fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n", cpid);
 
     do
         {
@@ -219,6 +261,56 @@ call_waitpid (pid_t cpid)
     while (!WIFEXITED (wstatus) && !WIFSIGNALED (wstatus));
 
     fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n", cpid);
+
+    return exitstatus;
+}
+
+// -1 should retry next, -2 waitpid error, else child successfully exited
+int
+call_waitpid_nohang (pid_t cpid)
+{
+    int wstatus = -1;
+    int exitstatus = -1;
+    pid_t w;
+
+    w = waitpid (cpid, &wstatus, WNOHANG);
+    if (w == -1)
+        {
+            perror ("[child::worker::call_waitpid_nohang ERROR] waitpid");
+            return -2;
+        }
+
+    // no state change occured
+    if (w == 0)
+        return -1;
+
+    if (wstatus == -1)
+        {
+            fprintf (stderr,
+                     "[child::worker::call_waitpid_nohang] %d: wstatus "
+                     "unchanged (-1)\n",
+                     cpid);
+        }
+
+    if (w != cpid)
+        {
+            fprintf (stderr,
+                     "[child::worker::call_waitpid_nohang] %d: w is not cpid\n",
+                     cpid);
+        }
+
+    if (WIFEXITED (wstatus))
+        {
+            exitstatus = WEXITSTATUS (wstatus);
+        }
+    else if (WIFSIGNALED (wstatus))
+        {
+            exitstatus = WTERMSIG (wstatus);
+            fprintf (stderr,
+                     "[child::worker::call_waitpid_nohang] %d: received "
+                     "signal %d\n",
+                     cpid, exitstatus);
+        }
 
     return exitstatus;
 }

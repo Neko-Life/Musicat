@@ -623,8 +623,9 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             track.filesize = ofile_stat.st_size;
 
-            std::string server_id_str = std::to_string (server_id);
-            std::string slave_id = "processor-" + server_id_str;
+            const std::string server_id_str = std::to_string (server_id);
+            const std::string slave_id = "processor-" + server_id_str + "."
+                                         + std::to_string (time (NULL));
 
             std::string cmd
                 = cc::command_options_keys_t.id + '=' + slave_id + ';'
@@ -696,13 +697,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value ("earwax") + ';';
 
-            // !TODO: convert current byte to timestamp string
-            // + cc::command_options_keys_t.seek + '=' +
-            // track.current_byte
-            // + ';';
-
             const std::string exit_cmd = cc::get_exit_command (slave_id);
-
             int status = cc::send_command_wr (cmd, exit_cmd, slave_id, 10);
 
             if (status != 0)

@@ -46,6 +46,9 @@ pid_t call_fork (const char *debug_child_name = NULL);
 
 int call_waitpid (pid_t cpid);
 
+// -1 should retry next, -2 waitpid error, else child successfully exited
+int call_waitpid_nohang (pid_t cpid);
+
 } // musicat::child::worker
 
 #endif // MUSICAT_CHILD_WORKER_H

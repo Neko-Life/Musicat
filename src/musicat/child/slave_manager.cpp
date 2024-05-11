@@ -82,7 +82,8 @@ inline constexpr const char *wrefmt
       "pid %d exited with status %d\n";
 
 int
-wait_routine (command::command_options_t &options, bool force_kill)
+wait_routine (command::command_options_t &options, bool force_kill,
+              bool blocking)
 {
     if (force_kill)
         {
@@ -91,8 +92,14 @@ wait_routine (command::command_options_t &options, bool force_kill)
             kill (options.pid, SIGKILL);
         }
 
-    int status = child::worker::call_waitpid (options.pid);
-    fprintf (stderr, wrefmt, options.id.c_str (), options.pid, status);
+    int status;
+    if (blocking)
+        status = child::worker::call_waitpid (options.pid);
+    else
+        status = child::worker::call_waitpid_nohang (options.pid);
+
+    if (status != -1 && status != -2)
+        fprintf (stderr, wrefmt, options.id.c_str (), options.pid, status);
 
     return status;
 }
@@ -152,9 +159,7 @@ wait (std::string &id, bool force_kill)
             return 1;
         }
 
-    wait_routine (i->second, force_kill);
-
-    return 0;
+    return wait_routine (i->second, force_kill, false);
 }
 
 int
@@ -193,7 +198,7 @@ wait_all ()
     auto i = slave_list.begin ();
     while (i != slave_list.end ())
         {
-            wait_routine (i->second, true);
+            wait_routine (i->second, true, true);
 
             i++;
         }
