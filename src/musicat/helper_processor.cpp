@@ -515,7 +515,10 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
            && (read_size = read (ni_fd, buf, BUFFER_SIZE)) > 0)
         {
             if (discard_output)
-                goto skip_write;
+                {
+                    written = 1;
+                    goto skip_write;
+                }
 
             last_wrote_siz
                 = audio_processing::write_stdout (buf, &read_size, true);
@@ -703,7 +706,7 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                         // error, bail out afayc!
                                         break;
 
-                                    current_has_read = true;
+                                    current_has_read = written > 0;
 
                                     if (last_fd)
                                         break;
