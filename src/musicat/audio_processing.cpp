@@ -691,9 +691,12 @@ run_processor (child::command::command_options_t &process_options)
                                  && (prfds[0].revents & POLLIN) == POLLIN;
                 }
 
+            if (write_stdout_err)
+                break;
+
             // empties the last buffer that usually size less than
             // BUFFER_SIZE
-            if (!write_stdout_err && current_read > 0)
+            if (current_read > 0)
                 {
                     if (write_stdout (out_buffer, &current_read) == -1)
                         {
@@ -719,6 +722,8 @@ run_processor (child::command::command_options_t &process_options)
                 {
                     close_valid_fd (&pwritefd);
                     close_valid_fd (&preadfd);
+
+                    kill (p_info.cpid, SIGTERM);
 
                     cstatus = child::worker::call_waitpid (p_info.cpid);
                     if (debug)
@@ -776,6 +781,8 @@ run_processor (child::command::command_options_t &process_options)
     // fds to close: preadfd pwritefd write_fifo
     close_valid_fd (&pwritefd);
     close_valid_fd (&preadfd);
+
+    kill (p_info.cpid, SIGTERM);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
