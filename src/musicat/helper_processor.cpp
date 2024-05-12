@@ -840,6 +840,8 @@ shutdown_chain (bool discard_output)
                     close_valid_fd (&hci->write_fd);
                     close_valid_fd (&hci->read_fd);
 
+                    kill (hci->pid, SIGTERM);
+
                     int child_status = child::worker::call_waitpid (hci->pid);
 
                     if (debug)
