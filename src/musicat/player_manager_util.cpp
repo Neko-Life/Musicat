@@ -1236,6 +1236,9 @@ Manager::get_next_autoplay_track (const string &track_id,
 {
     const bool debug = get_debug_state ();
 
+    // !TODO: limit spawning child when fetching autoplay song!
+    // limit to one autoplay fetch for each guild player
+
     if (debug)
         fprintf (stderr,
                  "[Manager::handle_on_track_marker] Getting new autoplay "
