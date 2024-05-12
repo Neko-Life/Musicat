@@ -232,6 +232,7 @@ fetch (const search_option_t &options)
 
             return nullptr;
         }
+
     // sending exit_cmd once before returning
     // is a requirement starting from here!
 
@@ -255,6 +256,13 @@ fetch (const search_option_t &options)
 
     // command exit right away after getting output
     cc::send_command (exit_cmd);
+
+    if (sizread < 0)
+        {
+            fprintf (stderr, "[mctrack::fetch ERROR] Read error\n");
+
+            return nullptr;
+        }
 
     cmd_buf[sizread] = '\0';
 

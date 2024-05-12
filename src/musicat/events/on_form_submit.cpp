@@ -142,7 +142,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
                                      arg_slip);
 
             if (from)
-                command::play::decide_play (from, guild_id, false);
+                player::decide_play (from, guild_id, false);
             else if (get_debug_state ())
                 fprintf (stderr, "[modal_p] No client to "
                                  "decide play\n");

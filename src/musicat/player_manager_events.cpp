@@ -728,14 +728,23 @@ Manager::spawn_handle_track_marker_worker (
                                         guild_id);
 
                         std::thread dlt (
-                            [this, guild_player, guild_id,
-                             fname] (player::MCTrack result) {
+                            [this, guild_player, guild_id, fname,
+                             v] (player::MCTrack result) {
                                 thread_manager::DoneSetter tmds;
 
                                 this->wait_for_download (fname);
 
                                 guild_player->add_track (result, true,
                                                          guild_id, true);
+
+                                // decide whether to trigger track marker after
+                                // dowload
+                                if (v && !v->terminating && guild_player->from)
+                                    {
+                                        player::decide_play (
+                                            guild_player->from, guild_id,
+                                            false);
+                                    }
                             },
                             track);
 

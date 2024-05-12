@@ -99,7 +99,7 @@ slash_run (const dpp::slashcommand_t &event)
         if (!filename.empty ())
             {
                 event.thinking ();
-                auto find_result = play::find_track (
+                auto find_result = player::find_track (
                     false, filename, player_manager, guild_id, true);
 
                 switch (find_result.second)
@@ -120,10 +120,10 @@ slash_run (const dpp::slashcommand_t &event)
 
                 auto result = find_result.first;
 
-                fname = play::get_filename_from_result (result);
+                fname = player::get_filename_from_result (result);
 
                 auto download_result
-                    = play::track_exist (fname, mctrack::get_url (result),
+                    = player::track_exist (fname, mctrack::get_url (result),
                                          player_manager, true, guild_id, true);
 
                 bool dling = download_result.first;
@@ -188,7 +188,7 @@ slash_run (const dpp::slashcommand_t &event)
                     }
 
                 auto &track = guild_player->current_track;
-                fname = play::get_filename_from_result (track);
+                fname = player::get_filename_from_result (track);
                 fullpath = get_music_folder_path () + fname;
                 event.thinking ();
             }

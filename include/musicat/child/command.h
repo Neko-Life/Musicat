@@ -130,6 +130,9 @@ struct command_options_t
     uint64_t sys_max_out_len;
     bool sys_no_stderr;
     bool sys_w_stderr_mark;
+
+    // only for queue stuff like the shutdown queue
+    time_t ts_queued;
 };
 
 inline command_options_t

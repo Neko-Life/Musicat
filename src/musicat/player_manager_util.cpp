@@ -1,12 +1,17 @@
-#include "musicat/cmds.h"
-#include "musicat/cmds/play.h"
+#include "musicat/YTDLPTrack.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
+#include "musicat/util.h"
+#include "musicat/util_response.h"
 #include <dirent.h>
 #include <libpq-fe.h>
+#include <regex>
 #include <sys/stat.h>
+
+/* #define USE_SEARCH_CACHE */
 
 namespace musicat
 {
@@ -51,6 +56,13 @@ bool
 gatcc_rnot_has_stat (int rc)
 {
     return gatcc_rnot (rc, GATCC_HAS_STAT);
+}
+
+void
+invalidate_track_list_cache ()
+{
+    std::lock_guard lk (gat_m);
+    gat_last_uc = 0;
 }
 
 std::vector<gat_t>
@@ -165,6 +177,514 @@ get_available_tracks (const size_t &amount, bool with_stat)
     gat_cache_completeness = required_completeness;
 
     return ret;
+}
+
+void
+control_music_cache (const size_t size_limit)
+{
+    if (size_limit == 0)
+        return;
+
+    size_t cur_cache_size = 0;
+    auto ats = get_available_tracks (0, true);
+
+    for (const gat_t &g : ats)
+        cur_cache_size += g.size;
+
+    fprintf (stderr,
+             "[main::loop] Current cached music: %ld "
+             "files (%ld bytes)\n",
+             ats.size (), cur_cache_size);
+
+    if (cur_cache_size <= size_limit)
+        // current cached music size does not go over limit
+        return;
+
+    // currect cached music is over the limit defined
+    // in conf
+
+    fprintf (stderr,
+             "[main::loop] Current cached music "
+             "size goes over %ld bytes limit, "
+             "cleaning old music...\n",
+             size_limit);
+
+    // sort by oldest first
+    std::sort (ats.begin (), ats.end (), [] (const gat_t &a, const gat_t &b) {
+        return a.last_access < b.last_access;
+    });
+
+    size_t prev_cache_size = cur_cache_size;
+    size_t rc = 0;
+
+    // delete everything until size is less
+    // than limit
+    for (const gat_t &g : ats)
+        {
+            if (cur_cache_size < size_limit)
+                break;
+
+            fprintf (stderr,
+                     "[main::loop] "
+                     "Unlinking '%s'\n",
+                     g.fullpath.c_str ());
+
+            if (unlink (g.fullpath.c_str ()) == 0)
+                {
+                    cur_cache_size -= g.size;
+                    rc++;
+                    continue;
+                }
+
+            perror ("[main::loop] unlink");
+            fprintf (stderr,
+                     "^^^ Failed unlink "
+                     "'%s'\n",
+                     g.fullpath.c_str ());
+        }
+
+    fprintf (stderr,
+             "[main::loop] Cleaned up %ld "
+             "music files and %ld bytes worth "
+             "of storage space\n",
+             rc, prev_cache_size - cur_cache_size);
+
+    invalidate_track_list_cache ();
+}
+
+// ================================================================================
+
+std::pair<player::MCTrack, int>
+find_track (const bool playlist, const std::string &arg_query,
+            player::player_manager_ptr_t player_manager,
+            const dpp::snowflake guild_id, const bool no_check_history,
+            const std::string &cache_id)
+{
+    std::string trimmed_query = util::trim_str (arg_query);
+
+#ifdef USE_SEARCH_CACHE
+    bool has_cache_id = !cache_id.empty ();
+#else
+    // bool has_cache_id = false;
+#endif
+
+    std::shared_ptr<player::Player> guild_player = NULL;
+
+    // i wonder what was this for... i do the one who wrote this but i forgot
+    if (playlist && !no_check_history)
+        {
+            guild_player = player_manager->get_player (guild_id);
+
+            if (!guild_player)
+                return { {}, 1 };
+
+            // if there's no track return without searching first?
+            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            if (guild_player->queue.begin () == guild_player->queue.end ())
+                {
+                    return { {}, 1 };
+                }
+        }
+
+    // prioritize cache over searching
+    std::vector<player::MCTrack> searches;
+
+#ifdef USE_YTSEARCH_H
+    yt_search::YSearchResult search_result = {};
+    yt_search::YPlaylist playlist_result = {};
+
+#ifdef USE_SEARCH_CACHE
+    if (has_cache_id)
+        searches = search_cache::get (cache_id);
+#endif
+
+    size_t searches_size = has_cache_id ? searches.size () : 0;
+
+    // quick decide to remove when no result found instead of looking up in the
+    // cache map
+    size_t cached_size = has_cache_id ? searches_size : 0;
+
+    bool searched = false;
+
+    // cache not found or no cache Id provided, lets search
+    if (!searches_size)
+        {
+            try
+                {
+                    searches
+                        = playlist
+                              ? (playlist_result
+                                 = yt_search::get_playlist (trimmed_query))
+                                    .entries ()
+
+                              : (search_result
+                                 = yt_search::search (trimmed_query))
+                                    .trackResults ();
+
+                    searches_size = searches.size ();
+
+                    if (!playlist && !searches_size)
+                        // desperate to get a track
+                        // get_playlist already do this if no track from
+                        // default result found
+                        searches = search_result.sideTrackPlaylist ();
+
+                    searched = true;
+                }
+            catch (std::exception &e)
+                {
+                    std::cerr << "[player::find_track ERROR] " << guild_id
+                              << ':' << e.what () << '\n';
+
+                    return { {}, 1 };
+                }
+        }
+
+    if (playlist && playlist_result.status == 1 && !searches.empty ())
+        {
+            // remove duplicate track as first sideTrackPlaylist entry is a
+            // duplicate of the searched track
+            searches.erase (searches.begin ());
+        }
+
+    searches_size = searches.size ();
+
+#else
+    // use mctrack::fetch
+    // playlist true means autoplay request, which is always a playlist url
+    // query
+    nlohmann::json res = mctrack::fetch (
+        { trimmed_query, YDLP_DEFAULT_MAX_ENTRIES, playlist });
+
+    if (res.is_null ())
+        return { {}, 2 };
+
+    searches = YTDLPTrack::get_playlist_entries (res);
+
+#endif
+
+#ifdef USE_SEARCH_CACHE
+    // indicate if this cache is updated
+    bool update_cache = searched && has_cache_id && searches_size;
+    // save the result to cache
+    if (update_cache)
+        search_cache::set (cache_id, searches);
+#endif
+
+    if (searches.begin () == searches.end ())
+        {
+            return { {}, -1 };
+        }
+
+    player::MCTrack result = {};
+    if (playlist == false || no_check_history)
+        // play the first result according to user query
+        result = searches.front ();
+    else if (!no_check_history)
+        {
+            size_t gphs = guild_player->history.size ();
+
+            // find entry that wasn't played before
+            for (const auto &i : searches)
+                {
+                    auto iid = mctrack::get_id (i);
+                    bool br = false;
+
+                    // lookup in current queue
+                    for (const auto &a : guild_player->queue)
+                        {
+                            if (mctrack::get_id (a) != iid)
+                                continue;
+
+                            br = true;
+                            break;
+                        }
+
+                    if (gphs && !br)
+                        {
+                            // lookup in history
+                            for (const auto &a : guild_player->history)
+                                {
+                                    if (a != iid)
+                                        continue;
+
+                                    br = true;
+                                    break;
+                                }
+                        }
+
+                    // current entry is in the queue or has ever been played in
+                    // the last N history
+                    // don't pick it
+                    if (br)
+                        continue;
+
+                    result = i;
+                    break;
+                }
+
+            if (result.raw.is_null ())
+                {
+#ifdef USE_SEARCH_CACHE
+                    // invalidate cache if Id provided
+                    if (has_cache_id && cached_size)
+                        search_cache::remove (cache_id);
+#endif
+                    return { {}, 1 };
+                }
+        }
+
+#ifdef USE_SEARCH_CACHE
+    // save cache with key result id if update_cache is false
+    if (!update_cache && !result.raw.is_null ())
+        search_cache::set (result.id (), searches);
+#endif
+
+    return { result, 0 };
+}
+
+std::string
+get_filename_from_result (player::MCTrack &result)
+{
+    const auto sid = mctrack::get_id (result);
+    const auto st = mctrack::get_title (result);
+
+    // ignore title for now, this is definitely problematic
+    // if we want to support other track fetching method eg. radio url
+    if (sid.empty () /* || !st.length()*/)
+        return "";
+
+    return std::regex_replace (
+        st + std::string ("-") + sid + std::string (".opus"), std::regex ("/"),
+        "", std::regex_constants::match_any);
+}
+
+std::pair<bool, int>
+track_exist (const std::string &fname, const std::string &url,
+             player::player_manager_ptr_t player_manager,
+             bool from_interaction, dpp::snowflake guild_id, bool no_download)
+{
+    if (fname.empty ())
+        return { false, 2 };
+
+    bool dling = false;
+    int status = 0;
+
+    std::ifstream test (get_music_folder_path () + fname,
+                        std::ios_base::in | std::ios_base::binary);
+
+    if (!test.is_open ())
+        {
+            dling = true;
+            if (from_interaction)
+                status = 1;
+
+            if (!no_download
+                && player_manager->waiting_file_download.find (fname)
+                       == player_manager->waiting_file_download.end ())
+                {
+                    player_manager->download (fname, url, guild_id);
+                }
+        }
+    else
+        {
+            test.close ();
+            if (from_interaction)
+                status = 1;
+        }
+
+    return { dling, status };
+}
+
+void
+add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
+           int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
+           const dpp::snowflake channel_id, const dpp::snowflake sha_id,
+           bool from_interaction, dpp::discord_client *from,
+           const dpp::interaction_create_t event, bool continued,
+           int64_t arg_slip, const std::string &cache_id)
+{
+    std::thread rt ([=] () {
+        thread_manager::DoneSetter tmds;
+
+        auto player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            {
+                fprintf (stderr,
+                         "[player::add_track WARN] Can't add track with "
+                         "query, no manager: %s\n",
+                         arg_query.c_str ());
+
+                return;
+            }
+
+        const bool debug = get_debug_state ();
+
+        auto find_result = find_track (playlist, arg_query, player_manager,
+                                       guild_id, false, cache_id);
+
+        switch (find_result.second)
+            {
+            case -1:
+                if (!from_interaction)
+                    break;
+
+                event.edit_response ("Can't find anything");
+                return;
+            case 1:
+                return;
+            case 0:
+                break;
+            case 2:
+                if (!from_interaction)
+                    break;
+
+                event.edit_response ("Error while searching, try again");
+                return;
+            default:
+                fprintf (stderr,
+                         "[player::add_track WARN] Unhandled find_track "
+                         "return status: %d\n",
+                         find_result.second);
+            }
+
+        auto result = find_result.first;
+
+        const std::string fname = get_filename_from_result (result);
+
+        if (from_interaction && (vcclient_cont == false || !v))
+            {
+                player_manager->set_connecting (guild_id, channel_id);
+                player_manager->set_waiting_vc_ready (guild_id, fname);
+            }
+
+        const auto result_url = mctrack::get_url (result);
+
+        auto download_result = track_exist (fname, result_url, player_manager,
+                                            from_interaction, guild_id);
+        bool dling = download_result.first;
+
+        switch (download_result.second)
+            {
+            case 2:
+                if (from_interaction)
+                    {
+                        event.edit_response ("`[ERROR]` Unable to find track");
+                    }
+
+                if (debug)
+                    fprintf (
+                        stderr,
+                        "[play::add_track ERROR] Unable to download track: "
+                        "`%s` `%s`\n",
+                        fname.c_str (), result_url.c_str ());
+
+                return;
+            case 1:
+                if (dling)
+                    {
+                        event.edit_response (
+                            util::response::reply_downloading_track (
+                                mctrack::get_title (result)));
+                    }
+                else
+                    {
+                        if (debug)
+                            fprintf (stderr,
+                                     "track arg_top arg_slip: '%s' %ld %ld\n",
+                                     mctrack::get_title (result).c_str (),
+                                     arg_top, arg_slip);
+
+                        event.edit_response (
+                            util::response::reply_added_track (
+                                mctrack::get_title (result),
+                                arg_top ? arg_top : arg_slip));
+                    }
+            case 0:
+                break;
+            default:
+                fprintf (stderr,
+                         "[player::add_track WARN] Unhandled track_exist "
+                         "return status: %d\n",
+                         download_result.second);
+            }
+
+        std::thread pjt ([player_manager, from, guild_id] () {
+            thread_manager::DoneSetter tmds;
+            player_manager->reconnect (from, guild_id);
+        });
+
+        thread_manager::dispatch (pjt);
+
+        std::thread dlt (
+            [player_manager, sha_id, dling, fname, arg_top, from_interaction,
+             guild_id, from, continued, arg_slip,
+             event] (player::MCTrack result) {
+                thread_manager::DoneSetter tmds;
+
+                dpp::snowflake user_id
+                    = from_interaction ? event.command.usr.id : sha_id;
+                auto guild_player = player_manager->create_player (guild_id);
+
+                const dpp::snowflake channel_id
+                    = from_interaction ? event.command.channel_id
+                                       : guild_player->channel_id;
+
+                if (dling)
+                    {
+                        player_manager->wait_for_download (fname);
+                        if (from_interaction)
+                            event.edit_response (
+                                util::response::reply_added_track (
+                                    mctrack::get_title (result),
+                                    arg_top ? arg_top : arg_slip));
+                    }
+                if (from)
+                    guild_player->from = from;
+
+                player::MCTrack t (result);
+                t.filename = fname;
+                t.user_id = user_id;
+
+                guild_player->add_track (t, arg_top ? true : false, guild_id,
+                                         from_interaction || dling, arg_slip);
+
+                if (from_interaction)
+                    guild_player->set_channel (channel_id);
+
+                decide_play (from, guild_id, continued);
+            },
+            result);
+
+        thread_manager::dispatch (dlt);
+    });
+
+    thread_manager::dispatch (rt);
+}
+
+void
+decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
+             const bool &continued)
+{
+    if (!from)
+        return;
+
+    dpp::snowflake sha_id = get_sha_id ();
+
+    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vu;
+    vu = get_voice_from_gid (guild_id, sha_id);
+
+    if (!vu.first || continued || !has_listener (&vu.second))
+        return;
+
+    dpp::voiceconn *v = from->get_voice (guild_id);
+
+    if (!v || !v->voiceclient || !v->voiceclient->is_ready ())
+        return;
+
+    if ((!v->voiceclient->is_paused () && !v->voiceclient->is_playing ())
+        || v->voiceclient->get_secs_remaining () < 0.05f)
+        v->voiceclient->insert_marker ("s");
 }
 
 // ================================================================================
@@ -725,9 +1245,9 @@ Manager::get_next_autoplay_track (const string &track_id,
     const string query = "https://www.youtube.com/watch?v=" + track_id
                          + "&list=RD" + track_id;
 
-    command::play::add_track (
-        true, server_id, query, 0, true, NULL, 0, get_sha_id (), false, from,
-        dpp::interaction_create_t (NULL, "{}"), false, 0, track_id);
+    player::add_track (true, server_id, query, 0, true, NULL, 0, get_sha_id (),
+                       false, from, dpp::interaction_create_t (NULL, "{}"),
+                       false, 0, track_id);
 }
 
 int

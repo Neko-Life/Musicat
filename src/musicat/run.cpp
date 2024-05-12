@@ -15,6 +15,7 @@
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
+#include <sys/wait.h>
 
 #define RUN_TESTS 0
 
@@ -816,77 +817,17 @@ run (int argc, const char *argv[])
                              > ONE_HOUR_SECOND))
                         && mcs != 0)
                         {
-                            size_t cur_cache_size = 0;
-                            auto ats = player::get_available_tracks (0, true);
-
-                            for (const player::gat_t &g : ats)
-                                cur_cache_size += g.size;
-
-                            fprintf (stderr,
-                                     "[main::loop] Current cached music: %ld "
-                                     "files (%ld bytes)\n",
-                                     ats.size (), cur_cache_size);
-
-                            // currect cached music is over the limit defined
-                            // in conf
-                            if (cur_cache_size > mcs)
-                                {
-                                    fprintf (
-                                        stderr,
-                                        "[main::loop] Current cached music "
-                                        "size goes over %ld bytes limit, "
-                                        "cleaning old music...\n",
-                                        mcs);
-
-                                    // sort by oldest first
-                                    std::sort (ats.begin (), ats.end (),
-                                               [] (const player::gat_t &a,
-                                                   const player::gat_t &b) {
-                                                   return a.last_access
-                                                          < b.last_access;
-                                               });
-
-                                    size_t prev_cache_size = cur_cache_size;
-                                    size_t rc = 0;
-
-                                    // delete everything until size is less
-                                    // than limit
-                                    for (const player::gat_t &g : ats)
-                                        {
-                                            if (cur_cache_size < mcs)
-                                                break;
-
-                                            fprintf (stderr,
-                                                     "[main::loop] "
-                                                     "Unlinking '%s'\n",
-                                                     g.fullpath.c_str ());
-
-                                            if (unlink (g.fullpath.c_str ())
-                                                == 0)
-                                                {
-                                                    cur_cache_size -= g.size;
-                                                    rc++;
-                                                    continue;
-                                                }
-
-                                            perror ("[main::loop] unlink");
-                                            fprintf (stderr,
-                                                     "^^^ Failed unlink "
-                                                     "'%s'\n",
-                                                     g.fullpath.c_str ());
-                                        }
-
-                                    fprintf (stderr,
-                                             "[main::loop] Cleaned up %ld "
-                                             "music files and %ld bytes worth "
-                                             "of storage space\n",
-                                             rc,
-                                             prev_cache_size - cur_cache_size);
-                                }
+                            player::control_music_cache (mcs);
 
                             should_check_music_cache = false;
                             last_music_cache_check = cur_time;
                         }
+
+                    // the only solution to reap child exited abnormally in
+                    // docker container env
+                    int wstatus;
+                    while (waitpid (-1, &wstatus, WNOHANG) > 0)
+                        ;
 
                     time (&last_5sec);
                 }

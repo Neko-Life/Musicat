@@ -600,7 +600,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 throw 2;
 
             guild_player->tried_continuing = false;
-            OpusEncoder *opus_encoder = guild_player->opus_encoder;
 
             FILE *ofile = fopen (file_path.c_str (), "r");
 
@@ -810,7 +809,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
                     if (audio_processing::send_audio_routine (
                             v, (uint16_t *)buffer, &read_size, false,
-                            opus_encoder))
+                            guild_player->opus_encoder))
                         break;
 
                     handle_effect_chain_change (effect_states);
@@ -877,7 +876,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                  (total_read += read_size), read_size);
 
                     audio_processing::send_audio_routine (
-                        v, (uint16_t *)buffer, &read_size, true, opus_encoder);
+                        v, (uint16_t *)buffer, &read_size, true,
+                        guild_player->opus_encoder);
                 }
 
             close (read_fd);

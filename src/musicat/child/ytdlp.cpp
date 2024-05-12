@@ -44,6 +44,8 @@ int
 run (const command::command_options_t &options, sem_t *sem,
      const std::string &sem_full_key)
 {
+    signal (SIGPIPE, SIG_IGN);
+
     int write_fifo = -1;
     int status = -1;
     FILE *jsonout = NULL;
@@ -60,6 +62,15 @@ run (const command::command_options_t &options, sem_t *sem,
 
     // check if outname already exists
     struct stat filestat;
+
+    write_fifo = open (as_fp.c_str (), O_WRONLY);
+    if (write_fifo < 0)
+        {
+            perror ("worker_command::call_ytdlp write_fifo open");
+            status = 1;
+            goto exit_failure;
+        }
+
     if (stat (outfname.c_str (), &filestat) == 0
         && (filestat.st_mode & S_IFREG))
         {
@@ -92,6 +103,9 @@ run (const command::command_options_t &options, sem_t *sem,
 
     if (status == 0)
         {
+            close (write_fifo);
+            write_fifo = -1;
+
             if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
                 {
                     perror ("call_ytdlp prctl");
@@ -180,15 +194,6 @@ run (const command::command_options_t &options, sem_t *sem,
     child::worker::call_waitpid (status);
 
 write_res:
-    write_fifo = open (as_fp.c_str (), O_WRONLY);
-
-    if (write_fifo < 0)
-        {
-            perror ("worker_command::call_ytdlp write_fifo open");
-            status = 1;
-            goto exit_failure;
-        }
-
     // write output fp to write_fifo
     resopt
         += command::command_options_keys_t.id + '='

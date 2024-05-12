@@ -53,6 +53,7 @@ execute (command::command_options_t &options)
             if (slave_info.first != 0)
                 return slave_info.first;
 
+            options.ts_queued = time (NULL);
             shutdown_queue.push_back (options);
 
             return 0;
@@ -167,7 +168,11 @@ run ()
                     /* slave_manager::shutdown (i->id); */
 
                     // this calls waitpid with nohang flag
-                    int status = slave_manager::wait (i->id, i->force);
+                    // force kill if 30 second passed and still
+                    // in the queue
+                    int status = slave_manager::wait (
+                        i->id,
+                        i->force || ((time (NULL) - i->ts_queued) > 30));
 
                     if (status != -1 && status != -2)
                         {
@@ -249,7 +254,7 @@ call_waitpid (pid_t cpid)
             if (w == -1)
                 {
                     perror ("[child::worker::call_waitpid ERROR] waitpid");
-                    return -1;
+                    return -2;
                 }
 
             if (WIFEXITED (wstatus))
@@ -276,6 +281,15 @@ call_waitpid (pid_t cpid)
 int
 call_waitpid_nohang (pid_t cpid)
 {
+    // cpid -1??
+    if (cpid == -1)
+        {
+            constexpr const char err[] = "[child::worker::call_waitpid_nohang "
+                                         "ERROR] cpid is -1 ???\n";
+            write (STDERR_FILENO, err, sizeof (err) / sizeof (*err));
+            return 1;
+        }
+
     int wstatus = -1;
     int exitstatus = -1;
     pid_t w;
