@@ -230,6 +230,24 @@ run_standalone (const processor_options_t &options,
     _exit (EXIT_FAILURE);
 }
 
+// close all unrelated fds when helper got forked
+static void
+handle_worker_fork ()
+{
+    close_valid_fd (&write_fifo);
+
+    helper_processor::close_all_helper_fds ();
+}
+
+static void
+handle_helper_fork ()
+{
+    handle_worker_fork ();
+    // close parent fds in addition
+    close_valid_fd (&preadfd);
+    close_valid_fd (&pwritefd);
+}
+
 int
 init_standalone (processor_states_t &p_info,
                  const processor_options_t &options)
@@ -277,7 +295,7 @@ init_standalone (processor_states_t &p_info,
     if (p_info.cpid == 0)
         {
             // close unrelated fds
-            child::worker::handle_worker_fork ();
+            handle_worker_fork ();
 
             run_standalone (options, p_info, sem);
         }
@@ -583,24 +601,6 @@ copy_options (processor_options_t &opts)
     return opts;
 }
 
-// close all unrelated fds when helper got forked
-static void
-handle_worker_fork ()
-{
-    close_valid_fd (&write_fifo);
-
-    helper_processor::close_all_helper_fds ();
-}
-
-static void
-handle_helper_fork ()
-{
-    handle_worker_fork ();
-    // close parent fds in addition
-    close_valid_fd (&preadfd);
-    close_valid_fd (&pwritefd);
-}
-
 // should be run as a child process
 int
 run_processor (child::command::command_options_t &process_options)
@@ -723,8 +723,6 @@ run_processor (child::command::command_options_t &process_options)
                     close_valid_fd (&pwritefd);
                     close_valid_fd (&preadfd);
 
-                    kill (p_info.cpid, SIGINT);
-
                     cstatus = child::worker::call_waitpid (p_info.cpid);
                     if (debug)
                         fprintf (stderr, "processor child status: %d\n",
@@ -781,8 +779,6 @@ run_processor (child::command::command_options_t &process_options)
     // fds to close: preadfd pwritefd write_fifo
     close_valid_fd (&pwritefd);
     close_valid_fd (&preadfd);
-
-    kill (p_info.cpid, SIGINT);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
