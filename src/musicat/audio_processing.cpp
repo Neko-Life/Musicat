@@ -723,7 +723,7 @@ run_processor (child::command::command_options_t &process_options)
                     close_valid_fd (&pwritefd);
                     close_valid_fd (&preadfd);
 
-                    kill (p_info.cpid, SIGTERM);
+                    kill (p_info.cpid, SIGINT);
 
                     cstatus = child::worker::call_waitpid (p_info.cpid);
                     if (debug)
@@ -782,7 +782,7 @@ run_processor (child::command::command_options_t &process_options)
     close_valid_fd (&pwritefd);
     close_valid_fd (&preadfd);
 
-    kill (p_info.cpid, SIGTERM);
+    kill (p_info.cpid, SIGINT);
 
     // wait for childs to make sure they're dead and
     // prevent them to become zombies
