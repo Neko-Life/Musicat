@@ -697,12 +697,13 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value ("earwax") + ';';
 
             const std::string exit_cmd = cc::get_exit_command (slave_id);
-            int status = cc::send_command_wr (cmd, exit_cmd, slave_id, 10);
+            send_command (cmd);
+            int status = wait_slave_ready (slave_id, 10);
 
             if (status != 0)
-                {
-                    throw 2;
-                }
+                // !TODO: what to do here? shutting down existing processor is
+                // not right
+                throw 2;
 
             const std::string fifo_stream_path
                 = audio_processing::get_audio_stream_fifo_path (slave_id);
