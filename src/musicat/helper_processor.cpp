@@ -27,9 +27,6 @@ std::deque<helper_chain_t> active_helpers = {};
 static std::vector<int> pending_write;
 static std::vector<int> pending_read;
 
-ssize_t total_wrote_to_chain = 0;
-inline constexpr ssize_t MAX_TOTAL_WROTE_TO_CHAIN = SSIZE_MAX;
-
 void
 remove_pending (std::vector<int> *vec, int fd)
 {
@@ -57,10 +54,6 @@ is_pending (std::vector<int> *vec, int fd)
                     pi++;
                     continue;
                 }
-
-#ifdef DEBUG_LOG_2
-            fprintf (stderr, "fd %d is pending\n", fd);
-#endif
 
             return true;
         }
@@ -693,9 +686,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                         {
                             skip_check = true;
 
-                            if (!shutdown && ni == 1)
-                                total_wrote_to_chain = 0;
-
                             if (first_fd)
                                 {
                                     written = read_first_fd_routine (
@@ -759,8 +749,6 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
                                     ssize_t wr
                                         = write (ni_fd, ori_buffer.data (),
                                                  ori_buffer.length ());
-
-                                    total_wrote_to_chain += wr;
 
                                     *size = 0;
                                     ori_buffer_written = true;
@@ -838,6 +826,35 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
 ssize_t
 shutdown_chain (bool discard_output)
 {
+    if (discard_output)
+        {
+            pending_write.clear ();
+            pending_read.clear ();
+
+            const bool debug = get_debug_state ();
+
+            // shutdown all helpers
+            auto hci = active_helpers.begin ();
+            while (hci != active_helpers.end ())
+                {
+                    close_valid_fd (&hci->write_fd);
+                    close_valid_fd (&hci->read_fd);
+
+                    int child_status = child::worker::call_waitpid (hci->pid);
+
+                    if (debug)
+                        fprintf (stderr,
+                                 "[helper_processor::manage_processor] chain "
+                                 "child_status: "
+                                 "%d `%s`\n",
+                                 child_status, hci->options.raw_args.c_str ());
+
+                    hci = active_helpers.erase (hci);
+                }
+
+            return 0;
+        }
+
     ssize_t written = run_through_chain (NULL, NULL, discard_output);
 
     if (!pending_write.empty ())

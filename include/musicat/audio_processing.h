@@ -205,7 +205,7 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
                         OpusEncoder *opus_encoder = NULL);
 
 // should be run as a child process
-run_processor_error_t
+int
 run_processor (child::command::command_options_t &process_options);
 
 std::string get_audio_stream_fifo_path (const std::string &id);

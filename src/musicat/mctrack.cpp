@@ -222,7 +222,9 @@ fetch (const search_option_t &options)
 
     const std::string exit_cmd = cc::get_exit_command (qid);
 
-    int status = cc::send_command_wr (ytdlp_cmd, exit_cmd, qid, 10);
+    child::command::send_command (ytdlp_cmd);
+
+    int status = child::command::wait_slave_ready (qid, 10);
 
     if (status != 0)
         {
