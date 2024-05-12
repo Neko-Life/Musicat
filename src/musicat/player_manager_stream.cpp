@@ -697,8 +697,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                        + cc::sanitize_command_value ("earwax") + ';';
 
             const std::string exit_cmd = cc::get_exit_command (slave_id);
-            send_command (cmd);
-            int status = wait_slave_ready (slave_id, 10);
+            cc::send_command (cmd);
+            int status = cc::wait_slave_ready (slave_id, 10);
 
             if (status != 0)
                 // !TODO: what to do here? shutting down existing processor is
