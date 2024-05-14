@@ -382,6 +382,10 @@ class Player
     // get active fx count
     int fx_get_active_count () const;
 
+    int load_fx_states (const nlohmann::json &fx_states);
+
+    nlohmann::json fx_states_to_json ();
+
     // ====================================================================
 };
 

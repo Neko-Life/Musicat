@@ -65,7 +65,7 @@ _check_status (PGresult *res, const char *fn = "",
     return ret;
 }
 
-const std::string
+[[nodiscard]] std::string
 _escape_values_query (const std::string &str)
 {
     if (get_debug_state ())
@@ -174,7 +174,7 @@ create_table_guilds_player_config ()
           "10000), "
           "\"loop_mode\" SMALLINT DEFAULT 0 "
           "CHECK (\"loop_mode\" >= 0 AND \"loop_mode\" <= 10), "
-          // guild_id
+          "\"fx_states\" JSON, "
           "\"gid\" VARCHAR(24) UNIQUE PRIMARY KEY NOT NULL, "
           "\"ts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, "
           "\"uts\" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL );";
@@ -739,21 +739,23 @@ ExecStatusType
 update_guild_player_config (const dpp::snowflake &guild_id,
                             const bool *autoplay_state,
                             const int *autoplay_threshold,
-                            const player::loop_mode_t *loop_mode)
+                            const player::loop_mode_t *loop_mode,
+                            const nlohmann::json &fx_states)
 {
 
     if (!guild_id)
         return (ExecStatusType)-1;
 
-    if (!autoplay_state && !autoplay_threshold && !loop_mode)
+    if (!autoplay_state && !autoplay_threshold && !loop_mode
+        && !fx_states.is_object ())
         {
             // nothing to update
             return (ExecStatusType)-2;
         }
 
     std::vector<std::string> values, names;
-    values.reserve (3);
-    names.reserve (3);
+    values.reserve (4);
+    names.reserve (4);
 
     if (autoplay_state)
         {
@@ -771,6 +773,17 @@ update_guild_player_config (const dpp::snowflake &guild_id,
         {
             names.push_back ("\"loop_mode\"");
             values.push_back (_stringify_loop_mode (*loop_mode));
+        }
+
+    if (fx_states.is_object ())
+        {
+            const std::string esc = _escape_values_query (fx_states.dump ());
+
+            if (!esc.empty ())
+                {
+                    names.push_back ("\"fx_states\"");
+                    values.push_back (esc);
+                }
         }
 
     std::string query ("INSERT INTO \"guilds_player_config\" ");
@@ -815,9 +828,9 @@ get_guild_player_config (const dpp::snowflake &guild_id)
     if (!guild_id)
         return std::make_pair (nullptr, (ExecStatusType)-1);
 
-    std::string query (
-        "SELECT \"autoplay_state\", \"autoplay_threshold\", \"loop_mode\" "
-        "FROM \"guilds_player_config\" WHERE \"gid\" = '");
+    std::string query ("SELECT \"autoplay_state\", \"autoplay_threshold\", "
+                       "\"loop_mode\", \"fx_states\" "
+                       "FROM \"guilds_player_config\" WHERE \"gid\" = '");
     query += std::to_string (guild_id) + "';";
 
     std::lock_guard<std::mutex> lk (conn_mutex);
@@ -874,6 +887,27 @@ parse_guild_player_config_PGresult (PGresult *res)
                          val);
             ret.loop_mode = _parse_loop_mode (val);
             set = true;
+        }
+
+    if (!PQgetisnull (res, 0, 3))
+        {
+            const char *val = PQgetvalue (res, 0, 3);
+            if (debug)
+                fprintf (stderr,
+                         "[DB_DEBUG] Parse player config fx_states: %s\n",
+                         val);
+            try
+                {
+                    ret.fx_states = nlohmann::json::parse (val);
+                    set = true;
+                }
+            catch (const std::exception &e)
+                {
+                    fprintf (stderr,
+                             "[database::parse_guild_player_config_PGresult "
+                             "ERROR] Parsing fx_states: %s\n",
+                             e.what ());
+                }
         }
 
     return std::make_pair (ret, set ? 0 : 1);

@@ -535,6 +535,68 @@ Player::fx_get_active_count () const
     return count;
 }
 
+int
+Player::load_fx_states (const nlohmann::json &fx_states)
+{
+    if (!fx_states.is_object ())
+        return 1;
+
+    const auto i_tempo = fx_states.find ("tempo");
+    const auto i_pitch = fx_states.find ("pitch");
+    const auto i_equalizer = fx_states.find ("equalizer");
+    const auto i_sampling_rate = fx_states.find ("sampling_rate");
+    const auto i_vibrato_f = fx_states.find ("vibrato_f");
+    const auto i_vibrato_d = fx_states.find ("vibrato_d");
+    const auto i_tremolo_f = fx_states.find ("tremolo_f");
+    const auto i_tremolo_d = fx_states.find ("tremolo_d");
+    const auto i_earwax = fx_states.find ("earwax");
+
+    if (i_tempo != fx_states.end ())
+        this->tempo = i_tempo->get<double> ();
+
+    if (i_pitch != fx_states.end ())
+        this->pitch = i_pitch->get<int> ();
+
+    if (i_equalizer != fx_states.end ())
+        this->equalizer = i_equalizer->get<string> ();
+
+    if (i_sampling_rate != fx_states.end ())
+        this->sampling_rate = i_sampling_rate->get<int64_t> ();
+
+    if (i_vibrato_f != fx_states.end ())
+        this->vibrato_f = i_vibrato_f->get<double> ();
+
+    if (i_vibrato_d != fx_states.end ())
+        this->vibrato_d = i_vibrato_d->get<int> ();
+
+    if (i_tremolo_f != fx_states.end ())
+        this->tremolo_f = i_tremolo_f->get<double> ();
+
+    if (i_tremolo_d != fx_states.end ())
+        this->tremolo_d = i_tremolo_d->get<int> ();
+
+    if (i_earwax != fx_states.end ())
+        this->earwax = i_earwax->get<bool> ();
+
+    return 0;
+}
+
+nlohmann::json
+Player::fx_states_to_json ()
+{
+    return {
+        { "tempo", this->tempo },
+        { "pitch", this->pitch },
+        { "equalizer", this->equalizer },
+        { "sampling_rate", this->sampling_rate },
+        { "vibrato_f", this->vibrato_f },
+        { "vibrato_d", this->vibrato_d },
+        { "tremolo_f", this->tremolo_f },
+        { "tremolo_d", this->tremolo_d },
+        { "earwax", this->earwax },
+    };
+}
+
 // ====================================================================
 
 } // player

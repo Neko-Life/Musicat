@@ -1167,6 +1167,7 @@ Manager::load_guild_player_config (const dpp::snowflake &guild_id)
     player->loop_mode = conf.first.loop_mode;
     player->max_history_size = (size_t)conf.first.autoplay_threshold;
     player->auto_play = conf.first.autoplay_state;
+    player->load_fx_states (conf.first.fx_states);
 
     return conf.second;
 }

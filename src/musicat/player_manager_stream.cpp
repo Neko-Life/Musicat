@@ -3,6 +3,7 @@
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/config.h"
+#include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <memory>
@@ -424,26 +425,30 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             should_write_helper_chain_cmd = true;
         }
 
-    bool earwax_queried
-        = states.guild_player->set_earwax != states.guild_player->earwax;
+    bool earwax_queried = states.guild_player->set_earwax;
 
     if (earwax_queried)
         {
             std::string new_fx
-                = states.guild_player->set_earwax == false ? "" : "earwax";
+                = states.guild_player->earwax == false ? "" : "earwax";
 
             std::string cmd = cc::command_options_keys_t.helper_chain + '='
                               + cc::sanitize_command_value (new_fx) + ';';
 
             helper_chain_cmd += cmd;
 
-            states.guild_player->earwax = states.guild_player->set_earwax;
+            states.guild_player->set_earwax = false;
 
             should_write_helper_chain_cmd = true;
         }
 
     if (!should_write_helper_chain_cmd)
         return;
+
+    // update fx_states in db
+    database::update_guild_player_config (
+        states.guild_player->guild_id, NULL, NULL, NULL,
+        states.guild_player->fx_states_to_json ());
 
     // check for existed non queried and add it to cmd
 

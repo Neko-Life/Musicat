@@ -29,6 +29,7 @@ struct player_config
     bool autoplay_state;
     int autoplay_threshold;
     player::loop_mode_t loop_mode;
+    nlohmann::json fx_states;
 };
 
 // -----------------------------------------------------------------------
@@ -212,12 +213,14 @@ ExecStatusType delete_guild_current_queue (const dpp::snowflake &guild_id);
  * @param autoplay_state
  * @param autoplay_threshold
  * @param loop_mode
+ * @param fx_states
  * @return ExecStatusType -1 if guild_id is 0, -2 if all the three last param
  * is null, -3 if failed to create new table, PGRES_COMMAND_OK on success
  */
 ExecStatusType update_guild_player_config (
     const dpp::snowflake &guild_id, const bool *autoplay_state,
-    const int *autoplay_threshold, const player::loop_mode_t *loop_mode);
+    const int *autoplay_threshold, const player::loop_mode_t *loop_mode,
+    const nlohmann::json &fx_states = nullptr);
 
 /**
  * @brief Get guild player config, PGresult pointer must be freed using
