@@ -24,7 +24,7 @@ get_cors_headers (std::string_view req_allow_headers)
         }
 
     return {
-        { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
+        { "Access-Control-Allow-Methods", "HEAD, GET, POST, OPTIONS" },
         { "Access-Control-Allow-Headers", allow_headers },
         { "Access-Control-Allow-Credentials", "true" },
         // other security headers
@@ -106,11 +106,11 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
         {
             for (const std::string &s : _cors_enabled_origins)
                 {
-                    if (origin == s)
-                        {
-                            allow = true;
-                            break;
-                        }
+                    if (origin != s)
+                        continue;
+
+                    allow = true;
+                    break;
                 }
         }
 
@@ -144,7 +144,7 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
 void
 set_content_type_json (APIResponse *res)
 {
-    res->writeHeader ("Content-Type", "application/json");
+    res->writeHeader (header_key_t.content_type, content_type_t.json);
 }
 
 void

@@ -1,3 +1,4 @@
+#include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 

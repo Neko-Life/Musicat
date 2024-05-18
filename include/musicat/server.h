@@ -31,11 +31,26 @@ inline constexpr const struct
     const char *UNAUTHORIZED_401 = "401 Unauthorized";
 } http_status_t;
 
+inline constexpr const struct
+{
+    const char *content_type = "Content-Type";
+} header_key_t;
+
+inline constexpr const struct
+{
+    const char *json = "application/json";
+} content_type_t;
+
+using header_v_t = std::vector<std::pair<std::string, std::string> >;
+
 // always lock this whenever updating states
 // EXTERN_VARIABLE
 extern std::mutex ns_mutex;
 
 bool get_running_state ();
+
+// always call this to do response stuff in another thread
+int defer (std::function<void ()> cb);
 
 // this will be handled on `message` event in the client,
 // so be sure to use helper function to construct

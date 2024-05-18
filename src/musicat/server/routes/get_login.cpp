@@ -1,3 +1,4 @@
+#include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/states.h"
@@ -17,7 +18,7 @@ get_login (APIResponse *res, APIRequest *req)
     const char *http_status = http_status_t.OK_200;
     nlohmann::json r;
 
-    std::string oauth_state = get_oauth_link ();
+    const std::string oauth_state = get_oauth_link ();
     if (!oauth_state.length ())
         {
             http_status = http_status_t.INTERNAL_SERVER_ERROR_500;
@@ -26,8 +27,8 @@ get_login (APIResponse *res, APIRequest *req)
         }
     else
         {
-            std::string redir (req->getHeader ("redirect-param"));
-            std::string state = states::generate_oauth_state (redir);
+            const std::string redir (req->getHeader ("redirect-param"));
+            const std::string state = states::generate_oauth_state (redir);
 
             r = response::payload (oauth_state + "&state=" + state);
         }

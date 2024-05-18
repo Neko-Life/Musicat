@@ -7,7 +7,7 @@
 
 #if __cplusplus >= 201703L && __cplusplus < 202002L
 
-#define MUSICAT_U8(x) u8 ## x
+#define MUSICAT_U8(x) u8##x
 
 #elif __cplusplus >= 202002L
 
@@ -18,5 +18,11 @@
 #error Compile target only support C++17 and C++20
 
 #endif
+
+#define DELETE_COPY_MOVE_CTOR(x)                                              \
+    x (const x &_o) = delete;                                                 \
+    x (x &&_o) noexcept = delete;                                             \
+    x &operator= (const x &_o) = delete;                                      \
+    x &operator= (x &&_o) noexcept = delete
 
 #endif // MUSICAT_FUNCTION_MACROS_H

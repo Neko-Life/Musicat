@@ -46,6 +46,7 @@ options_cors (APIResponse *res, APIRequest *req)
 inline constexpr const route_handler_t route_handlers[]
     = { { "/*", ROUTE_METHOD_ANY, any_any },
         { "/*", ROUTE_METHOD_OPTIONS, options_cors },
+        { "/*", ROUTE_METHOD_HEAD, options_cors },
 
         { "/", ROUTE_METHOD_GET, get_root },
         { "/login", ROUTE_METHOD_GET, get_login },
@@ -74,6 +75,10 @@ define_routes (APIApp *app)
                     break;
 
                 case ROUTE_METHOD_OPTIONS:
+                    app->options (rh->path, rh->handler);
+                    break;
+
+                case ROUTE_METHOD_HEAD:
                     app->options (rh->path, rh->handler);
                     break;
 

@@ -12,6 +12,7 @@ enum route_method_e
     ROUTE_METHOD_GET,
     ROUTE_METHOD_POST,
     ROUTE_METHOD_OPTIONS,
+    ROUTE_METHOD_HEAD,
     ROUTE_METHOD_ANY,
 };
 

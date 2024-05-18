@@ -3,6 +3,7 @@
 
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
+#include "musicat/server/middlewares.h"
 #include <mutex>
 #include <string>
 
@@ -14,9 +15,10 @@ struct recv_body_t
     long long ts;
     const char *endpoint;
     std::string id;
-    std::string *body;
+    std::string body;
     APIResponse *res;
     APIRequest *req;
+    header_v_t cors_headers;
 };
 
 struct oauth_timer_t
@@ -38,7 +40,8 @@ int remove_oauth_state (const std::string &state,
                         std::string *redirect = NULL);
 
 recv_body_t create_recv_body_t (const char *endpoint, const std::string &id,
-                                APIResponse *res, APIRequest *req);
+                                APIResponse *res, APIRequest *req,
+                                const header_v_t &cors_headers);
 
 /**
  * @brief Should acquire recv_body_cache_m lock before calling

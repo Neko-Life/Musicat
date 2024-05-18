@@ -1,14 +1,12 @@
 #ifndef MUSICAT_SERVER_MIDDLEWARES_H
 #define MUSICAT_SERVER_MIDDLEWARES_H
 
-#include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/services.h"
+#include "nlohmann/json.hpp"
 
 namespace musicat::server::middlewares
 {
-using header_v_t = std::vector<std::pair<std::string, std::string> >;
-
 void load_cors_enabled_origin ();
 
 header_v_t cors (APIResponse *res, APIRequest *req,
