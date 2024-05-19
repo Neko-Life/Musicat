@@ -3,6 +3,7 @@
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
+#include "musicat/server/response.h"
 #include "musicat/server/services.h"
 #include "musicat/util.h"
 
@@ -175,15 +176,16 @@ std::string
 validate_token (APIResponse *res, APIRequest *req,
                 const header_v_t &cors_headers)
 {
+    response::end_t endres (res);
+    endres.status = http_status_t.UNAUTHORIZED_401;
+    endres.headers = cors_headers;
+
     std::string_view cookie = req->getHeader ("cookie");
 
     size_t i = cookie.find (token_cookie_name);
 
     if (i == cookie.npos)
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
@@ -193,9 +195,6 @@ validate_token (APIResponse *res, APIRequest *req,
 
     if (token.empty ())
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
@@ -203,12 +202,10 @@ validate_token (APIResponse *res, APIRequest *req,
 
     if (util::valid_number (user_id) != 0)
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
+    endres.res = NULL;
     return user_id;
 }
 

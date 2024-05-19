@@ -19,6 +19,7 @@ struct end_t
     header_v_t     headers;
     std::string    response;
     APIResponse   *res;
+    // edit copy_end_t() when adding/deleting this struct members!
 
     end_t            ();
 
@@ -47,12 +48,25 @@ struct defer_end_t
 
     DELETE_COPY_MOVE_CTOR(defer_end_t);
 
-    explicit defer_end_t   (end_t &_endres);
-    ~defer_end_t           ();
+    explicit    defer_end_t (end_t &_endres);
+    ~defer_end_t            ();
 };
 
-nlohmann::json payload     (const nlohmann::json &data);
-nlohmann::json error       (error_code_e code, std::string_view message);
+// explicit copy
+inline int
+copy_end_t (end_t &src, end_t &dest)
+{
+    dest.res        = src.res;
+    dest.status     = src.status;
+    dest.headers    = src.headers;
+    dest.response   = src.response;
+
+    return 0;
+}
+
+
+nlohmann::json  payload     (const nlohmann::json &data);
+nlohmann::json  error       (error_code_e code, std::string_view message);
 
 } // musicat::server::response
 

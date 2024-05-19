@@ -1,4 +1,5 @@
 #include "musicat/server/routes.h"
+#include "musicat/server.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/routes/get_guilds.h"
 #include "musicat/server/routes/get_login.h"
@@ -43,6 +44,52 @@ options_cors (APIResponse *res, APIRequest *req)
     res->end ();
 }
 
+inline std::map<std::string, time_t> last_reqs;
+
+// !TODO: implement this 304 status properly!
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/304
+int
+one_second_304 (APIResponse *res, APIRequest *req)
+{
+    auto addr = res->getRemoteAddressAsText ();
+    time_t cur_ts = time (NULL);
+
+    if (addr.empty ())
+        return -1;
+
+    const std::string rid = std::string (addr) + ";"
+                            + std::string (req->getMethod ()) + ";"
+                            + std::string (req->getUrl ());
+
+    /* const std::string rid2 = std::string (addr) + ";" */
+    /*                          + std::string (req->getMethod ()) + ";" */
+    /*                          + std::string (req->getFullUrl ()); */
+
+    /* std::cout << rid << "\n" << rid2 << "\n"; */
+
+    auto last_r = last_reqs.find (rid);
+    if (last_r != last_reqs.end ())
+        {
+            if (last_r->second == cur_ts)
+                {
+                    // burst request, return 304
+                    res->writeStatus (http_status_t.NOT_MODIFIED_304);
+                    res->end ();
+                    return 0;
+                }
+            else
+                {
+                    last_r->second = cur_ts;
+                }
+        }
+    else
+        {
+            last_reqs.try_emplace (rid, cur_ts);
+        }
+
+    return -1;
+}
+
 inline constexpr const route_handler_t route_handlers[]
     = { { "/*", ROUTE_METHOD_ANY, any_any },
         { "/*", ROUTE_METHOD_OPTIONS, options_cors },
@@ -64,10 +111,18 @@ define_routes (APIApp *app)
             if (rh->method == ROUTE_METHOD_NULL)
                 break;
 
+            // only for GET and HEAD req
+            auto h = [rh] (APIResponse *res, APIRequest *req) {
+                if (one_second_304 (res, req) == 0)
+                    return;
+
+                rh->handler (res, req);
+            };
+
             switch (rh->method)
                 {
                 case ROUTE_METHOD_GET:
-                    app->get (rh->path, rh->handler);
+                    app->get (rh->path, h);
                     break;
 
                 case ROUTE_METHOD_POST:
@@ -79,7 +134,7 @@ define_routes (APIApp *app)
                     break;
 
                 case ROUTE_METHOD_HEAD:
-                    app->options (rh->path, rh->handler);
+                    app->options (rh->path, h);
                     break;
 
                 case ROUTE_METHOD_ANY:

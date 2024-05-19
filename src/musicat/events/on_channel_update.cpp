@@ -56,6 +56,8 @@ on_channel_update (dpp::cluster *client)
         if (debug)
             std::cerr << "[update_rtc_region] " << cached->id << '\n';
 
+        // skip this reconnect to use new voice server update handler
+        goto on_channel_update_end;
         player_manager->full_reconnect (event.from, guild_id, channel_id,
                                         channel_id);
 
