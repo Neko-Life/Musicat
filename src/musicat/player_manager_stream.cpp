@@ -708,7 +708,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (status != 0)
                 // !TODO: what to do here? shutting down existing processor is
                 // not right
-                throw 2;
+                throw 3;
 
             const std::string fifo_stream_path
                 = audio_processing::get_audio_stream_fifo_path (slave_id);

@@ -400,6 +400,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     return;
                 }
 
+            int err = 0;
             try
                 {
                     int error;
@@ -439,6 +440,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                 }
             catch (int e)
                 {
+                    err = e;
+
                     fprintf (stderr,
                              "[ERROR Manager::play] Stream thrown "
                              "error with "
@@ -483,11 +486,16 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 
             guild_player->processing_audio = false;
 
-            if (v && !v->terminating)
+            const bool err_processor = err == 3;
+            // do not insert marker when error coming from duplicate processor
+            if (!err_processor && v && !v->terminating)
                 {
                     v->insert_marker ("e");
                     return;
                 }
+
+            if (err_processor)
+                return;
 
             auto vcc = get_voice_from_gid (server_id, get_sha_id ());
 
