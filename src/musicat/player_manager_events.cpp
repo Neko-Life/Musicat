@@ -169,7 +169,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
 
     guild_player->queue.front ().skip_vote.clear ();
-    guild_player->queue.front ().seekable = false;
+    // guild_player->queue.front ().seekable = false;
 
     guild_player->current_track = guild_player->queue.front ();
     guild_player->queue.front ().seek_to = "";

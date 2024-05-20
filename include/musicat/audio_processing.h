@@ -12,33 +12,19 @@
 // to behave as expected
 #define EHL_ALL_EXCLUSIVE
 
-#ifdef MUSICAT_USE_PCM
-
 #define USING_FORMAT FORMAT_USING_PCM
 #define BUFFER_SIZE PROCESSING_BUFFER_SIZE_PCM
 #define READ_CHUNK_SIZE READ_CHUNK_SIZE_PCM
 
-#else
-
-#define USING_FORMAT FORMAT_USING_OPUS
-#define BUFFER_SIZE PROCESSING_BUFFER_SIZE_OPUS
-#define READ_CHUNK_SIZE READ_CHUNK_SIZE_OPUS
-
-#endif
-
-#define FORMAT_USING_OPUS "-f", "opus", "-b:a", "128k"
 #define FORMAT_USING_PCM "-f", "s16le"
 
 #define OUT_CMD "pipe:1"
 #define FFMPEG_REALTIME
 
 inline constexpr ssize_t READ_CHUNK_SIZE_PCM = BUFSIZ / 2;
-inline constexpr ssize_t READ_CHUNK_SIZE_OPUS = BUFSIZ / 8;
 
 // inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ * 8;
 inline constexpr size_t PROCESSING_BUFFER_SIZE_PCM = BUFSIZ / 2;
-
-inline constexpr size_t PROCESSING_BUFFER_SIZE_OPUS = BUFSIZ / 2;
 
 namespace musicat
 {
@@ -205,8 +191,7 @@ int send_audio_routine (dpp::discord_voice_client *vclient,
                         OpusEncoder *opus_encoder = NULL);
 
 // should be run as a child process
-int
-run_processor (child::command::command_options_t &process_options);
+int run_processor (child::command::command_options_t &process_options);
 
 std::string get_audio_stream_fifo_path (const std::string &id);
 

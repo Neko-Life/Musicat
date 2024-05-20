@@ -564,7 +564,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                     if (len > 2)
                         {
                             vclient->send_audio_opus (packet, len,
-                                                      SEND_DURATION);
+                                                      FRAME_DURATION);
                         }
 
                     pcmbuf.erase (pcmbuf.begin (),
