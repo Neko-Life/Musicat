@@ -17,13 +17,6 @@ namespace musicat::player
 namespace cc = child::command;
 namespace cw = child::worker;
 
-struct mc_oggz_user_data
-{
-    dpp::discord_voice_client *voice_client;
-    MCTrack &track;
-    bool &debug;
-};
-
 static effect_states_list_t effect_states_list = {};
 std::mutex effect_states_list_m; // EXTERN_VARIABLE
 
