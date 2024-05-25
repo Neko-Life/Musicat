@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <opus/opus_types.h>
 
-#define FRAME_DURATION 10
+#define FRAME_DURATION 40
 #define ENCODE_BUFFER_SIZE opus_encode_buffer_size
 #define FRAME_SIZE opus_frame_size
 #define MAX_PACKET 4096
