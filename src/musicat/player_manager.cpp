@@ -24,7 +24,7 @@ Manager::~Manager () = default;
 std::shared_ptr<Player>
 Manager::create_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l != players.end ())
@@ -40,7 +40,7 @@ Manager::create_player (const dpp::snowflake &guild_id)
 std::shared_ptr<Player>
 Manager::get_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l != players.end ())
@@ -54,7 +54,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 {
     bool from_dc = false;
     {
-        std::unique_lock<std::mutex> lk (this->dc_m);
+        std::unique_lock lk (this->dc_m);
         auto a = this->disconnecting.find (guild_id);
         if (a != this->disconnecting.end ())
             {
@@ -66,7 +66,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
             }
     }
     {
-        std::unique_lock<std::mutex> lk (this->c_m);
+        std::unique_lock lk (this->c_m);
         auto a = this->connecting.find (guild_id);
         if (a != this->connecting.end ())
             {
@@ -92,7 +92,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 bool
 Manager::delete_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l == players.end ())
@@ -126,7 +126,7 @@ Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
     if (!a)
         return a;
 
-    std::lock_guard<std::mutex> lk (mp_m);
+    std::lock_guard lk (mp_m);
 
     if (vector_find (&this->manually_paused, guild_id)
         == this->manually_paused.end ())
@@ -162,7 +162,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     guild_player->reset_shifted ();
 
-    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+    std::lock_guard lk (guild_player->t_mutex);
 
     auto u = get_voice_from_gid (guild_id, user_id);
     if (!u.first)
@@ -189,7 +189,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     // if (siz > 1U)
     // {
-    //     std::lock_guard<std::mutex> lk(guild_player->q_m);
+    //     std::lock_guard lk(guild_player->q_m);
     //     auto& track = guild_player->queue.at(0);
     //     auto& track = guild_player->current_track;
     //     if (track.user_id != user_id && track.user_id !=
@@ -272,7 +272,7 @@ Manager::download (const string &fname, const string &url,
         [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id) {
             thread_manager::DoneSetter tmds;
             {
-                std::lock_guard<std::mutex> lk (this->dl_m);
+                std::lock_guard lk (this->dl_m);
                 this->waiting_file_download[fname] = guild_id;
             }
 
@@ -285,35 +285,25 @@ Manager::download (const string &fname, const string &url,
             }
 
             const string filepath = music_folder_path + fname;
+            const bool debug = get_debug_state ();
 
-            const string sanitized_filepath
-                = music_folder_path
-                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
-                                        std::regex_constants::match_any);
+            const string cmd
+                = yt_dlp
+                  + " -f 251 --http-chunk-size 2M $URL -x --audio-format opus "
+                    "--audio-quality 0 -o $FILEPATH";
 
-            string cmd
-                = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
-                  + string ("' -x --audio-format opus --audio-quality 0 -o '")
-                  + sanitized_filepath + string ("'");
-
-            bool debug = get_debug_state ();
-
-            if (!debug)
-                cmd += " 1>/dev/null";
-
-            // always log these to easily spot problem in prod
+            // always log these to "easily" spot problem in prod
             fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n",
                      fname.c_str (), url.c_str ());
 
             fprintf (stderr, "[Manager::download] Command: %s\n",
                      cmd.c_str ());
 
-            // !TODO: probably move this operation to child
-            // instead of using literal shell to run the command
-            system (cmd.c_str ());
+            // send download command then wait until it exits
+            //
 
             {
-                std::lock_guard<std::mutex> lk (this->dl_m);
+                std::lock_guard lk (this->dl_m);
                 this->waiting_file_download.erase (fname);
 
                 // update newly downloaded file access time

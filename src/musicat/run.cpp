@@ -46,6 +46,8 @@ nekos_best::endpoint_map _nekos_best_endpoints = {};
 
 // config stuff ========================================
 
+std::string music_folder_path = "";
+
 // in second
 float _stream_buffer_size = 0.0f;
 int64_t _stream_sleep_on_buffer_threshold_ms = 0;
@@ -144,7 +146,7 @@ vcs_setting_handle_connected (const dpp::channel *channel,
     if (!channel || !state || !is_voice_channel (channel->get_type ()))
         return -1;
 
-    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+    std::lock_guard lk (_connected_vcs_setting_mutex);
 
     _connected_vcs_setting.insert_or_assign (
         channel->id,
@@ -159,7 +161,7 @@ vcs_setting_handle_updated (const dpp::channel *updated,
     if (!updated || !is_voice_channel (updated->get_type ()))
         return -1;
 
-    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+    std::lock_guard lk (_connected_vcs_setting_mutex);
 
     bool prev_state = false;
     if (!state)
@@ -187,7 +189,7 @@ vcs_setting_handle_disconnected (const dpp::channel *channel)
     if (!channel || !is_voice_channel (channel->get_type ()))
         return -1;
 
-    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+    std::lock_guard lk (_connected_vcs_setting_mutex);
 
     auto i = _connected_vcs_setting.find (channel->id);
 
@@ -203,7 +205,7 @@ vcs_setting_handle_disconnected (const dpp::channel *channel)
 std::pair<dpp::channel *, dpp::voicestate *>
 vcs_setting_get_cache (dpp::snowflake channel_id)
 {
-    std::lock_guard<std::mutex> lk (_connected_vcs_setting_mutex);
+    std::lock_guard lk (_connected_vcs_setting_mutex);
     auto i = _connected_vcs_setting.find (channel_id);
 
     if (i != _connected_vcs_setting.end ())
@@ -237,14 +239,14 @@ load_config (const std::string &config_file)
 bool
 get_running_state ()
 {
-    std::lock_guard<std::mutex> lk (main_mutex);
+    std::lock_guard lk (main_mutex);
     return running;
 }
 
 int
 set_running_state (const bool state)
 {
-    std::lock_guard<std::mutex> lk (main_mutex);
+    std::lock_guard lk (main_mutex);
     running = state;
     return 0;
 }
@@ -252,14 +254,14 @@ set_running_state (const bool state)
 bool
 get_debug_state ()
 {
-    std::lock_guard<std::mutex> lk (main_mutex);
+    std::lock_guard lk (main_mutex);
     return debug;
 }
 
 int
 set_debug_state (const bool state)
 {
-    std::lock_guard<std::mutex> lk (main_mutex);
+    std::lock_guard lk (main_mutex);
     debug = state;
 
     fprintf (stderr, "[INFO] Debug mode %s\n", debug ? "enabled" : "disabled");
@@ -270,7 +272,35 @@ set_debug_state (const bool state)
 std::string
 get_music_folder_path ()
 {
-    return get_config_value<std::string> ("MUSIC_FOLDER", "");
+    std::lock_guard lk (main_mutex);
+
+    const bool is_empty = music_folder_path.empty ();
+
+    if (!is_empty && music_folder_path == "0")
+        {
+            return "";
+        }
+
+    if (is_empty)
+        {
+            music_folder_path
+                = get_config_value<std::string> ("MUSIC_FOLDER", "");
+
+            if (music_folder_path.empty ())
+                {
+                    music_folder_path = "0";
+                }
+            else if (*(music_folder_path.end () - 1) != '/')
+                {
+                    fprintf (stderr,
+                             "[get_music_folder_path ERROR] MUSIC_FOLDER must "
+                             "have a trailing slash '/'\n");
+
+                    std::terminate ();
+                }
+        }
+
+    return music_folder_path;
 }
 
 std::string
@@ -281,9 +311,7 @@ get_invite_oauth_base_url ()
     if (!sid)
         return "";
 
-    std::string sha_id_str = std::to_string (sid);
-
-    return OAUTH_BASE_URL + "?client_id=" + sha_id_str;
+    return OAUTH_BASE_URL + "?client_id=" + sid.str ();
 }
 
 std::string

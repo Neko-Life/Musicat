@@ -819,7 +819,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 bool
 Manager::is_stream_stopping (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (sq_m);
+    std::lock_guard lk (sq_m);
 
     if (guild_id && stop_queue[guild_id])
         return true;
@@ -830,7 +830,7 @@ Manager::is_stream_stopping (const dpp::snowflake &guild_id)
 int
 Manager::set_stream_stopping (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (sq_m);
+    std::lock_guard lk (sq_m);
 
     if (guild_id)
         {
@@ -846,7 +846,7 @@ Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
 {
     if (guild_id)
         {
-            std::lock_guard<std::mutex> lk (sq_m);
+            std::lock_guard lk (sq_m);
             stop_queue.erase (guild_id);
 
             return 0;
@@ -859,7 +859,7 @@ void
 Manager::set_processor_state (std::string &server_id_str,
                               processor_state_t state)
 {
-    std::lock_guard<std::mutex> lk (this->as_m);
+    std::lock_guard lk (this->as_m);
 
     this->processor_states[server_id_str] = state;
 }
@@ -867,7 +867,7 @@ Manager::set_processor_state (std::string &server_id_str,
 processor_state_t
 Manager::get_processor_state (std::string &server_id_str)
 {
-    std::lock_guard<std::mutex> lk (this->as_m);
+    std::lock_guard lk (this->as_m);
     auto i = this->processor_states.find (server_id_str);
 
     if (i == this->processor_states.end ())

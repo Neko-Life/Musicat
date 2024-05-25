@@ -18,7 +18,7 @@ static std::vector<dpp::snowflake> processing_embed = {};
 auto
 get_processing_embed (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (pe_m);
+    std::lock_guard lk (pe_m);
     return vector_find (&processing_embed, guild_id);
 }
 
@@ -34,7 +34,7 @@ set_processing_embed (const dpp::snowflake &guild_id)
     if (is_processing_embed (guild_id))
         return;
 
-    std::lock_guard<std::mutex> lk (pe_m);
+    std::lock_guard lk (pe_m);
     processing_embed.push_back (guild_id);
 }
 
@@ -43,7 +43,7 @@ clear_processing_embed (const dpp::snowflake &guild_id)
 {
     auto i = get_processing_embed (guild_id);
 
-    std::lock_guard<std::mutex> lk (pe_m);
+    std::lock_guard lk (pe_m);
     while (i != processing_embed.end ())
         {
             if (*i != guild_id)
@@ -219,7 +219,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                 return;
             }
 
-        std::lock_guard<std::mutex> lk (this->imc_m);
+        std::lock_guard lk (this->imc_m);
 
         dpp::snowflake id;
 
@@ -354,7 +354,7 @@ Manager::update_info_embed (const dpp::snowflake &guild_id,
 static bool
 delete_info_embed_retdel (Manager *m, std::shared_ptr<Player> player)
 {
-    std::lock_guard<std::mutex> lk (m->imc_m);
+    std::lock_guard lk (m->imc_m);
 
     if (player->info_message)
         {
@@ -415,7 +415,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
     // const bool debug = get_debug_state();
     /* if (debug) printf("[Manager::get_playing_info_embed] Locked
      * player::t_mutex: %ld\n", guild_player->guild_id); */
-    /* std::lock_guard<std::mutex> lk (guild_player->t_mutex); */
+    /* std::lock_guard lk (guild_player->t_mutex); */
 
     // Reset shifted tracks
     guild_player->reset_shifted ();

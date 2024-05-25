@@ -60,7 +60,7 @@ pages_t::~pages_t () = default;
 void
 pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 {
-    std::lock_guard<std::mutex> lk (this->s_mutex);
+    std::lock_guard lk (this->s_mutex);
 
     if (cb.is_error ())
         {
@@ -98,7 +98,7 @@ pages_t::edit_cb (const dpp::confirmation_callback_t &cb, size_t new_current)
 void
 pages_t::edit (size_t c, const dpp::interaction_create_t &event)
 {
-    std::lock_guard<std::mutex> lk (this->s_mutex);
+    std::lock_guard lk (this->s_mutex);
     const bool debug = get_debug_state ();
 
     if (this->current == c)

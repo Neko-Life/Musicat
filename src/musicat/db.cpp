@@ -265,7 +265,7 @@ init (const std::string &_conninfo)
     if (debug)
         fprintf (stderr, "[DB] Initializing...\n");
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     conninfo = _conninfo;
 
     if (debug)
@@ -328,7 +328,7 @@ init (const std::string &_conninfo)
 ConnStatusType
 get_conn_status ()
 {
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     return PQstatus (conn);
 }
 
@@ -364,7 +364,7 @@ cancel ()
     if (!conn)
         return 0;
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGcancel *cobj = PQgetCancel (conn);
 
     char err[256];
@@ -406,7 +406,7 @@ shutdown ()
     else if (debug)
         fprintf (stderr, "[DB] No query cancelled\n");
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
 
     PQfinish (conn);
     conn = nullptr;
@@ -489,7 +489,7 @@ get_all_user_playlist (const dpp::snowflake &user_id,
     query += " FROM \"playlists\" WHERE \"uid\" = '" + std::to_string (user_id)
              + "';";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status
@@ -534,7 +534,7 @@ get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
     query += " FROM \"playlists\" WHERE \"uid\" = '" + std::to_string (user_id)
              + "' AND \"name\" = " + _escape_values_query (name) + ";";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status
@@ -599,7 +599,7 @@ update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
 
     std::string escaped_name = _escape_values_query (name);
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
 
     std::string query_update (
         "UPDATE \"playlists\" SET "
@@ -651,7 +651,7 @@ delete_user_playlist (const dpp::snowflake &user_id, const std::string &name)
              + std::to_string (user_id) + "' AND \"name\" = "
              + _escape_values_query (name) + " RETURNING \"name\" ;";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status = PGRES_FATAL_ERROR;
@@ -683,7 +683,7 @@ update_guild_current_queue (const dpp::snowflake &guild_id,
              + "') ON CONFLICT (\"gid\") DO UPDATE SET \"raw\" = " + values
              + ", \"uts\" = CURRENT_TIMESTAMP;";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status = _check_status (res, "update_guild_current_queue");
@@ -701,7 +701,7 @@ get_guild_current_queue (const dpp::snowflake &guild_id)
         "SELECT \"raw\" FROM \"guilds_current_queue\" WHERE \"gid\" = '");
     query += std::to_string (guild_id) + "';";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status
@@ -721,7 +721,7 @@ delete_guild_current_queue (const dpp::snowflake &guild_id)
              "WHERE \"gid\" = '"
              + std::to_string (guild_id) + "' RETURNING \"gid\" ;";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status = PGRES_FATAL_ERROR;
@@ -814,7 +814,7 @@ update_guild_player_config (const dpp::snowflake &guild_id,
 
     query += "\"uts\" = CURRENT_TIMESTAMP;";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str (), get_debug_state ());
 
     ExecStatusType status = _check_status (res, "update_guild_player_config");
@@ -833,7 +833,7 @@ get_guild_player_config (const dpp::snowflake &guild_id)
                        "FROM \"guilds_player_config\" WHERE \"gid\" = '");
     query += std::to_string (guild_id) + "';";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status
@@ -922,7 +922,7 @@ get_user_auth (const dpp::snowflake &user_id)
     std::string query ("SELECT \"raw\" FROM \"auths\" WHERE \"uid\" = '");
     query += std::to_string (user_id) + "';";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status
@@ -971,7 +971,7 @@ update_user_auth (const dpp::snowflake &user_id, const nlohmann::json &data)
              + "') ON CONFLICT (\"uid\") DO UPDATE SET \"raw\" = " + values
              + ", \"uts\" = CURRENT_TIMESTAMP;";
 
-    std::lock_guard<std::mutex> lk (conn_mutex);
+    std::lock_guard lk (conn_mutex);
     PGresult *res = _db_exec (query.c_str ());
 
     ExecStatusType status = _check_status (res, "update_user_auth");

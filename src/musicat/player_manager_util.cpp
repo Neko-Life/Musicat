@@ -446,17 +446,18 @@ find_track (const bool playlist, const std::string &arg_query,
 std::string
 get_filename_from_result (player::MCTrack &result)
 {
-    const auto sid = mctrack::get_id (result);
-    const auto st = mctrack::get_title (result);
+    const string sid = mctrack::get_id (result);
+    const string st = mctrack::get_title (result);
 
     // ignore title for now, this is definitely problematic
     // if we want to support other track fetching method eg. radio url
-    if (sid.empty () /* || !st.length()*/)
+    if (sid.empty () /* || st.empty()*/)
         return "";
 
-    return std::regex_replace (
-        st + std::string ("-") + sid + std::string (".opus"), std::regex ("/"),
-        "", std::regex_constants::match_any);
+    const string fullname = st + "-" + sid + ".opus";
+
+    return std::regex_replace (fullname, std::regex ("/"), "",
+                               std::regex_constants::match_any);
 }
 
 std::pair<bool, int>
@@ -692,7 +693,7 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
 bool
 Manager::is_disconnecting (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk1 (this->dc_m);
+    std::lock_guard lk1 (this->dc_m);
     return this->disconnecting.find (guild_id) != this->disconnecting.end ();
 }
 
@@ -700,7 +701,7 @@ void
 Manager::set_disconnecting (const dpp::snowflake &guild_id,
                             const dpp::snowflake &voice_channel_id)
 {
-    std::lock_guard<std::mutex> lk (this->dc_m);
+    std::lock_guard lk (this->dc_m);
 
     this->disconnecting.insert_or_assign (guild_id, voice_channel_id);
 }
@@ -711,7 +712,7 @@ Manager::clear_disconnecting (const dpp::snowflake &guild_id)
     if (get_debug_state ())
         std::cerr << "[EVENT] on_voice_state_leave: " << guild_id << '\n';
 
-    std::lock_guard<std::mutex> lk (this->dc_m);
+    std::lock_guard lk (this->dc_m);
 
     auto i = this->disconnecting.find (guild_id);
 
@@ -725,7 +726,7 @@ Manager::clear_disconnecting (const dpp::snowflake &guild_id)
 bool
 Manager::is_connecting (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk2 (this->c_m);
+    std::lock_guard lk2 (this->c_m);
     return this->connecting.find (guild_id) != this->connecting.end ();
 }
 
@@ -733,7 +734,7 @@ void
 Manager::set_connecting (const dpp::snowflake &guild_id,
                          const dpp::snowflake &voice_channel_id)
 {
-    std::lock_guard<std::mutex> lk (this->c_m);
+    std::lock_guard lk (this->c_m);
 
     this->connecting.insert_or_assign (guild_id, voice_channel_id);
 }
@@ -741,7 +742,7 @@ Manager::set_connecting (const dpp::snowflake &guild_id,
 bool
 Manager::is_waiting_vc_ready (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk3 (this->wd_m);
+    std::lock_guard lk3 (this->wd_m);
     return this->waiting_vc_ready.find (guild_id)
            != this->waiting_vc_ready.end ();
 }
@@ -750,7 +751,7 @@ void
 Manager::set_waiting_vc_ready (const dpp::snowflake &guild_id,
                                const std::string &second)
 {
-    std::lock_guard<std::mutex> lk2 (this->wd_m);
+    std::lock_guard lk2 (this->wd_m);
 
     this->waiting_vc_ready.insert_or_assign (guild_id, second);
 
@@ -844,7 +845,7 @@ Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
         std::cerr << "[Manager::wait_for_vc_ready] Waiting for ready state: "
                   << guild_id << '\n';
 
-    std::unique_lock<std::mutex> lk (this->wd_m);
+    std::unique_lock lk (this->wd_m);
     this->dl_cv.wait (lk, [this, &guild_id] () {
         return this->waiting_vc_ready.find (guild_id)
                == this->waiting_vc_ready.end ();
@@ -859,7 +860,7 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 
     int err = this->clear_connecting (guild_id);
 
-    std::lock_guard<std::mutex> lk (this->wd_m);
+    std::lock_guard lk (this->wd_m);
 
     auto i = this->waiting_vc_ready.find (guild_id);
 
@@ -879,7 +880,7 @@ Manager::clear_connecting (const dpp::snowflake &guild_id)
     if (get_debug_state ())
         std::cerr << "[Manager::clear_connecting]: " << guild_id << '\n';
 
-    std::lock_guard<std::mutex> lk (this->c_m);
+    std::lock_guard lk (this->c_m);
 
     auto i = this->connecting.find (guild_id);
 
@@ -896,7 +897,7 @@ Manager::clear_connecting (const dpp::snowflake &guild_id)
 bool
 Manager::is_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->mp_m);
+    std::lock_guard lk (this->mp_m);
 
     return vector_find (&this->manually_paused, guild_id)
            != this->manually_paused.end ();
@@ -905,7 +906,7 @@ Manager::is_manually_paused (const dpp::snowflake &guild_id)
 void
 Manager::set_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->mp_m);
+    std::lock_guard lk (this->mp_m);
 
     if (vector_find (&this->manually_paused, guild_id)
         == this->manually_paused.end ())
@@ -917,7 +918,7 @@ Manager::set_manually_paused (const dpp::snowflake &guild_id)
 void
 Manager::clear_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->mp_m);
+    std::lock_guard lk (this->mp_m);
 
     auto i = vector_find (&this->manually_paused, guild_id);
 
@@ -986,7 +987,7 @@ Manager::voice_ready (const dpp::snowflake &guild_id,
 
             if (user_id && user_vc)
                 {
-                    std::lock_guard<std::mutex> lk (this->c_m);
+                    std::lock_guard lk (this->c_m);
                     auto p = this->connecting.find (guild_id);
 
                     std::map<dpp::snowflake, dpp::voicestate> vm = {};
@@ -1045,7 +1046,7 @@ Manager::wait_for_download (const string &file_name)
     if (!this->is_waiting_file_download (file_name))
         return;
 
-    std::unique_lock<std::mutex> lk (this->dl_m);
+    std::unique_lock lk (this->dl_m);
 
     this->dl_cv.wait (lk, [this, file_name] () {
         return this->waiting_file_download.find (file_name)
@@ -1056,7 +1057,7 @@ Manager::wait_for_download (const string &file_name)
 bool
 Manager::set_info_message_as_deleted (dpp::snowflake id)
 {
-    std::lock_guard<std::mutex> lk (this->imc_m);
+    std::lock_guard lk (this->imc_m);
     auto m = this->info_messages_cache.find (id);
     if (m != this->info_messages_cache.end ())
         {
@@ -1073,7 +1074,7 @@ Manager::set_info_message_as_deleted (dpp::snowflake id)
 void
 Manager::set_ignore_marker (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->im_m);
+    std::lock_guard lk (this->im_m);
     auto l = vector_find (&this->ignore_marker, guild_id);
     if (l == this->ignore_marker.end ())
         {
@@ -1084,7 +1085,7 @@ Manager::set_ignore_marker (const dpp::snowflake &guild_id)
 void
 Manager::remove_ignore_marker (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->im_m);
+    std::lock_guard lk (this->im_m);
 
     auto i = vector_find (&this->ignore_marker, guild_id);
 
@@ -1097,7 +1098,7 @@ Manager::remove_ignore_marker (const dpp::snowflake &guild_id)
 bool
 Manager::has_ignore_marker (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->im_m);
+    std::lock_guard lk (this->im_m);
     auto l = vector_find (&this->ignore_marker, guild_id);
     if (l != this->ignore_marker.end ())
         return true;

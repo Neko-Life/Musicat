@@ -59,7 +59,7 @@ set_option (command_options_t &options, const std::string &cmd_option)
 void
 command_queue_routine ()
 {
-    std::lock_guard<std::mutex> lk (command_mutex);
+    std::lock_guard lk (command_mutex);
 
     auto i = command_queue.begin ();
     while (i != command_queue.end ())
@@ -75,7 +75,7 @@ command_queue_routine ()
 void
 wait_for_command ()
 {
-    std::unique_lock<std::mutex> ulk (command_mutex);
+    std::unique_lock ulk (command_mutex);
 
     command_cv.wait (ulk, [] () {
         return !command_queue.empty () || !get_running_state ();
@@ -123,7 +123,7 @@ run_command_thread ()
                          "notification: %s\n",
                          read_buf);
 
-                std::string read_str (read_buf);
+                const std::string read_str (read_buf);
 
                 command_options_t options = create_command_options ();
                 parse_command_to_options (read_str, options);
@@ -141,7 +141,7 @@ int
 send_command (const std::string &cmd)
 {
     {
-        std::lock_guard<std::mutex> lk (command_mutex);
+        std::lock_guard lk (command_mutex);
 
         command_queue.push_back (cmd);
     }
@@ -320,7 +320,7 @@ int
 wait_slave_ready (const std::string &id, int timeout)
 {
     {
-        std::lock_guard<std::mutex> lk (sr_m);
+        std::lock_guard lk (sr_m);
         auto i = slave_ready_queue.find (id);
         if (i != slave_ready_queue.end ())
             {
@@ -332,7 +332,7 @@ wait_slave_ready (const std::string &id, int timeout)
     }
 
     {
-        std::lock_guard<std::mutex> lk (sr_m);
+        std::lock_guard lk (sr_m);
         slave_ready_queue.insert_or_assign (id, std::make_pair (false, -1));
     }
     {
@@ -347,7 +347,7 @@ wait_slave_ready (const std::string &id, int timeout)
                           });
     }
 
-    std::lock_guard<std::mutex> lk (sr_m);
+    std::lock_guard lk (sr_m);
     auto i = slave_ready_queue.find (id);
     if (i == slave_ready_queue.end ())
         {
@@ -364,7 +364,7 @@ int
 mark_slave_ready (const std::string &id, int status)
 {
     {
-        std::lock_guard<std::mutex> lk (sr_m);
+        std::lock_guard lk (sr_m);
         slave_ready_queue.insert_or_assign (id, std::make_pair (true, status));
     }
 
