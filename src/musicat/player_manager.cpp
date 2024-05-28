@@ -1,11 +1,13 @@
+#include "musicat/child/command.h"
+#include "musicat/child/dl_music.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
+#include "musicat/util/base64.h"
 #include <dirent.h>
 #include <memory>
 #include <opus/opus.h>
-#include <regex>
 #include <thread>
 
 #include <sys/stat.h>
@@ -253,6 +255,24 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     return { removed_tracks, status };
 }
 
+int
+read_notif_fifo (int notif_fifo, const std::string &filepath,
+                 const std::string &url)
+{
+    char buf[4097];
+    ssize_t cur_read = 0;
+
+    while ((cur_read = read (notif_fifo, &buf, 4096)) > 0)
+        {
+            buf[cur_read] = '\0';
+            // log this for nice statistic or smt later
+            fprintf (stderr, "%s%s", buf,
+                     buf[cur_read - 1] == '\n' ? "" : "\n");
+        }
+
+    return 0;
+}
+
 void
 Manager::download (const string &fname, const string &url,
                    const dpp::snowflake &guild_id)
@@ -287,20 +307,62 @@ Manager::download (const string &fname, const string &url,
             const string filepath = music_folder_path + fname;
             const bool debug = get_debug_state ();
 
-            const string cmd
-                = yt_dlp
-                  + " -f 251 --http-chunk-size 2M $URL -x --audio-format opus "
-                    "--audio-quality 0 -o $FILEPATH";
-
             // always log these to "easily" spot problem in prod
             fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n",
                      fname.c_str (), url.c_str ());
 
-            fprintf (stderr, "[Manager::download] Command: %s\n",
-                     cmd.c_str ());
+            namespace cc = child::command;
+
+            const std::string qid = util::base64::encode (fname);
+
+            const std::string child_cmd
+                = cc::create_arg_sanitize_value (cc::command_options_keys_t.id,
+                                                 qid)
+                  + cc::create_arg (cc::command_options_keys_t.command,
+                                    cc::command_execute_commands_t.dl_music)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.file_path, filepath)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.ytdlp_query, url)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.ytdlp_util_exe, yt_dlp)
+                  + cc::create_arg (cc::command_options_keys_t.debug,
+                                    debug ? "1" : "0");
+
+            const std::string exit_cmd = cc::get_exit_command (qid);
 
             // send download command then wait until it exits
-            //
+            cc::send_command (child_cmd);
+            int status = child::command::wait_slave_ready (qid, 10);
+            if (status != 0)
+                {
+                    fprintf (
+                        stderr,
+                        "[Manager::download ERROR] Error downloading '%s' "
+                        "to '%s' with code %d\n",
+                        url.c_str (), filepath.c_str (), status);
+                }
+            else
+                {
+                    const std::string notif_fifo_path
+                        = child::dl_music::get_download_music_fifo_path (qid);
+
+                    int notif_fifo = open (notif_fifo_path.c_str (), O_RDONLY);
+
+                    if (notif_fifo < 0)
+                        fprintf (stderr,
+                                 "[Manager::download ERROR] "
+                                 "Failed to open notif_fifo: '%s'\n",
+                                 notif_fifo_path.c_str ());
+                    else
+                        {
+                            read_notif_fifo (notif_fifo, filepath, url);
+                            close (notif_fifo);
+                            notif_fifo = -1;
+                        }
+
+                    cc::send_command (exit_cmd);
+                }
 
             {
                 std::lock_guard lk (this->dl_m);

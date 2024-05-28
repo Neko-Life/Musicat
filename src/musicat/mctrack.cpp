@@ -238,7 +238,7 @@ fetch (const search_option_t &options)
     // sending exit_cmd once before returning
     // is a requirement starting from here!
 
-    std::string out_fifo_path = child::ytdlp::get_ytdout_fifo_path (qid);
+    const std::string out_fifo_path = child::ytdlp::get_ytdout_fifo_path (qid);
 
     int out_fifo = open (out_fifo_path.c_str (), O_RDONLY);
 

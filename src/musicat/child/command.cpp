@@ -118,10 +118,11 @@ run_command_thread ()
             {
                 read_buf[read_size] = '\0';
 
-                fprintf (stderr,
-                         "[child::command] Received "
-                         "notification: %s\n",
-                         read_buf);
+                if (get_debug_state ())
+                    fprintf (stderr,
+                             "[child::command] Received "
+                             "notification: %s\n",
+                             read_buf);
 
                 const std::string read_str (read_buf);
 

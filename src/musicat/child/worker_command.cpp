@@ -1,5 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
+#include "musicat/child/dl_music.h"
 #include "musicat/child/gnuplot.h"
 #include "musicat/child/system.h"
 #include "musicat/child/worker.h"
@@ -450,7 +451,7 @@ set term png size 1024,1024
 
     write (parent_write, cmd1.c_str (), cmd1.length () + 1);
 
-    size_t bufsiz = 4096;
+    const size_t bufsiz = 4096;
     char buf[bufsiz];
     ssize_t cur_read = 0;
 
@@ -617,7 +618,7 @@ download_music (command::command_options_t &options)
     pid_t status = -1;
 
     const std::string as_fp
-        = system::get_download_music_fifo_path (options.id);
+        = dl_music::get_download_music_fifo_path (options.id);
 
     std::string sem_full_key;
     sem_t *sem;
@@ -655,11 +656,14 @@ download_music (command::command_options_t &options)
                     _exit (EXIT_FAILURE);
                 }
 
-            int cmd_status = 0;
+            if (!options.debug)
+                {
+                    // redirect ffmpeg stderr to /dev/null
+                    int dnull = open ("/dev/null", O_WRONLY);
+                    dup2 (dnull, STDERR_FILENO);
+                    close_valid_fd (&dnull);
+                }
 
-            // setup args
-
-            // directly call exec here
             child::do_sem_post (sem);
 
             int notif_fifo = open (as_fp.c_str (), O_WRONLY);
@@ -667,18 +671,48 @@ download_music (command::command_options_t &options)
                 {
                     perror ("worker_command::download_music::child notif_fifo "
                             "open");
-                    status = -1;
-                    goto exit_failure;
+
+                    _exit (EXIT_FAILURE);
                 }
 
-            cmd_status = execve ();
+            // dup stdout to notif fifo
+            if (dup2 (notif_fifo, STDOUT_FILENO) == -1)
+                {
+                    perror ("worker_command::download_music::child notif_fifo "
+                            "dout");
 
-            // https://www.youtube.com/watch?v=yFkx6fUW3MY
+                    close_valid_fd (&notif_fifo);
 
-            write (notif_fifo, &cmd_status, sizeof (int));
+                    _exit (EXIT_FAILURE);
+                }
             close_valid_fd (&notif_fifo);
 
-        exit_failure:
+            /*
+                yt_dlp -f 251 --http-chunk-size 2M $URL -x
+                --audio-format opus --audio-quality 0 -o $FILEPATH
+            */
+
+            const char *yt_dlp = options.ytdlp_util_exe.c_str ();
+            const char *url = options.ytdlp_query.c_str ();
+            const char *fpath = options.file_path.c_str ();
+            char *args[] = { (char *)yt_dlp,
+                             "-f",
+                             "251",
+                             "--http-chunk-size",
+                             "2M",
+                             (char *)url,
+                             "-x",
+                             "--audio-format",
+                             "opus",
+                             "--audio-quality",
+                             "0",
+                             "-o",
+                             (char *)fpath,
+                             (char *)NULL };
+
+            int cmd_status = execvp (yt_dlp, args);
+
+            perror ("worker_command::download_music::child exit");
             _exit (cmd_status);
         }
 
