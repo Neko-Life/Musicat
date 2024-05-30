@@ -31,7 +31,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+    std::lock_guard lk (guild_player->t_mutex);
 
     size_t queue_siz = guild_player->queue.size ();
     int64_t max_to = (int64_t)queue_siz - 1;

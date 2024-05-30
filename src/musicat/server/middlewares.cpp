@@ -3,6 +3,7 @@
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
+#include "musicat/server/response.h"
 #include "musicat/server/services.h"
 #include "musicat/util.h"
 
@@ -24,7 +25,7 @@ get_cors_headers (std::string_view req_allow_headers)
         }
 
     return {
-        { "Access-Control-Allow-Methods", "GET, POST, OPTIONS" },
+        { "Access-Control-Allow-Methods", "HEAD, GET, POST, OPTIONS" },
         { "Access-Control-Allow-Headers", allow_headers },
         { "Access-Control-Allow-Credentials", "true" },
         // other security headers
@@ -106,11 +107,11 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
         {
             for (const std::string &s : _cors_enabled_origins)
                 {
-                    if (origin == s)
-                        {
-                            allow = true;
-                            break;
-                        }
+                    if (origin != s)
+                        continue;
+
+                    allow = true;
+                    break;
                 }
         }
 
@@ -144,7 +145,7 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
 void
 set_content_type_json (APIResponse *res)
 {
-    res->writeHeader ("Content-Type", "application/json");
+    res->writeHeader (header_key_t.content_type, content_type_t.json);
 }
 
 void
@@ -175,15 +176,16 @@ std::string
 validate_token (APIResponse *res, APIRequest *req,
                 const header_v_t &cors_headers)
 {
+    response::end_t endres (res);
+    endres.status = http_status_t.UNAUTHORIZED_401;
+    endres.headers = cors_headers;
+
     std::string_view cookie = req->getHeader ("cookie");
 
     size_t i = cookie.find (token_cookie_name);
 
     if (i == cookie.npos)
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
@@ -193,9 +195,6 @@ validate_token (APIResponse *res, APIRequest *req,
 
     if (token.empty ())
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
@@ -203,12 +202,10 @@ validate_token (APIResponse *res, APIRequest *req,
 
     if (util::valid_number (user_id) != 0)
         {
-            res->writeStatus (http_status_t.UNAUTHORIZED_401);
-            middlewares::write_headers (res, cors_headers);
-            res->end ();
             return "";
         }
 
+    endres.res = NULL;
     return user_id;
 }
 

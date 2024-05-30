@@ -174,7 +174,7 @@ slash_run (const dpp::slashcommand_t &event)
 
                 auto conn = event.from->get_voice (guild_id);
 
-                std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+                std::lock_guard lk (guild_player->t_mutex);
 
                 if (!guild_player->queue.size ()
                     || guild_player->current_track.raw.is_null () || !conn

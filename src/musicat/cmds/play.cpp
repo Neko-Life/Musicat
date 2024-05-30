@@ -202,7 +202,7 @@ slash_run (const dpp::slashcommand_t &event)
     auto guild_player = player_manager->get_player (event.command.guild_id);
     if (guild_player)
         {
-            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            std::lock_guard lk (guild_player->t_mutex);
             if (v && v->voiceclient && guild_player->queue.size ()
                 && !v->voiceclient->is_paused ()
                 && v->voiceclient->get_secs_remaining () < 0.05f)

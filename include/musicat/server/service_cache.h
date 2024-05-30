@@ -30,6 +30,10 @@ nlohmann::json get_cached_user_guilds (const std::string &user_id);
 void set_cached_user_guilds (const std::string &user_id,
                              const nlohmann::json &data);
 
+nlohmann::json get_cached_musicat_detailed_user ();
+
+void set_cached_musicat_detailed_user (const nlohmann::json &data);
+
 void handle_guild_create (const dpp::guild_create_t &e);
 
 void handle_guild_delete (const dpp::guild_delete_t &e);

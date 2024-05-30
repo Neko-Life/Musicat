@@ -12,6 +12,8 @@ int call_ytdlp (command::command_options_t &options);
 
 int call_system (command::command_options_t &options);
 
+int download_music (command::command_options_t &options);
+
 } // musicat::child::worker_command
 
 #endif // MUSICAT_CHILD_WORKER_COMMAND_H

@@ -328,8 +328,8 @@ slash_run (const dpp::slashcommand_t &event)
                 //     guild_player->set_channel(event.command.channel_id);
 
                 //     {
-                //         std::lock_guard<std::mutex> lk(player_manager->c_m);
-                //         std::lock_guard<std::mutex>
+                //         std::lock_guard lk(player_manager->c_m);
+                //         std::lock_guard
                 //         lk2(player_manager->wd_m);
                 //         player_manager->connecting.insert_or_assign(event.command.guild_id,
                 //         c.first->id);

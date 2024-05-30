@@ -1,3 +1,5 @@
+#include "musicat/server/service_cache.h"
+#include "musicat/musicat.h"
 #include "nlohmann/json.hpp"
 #include <dpp/dpp.h>
 #include <map>
@@ -155,6 +157,34 @@ remove_cached_user_guilds (const std::string &user_id)
     remove_invalidate_timer (key);
 }
 
+nlohmann::json
+get_cached_musicat_detailed_user ()
+{
+    const auto shaid = get_sha_id ();
+
+    if (!shaid)
+        return nullptr;
+
+    return get (shaid.str () + "/detailed_user");
+}
+
+void
+set_cached_musicat_detailed_user (const nlohmann::json &data)
+{
+    const auto shaid = get_sha_id ();
+
+    if (!shaid)
+        return;
+
+    std::string key = shaid.str () + "/detailed_user";
+    set (key, data);
+
+    // 1 hour
+    create_invalidate_timer (key, 3600);
+}
+
+// !TODO: handle user update
+
 void
 handle_guild_create (const dpp::guild_create_t &e)
 {
@@ -220,5 +250,7 @@ handle_guild_delete (const dpp::guild_delete_t &e)
             i = _cache.erase (i);
         }
 }
+
+// !TODO: handle guild member add/delete
 
 } // musicat::server::service_cache

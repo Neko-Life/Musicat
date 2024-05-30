@@ -17,27 +17,6 @@ namespace musicat::player
 namespace cc = child::command;
 namespace cw = child::worker;
 
-struct mc_oggz_user_data
-{
-    dpp::discord_voice_client *voice_client;
-    MCTrack &track;
-    bool &debug;
-};
-
-#if !defined(MUSICAT_USE_PCM)
-// !TODO: delete this
-struct run_stream_loop_states_t
-{
-    dpp::discord_voice_client *&v;
-    player::MCTrack &track;
-    dpp::snowflake &server_id;
-    void /*OGGZ*/ *&track_og;
-    bool &running_state;
-    bool &is_stopping;
-    bool &debug;
-};
-#endif
-
 static effect_states_list_t effect_states_list = {};
 std::mutex effect_states_list_m; // EXTERN_VARIABLE
 
@@ -533,52 +512,6 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                        "Manager::stream");
 }
 
-#if !defined(MUSICAT_USE_PCM)
-void
-run_stream_loop (Manager *manager, run_stream_loop_states_t &states,
-                 handle_effect_chain_change_states_t &effect_states)
-{
-    float dpp_audio_buffer_length_second = get_stream_buffer_size ();
-
-    while ((states.running_state = get_running_state ()) && states.v
-           && !states.v->terminating)
-        {
-            if ((states.is_stopping
-                 = manager->is_stream_stopping (states.server_id)))
-                break;
-
-            states.debug = get_debug_state ();
-
-            handle_effect_chain_change (effect_states);
-
-            const long read_bytes = oggz_read (states.track_og, CHUNK_READ);
-
-            states.track.current_byte += read_bytes;
-
-            if (states.debug)
-                std::cerr << "[Manager::stream] "
-                             "[guild_id] [size] "
-                             "[chunk] [read_bytes]: "
-                          << states.server_id << ' ' << states.track.filesize
-                          << ' ' << read_bytes << '\n';
-
-            while ((states.running_state = get_running_state ()) && states.v
-                   && !states.v->terminating
-                   && states.v->get_secs_remaining ()
-                          > dpp_audio_buffer_length_second)
-                {
-                    std::this_thread::sleep_for (std::chrono::milliseconds (
-                        dpp_audio_sleep_on_buffer_threshold_ms));
-                }
-
-            // eof
-            if (!read_bytes)
-                break;
-        }
-}
-
-#endif
-
 constexpr const char *msprrfmt
     = "[Manager::stream ERROR] Processor not ready or exited: %s\n";
 
@@ -708,7 +641,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             if (status != 0)
                 // !TODO: what to do here? shutting down existing processor is
                 // not right
-                throw 2;
+                throw 3;
 
             const std::string fifo_stream_path
                 = audio_processing::get_audio_stream_fifo_path (slave_id);
@@ -787,7 +720,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             // track.seekable = true;
 
             // using raw pcm need to change ffmpeg output format to s16le!
-#ifdef MUSICAT_USE_PCM
             ssize_t read_size = 0;
             ssize_t current_read = 0;
             ssize_t total_read = 0;
@@ -827,46 +759,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                            && ((outbuf_duration = v->get_secs_remaining ())
                                > dpp_audio_buffer_length_second))
                         {
-                            // isn't very pretty for the terminal,
-                            // disable for now
-                            // if ((debug =
-                            // get_debug_state ()))
-                            //     {
-                            //         static std::chrono::time_point
-                            //             start_time
-                            //             = std::chrono::
-                            //                 high_resolution_clock::
-                            //                     now ();
-
-                            //         auto end_time = std::chrono::
-                            //             high_resolution_clock::now
-                            //             ();
-
-                            //         auto done
-                            //             =
-                            //             std::chrono::duration_cast<
-                            //                 std::chrono::
-                            //                     milliseconds> (
-                            //                 end_time - start_time);
-
-                            //         start_time = end_time;
-
-                            //         fprintf (
-                            //             stderr,
-                            //             "[audio_processing::send_"
-                            //             "audio_routine] "
-                            //             "outbuf_duration: %f >
-                            //             %f\n", outbuf_duration,
-                            //             DPP_AUDIO_BUFFER_LENGTH_SECOND);
-
-                            //         fprintf (stderr,
-                            //                  "[audio_processing::send_"
-                            //                  "audio_routine] Delay "
-                            //                  "between send: %ld "
-                            //                  "milliseconds\n",
-                            //                  done.count ());
-                            //     }
-
                             handle_effect_chain_change (effect_states);
 
                             std::this_thread::sleep_for (
@@ -887,75 +779,6 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 }
 
             close (read_fd);
-
-            // using raw pcm code ends here
-#else
-            // using OGGZ need to change ffmpeg output format to opus!
-            ofile = fdopen (read_fd, "r");
-
-            if (!ofile)
-                {
-                    close (read_fd);
-                    close (command_fd);
-                    close (notification_fd);
-                    throw 2;
-                }
-
-            OGGZ *track_og = oggz_open_stdio (ofile, OGGZ_READ);
-
-            if (track_og)
-                {
-                    mc_oggz_user_data data = { v, track, debug };
-
-                    oggz_set_read_callback (
-                        track_og, -1,
-                        [] (OGGZ *oggz, oggz_packet *packet, long serialno,
-                            void *user_data) {
-                            mc_oggz_user_data *data
-                                = (mc_oggz_user_data *)user_data;
-
-                            // if (data->debug)
-                            //     fprintf (stderr, "OGGZ Read Bytes: %ld\n ",
-                            //              packet->op.bytes);
-
-                            data->voice_client->send_audio_opus (
-                                packet->op.packet, packet->op.bytes);
-
-                            // if (!data->track.seekable && packet->op.b_o_s ==
-                            // 0)
-                            //     {
-                            //         data->track.seekable = true;
-                            //     }
-
-                            return 0;
-                        },
-                        (void *)&data);
-
-                    struct run_stream_loop_states_t states = {
-                        v,           track, server_id, track_og, running_state,
-                        is_stopping, debug,
-                    };
-
-                    effect_states.track_og = track_og;
-
-                    // stream loop
-                    run_stream_loop (this, states, effect_states);
-                }
-            else
-                {
-                    fprintf (stderr,
-                             "[Manager::stream ERROR] Can't open file for "
-                             "reading: %ld '%s'\n",
-                             server_id, file_path.c_str ());
-                }
-
-            // read_fd already closed along with this
-            oggz_close (track_og);
-            track_og = NULL;
-
-            // using OGGZ code ends here
-#endif
-
             close (command_fd);
             command_fd = -1;
             close (notification_fd);
@@ -996,7 +819,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 bool
 Manager::is_stream_stopping (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (sq_m);
+    std::lock_guard lk (sq_m);
 
     if (guild_id && stop_queue[guild_id])
         return true;
@@ -1007,7 +830,7 @@ Manager::is_stream_stopping (const dpp::snowflake &guild_id)
 int
 Manager::set_stream_stopping (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (sq_m);
+    std::lock_guard lk (sq_m);
 
     if (guild_id)
         {
@@ -1023,7 +846,7 @@ Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
 {
     if (guild_id)
         {
-            std::lock_guard<std::mutex> lk (sq_m);
+            std::lock_guard lk (sq_m);
             stop_queue.erase (guild_id);
 
             return 0;
@@ -1036,7 +859,7 @@ void
 Manager::set_processor_state (std::string &server_id_str,
                               processor_state_t state)
 {
-    std::lock_guard<std::mutex> lk (this->as_m);
+    std::lock_guard lk (this->as_m);
 
     this->processor_states[server_id_str] = state;
 }
@@ -1044,7 +867,7 @@ Manager::set_processor_state (std::string &server_id_str,
 processor_state_t
 Manager::get_processor_state (std::string &server_id_str)
 {
-    std::lock_guard<std::mutex> lk (this->as_m);
+    std::lock_guard lk (this->as_m);
     auto i = this->processor_states.find (server_id_str);
 
     if (i == this->processor_states.end ())

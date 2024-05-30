@@ -1,9 +1,11 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child/command.h"
+#include "musicat/child/dl_music.h"
 #include "musicat/child/gnuplot.h"
 #include "musicat/child/system.h"
 #include "musicat/child/worker.h"
 #include "musicat/child/ytdlp.h"
+#include "musicat/musicat.h"
 #include <linux/prctl.h>
 #include <stdlib.h>
 #include <sys/poll.h>
@@ -27,14 +29,13 @@ create_audio_processor (command::command_options_t &options)
     // int read_fd = pipe_fds.first;
     // int write_fd = pipe_fds.second;
 
-    // !TODO: create fifos here
-    std::string as_fp
+    const std::string as_fp
         = audio_processing::get_audio_stream_fifo_path (options.id);
 
-    std::string si_fp
+    const std::string si_fp
         = audio_processing::get_audio_stream_stdin_path (options.id);
 
-    std::string so_fp
+    const std::string so_fp
         = audio_processing::get_audio_stream_stdout_path (options.id);
 
     std::string sem_full_key;
@@ -142,7 +143,7 @@ call_ytdlp (command::command_options_t &options)
 {
     pid_t status = -1;
 
-    std::string as_fp = ytdlp::get_ytdout_fifo_path (options.id);
+    const std::string as_fp = ytdlp::get_ytdout_fifo_path (options.id);
 
     std::string sem_full_key;
     sem_t *sem;
@@ -220,7 +221,7 @@ run_gnuplot (const command::command_options_t &options)
             return -1;
         }
 
-    std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
+    const std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
     int outfd = open (as_fp.c_str (), O_WRONLY);
 
     if (outfd == -1)
@@ -450,7 +451,7 @@ set term png size 1024,1024
 
     write (parent_write, cmd1.c_str (), cmd1.length () + 1);
 
-    size_t bufsiz = 4096;
+    const size_t bufsiz = 4096;
     char buf[bufsiz];
     ssize_t cur_read = 0;
 
@@ -490,7 +491,7 @@ call_gnuplot (command::command_options_t &options)
 {
     pid_t status = -1;
 
-    std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
+    const std::string as_fp = gnuplot::get_gnuplot_out_fifo_path (options.id);
 
     std::string sem_full_key;
     sem_t *sem;
@@ -554,7 +555,7 @@ call_system (command::command_options_t &options)
 {
     pid_t status = -1;
 
-    std::string as_fp = system::get_system_fifo_path (options.id);
+    const std::string as_fp = system::get_system_fifo_path (options.id);
 
     std::string sem_full_key;
     sem_t *sem;
@@ -608,6 +609,124 @@ err4:
     child::do_sem_wait (sem, sem_full_key);
     unlink (as_fp.c_str ());
 err1:
+    return status;
+}
+
+int
+download_music (command::command_options_t &options)
+{
+    pid_t status = -1;
+
+    const std::string as_fp
+        = dl_music::get_download_music_fifo_path (options.id);
+
+    std::string sem_full_key;
+    sem_t *sem;
+
+    unlink (as_fp.c_str ());
+
+    const auto fifo_bitmask
+        = audio_processing::get_audio_stream_fifo_mode_t ();
+
+    if ((status = mkfifo (as_fp.c_str (), fifo_bitmask)) < 0)
+        {
+            perror ("worker_command::download_music as_fp");
+            goto err1;
+        }
+
+    sem_full_key = child::get_sem_key (options.id);
+    sem = child::create_sem (sem_full_key);
+
+    status = child::worker::call_fork ();
+
+    if (status < 0)
+        {
+            perror ("worker_command::download_music fork");
+            goto err;
+        }
+
+    if (status == 0)
+        {
+            worker::handle_worker_fork ();
+
+            if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
+                {
+                    perror ("download_music prctl");
+                    child::do_sem_post (sem);
+                    _exit (EXIT_FAILURE);
+                }
+
+            if (!options.debug)
+                {
+                    // redirect ffmpeg stderr to /dev/null
+                    int dnull = open ("/dev/null", O_WRONLY);
+                    dup2 (dnull, STDERR_FILENO);
+                    close_valid_fd (&dnull);
+                }
+
+            child::do_sem_post (sem);
+
+            int notif_fifo = open (as_fp.c_str (), O_WRONLY);
+            if (notif_fifo < 0)
+                {
+                    perror ("worker_command::download_music::child notif_fifo "
+                            "open");
+
+                    _exit (EXIT_FAILURE);
+                }
+
+            // dup stdout to notif fifo
+            if (dup2 (notif_fifo, STDOUT_FILENO) == -1)
+                {
+                    perror ("worker_command::download_music::child notif_fifo "
+                            "dout");
+
+                    close_valid_fd (&notif_fifo);
+
+                    _exit (EXIT_FAILURE);
+                }
+            close_valid_fd (&notif_fifo);
+
+            /*
+                yt_dlp -f 251 --http-chunk-size 2M $URL -x
+                --audio-format opus --audio-quality 0 -o $FILEPATH
+            */
+
+            const char *yt_dlp = options.ytdlp_util_exe.c_str ();
+            const char *url = options.ytdlp_query.c_str ();
+            const char *fpath = options.file_path.c_str ();
+            char *args[] = { (char *)yt_dlp,
+                             "-f",
+                             "251",
+                             "--http-chunk-size",
+                             "2M",
+                             (char *)url,
+                             "-x",
+                             "--audio-format",
+                             "opus",
+                             "--audio-quality",
+                             "0",
+                             "-o",
+                             (char *)fpath,
+                             (char *)NULL };
+
+            int cmd_status = execvp (yt_dlp, args);
+
+            perror ("worker_command::download_music::child exit");
+            _exit (cmd_status);
+        }
+
+    child::do_sem_wait (sem, sem_full_key);
+    options.pid = status;
+
+    return 0;
+
+err:
+    child::do_sem_post (sem);
+    child::do_sem_wait (sem, sem_full_key);
+err1:
+    unlink (as_fp.c_str ());
+
     return status;
 }
 

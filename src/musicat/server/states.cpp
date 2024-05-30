@@ -61,7 +61,7 @@ util_create_remove_thread (int second_sleep, const std::string &val,
 inline constexpr const char token[]
     = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-inline constexpr const int token_size = sizeof (token) - 1;
+inline constexpr const int token_size = (sizeof (token) / sizeof (*token)) - 1;
 
 std::string
 generate_oauth_state (const std::string &redirect)
@@ -73,14 +73,14 @@ generate_oauth_state (const std::string &redirect)
     do
         {
             int r1 = util::get_random_number ();
-            int len = ((r1 > 0) ? (r1 % 81) : 0) + 80;
+            const int len = ((r1 > 0) ? (r1 % 81) : 0) + 80;
             state = "";
             state.reserve (len);
 
             for (int i = 0; i < len; i++)
                 {
-                    const int r2 = util::get_random_number ();
-                    state += token[(r2 > 0) ? (r2 % token_size) : 0];
+                    r1 = util::get_random_number ();
+                    state += token[(r1 > 0) ? (r1 % token_size) : 0];
                 }
         }
     while (_oauth_states.find (state) != _oauth_states.end ());
@@ -95,9 +95,12 @@ generate_oauth_state (const std::string &redirect)
 
 recv_body_t
 create_recv_body_t (const char *endpoint, const std::string &id,
-                    APIResponse *res, APIRequest *req)
+                    APIResponse *res, APIRequest *req,
+                    const header_v_t &cors_headers)
 {
-    return { util::get_current_ts (), endpoint, id, nullptr, res, req };
+    return {
+        util::get_current_ts (), endpoint, id, "", res, req, cors_headers
+    };
 }
 
 std::vector<recv_body_t>::iterator
@@ -108,9 +111,8 @@ get_recv_body_cache (const recv_body_t &struct_body)
         {
             if (i->ts == struct_body.ts && i->id == struct_body.id
                 && i->endpoint == struct_body.endpoint)
-                {
-                    return i;
-                }
+                return i;
+
             i++;
         }
 
@@ -140,9 +142,6 @@ delete_recv_body_cache (std::vector<recv_body_t>::iterator i)
 {
     if (i == _recv_body_cache.end ())
         return;
-
-    if (i->body)
-        delete i->body;
 
     _recv_body_cache.erase (i);
 }

@@ -67,6 +67,10 @@ execute (command::command_options_t &options)
         {
             status = worker_command::call_system (options);
         }
+    else if (options.command == command::command_execute_commands_t.dl_music)
+        {
+            status = worker_command::download_music (options);
+        }
 
     if (status == 0)
         {
@@ -146,8 +150,11 @@ run ()
                    && (read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
                 {
                     cmd[read_size] = '\0';
-                    fprintf (stderr,
-                             "[child::worker] Received command: `%s`\n", cmd);
+
+                    if (get_debug_state ())
+                        fprintf (stderr,
+                                 "[child::worker] Received command: `%s`\n",
+                                 cmd);
 
                     handle_command (cmd);
 
@@ -232,7 +239,7 @@ call_fork (const char *debug_child_name)
 
     if (pid == -1)
         perror ("[child::worker::call_fork ERROR] fork");
-    else if (debug_child_name && pid != 0)
+    else if (debug_child_name && pid != 0 && get_debug_state ())
         fprintf (stderr, "[child::worker::call_fork] New child: %s (%d)\n",
                  debug_child_name, pid);
 
@@ -242,11 +249,15 @@ call_fork (const char *debug_child_name)
 int
 call_waitpid (pid_t cpid)
 {
+    bool debug = get_debug_state ();
+
     int wstatus;
     int exitstatus = -1;
     pid_t w;
 
-    fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n", cpid);
+    if (debug)
+        fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n",
+                 cpid);
 
     do
         {
@@ -272,7 +283,9 @@ call_waitpid (pid_t cpid)
         }
     while (!WIFEXITED (wstatus) && !WIFSIGNALED (wstatus));
 
-    fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n", cpid);
+    if (debug)
+        fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n",
+                 cpid);
 
     return exitstatus;
 }

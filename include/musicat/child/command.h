@@ -44,6 +44,15 @@ inline const struct
      * exited
      */
     const std::string call_system = "sys";
+
+    /**
+     * Download music with yt-dlp
+     *
+     * Requires file_path (absolute) which music will be save to
+     * ytdlp_query (the url to download)
+     * and ytdlp_util_exe (the path/cmd to invoke yt-dlp)
+     */
+    const std::string dl_music = "dlm";
 } command_execute_commands_t;
 
 // update set_option impl in child/command.cpp when changing this
@@ -274,7 +283,7 @@ get_dbg_str_arg ()
 inline std::string
 get_exit_command (const std::string &id)
 {
-    return create_arg (command_options_keys_t.id, id)
+    return create_arg_sanitize_value (command_options_keys_t.id, id)
            + create_arg (command_options_keys_t.command,
                          command_execute_commands_t.shutdown);
 }

@@ -1,4 +1,5 @@
 #include "musicat/events/on_channel_update.h"
+#include "musicat/events.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 
@@ -55,6 +56,11 @@ on_channel_update (dpp::cluster *client)
         // rejoin channel
         if (debug)
             std::cerr << "[update_rtc_region] " << cached->id << '\n';
+
+#ifdef USE_VOICE_SERVER_UPDATE_RECONNECT
+        // skip this reconnect to use new voice server update handler
+        goto on_channel_update_end;
+#endif
 
         player_manager->full_reconnect (event.from, guild_id, channel_id,
                                         channel_id);

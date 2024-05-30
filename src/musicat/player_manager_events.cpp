@@ -77,7 +77,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             << "[Manager::handle_on_track_marker] Locked player::t_mutex: "
             << guild_player->guild_id << '\n';
 
-    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+    std::lock_guard lk (guild_player->t_mutex);
 
     bool just_loaded_queue = false;
     if (guild_player->saved_queue_loaded != true)
@@ -169,7 +169,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
 
     guild_player->queue.front ().skip_vote.clear ();
-    guild_player->queue.front ().seekable = false;
+    // guild_player->queue.front ().seekable = false;
 
     guild_player->current_track = guild_player->queue.front ();
     guild_player->queue.front ().seek_to = "";
@@ -598,7 +598,7 @@ Manager::spawn_handle_track_marker_worker (
 
             MCTrack &track = guild_player->current_track;
 
-            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            std::lock_guard lk (guild_player->t_mutex);
 
             // text channel to send embed
             dpp::snowflake channel_id = guild_player->channel_id;

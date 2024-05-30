@@ -1,11 +1,13 @@
+#include "musicat/child/command.h"
+#include "musicat/child/dl_music.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
+#include "musicat/util/base64.h"
 #include <dirent.h>
 #include <memory>
 #include <opus/opus.h>
-#include <regex>
 #include <thread>
 
 #include <sys/stat.h>
@@ -24,7 +26,7 @@ Manager::~Manager () = default;
 std::shared_ptr<Player>
 Manager::create_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l != players.end ())
@@ -40,7 +42,7 @@ Manager::create_player (const dpp::snowflake &guild_id)
 std::shared_ptr<Player>
 Manager::get_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l != players.end ())
@@ -54,7 +56,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 {
     bool from_dc = false;
     {
-        std::unique_lock<std::mutex> lk (this->dc_m);
+        std::unique_lock lk (this->dc_m);
         auto a = this->disconnecting.find (guild_id);
         if (a != this->disconnecting.end ())
             {
@@ -66,7 +68,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
             }
     }
     {
-        std::unique_lock<std::mutex> lk (this->c_m);
+        std::unique_lock lk (this->c_m);
         auto a = this->connecting.find (guild_id);
         if (a != this->connecting.end ())
             {
@@ -92,7 +94,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 bool
 Manager::delete_player (const dpp::snowflake &guild_id)
 {
-    std::lock_guard<std::mutex> lk (this->ps_m);
+    std::lock_guard lk (this->ps_m);
 
     auto l = players.find (guild_id);
     if (l == players.end ())
@@ -126,7 +128,7 @@ Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
     if (!a)
         return a;
 
-    std::lock_guard<std::mutex> lk (mp_m);
+    std::lock_guard lk (mp_m);
 
     if (vector_find (&this->manually_paused, guild_id)
         == this->manually_paused.end ())
@@ -162,7 +164,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     guild_player->reset_shifted ();
 
-    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+    std::lock_guard lk (guild_player->t_mutex);
 
     auto u = get_voice_from_gid (guild_id, user_id);
     if (!u.first)
@@ -189,7 +191,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
 
     // if (siz > 1U)
     // {
-    //     std::lock_guard<std::mutex> lk(guild_player->q_m);
+    //     std::lock_guard lk(guild_player->q_m);
     //     auto& track = guild_player->queue.at(0);
     //     auto& track = guild_player->current_track;
     //     if (track.user_id != user_id && track.user_id !=
@@ -253,6 +255,24 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     return { removed_tracks, status };
 }
 
+int
+read_notif_fifo (int notif_fifo, const std::string &filepath,
+                 const std::string &url)
+{
+    char buf[4097];
+    ssize_t cur_read = 0;
+
+    while ((cur_read = read (notif_fifo, &buf, 4096)) > 0)
+        {
+            buf[cur_read] = '\0';
+            // log this for nice statistic or smt later
+            fprintf (stderr, "%s%s", buf,
+                     buf[cur_read - 1] == '\n' ? "" : "\n");
+        }
+
+    return 0;
+}
+
 void
 Manager::download (const string &fname, const string &url,
                    const dpp::snowflake &guild_id)
@@ -272,7 +292,7 @@ Manager::download (const string &fname, const string &url,
         [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id) {
             thread_manager::DoneSetter tmds;
             {
-                std::lock_guard<std::mutex> lk (this->dl_m);
+                std::lock_guard lk (this->dl_m);
                 this->waiting_file_download[fname] = guild_id;
             }
 
@@ -285,35 +305,67 @@ Manager::download (const string &fname, const string &url,
             }
 
             const string filepath = music_folder_path + fname;
+            const bool debug = get_debug_state ();
 
-            const string sanitized_filepath
-                = music_folder_path
-                  + std::regex_replace (fname, std::regex ("(')"), "'\\''",
-                                        std::regex_constants::match_any);
-
-            string cmd
-                = yt_dlp + " -f 251 --http-chunk-size 2M '" + url
-                  + string ("' -x --audio-format opus --audio-quality 0 -o '")
-                  + sanitized_filepath + string ("'");
-
-            bool debug = get_debug_state ();
-
-            if (!debug)
-                cmd += " 1>/dev/null";
-
-            // always log these to easily spot problem in prod
+            // always log these to "easily" spot problem in prod
             fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n",
                      fname.c_str (), url.c_str ());
 
-            fprintf (stderr, "[Manager::download] Command: %s\n",
-                     cmd.c_str ());
+            namespace cc = child::command;
 
-            // !TODO: probably move this operation to child
-            // instead of using literal shell to run the command
-            system (cmd.c_str ());
+            const std::string qid = util::base64::encode (fname);
+
+            const std::string child_cmd
+                = cc::create_arg_sanitize_value (cc::command_options_keys_t.id,
+                                                 qid)
+                  + cc::create_arg (cc::command_options_keys_t.command,
+                                    cc::command_execute_commands_t.dl_music)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.file_path, filepath)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.ytdlp_query, url)
+                  + cc::create_arg_sanitize_value (
+                      cc::command_options_keys_t.ytdlp_util_exe, yt_dlp)
+                  + cc::create_arg (cc::command_options_keys_t.debug,
+                                    debug ? "1" : "0");
+
+            const std::string exit_cmd = cc::get_exit_command (qid);
+
+            // send download command then wait until it exits
+            cc::send_command (child_cmd);
+            int status = child::command::wait_slave_ready (qid, 10);
+            if (status != 0)
+                {
+                    fprintf (
+                        stderr,
+                        "[Manager::download ERROR] Error downloading '%s' "
+                        "to '%s' with code %d\n",
+                        url.c_str (), filepath.c_str (), status);
+                }
+            else
+                {
+                    const std::string notif_fifo_path
+                        = child::dl_music::get_download_music_fifo_path (qid);
+
+                    int notif_fifo = open (notif_fifo_path.c_str (), O_RDONLY);
+
+                    if (notif_fifo < 0)
+                        fprintf (stderr,
+                                 "[Manager::download ERROR] "
+                                 "Failed to open notif_fifo: '%s'\n",
+                                 notif_fifo_path.c_str ());
+                    else
+                        {
+                            read_notif_fifo (notif_fifo, filepath, url);
+                            close (notif_fifo);
+                            notif_fifo = -1;
+                        }
+
+                    cc::send_command (exit_cmd);
+                }
 
             {
-                std::lock_guard<std::mutex> lk (this->dl_m);
+                std::lock_guard lk (this->dl_m);
                 this->waiting_file_download.erase (fname);
 
                 // update newly downloaded file access time
@@ -400,6 +452,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                     return;
                 }
 
+            int err = 0;
             try
                 {
                     int error;
@@ -439,6 +492,8 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                 }
             catch (int e)
                 {
+                    err = e;
+
                     fprintf (stderr,
                              "[ERROR Manager::play] Stream thrown "
                              "error with "
@@ -483,11 +538,16 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 
             guild_player->processing_audio = false;
 
-            if (v && !v->terminating)
+            const bool err_processor = err == 3;
+            // do not insert marker when error coming from duplicate processor
+            if (!err_processor && v && !v->terminating)
                 {
                     v->insert_marker ("e");
                     return;
                 }
+
+            if (err_processor)
+                return;
 
             auto vcc = get_voice_from_gid (server_id, get_sha_id ());
 

@@ -14,7 +14,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
 
-    std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+    std::lock_guard lk (guild_player->t_mutex);
     guild_player->reset_shifted ();
 
     switch (qarg)

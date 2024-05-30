@@ -3,6 +3,8 @@
 
 #include <dpp/dpp.h>
 
+// #define USE_VOICE_SERVER_UPDATE_RECONNECT
+
 namespace musicat::events
 {
 

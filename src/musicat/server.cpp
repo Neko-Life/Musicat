@@ -7,10 +7,6 @@
 #include "musicat/server/states.h"
 #include "musicat/server/ws.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
-#include "musicat/util.h"
-#include "yt-search/encode.h"
-#include <chrono>
 #include <stdio.h>
 #include <uWebSockets/src/App.h>
 /*#include "uWebSockets/AsyncFileReader.h"

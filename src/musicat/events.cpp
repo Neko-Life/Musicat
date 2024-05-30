@@ -9,10 +9,10 @@
 #include "musicat/events/on_message_delete_bulk.h"
 #include "musicat/events/on_ready.h"
 #include "musicat/events/on_slashcommand.h"
+#include "musicat/events/on_user_update.h"
 #include "musicat/events/on_voice_ready.h"
 #include "musicat/events/on_voice_state_update.h"
 #include "musicat/events/on_voice_track_marker.h"
-#include "musicat/musicat.h"
 
 namespace musicat::events
 {
@@ -33,6 +33,7 @@ load_events (dpp::cluster *client)
     on_channel_update (client);
     on_guild_create (client);
     on_guild_delete (client);
+    on_user_update (client);
 
     return 0;
 }

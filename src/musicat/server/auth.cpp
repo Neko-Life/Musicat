@@ -8,14 +8,14 @@ namespace musicat::server::auth
 std::string
 create_jwt_token (const std::string &user_id)
 {
-    std::string secret = get_jwt_secret ();
+    const std::string secret = get_jwt_secret ();
 
     if (secret.empty ())
         {
             return "";
         }
 
-    auto token = jwt::create ()
+    const auto token = jwt::create ()
                      .set_issuer ("Musicat" /*version*/)
                      .set_type ("JWS")
                      .set_payload_claim ("user_id", jwt::claim (user_id))

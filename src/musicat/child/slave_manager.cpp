@@ -1,3 +1,4 @@
+#include "musicat/child/dl_music.h"
 #include "musicat/child/system.h"
 #include "musicat/child/worker_management.h"
 #include "musicat/child/ytdlp.h"
@@ -63,11 +64,15 @@ shutdown_routine (command::command_options_t &options)
         {
             return worker_management::shutdown_audio_processor (options);
         }
-    else if (child_type == command::command_execute_commands_t.call_ytdlp)
+    if (child_type == command::command_execute_commands_t.call_ytdlp)
         {
             return 0;
         }
-    else if (child_type == command::command_execute_commands_t.call_system)
+    if (child_type == command::command_execute_commands_t.call_system)
+        {
+            return 0;
+        }
+    if (child_type == command::command_execute_commands_t.dl_music)
         {
             return 0;
         }
@@ -118,16 +123,24 @@ clean_up_routine (command::command_options_t &options)
         {
             return worker_management::clean_up_audio_processor (options);
         }
-    else if (child_type == command::command_execute_commands_t.call_ytdlp)
+    if (child_type == command::command_execute_commands_t.call_ytdlp)
         {
             std::string as_fp = ytdlp::get_ytdout_fifo_path (options.id);
 
             unlink (as_fp.c_str ());
             return 0;
         }
-    else if (child_type == command::command_execute_commands_t.call_system)
+    if (child_type == command::command_execute_commands_t.call_system)
         {
             std::string as_fp = system::get_system_fifo_path (options.id);
+
+            unlink (as_fp.c_str ());
+            return 0;
+        }
+    if (child_type == command::command_execute_commands_t.dl_music)
+        {
+            std::string as_fp
+                = dl_music::get_download_music_fifo_path (options.id);
 
             unlink (as_fp.c_str ());
             return 0;

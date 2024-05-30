@@ -1,12 +1,11 @@
 #include "musicat/events/on_form_submit.h"
-#include "musicat/cmds/play.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/player.h"
 #include "musicat/storage.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
-#include <regex>
 
 namespace musicat::events
 {
@@ -80,10 +79,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
 
     event.thinking ();
 
-    std::string fname = std::regex_replace (
-        mctrack::get_title (result) + std::string ("-")
-            + mctrack::get_id (result) + std::string (".opus"),
-        std::regex ("/"), "", std::regex_constants::match_any);
+    const std::string fname = player::get_filename_from_result (result);
 
     bool dling = false;
 
