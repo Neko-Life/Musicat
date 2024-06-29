@@ -1,6 +1,6 @@
 FROM archlinux:base as init
 
-RUN pacman -Sy --needed --noconfirm reflector && reflector --save /etc/pacman.d/mirrorlist && \
+RUN pacman -Sy --needed --noconfirm openssl reflector && reflector --save /etc/pacman.d/mirrorlist && \
       pacman -Syu --needed --noconfirm libc++ postgresql-libs libsodium opus ffmpeg
 
 FROM init as build
