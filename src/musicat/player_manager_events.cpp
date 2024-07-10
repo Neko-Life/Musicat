@@ -111,9 +111,14 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     if (event.track_meta == "e" && !guild_player->is_stopped ())
         {
             int64_t rpt = guild_player->current_track.repeat;
-            if (rpt > 0)
-                guild_player->queue.front ().repeat
-                    = --guild_player->current_track.repeat;
+            if (rpt > 0
+                // in case of previous track erroring with repeat enabled
+                // check if the to be current_track actually have repeat
+                && guild_player->queue.front ().repeat > 0)
+                {
+                    guild_player->queue.front ().repeat
+                        = --guild_player->current_track.repeat;
+                }
             else
                 switch (guild_player->loop_mode)
                     {
@@ -570,7 +575,6 @@ void
 Manager::spawn_handle_track_marker_worker (
     const dpp::voice_track_marker_t &event)
 {
-
     std::thread tj = std::thread (
         [this] (dpp::discord_voice_client *v, const string meta) {
             thread_manager::DoneSetter tmds;
@@ -596,28 +600,11 @@ Manager::spawn_handle_track_marker_worker (
                     return;
                 }
 
-            MCTrack &track = guild_player->current_track;
-
             std::lock_guard lk (guild_player->t_mutex);
+            MCTrack &track = guild_player->current_track;
 
             // text channel to send embed
             dpp::snowflake channel_id = guild_player->channel_id;
-
-            // std::thread tmt([this](bool* _v) {
-            //     int _w = 30;
-            //     while (_v && *_v == false && _w > 0)
-            //     {
-            //         sleep(1);
-            //         --_w;
-            //     }
-            //     if (_w) return;
-            //     if (_v)
-            //     {
-            //         *_v = true;
-            //         this->dl_cv.notify_all();
-            //     }
-            // }, &timed_out);
-            // tmt.detach();
 
             this->wait_for_vc_ready (guild_id);
 
@@ -632,18 +619,22 @@ Manager::spawn_handle_track_marker_worker (
 
             const string track_id = mctrack::get_id (track);
 
-            if (guild_player->max_history_size)
+            if (guild_player->max_history_size > 0)
                 {
                     guild_player->history.push_back (track_id);
 
-                    while (guild_player->history.size ()
-                           > guild_player->max_history_size)
+                    const size_t cur_hs = guild_player->history.size ();
+                    if (cur_hs > guild_player->max_history_size)
                         {
-                            guild_player->history.pop_front ();
+                            guild_player->history.erase (
+                                guild_player->history.begin (),
+                                guild_player->history.begin ()
+                                    + (cur_hs
+                                       - guild_player->max_history_size));
                         }
                 }
 
-            bool embed_perms
+            const bool embed_perms
                 = has_permissions (g, &this->cluster->me, c,
                                    { dpp::p_view_channel, dpp::p_send_messages,
                                      dpp::p_embed_links });
@@ -714,6 +705,11 @@ Manager::spawn_handle_track_marker_worker (
                         if (guild_player->failed_playback < 3)
                             {
                                 guild_player->failed_playback++;
+
+                                // set is_stopped to avoid marker handler
+                                // popping the next song as its already skipped
+                                // above
+                                guild_player->set_stopped (true);
 
                                 // play next song
                                 v->insert_marker ("e");

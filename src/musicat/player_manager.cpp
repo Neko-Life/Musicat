@@ -261,6 +261,7 @@ read_notif_fifo (int notif_fifo, const std::string &filepath,
 {
     char buf[4097];
     ssize_t cur_read = 0;
+    bool has_progress = false;
 
     while ((cur_read = read (notif_fifo, &buf, 4096)) > 0)
         {
@@ -268,9 +269,11 @@ read_notif_fifo (int notif_fifo, const std::string &filepath,
             // log this for nice statistic or smt later
             fprintf (stderr, "%s%s", buf,
                      buf[cur_read - 1] == '\n' ? "" : "\n");
+
+            has_progress = true;
         }
 
-    return 0;
+    return has_progress ? 0 : 1;
 }
 
 void
@@ -356,7 +359,7 @@ Manager::download (const string &fname, const string &url,
                                  notif_fifo_path.c_str ());
                     else
                         {
-                            read_notif_fifo (notif_fifo, filepath, url);
+                            status = read_notif_fifo (notif_fifo, filepath, url);
                             close (notif_fifo);
                             notif_fifo = -1;
                         }
@@ -399,6 +402,8 @@ Manager::download (const string &fname, const string &url,
             }
 
             this->dl_cv.notify_all ();
+
+            // TODO: set status somewhere when needed?
         },
         fname, url, guild_id);
 
