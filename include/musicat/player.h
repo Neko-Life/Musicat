@@ -299,6 +299,9 @@ class Player
 
     /**
      * @brief Skip track entries in the queue
+     *
+     * Caller should locks t_mutex before calling this method
+     *
      * @param amount the amount of track to skip
      * @param remove force remove regardless of loop setting
      * @param pop_current force to include currently playing track
