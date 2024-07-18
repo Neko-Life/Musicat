@@ -1,4 +1,5 @@
 #include "musicat/cmds/loop.h"
+#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
@@ -33,27 +34,17 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
-    if (!player_manager->voice_ready (event.command.guild_id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return;
 
     const dpp::snowflake sha_id = get_sha_id ();
-    static const char *loop_message[]
-        = { "Turned off repeat mode", "Set to repeat a song",
-            "Set to repeat queue",
-            "Set to repeat a song and not to remove skipped song" };
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > uvc;
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > cvc;
 
+    // !TODO: add dj role to bypass all these restriction
+    // also move these checks to a function for more DRY
     uvc = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
     if (!uvc.first)
         return event.reply ("You're not in a voice channel");
@@ -77,25 +68,49 @@ slash_run (const dpp::slashcommand_t &event)
     if (guild_player->saved_config_loaded != true)
         player_manager->load_guild_player_config (event.command.guild_id);
 
+    // make sure nothing messing with track order
+    guild_player->reset_shifted ();
+
     if (guild_player->loop_mode == a_l)
         return event.reply ("Already set to that mode");
 
     int64_t l_amount = -1;
     get_inter_param (event, "loop-amount", &l_amount);
 
-    if (l_amount >= MIN_VAL && l_amount <= MAX_VAL
-        && (a_l == player::loop_mode_t::l_song))
-        {
-            guild_player->current_track.repeat = l_amount;
+    const bool with_loop_amount
+        = l_amount >= MIN_VAL && (a_l == player::loop_mode_t::l_song);
 
-            event.reply ("Will repeat `"
-                         + mctrack::get_title (guild_player->current_track)
-                         + "` for " + std::to_string (l_amount)
-                         + util::join (l_amount > 1, " more time", "s"));
+    // set to maximum value if its over max
+    if (l_amount > MAX_VAL)
+        l_amount = MAX_VAL;
+
+    if (!guild_player->current_track.is_empty () && with_loop_amount)
+        {
+            // repeat current song only amount times
+
+            guild_player->current_track.repeat = l_amount;
+            if (guild_player->queue.size () > 0)
+                guild_player->queue.front ().repeat = l_amount;
+            else
+                guild_player->queue.push_back (guild_player->current_track);
+
+            const std::string rep
+                = "Will repeat `"
+                  + mctrack::get_title (guild_player->current_track) + "` for "
+                  + std::to_string (l_amount)
+                  + util::join (l_amount != 1, " more time", "s");
+
+            event.reply (rep);
         }
-    else
+    else // actually set loop mode
         {
             guild_player->set_loop_mode (a_l);
+
+            constexpr const char *loop_message[]
+                = { "Turned off repeat mode", "Set to repeat a song",
+                    "Set to repeat queue",
+                    "Set to repeat a song and not to remove skipped song" };
+
             event.reply (loop_message[a_l]);
         }
 

@@ -19,17 +19,9 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
-    if (!player_manager->voice_ready (event.command.guild_id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return;
 
     try
         {
@@ -53,7 +45,7 @@ slash_run (const dpp::slashcommand_t &event)
                     break;
                 default:
                     event.reply (std::to_string (res.second)
-                                 + util::join (res.second > 1, " member", "s")
+                                 + util::join (res.second != 1, " member", "s")
                                  + " voted to skip, add more vote to skip "
                                    "current track");
                 }

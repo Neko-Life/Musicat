@@ -1,6 +1,7 @@
 #ifndef MUSICAT_COMMAND_H
 #define MUSICAT_COMMAND_H
 
+#include "musicat/player.h"
 #include <dpp/dpp.h>
 #include <string>
 
@@ -36,6 +37,9 @@ handle_command_status_e handle_command (const handle_command_params_t &params);
 dpp::command_option create_yes_no_option (const std::string &name,
                                           const std::string &description,
                                           bool required = false);
+
+player::player_manager_ptr_t
+cmd_pre_get_player_manager_ready (const dpp::slashcommand_t &event);
 
 } // musicat::command
 

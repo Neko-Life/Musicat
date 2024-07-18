@@ -207,7 +207,7 @@ log_confirmation_error (const dpp::confirmation_callback_t &e,
     std::cerr << callee << ':' << '\n';
 
     dpp::error_info ev = e.get_error ();
-    for (auto eve : ev.errors)
+    for (const auto &eve : ev.errors)
         {
             std::cerr << eve.code << '\n';
             std::cerr << eve.field << '\n';

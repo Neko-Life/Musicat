@@ -62,7 +62,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (ret)
         {
             event.edit_response ("Removed " + std::to_string (ret)
-                                 + util::join (ret > 1, " track", "s"));
+                                 + util::join (ret != 1, " track", "s"));
 
             auto queue2 = player_manager->get_queue (event.command.guild_id);
             if (queue2.size () < 2U

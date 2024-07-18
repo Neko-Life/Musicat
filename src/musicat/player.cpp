@@ -34,6 +34,12 @@ MCTrack::init ()
     repeat = 0;
 }
 
+bool
+MCTrack::is_empty () const
+{
+    return filename.empty ();
+}
+
 void
 Player::init ()
 {

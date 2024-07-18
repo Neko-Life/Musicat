@@ -1,4 +1,5 @@
 #include "musicat/cmds/volume.h"
+#include "musicat/cmds.h"
 #include "musicat/musicat.h"
 
 #define MIN_PERCENTAGE 1
@@ -25,20 +26,9 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    // perquisite
-    player::player_manager_ptr_t player_manager = get_player_manager_ptr ();
-
-    if (!player_manager)
-        {
-            return;
-        }
-
-    if (!player_manager->voice_ready (event.command.guild_id, event.from,
-                                      event.command.usr.id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return;
 
     auto player = player_manager->get_player (event.command.guild_id);
 

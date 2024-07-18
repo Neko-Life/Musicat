@@ -142,16 +142,19 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         }
     else if (event.track_meta == "rm")
         {
-            const string removed_title
-                = mctrack::get_title (guild_player->queue.front ());
-
             guild_player->queue.pop_front ();
 
             if (debug)
-                std::cerr
-                    << "[Manager::handle_on_track_marker rm] Track removed "
-                       "in guild: `"
-                    << removed_title << "` " << guild_player->guild_id << '\n';
+                {
+                    const string removed_title
+                        = mctrack::get_title (guild_player->queue.front ());
+
+                    std::cerr << "[Manager::handle_on_track_marker rm] Track "
+                                 "removed "
+                                 "in guild: `"
+                              << removed_title << "` "
+                              << guild_player->guild_id << '\n';
+                }
 
             return false;
         }
@@ -169,6 +172,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             if (!just_loaded_queue)
                 database::delete_guild_current_queue (
                     event.voice_client->server_id);
+
+            guild_player->current_track = MCTrack ();
 
             return false;
         }

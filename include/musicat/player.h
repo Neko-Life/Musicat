@@ -83,6 +83,8 @@ struct MCTrack : yt_search::YTrack
 
     size_t filesize;
 
+    bool is_empty () const;
+
     void init ();
 
     MCTrack ();

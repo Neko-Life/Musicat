@@ -1,4 +1,5 @@
 #include "musicat/cmds/progress.h"
+#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 
@@ -75,17 +76,10 @@ _process_command (const dpp::interaction_create_t &event,
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return;
 
-    if (!player_manager->voice_ready (event.command.guild_id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
     try
         {
             _processed_t value = _process_command (event, player_manager);

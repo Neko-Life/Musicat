@@ -161,21 +161,11 @@ int
 perquisite (const dpp::slashcommand_t &event, filters_perquisite_t *fpt)
 {
     // perquisite
-    player::player_manager_ptr_t player_manager = get_player_manager_ptr ();
-
-    if (!player_manager)
-        {
-            return 1;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return 1;
 
     fpt->player_manager = player_manager;
-
-    if (!player_manager->voice_ready (event.command.guild_id, event.from,
-                                      event.command.usr.id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return 1;
-        }
 
     auto player = player_manager->get_player (event.command.guild_id);
 

@@ -61,18 +61,9 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
-    if (!player_manager->voice_ready (event.command.guild_id, event.from,
-                                      event.command.usr.id))
-        {
-            event.reply ("Please wait while I'm getting ready to stream");
-            return;
-        }
+    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    if (player_manager == NULL)
+        return;
 
     bool debug = get_debug_state ();
 
