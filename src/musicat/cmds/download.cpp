@@ -38,9 +38,9 @@ fileHasError (const dpp::interaction_create_t &event,
             return true;
         }
 
-    if (filestat.st_size > (8 * 1000000))
+    if (filestat.st_size > (25 * 1024 * 1024))
         {
-            event.edit_response ("`[ERROR]` File size is larger than 8MB");
+            event.edit_response ("`[ERROR]` File size is larger than 25MiB");
             return true;
         }
 
