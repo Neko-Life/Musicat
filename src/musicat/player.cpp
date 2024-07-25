@@ -82,7 +82,6 @@ Player::init ()
     this->set_equalizer = false;
 
     this->tried_continuing = false;
-    this->failed_playback = 0;
 
     this->processing_audio = false;
     this->opus_encoder = NULL;

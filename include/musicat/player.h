@@ -233,7 +233,6 @@ class Player
     bool set_pitch;
 
     bool tried_continuing;
-    int failed_playback;
 
     // -400-100, default 0
     int pitch;
@@ -768,6 +767,11 @@ std::vector<gat_t> get_available_tracks (const size_t &amount = 0,
                                          bool with_stat = false);
 
 void control_music_cache (const size_t size_limit);
+
+// ================================================================================
+
+int get_track_failed_playback_count (const MCTrack &track);
+int set_track_failed_playback_count (const MCTrack &track, int c);
 
 // ================================================================================
 

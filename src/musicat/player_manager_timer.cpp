@@ -7,10 +7,12 @@ namespace musicat::player::timer
 /* static std::vector<connect_timer_t> ct_v; */
 static std::vector<track_marker_rm_timer_t> tmrmt_v;
 static std::vector<resume_timer_t> rt_v;
+static std::vector<failed_playback_reset_timer_t> fprt_v;
 
 /* static std::mutex ct_m; */
 static std::mutex tmrmt_m;
 static std::mutex rt_m;
+static std::mutex fprt_m;
 
 void
 check_connect_timers ()
@@ -25,14 +27,17 @@ is_tmrmt_duplicate (const track_marker_rm_timer_t &tmrmt)
 
     while (i != tmrmt_v.end ())
         {
-            bool met = i->meta == tmrmt.meta;
-            bool sids = i->vc->server_id == tmrmt.vc->server_id;
-            bool cids = i->vc->channel_id == tmrmt.vc->channel_id;
+            bool met = i->meta != tmrmt.meta;
+            bool sids = i->vc->server_id != tmrmt.vc->server_id;
+            bool cids = i->vc->channel_id != tmrmt.vc->channel_id;
 
-            if (met && sids && cids)
-                return true;
+            if (met || sids || cids)
+                {
+                    i++;
+                    continue;
+                }
 
-            i++;
+            return true;
         }
 
     return false;
@@ -45,14 +50,17 @@ is_rt_duplicate (const resume_timer_t &rt)
 
     while (i != rt_v.end ())
         {
-            bool sids = i->vc->server_id == rt.vc->server_id;
-            bool svcids = i->svcid == rt.svcid;
-            bool cids = i->vc->channel_id == rt.vc->channel_id;
+            bool sids = i->vc->server_id != rt.vc->server_id;
+            bool svcids = i->svcid != rt.svcid;
+            bool cids = i->vc->channel_id != rt.vc->channel_id;
 
-            if (sids && svcids && cids)
-                return true;
+            if (sids || svcids || cids)
+                {
+                    i++;
+                    continue;
+                }
 
-            i++;
+            return true;
         }
 
     return false;
@@ -248,6 +256,101 @@ check_resume_timers ()
                 }
 
             i = rt_v.erase (i);
+        }
+}
+
+static bool
+is_fprt_duplicate (const failed_playback_reset_timer_t &rt)
+{
+    auto i = fprt_v.begin ();
+
+    while (i != fprt_v.end ())
+        {
+            if (i->filename != rt.filename)
+                {
+                    i++;
+                    continue;
+                }
+
+            return true;
+        }
+
+    return false;
+}
+
+int
+create_failed_playback_reset_timer (const std::string &filename)
+{
+    if (filename.empty ())
+        return 1;
+
+    std::lock_guard lk (fprt_m);
+
+    failed_playback_reset_timer_t rt = { util::get_current_ts (), filename };
+
+    bool no = is_fprt_duplicate (rt);
+    if (no)
+        return 2;
+
+    fprt_v.push_back (rt);
+
+    return 0;
+}
+
+int
+remove_failed_playback_reset_timer (const std::string &filename)
+{
+    if (filename.empty ())
+        return 1;
+
+    std::lock_guard lk (fprt_m);
+
+    auto i = fprt_v.begin ();
+
+    while (i != fprt_v.end ())
+        {
+            if (i->filename != filename)
+                {
+                    i++;
+                    continue;
+                }
+
+            fprt_v.erase (i);
+            break;
+        }
+
+    return 0;
+}
+
+void
+check_failed_playback_reset_timers ()
+{
+    bool exiting = !get_running_state ();
+    /*bool debug = get_debug_state ();*/
+
+    std::lock_guard lk (fprt_m);
+
+    auto now = util::get_current_ts ();
+    auto i = fprt_v.begin ();
+    while (i != fprt_v.end ())
+        {
+            if (exiting)
+                {
+                    i = fprt_v.erase (i);
+                    continue;
+                }
+
+            constexpr long long m10 = util::ms_to_picos (60 * 10000);
+
+            auto diff = (now - i->ts);
+            // less than 10 minute passed
+            if (diff < m10)
+                {
+                    i++;
+                    continue;
+                }
+
+            i = fprt_v.erase (i);
         }
 }
 

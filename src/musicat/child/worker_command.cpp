@@ -688,7 +688,12 @@ download_music (command::command_options_t &options)
             close_valid_fd (&notif_fifo);
 
             /*
+               strictly opus, fail if missing:
                 yt_dlp -f 251 --http-chunk-size 2M $URL -x
+                --audio-format opus --audio-quality 0 -o $FILEPATH
+
+                allow to convert other audio format to opus:
+                yt-dlp -f bestaudio --http-chunk-size 2M $URL -x
                 --audio-format opus --audio-quality 0 -o $FILEPATH
             */
 
@@ -697,7 +702,7 @@ download_music (command::command_options_t &options)
             const char *fpath = options.file_path.c_str ();
             char *args[] = { (char *)yt_dlp,
                              "-f",
-                             "251",
+                             "bestaudio",
                              "--http-chunk-size",
                              "2M",
                              (char *)url,

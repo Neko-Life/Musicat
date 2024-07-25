@@ -254,6 +254,75 @@ control_music_cache (const size_t size_limit)
 
 // ================================================================================
 
+std::mutex tfpc_m;
+std::map<std::string, int> track_failed_playback_counts;
+
+int
+get_track_failed_playback_count (const MCTrack &track)
+{
+    if (track.filename.empty ())
+        {
+            if (get_debug_state ())
+                {
+                    fprintf (stderr, "[player::get_track_failed_playback_"
+                                     "count ERROR] track.filename is empty\n");
+                }
+
+            return -1;
+        }
+
+    std::lock_guard lk (tfpc_m);
+
+    auto i = track_failed_playback_counts.find (track.filename);
+    if (i == track_failed_playback_counts.end ())
+        {
+            return 0;
+        }
+
+    return i->second;
+}
+
+int
+set_track_failed_playback_count (const MCTrack &track, int c)
+{
+    const bool debug = get_debug_state ();
+
+    if (track.filename.empty ())
+        {
+            if (debug)
+                {
+                    fprintf (stderr,
+                             "[player::set_track_failed_playback_"
+                             "count ERROR] `track.filename` is empty\n");
+                }
+
+            return -1;
+        }
+
+    if (c < 0)
+        {
+            if (debug)
+                {
+                    fprintf (stderr,
+                             "[player::set_track_failed_playback_"
+                             "count ERROR] `c` can't be less than 0\n");
+                }
+
+            return -2;
+        }
+
+    std::lock_guard lk (tfpc_m);
+
+    if (c == 0)
+        track_failed_playback_counts.erase (track.filename);
+    else
+        track_failed_playback_counts.insert_or_assign (track.filename, c);
+
+    return 0;
+}
+
+// ================================================================================
+
 std::pair<player::MCTrack, int>
 find_track (const bool playlist, const std::string &arg_query,
             player::player_manager_ptr_t player_manager,
@@ -1043,10 +1112,10 @@ Manager::is_waiting_file_download (const string &file_name)
 void
 Manager::wait_for_download (const string &file_name)
 {
+    std::unique_lock lk (this->dl_m);
+
     if (!this->is_waiting_file_download (file_name))
         return;
-
-    std::unique_lock lk (this->dl_m);
 
     this->dl_cv.wait (lk, [this, file_name] () {
         return this->waiting_file_download.find (file_name)

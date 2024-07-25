@@ -862,6 +862,7 @@ run (int argc, const char *argv[])
 
             player::timer::check_track_marker_rm_timers ();
             player::timer::check_resume_timers ();
+            player::timer::check_failed_playback_reset_timers ();
 
             server::main_loop_routine ();
 

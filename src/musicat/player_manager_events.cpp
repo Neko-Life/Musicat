@@ -665,24 +665,47 @@ Manager::spawn_handle_track_marker_worker (
 
                 track_info_m
                     = embed_perms
-                          ? mctrack::get_title (track) + " (added by <@"
+                          ? '`' + mctrack::get_title (track) + "` (added by <@"
                                 + std::to_string (track.user_id) + ">)"
                           : "";
                 is_downloading = this->waiting_file_download.find (fname)
                                  != this->waiting_file_download.end ();
 
+                const int failed_playback
+                    = get_track_failed_playback_count (track);
+                const bool dont_retry = failed_playback >= 3;
+
+                if (dont_retry)
+                    {
+                        // create timer to allow the track to be played again
+                        // later
+                        timer::create_failed_playback_reset_timer (fname);
+                    }
+
                 if (embed_perms)
                     {
-                        const string m_content_redo
-                            = (is_downloading
-                                   ? "Missing audio file, awaiting download: "
-                                   : "Missing audio file: ")
-                              + track_info_m
-                              + (is_downloading ? ""
-                                                : "\nTrying to redownload...\n"
-                                                  "I will add this track to "
-                                                  "the top of the queue once "
-                                                  "it's done downloading");
+                        string m_content_redo;
+
+                        if (dont_retry)
+                            {
+                                m_content_redo
+                                    = "Track " + track_info_m
+                                      + " failed to play for too many times, "
+                                        "I shall stop trying to play it for a "
+                                        "while. Sorry";
+                            }
+                        else
+                            m_content_redo
+                                = (is_downloading ? "Missing audio file, "
+                                                    "awaiting download: "
+                                                  : "Missing audio file: ")
+                                  + track_info_m
+                                  + (is_downloading
+                                         ? ""
+                                         : "\nTrying to redownload...\n"
+                                           "I will add this track to "
+                                           "the top of the queue once "
+                                           "it's done downloading");
 
                         dpp::message m (channel_id, m_content_redo);
 
@@ -708,9 +731,10 @@ Manager::spawn_handle_track_marker_worker (
                         guild_player->skip_queue (1, true, true);
 
                         // stop playing next song if failed trying 3 times
-                        if (guild_player->failed_playback < 3)
+                        if (!dont_retry)
                             {
-                                guild_player->failed_playback++;
+                                set_track_failed_playback_count (
+                                    track, failed_playback + 1);
 
                                 // set is_stopped to avoid marker handler
                                 // popping the next song as its already skipped
@@ -722,7 +746,7 @@ Manager::spawn_handle_track_marker_worker (
                             }
                     }
 
-                if (!is_downloading)
+                if (!is_downloading && !dont_retry)
                     {
                         // try redownload
                         this->waiting_file_download[fname] = guild_id;
@@ -758,7 +782,9 @@ Manager::spawn_handle_track_marker_worker (
             }
 
         has_file:
-            guild_player->failed_playback = 0;
+            set_track_failed_playback_count (track, 0);
+            // make sure it has no reset timer active in case it failed again
+            timer::remove_failed_playback_reset_timer (track.filename);
 
             if (meta == "r")
                 v->send_silence (60);
