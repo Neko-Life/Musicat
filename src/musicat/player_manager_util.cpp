@@ -258,9 +258,9 @@ std::mutex tfpc_m;
 std::map<std::string, int> track_failed_playback_counts;
 
 int
-get_track_failed_playback_count (const MCTrack &track)
+get_track_failed_playback_count (const std::string &filename)
 {
-    if (track.filename.empty ())
+    if (filename.empty ())
         {
             if (get_debug_state ())
                 {
@@ -273,7 +273,7 @@ get_track_failed_playback_count (const MCTrack &track)
 
     std::lock_guard lk (tfpc_m);
 
-    auto i = track_failed_playback_counts.find (track.filename);
+    auto i = track_failed_playback_counts.find (filename);
     if (i == track_failed_playback_counts.end ())
         {
             return 0;
@@ -283,11 +283,11 @@ get_track_failed_playback_count (const MCTrack &track)
 }
 
 int
-set_track_failed_playback_count (const MCTrack &track, int c)
+set_track_failed_playback_count (const std::string &filename, int c)
 {
     const bool debug = get_debug_state ();
 
-    if (track.filename.empty ())
+    if (filename.empty ())
         {
             if (debug)
                 {
@@ -314,9 +314,9 @@ set_track_failed_playback_count (const MCTrack &track, int c)
     std::lock_guard lk (tfpc_m);
 
     if (c == 0)
-        track_failed_playback_counts.erase (track.filename);
+        track_failed_playback_counts.erase (filename);
     else
-        track_failed_playback_counts.insert_or_assign (track.filename, c);
+        track_failed_playback_counts.insert_or_assign (filename, c);
 
     return 0;
 }

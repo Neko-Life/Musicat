@@ -1,5 +1,6 @@
 #include "musicat/player_manager_timer.h"
 #include "musicat/musicat.h"
+#include "musicat/player.h"
 #include "musicat/util.h"
 
 namespace musicat::player::timer
@@ -349,6 +350,9 @@ check_failed_playback_reset_timers ()
                     i++;
                     continue;
                 }
+
+            // actually reset the track count
+            set_track_failed_playback_count (i->filename, 0);
 
             i = fprt_v.erase (i);
         }

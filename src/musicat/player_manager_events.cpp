@@ -672,7 +672,7 @@ Manager::spawn_handle_track_marker_worker (
                                  != this->waiting_file_download.end ();
 
                 const int failed_playback
-                    = get_track_failed_playback_count (track);
+                    = get_track_failed_playback_count (track.filename);
                 const bool dont_retry = failed_playback >= 3;
 
                 if (dont_retry)
@@ -734,7 +734,7 @@ Manager::spawn_handle_track_marker_worker (
                         if (!dont_retry)
                             {
                                 set_track_failed_playback_count (
-                                    track, failed_playback + 1);
+                                    track.filename, failed_playback + 1);
 
                                 // set is_stopped to avoid marker handler
                                 // popping the next song as its already skipped
@@ -782,7 +782,7 @@ Manager::spawn_handle_track_marker_worker (
             }
 
         has_file:
-            set_track_failed_playback_count (track, 0);
+            set_track_failed_playback_count (track.filename, 0);
             // make sure it has no reset timer active in case it failed again
             timer::remove_failed_playback_reset_timer (track.filename);
 

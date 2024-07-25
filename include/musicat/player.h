@@ -770,8 +770,8 @@ void control_music_cache (const size_t size_limit);
 
 // ================================================================================
 
-int get_track_failed_playback_count (const MCTrack &track);
-int set_track_failed_playback_count (const MCTrack &track, int c);
+int get_track_failed_playback_count (const std::string &filename);
+int set_track_failed_playback_count (const std::string &filename, int c);
 
 // ================================================================================
 
