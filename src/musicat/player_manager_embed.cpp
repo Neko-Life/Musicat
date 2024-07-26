@@ -1,3 +1,4 @@
+#include "message.h"
 #include "musicat/function_macros.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
@@ -87,6 +88,87 @@ class ProcessingEmbedClearer
     };
 };
 
+void
+send_info_embed_cb (const dpp::confirmation_callback_t &cb,
+                    const dpp::snowflake &guild_id)
+{
+    ProcessingEmbedClearer pec (guild_id, true);
+
+    if (cb.is_error ())
+        {
+            auto e_i = cb.get_error ();
+
+            fprintf (stderr,
+                     "[player::send_info_embed_cb ERROR] "
+                     "message_create callback error:\n"
+                     "mes: %s\ncode: %d\nerr:\n",
+                     e_i.message.c_str (), e_i.code);
+
+            for (const auto &i : e_i.errors)
+                fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
+                         i.code.c_str (), i.field.c_str (), i.object.c_str (),
+                         i.reason.c_str ());
+
+            return;
+        }
+
+    bool debug = get_debug_state ();
+
+    if (!std::holds_alternative<dpp::message> (cb.value))
+        {
+            if (debug)
+                fprintf (stderr, "[player::send_info_embed_cb] "
+                                 "No message_create cb size\n");
+
+            return;
+        }
+
+    auto player_manager_ptr = get_player_manager_ptr ();
+
+    if (!player_manager_ptr)
+        {
+            fprintf (stderr, "[player::send_info_embed_cb ERROR] "
+                             "Missing player manager\n");
+
+            return;
+        }
+
+    auto player = player_manager_ptr->get_player (guild_id);
+
+    if (!player)
+        {
+            fprintf (stderr, "[player::send_info_embed_cb ERROR] PLAYER "
+                             "GONE WTFF\n");
+
+            return;
+        }
+
+    std::lock_guard lk (player_manager_ptr->imc_m);
+
+    dpp::snowflake id;
+
+    if (player->info_message)
+        {
+            id = player->info_message->id;
+            player_manager_ptr->info_messages_cache.erase (id);
+        }
+
+    player->info_message
+        = std::make_shared<dpp::message> (std::get<dpp::message> (cb.value));
+
+    if (!player->info_message)
+        return;
+
+    id = player->info_message->id;
+
+    player_manager_ptr->info_messages_cache[id] = player->info_message;
+
+    if (debug)
+        std::cerr << "[player::send_info_embed_cb] New "
+                     "message info: "
+                  << id << '\n';
+}
+
 bool
 Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                           const bool force_playing_status,
@@ -111,7 +193,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         {
             if (debug)
                 fprintf (stderr,
-                         "[MANAGER:SEND_INFO_EMBED] No message to update\n");
+                         "[Manager:send_info_embed] No message to update\n");
 
             return false;
         }
@@ -144,105 +226,8 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             throw exception ("No permission");
         }
 
-    dpp::embed e;
-    try
-        {
-            e = get_playing_info_embed (guild_id, force_playing_status);
-        }
-    catch (const exception &e)
-        {
-            fprintf (stderr,
-                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                     "get_playing_info_embed: %s\n",
-                     e.what ());
-
-            return false;
-        }
-    catch (const dpp::exception &e)
-        {
-            fprintf (stderr,
-                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                     "get_playing_info_embed [dpp::exception]: %s\n",
-                     e.what ());
-
-            return false;
-        }
-    catch (const std::logic_error &e)
-        {
-            fprintf (stderr,
-                     "[ERROR MANAGER::SEND_INFO_EMBED] Failed to "
-                     "get_playing_info_embed [std::logic_error]: %s\n",
-                     e.what ());
-
-            return false;
-        }
-
-    auto m_cb = [this, guild_id] (dpp::confirmation_callback_t cb) {
-        ProcessingEmbedClearer pec (guild_id, true);
-
-        if (cb.is_error ())
-            {
-                auto e_i = cb.get_error ();
-
-                fprintf (stderr,
-                         "[Manager::send_info_embed ERROR] "
-                         "message_create callback error:\n"
-                         "mes: %s\ncode: %d\nerr:\n",
-                         e_i.message.c_str (), e_i.code);
-
-                for (const auto &i : e_i.errors)
-                    fprintf (stderr, "c: %s\nf: %s\no: %s\nr: %s\n",
-                             i.code.c_str (), i.field.c_str (),
-                             i.object.c_str (), i.reason.c_str ());
-
-                return;
-            }
-
-        bool debug = get_debug_state ();
-
-        if (!std::holds_alternative<dpp::message> (cb.value))
-            {
-                if (debug)
-                    fprintf (stderr, "[Manager::send_info_embed] "
-                                     "No message_create cb size\n");
-
-                return;
-            }
-
-        auto player = this->get_player (guild_id);
-
-        if (!player)
-            {
-                fprintf (stderr, "[Manager::send_info_embed ERROR] PLAYER "
-                                 "GONE WTFF\n");
-
-                return;
-            }
-
-        std::lock_guard lk (this->imc_m);
-
-        dpp::snowflake id;
-
-        if (player->info_message)
-            {
-                id = player->info_message->id;
-                this->info_messages_cache.erase (id);
-            }
-
-        player->info_message = std::make_shared<dpp::message> (
-            std::get<dpp::message> (cb.value));
-
-        if (!player->info_message)
-            return;
-
-        id = player->info_message->id;
-
-        this->info_messages_cache[id] = player->info_message;
-
-        if (debug)
-            std::cerr << "[MANAGER::SEND_INFO_EMBED] New "
-                         "message info: "
-                      << id << '\n';
+    auto m_cb = [guild_id] (dpp::confirmation_callback_t cb) {
+        send_info_embed_cb (cb, guild_id);
     };
 
     if (delete_original)
@@ -279,14 +264,15 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     if (!update || invalid_update)
         {
             dpp::message m;
-            m.add_embed (e).set_channel_id (channel_id);
 
-            m.add_component (dpp::component ().add_component (
-                dpp::component ()
-                    .set_label ("Update")
-                    .set_id ("playnow/u")
-                    .set_type (dpp::cot_button)
-                    .set_style (dpp::cos_primary)));
+            if (this->get_playing_info_message (&m, guild_id,
+                                                force_playing_status)
+                != 0)
+                {
+                    return false;
+                }
+
+            m.set_channel_id (channel_id);
 
             // m_cb is used after here, set no_clear to clear it on callback
             pec.set_no_clear (true);
@@ -306,11 +292,6 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     if (!player->info_message)
         return false;
 
-    if (!mn.embeds.empty ())
-        mn.embeds.pop_back ();
-
-    mn.embeds.push_back (e);
-
     if (debug)
         std::cerr << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id "
                      "Edit: "
@@ -321,6 +302,12 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             if (debug)
                 std::cerr << "Canceling Info Embed Update" << '\n';
 
+            return false;
+        }
+
+    if (this->get_playing_info_message (&mn, guild_id, force_playing_status)
+        != 0)
+        {
             return false;
         }
 
@@ -346,9 +333,24 @@ Manager::update_info_embed (const dpp::snowflake &guild_id,
                             const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
-        fprintf (stderr, "[MANAGER::UPDATE_INFO_EMBED] Update info called\n");
+        fprintf (stderr, "[Manager::update_info_embed] Update info called\n");
 
     return this->send_info_embed (guild_id, true, force_playing_status, event);
+}
+
+void
+Manager::reply_info_embed (const dpp::interaction_create_t &event)
+{
+    dpp::message m;
+
+    if (this->get_playing_info_message (&m, event.command.guild_id, false)
+        != 0)
+        {
+            return event.reply (
+                "`[ERROR]` Something went wrong when getting playback info");
+        }
+
+    event.reply (m);
 }
 
 static bool
@@ -404,235 +406,342 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id,
     return delete_info_embed_retdel (this, player);
 }
 
-dpp::embed
+constexpr inline const char err_prefix[]
+    = "[Manager::get_playing_info_embed ERROR] Failed to "
+      "get_playing_info_embed";
+
+std::pair<dpp::embed, int>
 Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
-                                 const bool force_playing_status)
+                                 bool force_playing_status,
+                                 get_playing_info_embed_info_t *info_struct)
 {
-    auto guild_player = this->get_player (guild_id);
-    if (!guild_player)
-        throw exception ("No player");
-
-    // const bool debug = get_debug_state();
-    /* if (debug) printf("[Manager::get_playing_info_embed] Locked
-     * player::t_mutex: %ld\n", guild_player->guild_id); */
-    /* std::lock_guard lk (guild_player->t_mutex); */
-
-    // Reset shifted tracks
-    guild_player->reset_shifted ();
-
-    MCTrack track;
-    MCTrack prev_track;
-    MCTrack next_track;
-    MCTrack skip_track;
-
-    {
-        auto siz = guild_player->queue.size ();
-        if (!siz)
-            {
-                /* if (debug) printf("[Manager::get_playing_info_embed] Should
-                 * unlock player::t_mutex: %ld\n", guild_player->guild_id); */
-                throw exception ("No track");
-            }
-
-        if (util::player_has_current_track (guild_player))
-            track = guild_player->current_track;
-
-        else
-            track = guild_player->queue.front ();
-
-        prev_track = guild_player->queue.at (siz - 1UL);
-
-        auto lm = guild_player->loop_mode;
-        if (lm == loop_mode_t::l_queue)
-            next_track = (siz == 1UL) ? track : guild_player->queue.at (1);
-        else if (lm == loop_mode_t::l_none)
-            {
-                if (siz > 1UL)
-                    next_track = guild_player->queue.at (1);
-            }
-        else
-            {
-                // if (loop mode == one | one/queue)
-                next_track = track;
-                if (siz > 1UL)
-                    skip_track = guild_player->queue.at (1);
-            }
-    }
-
-    // one char variable name for 100x performance improvement!!!!!
-    dpp::guild_member u;
-    bool member_found = false;
-
     try
         {
-            u = dpp::find_guild_member (guild_id, track.user_id);
-            member_found = true;
-        }
-    catch (...)
-        {
-        }
+            auto guild_player = this->get_player (guild_id);
+            if (!guild_player)
+                throw exception ("No player");
 
-    dpp::user *uc = dpp::find_user (track.user_id);
+            // const bool debug = get_debug_state();
+            /* if (debug) printf("[Manager::get_playing_info_embed] Locked
+             * player::t_mutex: %ld\n", guild_player->guild_id); */
+            /* std::lock_guard lk (guild_player->t_mutex); */
 
-    auto h_r = util::get_user_highest_role (guild_id, get_sha_id ());
+            // Reset shifted tracks
+            guild_player->reset_shifted ();
 
-    uint32_t color = h_r ? h_r->colour : 0;
+            MCTrack track;
+            MCTrack prev_track;
+            MCTrack next_track;
+            MCTrack skip_track;
 
-    string eaname;
+            {
+                auto siz = guild_player->queue.size ();
+                if (!siz)
+                    {
+                        /* if (debug) printf("[Manager::get_playing_info_embed]
+                         * Should unlock player::t_mutex: %ld\n",
+                         * guild_player->guild_id); */
+                        throw exception ("No track");
+                    }
 
-    if (member_found)
-        {
-            std::string nick = u.get_nickname ();
+                if (util::player_has_current_track (guild_player))
+                    track = guild_player->current_track;
 
-            if (!nick.empty ())
+                else
+                    track = guild_player->queue.front ();
+
+                prev_track = guild_player->queue.at (siz - 1UL);
+
+                auto lm = guild_player->loop_mode;
+                if (lm == loop_mode_t::l_queue)
+                    next_track
+                        = (siz == 1UL) ? track : guild_player->queue.at (1);
+                else if (lm == loop_mode_t::l_none)
+                    {
+                        if (siz > 1UL)
+                            next_track = guild_player->queue.at (1);
+                    }
+                else
+                    {
+                        // if (loop mode == one | one/queue)
+                        next_track = track;
+                        if (siz > 1UL)
+                            skip_track = guild_player->queue.at (1);
+                    }
+            }
+
+            // one char variable name for 100x performance improvement!!!!!
+            dpp::guild_member u;
+            bool member_found = false;
+
+            try
                 {
-                    eaname = nick;
+                    u = dpp::find_guild_member (guild_id, track.user_id);
+                    member_found = true;
                 }
-        }
-
-    if (eaname.empty ())
-        if (uc)
-            eaname = uc->username;
-        else
-            eaname = "`[ERROR]` User not found";
-
-    dpp::embed_author ea;
-    ea.name = eaname;
-
-    std::string ua = member_found ? u.get_avatar_url (4096) : "";
-
-    if (ua.empty () && uc)
-        ua = uc->get_avatar_url (4096);
-
-    if (!ua.empty ())
-        ea.icon_url = ua;
-
-    static const char *l_mode[] = { "LO", "LQ", "LOQ" };
-
-    static const char *p_mode[] = { MUSICAT_U8 ("⏸️"), MUSICAT_U8 ("▶️") };
-
-    string et = mctrack::get_thumbnail (track);
-
-    dpp::embed e;
-    e.set_description (mctrack::get_description (track))
-        .set_title (mctrack::get_title (track))
-        .set_url (mctrack::get_url (track))
-        .set_author (ea);
-
-    if (!prev_track.raw.is_null ())
-        e.add_field ("PREVIOUS",
-                     "[" + mctrack::get_title (prev_track) + "]("
-                         + mctrack::get_url (prev_track) + ")",
-                     true);
-
-    if (!next_track.raw.is_null ())
-        e.add_field ("NEXT",
-                     "[" + mctrack::get_title (next_track) + "]("
-                         + mctrack::get_url (next_track) + ")",
-                     true);
-
-    if (!skip_track.raw.is_null ())
-        e.add_field ("SKIP", "[" + mctrack::get_title (skip_track) + "]("
-                                 + mctrack::get_url (skip_track) + ")");
-
-    string ft = "";
-
-    track_progress prog = util::get_track_progress (track);
-    if (prog.status == 0)
-        {
-            ft += "[" + format_duration (prog.current_ms) + "/"
-                  + format_duration (prog.duration) + "]";
-        }
-
-    bool has_p = false;
-
-    if (guild_player->from)
-        {
-            auto con = guild_player->from->get_voice (guild_id);
-            if (con && con->voiceclient
-                && con->voiceclient->get_secs_remaining () > 0.05f)
+            catch (...)
                 {
-                    has_p = true;
+                }
+
+            dpp::user *uc = dpp::find_user (track.user_id);
+
+            auto h_r = util::get_user_highest_role (guild_id, get_sha_id ());
+
+            uint32_t color = h_r ? h_r->colour : 0;
+
+            string eaname;
+
+            if (member_found)
+                {
+                    std::string nick = u.get_nickname ();
+
+                    if (!nick.empty ())
+                        {
+                            eaname = nick;
+                        }
+                }
+
+            if (eaname.empty ())
+                {
+                    if (uc)
+                        eaname = uc->username;
+                    else
+                        eaname = "`[ERROR]` User not found";
+                }
+
+            dpp::embed_author ea;
+            ea.name = eaname;
+
+            std::string ua = member_found ? u.get_avatar_url (4096) : "";
+
+            if (ua.empty () && uc)
+                ua = uc->get_avatar_url (4096);
+
+            if (!ua.empty ())
+                ea.icon_url = ua;
+
+            static const char *l_mode[] = { "LO", "LQ", "LOQ" };
+
+            static const char *p_mode[]
+                = { MUSICAT_U8 ("⏸️"), MUSICAT_U8 ("▶️") };
+
+            const string et = mctrack::get_thumbnail (track);
+
+            dpp::embed e;
+            e.set_description (mctrack::get_description (track))
+                .set_title (mctrack::get_title (track))
+                .set_url (mctrack::get_url (track))
+                .set_author (ea);
+
+            if (!prev_track.raw.is_null ())
+                e.add_field ("PREVIOUS",
+                             "[" + mctrack::get_title (prev_track) + "]("
+                                 + mctrack::get_url (prev_track) + ")",
+                             true);
+
+            if (!next_track.raw.is_null ())
+                e.add_field ("NEXT",
+                             "[" + mctrack::get_title (next_track) + "]("
+                                 + mctrack::get_url (next_track) + ")",
+                             true);
+
+            if (!skip_track.raw.is_null ())
+                e.add_field ("SKIP", "[" + mctrack::get_title (skip_track)
+                                         + "](" + mctrack::get_url (skip_track)
+                                         + ")");
+
+            string ft = "";
+
+            track_progress prog = util::get_track_progress (track);
+            if (prog.status == 0)
+                {
+                    ft += "[" + format_duration (prog.current_ms) + "/"
+                          + format_duration (prog.duration) + "]";
+                }
+
+            bool has_p = false;
+
+            if (guild_player->from)
+                {
+                    auto con = guild_player->from->get_voice (guild_id);
+                    if (con && con->voiceclient
+                        && con->voiceclient->get_secs_remaining () > 0.05f)
+                        {
+                            has_p = true;
+                            if (!ft.empty ())
+                                ft += " ";
+
+                            const char *m;
+                            const char *m2;
+                            bool playing = false;
+                            if (con->voiceclient->is_paused ())
+                                {
+                                    m = p_mode[0];
+                                    m2 = p_mode[1];
+                                }
+                            else
+                                {
+                                    m = p_mode[1];
+                                    m2 = p_mode[0];
+                                    playing = true;
+                                }
+
+                            ft += m;
+
+                            if (info_struct)
+                                {
+                                    info_struct->play_pause_icon = m2;
+                                    info_struct->playing = playing;
+                                }
+                        }
+                }
+
+            if (force_playing_status && !has_p)
+                {
                     if (!ft.empty ())
                         ft += " ";
 
-                    if (con->voiceclient->is_paused ())
-                        ft += p_mode[0];
-                    else
-                        ft += p_mode[1];
+                    ft += p_mode[1];
+
+                    if (info_struct)
+                        {
+                            info_struct->play_pause_icon = p_mode[0];
+                            info_struct->playing = true;
+                        }
                 }
-        }
 
-    if (force_playing_status && !has_p)
-        {
+            if (guild_player->loop_mode)
+                {
+                    if (!ft.empty ())
+                        ft += " | ";
+
+                    ft += l_mode[guild_player->loop_mode - 1];
+                }
+
+            if (guild_player->auto_play)
+                {
+                    if (!ft.empty ())
+                        ft += " | ";
+
+                    ft += "Autoplay";
+
+                    if (guild_player->max_history_size)
+                        ft += string (" (")
+                              + std::to_string (guild_player->max_history_size)
+                              + ")";
+                }
+
+            // !TODO: remove this when fully using ytdlp to support non-yt
+            // tracks
+            bool tinfo = !track.info.raw.is_null ();
+            if (tinfo)
+                {
+                    if (!ft.empty ())
+                        ft += " | ";
+
+                    ft += string ("[")
+                          + std::to_string (track.info.average_bitrate ())
+                          + "]";
+                }
+
+            int64_t rpt = guild_player->current_track.repeat;
+            if (rpt > 0)
+                {
+                    if (!ft.empty ())
+                        ft += " | ";
+
+                    ft += string ("R ") + std::to_string (rpt);
+                }
+
+            int fx_count = guild_player->fx_get_active_count ();
+
+            if (fx_count > 0)
+                {
+                    if (!ft.empty ())
+                        ft += " | ";
+
+                    ft += string ("FX")
+                          + (fx_count > 1
+                                 ? " (" + std::to_string (fx_count) + ")"
+                                 : "");
+                }
+
             if (!ft.empty ())
-                ft += " ";
+                e.set_footer (ft, "");
 
-            ft += p_mode[1];
+            if (color)
+                e.set_color (color);
+
+            if (!et.empty ())
+                e.set_image (et);
+
+            return { e, 0 };
         }
-
-    if (guild_player->loop_mode)
+    catch (const exception &e)
         {
-            if (!ft.empty ())
-                ft += " | ";
-
-            ft += l_mode[guild_player->loop_mode - 1];
+            fprintf (stderr, "%s [musicat::exception]: %s\n", err_prefix,
+                     e.what ());
         }
-
-    if (guild_player->auto_play)
+    catch (const dpp::exception &e)
         {
-            if (!ft.empty ())
-                ft += " | ";
-
-            ft += "Autoplay";
-
-            if (guild_player->max_history_size)
-                ft += string (" (")
-                      + std::to_string (guild_player->max_history_size) + ")";
+            fprintf (stderr, "%s [dpp::exception]: %s\n", err_prefix,
+                     e.what ());
         }
-
-    // !TODO: remove this when fully using ytdlp to support non-yt tracks
-    bool tinfo = !track.info.raw.is_null ();
-    if (tinfo)
+    catch (const std::logic_error &e)
         {
-            if (!ft.empty ())
-                ft += " | ";
-
-            ft += string ("[") + std::to_string (track.info.average_bitrate ())
-                  + "]";
+            fprintf (stderr, "%s [std::logic_error]: %s\n", err_prefix,
+                     e.what ());
         }
 
-    int64_t rpt = guild_player->current_track.repeat;
-    if (rpt > 0)
-        {
-            if (!ft.empty ())
-                ft += " | ";
+    return { {}, 1 };
+}
 
-            ft += string ("R ") + std::to_string (rpt);
-        }
+int
+Manager::get_playing_info_message (dpp::message *msg,
+                                   const dpp::snowflake &guild_id,
+                                   bool force_playing_status)
+{
+    if (!msg)
+        return -1;
 
-    int fx_count = guild_player->fx_get_active_count ();
+    get_playing_info_embed_info_t playback_info = { NULL, false };
+    auto ge = get_playing_info_embed (guild_id, force_playing_status,
+                                      &playback_info);
 
-    if (fx_count > 0)
-        {
-            if (!ft.empty ())
-                ft += " | ";
+    if (ge.second != 0)
+        return ge.second;
 
-            ft += string ("FX")
-                  + (fx_count > 1 ? " (" + std::to_string (fx_count) + ")"
-                                  : "");
-        }
+    dpp::embed e = ge.first;
 
-    if (!ft.empty ())
-        e.set_footer (ft, "");
+    // message components
+    auto play_pause_btn
+        = dpp::component ()
+              .set_id (playback_info.playing ? /*pause*/ "playnow/p"
+                                             : /*resume*/ "playnow/r")
+              .set_type (dpp::cot_button);
 
-    if (color)
-        e.set_color (color);
+    if (playback_info.play_pause_icon)
+        play_pause_btn.set_emoji (playback_info.play_pause_icon)
+            .set_style (dpp::cos_primary);
+    else
+        play_pause_btn.set_label ("▶️/⏸️").set_style (dpp::cos_secondary);
 
-    if (!et.empty ())
-        e.set_image (et);
+    auto first_row = dpp::component ().add_component (play_pause_btn);
+    auto second_row
+        = dpp::component ().add_component (dpp::component ()
+                                               .set_label ("Update")
+                                               // update
+                                               .set_id ("playnow/u")
+                                               .set_type (dpp::cot_button)
+                                               .set_style (dpp::cos_primary));
 
-    return e;
+    msg->embeds.clear ();
+    msg->embeds.push_back (e);
+
+    msg->components.clear ();
+    msg->add_component (first_row).add_component (second_row);
+
+    return 0;
 }
 
 } // player

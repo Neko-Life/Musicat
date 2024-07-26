@@ -389,6 +389,12 @@ class Player
     // ====================================================================
 };
 
+struct get_playing_info_embed_info_t
+{
+    const char *play_pause_icon;
+    bool playing;
+};
+
 class Manager
 {
   public:
@@ -613,6 +619,11 @@ class Manager
                             const dpp::interaction_create_t *event = nullptr);
 
     /**
+     * @brief For use in slash command
+     */
+    void reply_info_embed (const dpp::interaction_create_t &event);
+
+    /**
      * @brief Delete currently playing song info embed, return false if no info
      * embed exist
      *
@@ -630,8 +641,20 @@ class Manager
     void
     spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event);
 
-    dpp::embed get_playing_info_embed (const dpp::snowflake &guild_id,
-                                       const bool force_playing_status);
+    /**
+     * @return 0 status on success, 1 on error
+     */
+    std::pair<dpp::embed, int>
+    get_playing_info_embed (const dpp::snowflake &guild_id,
+                            bool force_playing_status,
+                            get_playing_info_embed_info_t *info_struct = NULL);
+
+    /**
+     * @return 0 status on success, else error
+     */
+    int get_playing_info_message (dpp::message *msg,
+                                  const dpp::snowflake &guild_id,
+                                  bool force_playing_status);
 
     void handle_on_voice_ready (const dpp::voice_ready_t &event);
 
