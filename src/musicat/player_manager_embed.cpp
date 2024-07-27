@@ -183,13 +183,14 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
 
     auto player = this->get_player (guild_id);
     if (!player)
-        {
-            throw exception ("No player");
-        }
+        throw exception ("No player");
 
     const bool debug = get_debug_state ();
 
-    if (update && !player->info_message)
+    const bool cant_update
+        = !player->info_message || player->info_message->id.empty ();
+
+    if (update && cant_update)
         {
             if (debug)
                 fprintf (stderr,
@@ -222,9 +223,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
                 }
         }
     else if (!embed_perms)
-        {
-            throw exception ("No permission");
-        }
+        throw exception ("No permission");
 
     auto m_cb = [guild_id] (dpp::confirmation_callback_t cb) {
         send_info_embed_cb (cb, guild_id);
@@ -265,12 +264,10 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         {
             dpp::message m;
 
-            if (this->get_playing_info_message (&m, guild_id,
-                                                force_playing_status)
+            if (this->get_playing_info_message (m, guild_id,
+                                                force_playing_status, false)
                 != 0)
-                {
-                    return false;
-                }
+                return false;
 
             m.set_channel_id (channel_id);
 
@@ -305,11 +302,11 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             return false;
         }
 
-    if (this->get_playing_info_message (&mn, guild_id, force_playing_status)
+    if (this->get_playing_info_message (
+            mn, guild_id, force_playing_status,
+            player::playing_info_utils::is_button_expanded (mn))
         != 0)
-        {
-            return false;
-        }
+        return false;
 
     // m_cb is used after here, set no_clear to clear it on callback
     pec.set_no_clear (true);
@@ -339,18 +336,27 @@ Manager::update_info_embed (const dpp::snowflake &guild_id,
 }
 
 void
-Manager::reply_info_embed (const dpp::interaction_create_t &event)
+Manager::reply_info_embed (const dpp::interaction_create_t &event,
+                           bool expand_button, bool reply_update_message)
 {
     dpp::message m;
 
-    if (this->get_playing_info_message (&m, event.command.guild_id, false)
+    if (this->get_playing_info_message (m, event.command.guild_id, false,
+                                        expand_button)
         != 0)
         {
             return event.reply (
                 "`[ERROR]` Something went wrong when getting playback info");
         }
 
-    event.reply (m);
+    if (reply_update_message)
+        {
+            dpp::interaction_response reply (dpp::ir_update_message, m);
+            event.from->creator->interaction_response_create (
+                event.command.id, event.command.token, reply);
+        }
+    else
+        event.reply (m);
 }
 
 static bool
@@ -415,16 +421,22 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                                  bool force_playing_status,
                                  get_playing_info_embed_info_t *info_struct)
 {
+    /**
+     * Statuses:
+     * 0: success.
+     * 1: No player.
+     * 2: No track.
+     *
+     * -1: other error (dpp/logic error).
+     */
     try
         {
             auto guild_player = this->get_player (guild_id);
             if (!guild_player)
-                throw exception ("No player");
+                return { {}, 1 };
 
-            // const bool debug = get_debug_state();
-            /* if (debug) printf("[Manager::get_playing_info_embed] Locked
-             * player::t_mutex: %ld\n", guild_player->guild_id); */
-            /* std::lock_guard lk (guild_player->t_mutex); */
+            if (info_struct)
+                info_struct->notification = guild_player->notification;
 
             // Reset shifted tracks
             guild_player->reset_shifted ();
@@ -437,12 +449,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
             {
                 auto siz = guild_player->queue.size ();
                 if (!siz)
-                    {
-                        /* if (debug) printf("[Manager::get_playing_info_embed]
-                         * Should unlock player::t_mutex: %ld\n",
-                         * guild_player->guild_id); */
-                        throw exception ("No track");
-                    }
+                    return { {}, 2 };
 
                 if (util::player_has_current_track (guild_player))
                     track = guild_player->current_track;
@@ -520,7 +527,9 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
             if (!ua.empty ())
                 ea.icon_url = ua;
 
-            static const char *l_mode[] = { "LO", "LQ", "LOQ" };
+            static const char *l_mode[]
+                = { MUSICAT_U8 ("🔂"), MUSICAT_U8 ("🔁"),
+                    MUSICAT_U8 ("🔂🔁") };
 
             static const char *p_mode[]
                 = { MUSICAT_U8 ("⏸️"), MUSICAT_U8 ("▶️") };
@@ -677,11 +686,6 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
             return { e, 0 };
         }
-    catch (const exception &e)
-        {
-            fprintf (stderr, "%s [musicat::exception]: %s\n", err_prefix,
-                     e.what ());
-        }
     catch (const dpp::exception &e)
         {
             fprintf (stderr, "%s [dpp::exception]: %s\n", err_prefix,
@@ -693,53 +697,282 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                      e.what ());
         }
 
-    return { {}, 1 };
+    return { {}, -1 };
+}
+
+namespace set_component
+{
+// first row
+void
+play_pause_button (dpp::component &c,
+                   const get_playing_info_embed_info_t &playback_info)
+{
+    c.set_id (playback_info.playing ? /*pause*/ ids.pause
+                                    : /*resume*/ ids.resume)
+        .set_type (dpp::cot_button);
+
+    if (playback_info.play_pause_icon)
+        c.set_emoji (playback_info.play_pause_icon)
+            .set_style (dpp::cos_primary);
+    else
+        c.set_label (MUSICAT_U8 ("▶️/⏸️")).set_style (dpp::cos_secondary);
+}
+
+void
+stop_button (dpp::component &c)
+{
+
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("⏹"))
+        // stop
+        .set_id (ids.stop);
+}
+
+void
+loop_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("🔃"))
+        // loop
+        .set_id (ids.loop);
+}
+
+void
+shuffle_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("🔀"))
+        // shuffle
+        .set_id (ids.shuffle);
+}
+
+void
+expand_unexpand_button (dpp::component &c, bool expanded)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (expanded ? MUSICAT_U8 ("⤴️") : MUSICAT_U8 ("⤵️"))
+
+        .set_id (expanded ? ids.unexpand : ids.expand);
+}
+
+// expanded row
+void
+prev_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("⏮️"))
+        // prev
+        .set_id (ids.prev);
+}
+
+void
+rewind_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("⏪"))
+        // rewind
+        .set_id (ids.rewind);
+}
+
+void
+autoplay_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("♾️"))
+        // autoplay
+        .set_id (ids.autoplay);
+}
+
+void
+forward_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("⏩"))
+        // forward
+        .set_id (ids.forward);
+}
+
+void
+next_button (dpp::component &c)
+{
+    c.set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary)
+        .set_emoji (MUSICAT_U8 ("⏭️"))
+        // next
+        .set_id (ids.next);
+}
+
+// second row
+void
+notif_button (dpp::component &c, bool is_enabled)
+{
+    c.set_emoji (is_enabled ? MUSICAT_U8 ("🔕") : MUSICAT_U8 ("🔔"))
+        .set_id (is_enabled ? ids.disable_notif : ids.enable_notif)
+        .set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary);
+}
+
+void
+update_button (dpp::component &c)
+{
+    c.set_label ("Update")
+        // update
+        .set_id (ids.update)
+        .set_type (dpp::cot_button)
+        .set_style (dpp::cos_primary);
+}
+} // set_component
+
+int
+add_to_row (const dpp::component &c, const dpp::component *row[5],
+            size_t &row_idx)
+{
+    if (row_idx >= 5)
+        return 1;
+
+    row[row_idx++] = &c;
+
+    return 0;
 }
 
 int
-Manager::get_playing_info_message (dpp::message *msg,
-                                   const dpp::snowflake &guild_id,
-                                   bool force_playing_status)
+compile_row_to_component (dpp::component &out, const dpp::component *row[5])
 {
-    if (!msg)
-        return -1;
+    for (size_t i = 0; i < 5; i++)
+        {
+            if (row[i] == NULL)
+                break;
 
-    get_playing_info_embed_info_t playback_info = { NULL, false };
+            out.add_component (*row[i]);
+        }
+
+    return 0;
+}
+
+namespace playing_info_utils
+{
+bool
+is_button_expanded (const dpp::message &playing_info_message)
+{
+    if (!playing_info_message.components.empty ()
+        && playing_info_message.components.at (0).components.size () == 5)
+        {
+            return playing_info_message.components.at (0)
+                       .components.back ()
+                       .custom_id
+                   == ids.unexpand;
+        }
+
+    return false;
+}
+} // playing_info_utils
+
+int
+Manager::get_playing_info_message (dpp::message &msg,
+                                   const dpp::snowflake &guild_id,
+                                   bool force_playing_status,
+                                   bool button_expanded)
+{
+    /**
+     * Statuses:
+     * get_playing_info_embed() statuses.
+     */
+
+    get_playing_info_embed_info_t playback_info = { NULL, false, true };
     auto ge = get_playing_info_embed (guild_id, force_playing_status,
                                       &playback_info);
 
     if (ge.second != 0)
         return ge.second;
 
-    dpp::embed e = ge.first;
+    const dpp::embed e = ge.first;
 
     // message components
-    auto play_pause_btn
-        = dpp::component ()
-              .set_id (playback_info.playing ? /*pause*/ "playnow/p"
-                                             : /*resume*/ "playnow/r")
-              .set_type (dpp::cot_button);
+    // \🔁 \🔂 \🔃 \🔀 \⏏️ \⏪ \⏩ \♾️ \⤵️ \⤴️ \⏮️ \⏭️ \🔕 \🔔
+    const dpp::component *to_first_row[5] = { NULL };
+    size_t to_first_row_idx = 0;
 
-    if (playback_info.play_pause_icon)
-        play_pause_btn.set_emoji (playback_info.play_pause_icon)
-            .set_style (dpp::cos_primary);
-    else
-        play_pause_btn.set_label ("▶️/⏸️").set_style (dpp::cos_secondary);
+    dpp::component play_pause_btn;
+    set_component::play_pause_button (play_pause_btn, playback_info);
+    add_to_row (play_pause_btn, to_first_row, to_first_row_idx);
 
-    auto first_row = dpp::component ().add_component (play_pause_btn);
-    auto second_row
-        = dpp::component ().add_component (dpp::component ()
-                                               .set_label ("Update")
-                                               // update
-                                               .set_id ("playnow/u")
-                                               .set_type (dpp::cot_button)
-                                               .set_style (dpp::cos_primary));
+    dpp::component stop_btn;
+    set_component::stop_button (stop_btn);
+    add_to_row (stop_btn, to_first_row, to_first_row_idx);
 
-    msg->embeds.clear ();
-    msg->embeds.push_back (e);
+    dpp::component loop_btn;
+    set_component::loop_button (loop_btn);
+    add_to_row (loop_btn, to_first_row, to_first_row_idx);
 
-    msg->components.clear ();
-    msg->add_component (first_row).add_component (second_row);
+    dpp::component shuffle_btn;
+    set_component::shuffle_button (shuffle_btn);
+    add_to_row (shuffle_btn, to_first_row, to_first_row_idx);
+
+    dpp::component expand_unexpand_btn;
+    set_component::expand_unexpand_button (expand_unexpand_btn,
+                                           button_expanded);
+    add_to_row (expand_unexpand_btn, to_first_row, to_first_row_idx);
+
+    const dpp::component *to_second_row[5] = { NULL };
+    size_t to_second_row_idx = 0;
+
+    dpp::component notif_btn;
+    set_component::notif_button (notif_btn, playback_info.notification);
+    add_to_row (notif_btn, to_second_row, to_second_row_idx);
+
+    dpp::component update_btn;
+    set_component::update_button (update_btn);
+    add_to_row (update_btn, to_second_row, to_second_row_idx);
+
+    msg.embeds.clear ();
+    msg.embeds.push_back (e);
+
+    msg.components.clear ();
+
+    dpp::component first_row, second_row;
+    compile_row_to_component (first_row, to_first_row);
+    compile_row_to_component (second_row, to_second_row);
+    msg.add_component (first_row);
+
+    if (button_expanded)
+        {
+            const dpp::component *to_expand_row[5] = { NULL };
+            size_t to_expand_row_idx = 0;
+
+            dpp::component prev_btn;
+            set_component::prev_button (prev_btn);
+            add_to_row (prev_btn, to_expand_row, to_expand_row_idx);
+
+            dpp::component rewind_btn;
+            set_component::rewind_button (rewind_btn);
+            add_to_row (rewind_btn, to_expand_row, to_expand_row_idx);
+
+            dpp::component autoplay_btn;
+            set_component::autoplay_button (autoplay_btn);
+            add_to_row (autoplay_btn, to_expand_row, to_expand_row_idx);
+
+            dpp::component forward_btn;
+            set_component::forward_button (forward_btn);
+            add_to_row (forward_btn, to_expand_row, to_expand_row_idx);
+
+            dpp::component next_btn;
+            set_component::next_button (next_btn);
+            add_to_row (next_btn, to_expand_row, to_expand_row_idx);
+
+            dpp::component expanded_row;
+            compile_row_to_component (expanded_row, to_expand_row);
+            msg.add_component (expanded_row);
+        }
+
+    msg.add_component (second_row);
 
     return 0;
 }

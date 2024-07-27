@@ -85,6 +85,8 @@ Player::init ()
 
     this->processing_audio = false;
     this->opus_encoder = NULL;
+
+    this->notification = true;
 }
 
 Player::Player () { this->init (); }
@@ -405,7 +407,7 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id) const
 }
 
 bool
-Player::shuffle ()
+Player::shuffle (bool update_info_embed)
 {
     size_t siz = 0;
     {
@@ -431,7 +433,7 @@ Player::shuffle ()
         this->queue.push_front (os);
     }
 
-    this->manager->update_info_embed (this->guild_id);
+    if (update_info_embed) this->manager->update_info_embed (this->guild_id);
     return true;
 }
 

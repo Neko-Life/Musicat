@@ -46,5 +46,14 @@ slash_run (const dpp::slashcommand_t &event)
     player_manager->set_manually_paused (event.command.guild_id);
 
     event.reply ("Stopped");
+
+    try
+        {
+            player_manager->update_info_embed (event.command.guild_id, false);
+        }
+    catch (...)
+        {
+            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        }
 }
 } // musicat::command::stop

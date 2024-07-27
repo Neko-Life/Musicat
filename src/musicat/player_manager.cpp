@@ -117,7 +117,7 @@ Manager::get_queue (const dpp::snowflake &guild_id)
 
 bool
 Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
-                const dpp::snowflake &user_id)
+                const dpp::snowflake &user_id, bool update_info_embed)
 {
     auto guild_player = get_player (guild_id);
     if (!guild_player)
@@ -134,20 +134,22 @@ Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
         == this->manually_paused.end ())
         this->manually_paused.push_back (guild_id);
 
-    this->update_info_embed (guild_id);
+    if (update_info_embed)
+        this->update_info_embed (guild_id);
 
     return a;
 }
 
 void
 Manager::unpause (dpp::discord_voice_client *voiceclient,
-                  const dpp::snowflake &guild_id)
+                  const dpp::snowflake &guild_id, bool update_info_embed)
 {
     this->clear_manually_paused (guild_id);
 
     voiceclient->pause_audio (false);
 
-    this->update_info_embed (guild_id);
+    if (update_info_embed)
+        this->update_info_embed (guild_id);
 }
 
 std::pair<std::deque<MCTrack>, int>
@@ -359,7 +361,8 @@ Manager::download (const string &fname, const string &url,
                                  notif_fifo_path.c_str ());
                     else
                         {
-                            status = read_notif_fifo (notif_fifo, filepath, url);
+                            status
+                                = read_notif_fifo (notif_fifo, filepath, url);
                             close (notif_fifo);
                             notif_fifo = -1;
                         }
@@ -586,13 +589,13 @@ Manager::remove_track (const dpp::snowflake &guild_id, const size_t &pos,
 }
 
 bool
-Manager::shuffle_queue (const dpp::snowflake &guild_id)
+Manager::shuffle_queue (const dpp::snowflake &guild_id, bool update_info_embed)
 {
     auto guild_player = this->get_player (guild_id);
     if (!guild_player)
         return false;
 
-    return guild_player->shuffle ();
+    return guild_player->shuffle (update_info_embed);
 }
 
 } // musicat::player

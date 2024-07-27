@@ -25,7 +25,7 @@ slash_run (const dpp::slashcommand_t &event)
                 "Nothing is playing right now, try the `/play` command");
         }
 
-    player_manager->reply_info_embed (event);
+    player_manager->reply_info_embed (event, false);
 }
 
 } // musicat::command::playing
