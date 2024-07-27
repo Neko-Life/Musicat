@@ -424,6 +424,7 @@ struct get_playing_info_embed_info_t
     const char *play_pause_icon;
     bool playing;
     bool notification;
+    bool stopped;
 };
 
 class Manager

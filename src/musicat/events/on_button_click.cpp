@@ -205,10 +205,10 @@ s_playnow (const dpp::button_click_t &event)
 
             auto p = player_manager->create_player (event.command.guild_id);
 
-            if (vcuser.first && v && v->channel_id == vcuser.first->id
+            if (p && vcuser.first && v && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (
                     event.command.guild_id, event.from, event.command.usr.id)
-                && !util::is_player_not_playing (p, v))
+                && (!p->is_stopped()))
                 {
                     player_manager->stop_stream (event.command.guild_id);
 

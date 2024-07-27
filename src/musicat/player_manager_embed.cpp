@@ -436,7 +436,10 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                 return { {}, 1 };
 
             if (info_struct)
-                info_struct->notification = guild_player->notification;
+                {
+                    info_struct->notification = guild_player->notification;
+                    info_struct->stopped = guild_player->is_stopped ();
+                }
 
             // Reset shifted tracks
             guild_player->reset_shifted ();
@@ -719,7 +722,8 @@ play_pause_button (dpp::component &c,
 }
 
 void
-stop_button (dpp::component &c)
+stop_button (dpp::component &c,
+             const get_playing_info_embed_info_t &playback_info)
 {
 
     c.set_type (dpp::cot_button)
@@ -727,6 +731,9 @@ stop_button (dpp::component &c)
         .set_emoji (MUSICAT_U8 ("⏹"))
         // stop
         .set_id (ids.stop);
+
+    if (playback_info.stopped)
+        c.set_disabled (true);
 }
 
 void
@@ -905,7 +912,7 @@ Manager::get_playing_info_message (dpp::message &msg,
     add_to_row (play_pause_btn, to_first_row, to_first_row_idx);
 
     dpp::component stop_btn;
-    set_component::stop_button (stop_btn);
+    set_component::stop_button (stop_btn, playback_info);
     add_to_row (stop_btn, to_first_row, to_first_row_idx);
 
     dpp::component loop_btn;
