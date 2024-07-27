@@ -1,10 +1,12 @@
 #include "musicat/events/on_button_click.h"
+#include "message.h"
 #include "musicat/cmds.h"
+#include "musicat/cmds/loop.h"
 #include "musicat/cmds/progress.h"
 #include "musicat/cmds/search.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
-#include "musicat/util.h"
+#include "musicat/thread_manager.h"
 
 namespace musicat::events
 {
@@ -204,11 +206,12 @@ s_playnow (const dpp::button_click_t &event)
                                               event.command.usr.id);
 
             auto p = player_manager->create_player (event.command.guild_id);
+            p->from = event.from;
 
             if (p && vcuser.first && v && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (
                     event.command.guild_id, event.from, event.command.usr.id)
-                && !p->is_stopped())
+                && !p->is_stopped ())
                 {
                     player_manager->stop_stream (event.command.guild_id);
 
@@ -309,6 +312,7 @@ d_playnow (const dpp::button_click_t &event)
     try
         {
             auto p = player_manager->create_player (event.command.guild_id);
+            p->from = event.from;
             p->notification = false;
 
             player_manager->update_info_embed (event.command.guild_id, false,
@@ -332,6 +336,7 @@ b_playnow (const dpp::button_click_t &event)
     try
         {
             auto p = player_manager->create_player (event.command.guild_id);
+            p->from = event.from;
             p->notification = true;
 
             player_manager->update_info_embed (event.command.guild_id, false,
@@ -345,11 +350,62 @@ b_playnow (const dpp::button_click_t &event)
         }
 }
 
+void
+l_playnow (const dpp::button_click_t &event)
+{
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return;
+
+    try
+        {
+            command::loop::handle_button_modal_dialog (event);
+        }
+    catch (const exception &e)
+        {
+            event.reply (std::string ("<@")
+                         + std::to_string (event.command.usr.id)
+                         + ">: " + e.what ());
+        }
+}
+
+void
+a_playnow (const dpp::button_click_t &event)
+{
+    std::thread t ([event] () {
+        thread_manager::DoneSetter tmds;
+
+        auto player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            return;
+
+        try
+            {
+                auto guild_player
+                    = player_manager->create_player (event.command.guild_id);
+                guild_player->from = event.from;
+
+                guild_player->set_auto_play (!guild_player->auto_play);
+
+                player_manager->update_info_embed (event.command.guild_id,
+                                                   false, &event);
+            }
+        catch (const exception &e)
+            {
+                event.reply (std::string ("<@")
+                             + std::to_string (event.command.usr.id)
+                             + ">: " + e.what ());
+            }
+    });
+
+    thread_manager::dispatch (t);
+}
+
 inline constexpr const generic_handler_vec playnow_commands[]
     = { { "u", u_playnow }, { "p", p_playnow }, { "r", r_playnow },
         { "s", s_playnow }, { "h", h_playnow }, { "e", e_playnow },
         { "x", x_playnow }, { "d", d_playnow }, { "b", b_playnow },
-        { NULL, NULL } };
+        { "l", l_playnow }, { "a", a_playnow }, { NULL, NULL } };
 
 void
 playnow (const dpp::button_click_t &event,

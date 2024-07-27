@@ -93,20 +93,33 @@ create_yes_no_option (const std::string &name, const std::string &description,
         .add_choice (dpp::command_option_choice ("No", 0));
 }
 
-player::player_manager_ptr_t
-cmd_pre_get_player_manager_ready (const dpp::slashcommand_t &event)
+std::pair<player::player_manager_ptr_t, int>
+cmd_pre_get_player_manager_ready_werr (const dpp::snowflake &guild_id)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
-        return NULL;
+        return { NULL, -1 };
 
-    if (!player_manager->voice_ready (event.command.guild_id))
+    if (!player_manager->voice_ready (guild_id))
+        {
+            return { NULL, 1 };
+        }
+
+    return { player_manager, 0 };
+}
+
+player::player_manager_ptr_t
+cmd_pre_get_player_manager_ready (const dpp::slashcommand_t &event)
+{
+    auto res = cmd_pre_get_player_manager_ready_werr (event.command.guild_id);
+
+    if (res.second == 1)
         {
             event.reply ("Please wait while I'm getting ready to stream");
             return NULL;
         }
 
-    return player_manager;
+    return res.first;
 }
 
 } // musicat::command
