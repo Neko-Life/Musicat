@@ -208,7 +208,7 @@ s_playnow (const dpp::button_click_t &event)
             if (p && vcuser.first && v && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (
                     event.command.guild_id, event.from, event.command.usr.id)
-                && (!p->is_stopped()))
+                && !p->is_stopped())
                 {
                     player_manager->stop_stream (event.command.guild_id);
 
