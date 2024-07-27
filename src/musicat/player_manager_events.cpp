@@ -799,6 +799,9 @@ Manager::spawn_handle_track_marker_worker (
                 {
                     int pstatus = this->play (v, track, channel_id);
 
+                    if (!guild_player->notification)
+                        return;
+
                     bool should_update_embed = false,
                          not_repeating_song = false;
 

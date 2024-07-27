@@ -197,13 +197,13 @@ s_playnow (const dpp::button_click_t &event)
     if (!player_manager)
         return;
 
-    auto p = player_manager->create_player (event.command.guild_id);
-
     try
         {
             dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
             auto vcuser = get_voice_from_gid (event.command.guild_id,
                                               event.command.usr.id);
+
+            auto p = player_manager->create_player (event.command.guild_id);
 
             if (vcuser.first && v && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (
@@ -299,10 +299,57 @@ x_playnow (const dpp::button_click_t &event)
         }
 }
 
+void
+d_playnow (const dpp::button_click_t &event)
+{
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return;
+
+    try
+        {
+            auto p = player_manager->create_player (event.command.guild_id);
+            p->notification = false;
+
+            player_manager->update_info_embed (event.command.guild_id, false,
+                                               &event);
+        }
+    catch (const exception &e)
+        {
+            event.reply (std::string ("<@")
+                         + std::to_string (event.command.usr.id)
+                         + ">: " + e.what ());
+        }
+}
+
+void
+b_playnow (const dpp::button_click_t &event)
+{
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return;
+
+    try
+        {
+            auto p = player_manager->create_player (event.command.guild_id);
+            p->notification = true;
+
+            player_manager->update_info_embed (event.command.guild_id, false,
+                                               &event);
+        }
+    catch (const exception &e)
+        {
+            event.reply (std::string ("<@")
+                         + std::to_string (event.command.usr.id)
+                         + ">: " + e.what ());
+        }
+}
+
 inline constexpr const generic_handler_vec playnow_commands[]
     = { { "u", u_playnow }, { "p", p_playnow }, { "r", r_playnow },
         { "s", s_playnow }, { "h", h_playnow }, { "e", e_playnow },
-        { "x", x_playnow }, { NULL, NULL } };
+        { "x", x_playnow }, { "d", d_playnow }, { "b", b_playnow },
+        { NULL, NULL } };
 
 void
 playnow (const dpp::button_click_t &event,
