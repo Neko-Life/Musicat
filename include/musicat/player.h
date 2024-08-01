@@ -425,6 +425,14 @@ struct get_playing_info_embed_info_t
     bool playing;
     bool notification;
     bool stopped;
+
+    get_playing_info_embed_info_t ()
+        : play_pause_icon (NULL), playing (false), notification (true),
+          stopped (false)
+    {
+    }
+
+    ~get_playing_info_embed_info_t () = default;
 };
 
 class Manager

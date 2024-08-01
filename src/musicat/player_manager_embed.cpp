@@ -242,14 +242,24 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     // TODO: Refactor this horrendous `update` flag system and check for
     // existing info_message instead
 
-    bool invalid_update = false;
     dpp::message mn;
+    bool has_msg_to_update = false;
+    bool invalid_update = false;
 
-    if (player->info_message)
+    if (update)
         {
-            mn = *player->info_message;
-            invalid_update = update && !mn.channel_id && !mn.id;
+            if (event)
+                {
+                    mn = event->command.msg;
+                    has_msg_to_update = true;
+                }
+            else if (player->info_message)
+                {
+                    mn = *player->info_message;
+                    has_msg_to_update = true;
+                }
 
+            invalid_update = update && !mn.channel_id && !mn.id;
             if (invalid_update && debug)
                 {
                     std::cerr << "[MANAGER::SEND_INFO_EMBED WARN] Invalid "
@@ -286,7 +296,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
 
     // else update
 
-    if (!player->info_message)
+    if (!has_msg_to_update)
         return false;
 
     if (debug)
@@ -635,7 +645,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
                     if (!ft.empty ())
                         ft += " | ";
 
-                    ft += "Autoplay";
+                    ft += MUSICAT_U8 ("♾️");
 
                     if (guild_player->max_history_size)
                         ft += string (" (")
@@ -871,12 +881,10 @@ is_button_expanded (const dpp::message &playing_info_message)
 {
     if (!playing_info_message.components.empty ()
         && playing_info_message.components.at (0).components.size () == 5)
-        {
-            return playing_info_message.components.at (0)
-                       .components.back ()
-                       .custom_id
-                   == ids.unexpand;
-        }
+        return playing_info_message.components.at (0)
+                   .components.back ()
+                   .custom_id
+               == ids.unexpand;
 
     return false;
 }
@@ -893,7 +901,7 @@ Manager::get_playing_info_message (dpp::message &msg,
      * get_playing_info_embed() statuses.
      */
 
-    get_playing_info_embed_info_t playback_info = { NULL, false, true };
+    get_playing_info_embed_info_t playback_info;
     auto ge = get_playing_info_embed (guild_id, force_playing_status,
                                       &playback_info);
 
