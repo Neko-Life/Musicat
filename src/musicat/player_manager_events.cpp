@@ -108,7 +108,11 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     guild_player->reset_shifted ();
 
     // Do stuff according to loop mode when playback ends
-    if (event.track_meta == "e" && !guild_player->is_stopped ())
+    // avoid this track to be skipped right away if it has different current
+    // playback and first track entry
+    if (event.track_meta == "e" && !guild_player->is_stopped ()
+        && guild_player->current_track.filename
+               == guild_player->queue.front ().filename)
         {
             int64_t rpt = guild_player->current_track.repeat;
             if (rpt > 0

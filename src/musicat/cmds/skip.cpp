@@ -105,6 +105,12 @@ button_run_prev (const dpp::button_click_t &event)
 
     if (!guild_player->queue.empty ())
         {
+            guild_player->queue.front ().repeat = 0;
+
+            // move the back of the queue to front
+            guild_player->queue.push_front (guild_player->queue.back ());
+            guild_player->queue.pop_back ();
+
             dpp::voiceconn *v = event.from->get_voice (guild_id);
 
             bool stopping = false;
@@ -113,12 +119,6 @@ button_run_prev (const dpp::button_click_t &event)
             if (v && v->voiceclient
                 && v->voiceclient->get_secs_remaining () > 0.05f)
                 stopping = player_manager->stop_stream (guild_id) == 0;
-
-            guild_player->queue.front ().repeat = 0;
-
-            // move the back of the queue to front
-            guild_player->queue.push_front (guild_player->queue.back ());
-            guild_player->queue.pop_back ();
 
             // we havent had any playback session?
             if (!stopping)
