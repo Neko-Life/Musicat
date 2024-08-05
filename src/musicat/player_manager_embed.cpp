@@ -251,6 +251,23 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
             if (event)
                 {
                     mn = event->command.msg;
+
+                    // update info message
+                    if (player->info_message
+                        && !player->info_message->id.empty ())
+                        {
+                            dpp::snowflake id = player->info_message->id;
+
+                            if (id == mn.id)
+                                {
+                                    player->info_message
+                                        = std::make_shared<dpp::message> (mn);
+
+                                    this->info_messages_cache[id]
+                                        = player->info_message;
+                                }
+                        }
+
                     has_msg_to_update = true;
                 }
             else if (player->info_message)

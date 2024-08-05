@@ -239,8 +239,6 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id,
     if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
         stopping = this->stop_stream (guild_id) == 0;
 
-    // !TODO: bugfix skip not clearing track repeat
-    //
     auto [removed_ts, status] = guild_player->skip (v);
     if (removed_ts.size ())
         {

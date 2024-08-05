@@ -234,7 +234,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current,
     bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
     bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
-    if (!this->current_track.raw.is_null ())
+    if (!this->current_track.is_empty ())
         this->current_track.repeat = 0;
 
     if (!this->queue.empty ())
@@ -433,7 +433,8 @@ Player::shuffle (bool update_info_embed)
         this->queue.push_front (os);
     }
 
-    if (update_info_embed) this->manager->update_info_embed (this->guild_id);
+    if (update_info_embed)
+        this->manager->update_info_embed (this->guild_id);
     return true;
 }
 
