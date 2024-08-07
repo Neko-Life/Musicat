@@ -172,7 +172,7 @@ effect_states_send_command (const cmd_args_t &args)
  * !Always check and adjust aliases to not clash with one another, commands are
  * matched using `starts_with`
  */
-static inline constexpr const command_entry_t commands[] = {
+inline constexpr const command_entry_t commands[] = {
     { "command", "alias", "description", NULL },
     { "help", "-h", "Print this message", help_cmd },
     { "debug", "-d", "Toggle debug mode", debug_cmd },

@@ -204,7 +204,7 @@ view (const dpp::slashcommand_t &event)
     load_or_view (event, true);
 }
 
-static inline constexpr const command_handlers_map_t subcommand_handlers
+inline constexpr const command_handlers_map_t subcommand_handlers
     = { { "save", save }, { "load", load }, { "view", view }, { NULL, NULL } };
 
 void

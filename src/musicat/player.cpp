@@ -85,6 +85,8 @@ Player::init ()
 
     this->processing_audio = false;
     this->opus_encoder = NULL;
+
+    this->notification = true;
 }
 
 Player::Player () { this->init (); }
@@ -232,7 +234,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current,
     bool l_s = this->loop_mode == loop_mode_t::l_song_queue;
     bool l_q = this->loop_mode == loop_mode_t::l_queue;
 
-    if (!this->current_track.raw.is_null ())
+    if (!this->current_track.is_empty ())
         this->current_track.repeat = 0;
 
     if (!this->queue.empty ())
@@ -405,7 +407,7 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id) const
 }
 
 bool
-Player::shuffle ()
+Player::shuffle (bool update_info_embed)
 {
     size_t siz = 0;
     {
@@ -431,7 +433,8 @@ Player::shuffle ()
         this->queue.push_front (os);
     }
 
-    this->manager->update_info_embed (this->guild_id);
+    if (update_info_embed)
+        this->manager->update_info_embed (this->guild_id);
     return true;
 }
 

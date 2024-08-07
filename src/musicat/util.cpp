@@ -170,8 +170,8 @@ get_user_highest_role (const dpp::snowflake &guild_id,
     return highest_role;
 }
 
-static inline constexpr const char numbers[] = "1234567890";
-static inline constexpr const size_t numbers_siz
+inline constexpr const char numbers[] = "1234567890";
+inline constexpr const size_t numbers_siz
     = ((sizeof (numbers) / sizeof (*numbers)) - 1);
 
 char

@@ -128,7 +128,7 @@ superequalizer=
 
 // ================================================================================
 
-static inline constexpr const command_handlers_map_t subcommand_handlers
+inline constexpr const command_handlers_map_t subcommand_handlers
     = { { "equalizer", equalizer::slash_run },
         { "equalizer_presets", equalizer_presets::slash_run },
         { "resample", resample::slash_run },

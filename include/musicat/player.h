@@ -17,6 +17,31 @@ namespace musicat
 namespace player
 {
 
+/**
+ * Component Ids
+ */
+constexpr struct
+{
+    const char *pause = "playnow/p";
+    const char *resume = "playnow/r";
+    const char *stop = "playnow/s";
+    const char *loop = "playnow/l";
+    const char *shuffle = "playnow/h";
+
+    const char *expand = "playnow/e";
+    const char *unexpand = "playnow/x";
+
+    const char *prev = "playnow/v";
+    const char *rewind = "playnow/w";
+    const char *autoplay = "playnow/a";
+    const char *forward = "playnow/f";
+    const char *next = "playnow/n";
+
+    const char *disable_notif = "playnow/d";
+    const char *enable_notif = "playnow/b";
+    const char *update = "playnow/u";
+} ids;
+
 enum loop_mode_t
 {
     // No looping
@@ -269,6 +294,11 @@ class Player
     bool processing_audio;
 
     /**
+     * @brief Is notification enabled?
+     */
+    bool notification;
+
+    /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
@@ -352,7 +382,7 @@ class Player
     bool pause (dpp::discord_client *from,
                 const dpp::snowflake &user_id) const;
 
-    bool shuffle ();
+    bool shuffle (bool update_info_embed = true);
 
     void set_stopped (const bool &val);
 
@@ -387,6 +417,22 @@ class Player
     nlohmann::json fx_states_to_json ();
 
     // ====================================================================
+};
+
+struct get_playing_info_embed_info_t
+{
+    const char *play_pause_icon;
+    bool playing;
+    bool notification;
+    bool stopped;
+
+    get_playing_info_embed_info_t ()
+        : play_pause_icon (NULL), playing (false), notification (true),
+          stopped (false)
+    {
+    }
+
+    ~get_playing_info_embed_info_t () = default;
 };
 
 class Manager
@@ -470,10 +516,11 @@ class Manager
      * @throw musicat::exception
      */
     bool pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
-                const dpp::snowflake &user_id);
+                const dpp::snowflake &user_id, bool update_info_embed = true);
 
     void unpause (dpp::discord_voice_client *voiceclient,
-                  const dpp::snowflake &guild_id);
+                  const dpp::snowflake &guild_id,
+                  bool update_info_embed = true);
 
     bool is_disconnecting (const dpp::snowflake &guild_id);
 
@@ -613,6 +660,13 @@ class Manager
                             const dpp::interaction_create_t *event = nullptr);
 
     /**
+     * @brief For use in slash command
+     */
+    void reply_info_embed (const dpp::interaction_create_t &event,
+                           bool expand_button,
+                           bool reply_update_message = false);
+
+    /**
      * @brief Delete currently playing song info embed, return false if no info
      * embed exist
      *
@@ -630,8 +684,30 @@ class Manager
     void
     spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event);
 
-    dpp::embed get_playing_info_embed (const dpp::snowflake &guild_id,
-                                       const bool force_playing_status);
+    /**
+     * @brief Returns embed and status.
+     *
+     * Statuses:
+     * 0: success.
+     * 1: No player.
+     * 2: No track.
+     *
+     * -1: other error (dpp/logic error).
+     */
+    std::pair<dpp::embed, int>
+    get_playing_info_embed (const dpp::snowflake &guild_id,
+                            bool force_playing_status,
+                            get_playing_info_embed_info_t *info_struct = NULL);
+
+    /**
+     * @brief Get complete playing info message, returns status code.
+     * Statuses:
+     * get_playing_info_embed() statuses.
+     */
+    int get_playing_info_message (dpp::message &msg,
+                                  const dpp::snowflake &guild_id,
+                                  bool force_playing_status,
+                                  bool button_expanded);
 
     void handle_on_voice_ready (const dpp::voice_ready_t &event);
 
@@ -659,7 +735,8 @@ class Manager
     size_t remove_track (const dpp::snowflake &guild_id, const size_t &pos,
                          const size_t &amount = 1, const size_t &to = -1);
 
-    bool shuffle_queue (const dpp::snowflake &guild_id);
+    bool shuffle_queue (const dpp::snowflake &guild_id,
+                        bool update_info_embed = true);
 
     void set_ignore_marker (const dpp::snowflake &guild_id);
     void remove_ignore_marker (const dpp::snowflake &guild_id);
@@ -830,6 +907,11 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
                   const bool &continued);
 
 // ================================================================================
+
+namespace playing_info_utils
+{
+bool is_button_expanded (const dpp::message &playing_info_message);
+} // playing_info_utils
 
 } // player
 
