@@ -3,6 +3,7 @@
 #include "musicat/cmds.h"
 #include "musicat/cmds/loop.h"
 #include "musicat/cmds/pause.h"
+#include "musicat/cmds/play.h"
 #include "musicat/cmds/progress.h"
 #include "musicat/cmds/search.h"
 #include "musicat/cmds/seek.h"
@@ -132,41 +133,7 @@ p_playnow (const dpp::button_click_t &event)
 void
 r_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    try
-        {
-            dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
-            auto vcuser = get_voice_from_gid (event.command.guild_id,
-                                              event.command.usr.id);
-
-            bool was_stopped = false;
-
-            if (vcuser.first && v && v->voiceclient
-                && v->voiceclient->is_paused ()
-                && v->channel_id == vcuser.first->id)
-                {
-                    auto p
-                        = player_manager->get_player (event.command.guild_id);
-
-                    if (p)
-                        was_stopped = p->is_stopped ();
-
-                    player_manager->unpause (v->voiceclient,
-                                             event.command.guild_id, false);
-                }
-
-            player_manager->update_info_embed (event.command.guild_id,
-                                               was_stopped, &event);
-        }
-    catch (const exception &e)
-        {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
-        }
+    command::play::button_run (event);
 }
 
 void
