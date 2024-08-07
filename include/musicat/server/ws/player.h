@@ -42,8 +42,7 @@ struct socket_event_handler_t
 
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
 
-uWS::TemplatedApp<SERVER_WITH_SSL>::WebSocketBehavior<SocketData>
-get_behavior ();
+APIApp::WebSocketBehavior<SocketData> get_behavior ();
 
 /*
 nlohmann::json create_error_data (const socket_err_code_e code,

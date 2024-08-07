@@ -6,11 +6,11 @@
 namespace musicat::server::ws::player
 {
 
-uWS::TemplatedApp<SERVER_WITH_SSL>::WebSocketBehavior<SocketData>
+APIApp::WebSocketBehavior<SocketData>
 get_behavior ()
 {
     // use default uws options outside handlers
-    uWS::TemplatedApp<SERVER_WITH_SSL>::WebSocketBehavior<SocketData> b;
+    APIApp::WebSocketBehavior<SocketData> b;
 
     b.upgrade = events::upgrade;
     b.open = events::open;
