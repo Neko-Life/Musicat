@@ -62,7 +62,7 @@ int
 run (dpp::discord_client *from, const dpp::snowflake &user_id,
      const dpp::snowflake &guild_id, const dpp::interaction_create_t &event,
      std::string &out, const std::string &arg_query = "", int64_t arg_top = 0,
-     int64_t arg_slip = 0, bool button_run = false)
+     int64_t arg_slip = 0, bool button_run = false, bool update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
     if (pm_res.second == 1)
@@ -185,7 +185,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
         {
-            player_manager->unpause (v->voiceclient, guild_id);
+            player_manager->unpause (v->voiceclient, guild_id, update_info_embed);
             if (no_query)
                 {
                     out = "Resumed";
@@ -296,7 +296,7 @@ button_run (const dpp::button_click_t &event)
 
     std::string out;
     run (from, user_id, guild_id, event, out, arg_query, arg_top, arg_slip,
-         true);
+         true, false);
 
     player_manager->update_info_embed (event.command.guild_id, false, &event);
 }
