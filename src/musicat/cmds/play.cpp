@@ -58,27 +58,27 @@ get_register_obj (const dpp::snowflake &sha_id)
                                           "[in the queue]"));
 }
 
-void
-slash_run (const dpp::slashcommand_t &event)
+int
+run (dpp::discord_client *from, const dpp::snowflake &user_id,
+     const dpp::snowflake &guild_id, const dpp::interaction_create_t &event,
+     std::string &out, const std::string &arg_query = "", int64_t arg_top = 0,
+     int64_t arg_slip = 0, bool button_run = false, bool update_info_embed = true)
 {
-    auto player_manager = cmd_pre_get_player_manager_ready (event);
+    auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
+    if (pm_res.second == 1)
+        {
+            out = "Please wait while I'm getting ready to stream";
+            return 1;
+        }
+
+    auto player_manager = pm_res.first;
+
     if (player_manager == NULL)
-        return;
+        return -1;
 
     bool debug = get_debug_state ();
 
-    auto guild_id = event.command.guild_id;
-    auto from = event.from;
-    auto user_id = event.command.usr.id;
-    dpp::snowflake sha_id = get_sha_id ();
-
-    std::string arg_query = "";
-    int64_t arg_top = 0;
-    int64_t arg_slip = 0;
-
-    get_inter_param (event, "query", &arg_query);
-    get_inter_param (event, "top", &arg_top);
-    get_inter_param (event, "slip", &arg_slip);
+    const dpp::snowflake sha_id = get_sha_id ();
 
     dpp::guild *g = dpp::find_guild (guild_id);
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
@@ -86,7 +86,10 @@ slash_run (const dpp::slashcommand_t &event)
 
     vcuser = get_voice (g, user_id);
     if (!vcuser.first)
-        return event.reply ("Join a voice channel first you dummy");
+        {
+            out = "Join a voice channel first you dummy";
+            return 1;
+        }
 
     dpp::user const *sha_user = dpp::find_user (sha_id);
 
@@ -101,8 +104,8 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
         {
-            event.reply ("I have no permission to join your voice channel");
-            return;
+            out = "I have no permission to join your voice channel";
+            return 1;
         }
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
@@ -141,8 +144,10 @@ slash_run (const dpp::slashcommand_t &event)
     if (vcclient_cont && vcclient.first->id != vcuser.first->id)
         {
             if (has_listener (&vcclient.second))
-                return event.reply (
-                    "Sorry but I'm already in another voice channel");
+                {
+                    out = "Sorry but I'm already in another voice channel";
+                    return 1;
+                }
 
             vcclient_cont = false;
 
@@ -180,17 +185,17 @@ slash_run (const dpp::slashcommand_t &event)
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
         {
-            player_manager->unpause (v->voiceclient, event.command.guild_id);
+            player_manager->unpause (v->voiceclient, guild_id, update_info_embed);
             if (no_query)
                 {
-                    event.reply ("Resumed");
+                    out = "Resumed";
                     resumed = true;
                 }
         }
 
     bool continued = false;
 
-    auto guild_player = player_manager->get_player (event.command.guild_id);
+    auto guild_player = player_manager->get_player (guild_id);
     if (guild_player)
         {
             std::lock_guard lk (guild_player->t_mutex);
@@ -208,15 +213,15 @@ slash_run (const dpp::slashcommand_t &event)
         }
 
     if (resumed)
-        return;
+        return 1;
 
     else if (no_query)
         {
             if (!continued)
                 {
-                    event.reply ("Provide song query if you wanna add a song, "
-                                 "may be URL or song name");
-                    return;
+                    out = "Provide song query if you wanna add a song, "
+                          "may be URL or song name";
+                    return 1;
                 }
 
             // continued true from here
@@ -225,23 +230,75 @@ slash_run (const dpp::slashcommand_t &event)
                 {
                     guild_player->tried_continuing = true;
 
-                    event.reply ("Playback continued");
-                    return;
+                    out = "Playback continued";
+                    return 1;
                 }
 
-            event.reply ("Seems like I'm broken, lemme fix myself brb");
+            out = "Seems like I'm broken, lemme fix myself brb";
 
             // reconnect
             player_manager->full_reconnect (from, guild_id, vcclient.first->id,
                                             vcuser.first->id);
-            return;
+            return 1;
         }
 
-    event.thinking ();
+    if (button_run)
+        return -2;
 
+    event.thinking ();
     player::add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v,
                        vcuser.first->id, sha_id, true, from, event, continued,
                        arg_slip);
+
+    return 0;
+}
+
+void
+slash_run (const dpp::slashcommand_t &event)
+{
+    auto from = event.from;
+    auto user_id = event.command.usr.id;
+    auto guild_id = event.command.guild_id;
+
+    std::string arg_query = "";
+    int64_t arg_top = 0;
+    int64_t arg_slip = 0;
+
+    get_inter_param (event, "query", &arg_query);
+    get_inter_param (event, "top", &arg_top);
+    get_inter_param (event, "slip", &arg_slip);
+
+    std::string out;
+    int status = run (from, user_id, guild_id, event, out,
+
+                      arg_query, arg_top, arg_slip);
+
+    if (status == 1)
+        {
+            event.reply (out);
+        }
+}
+
+void
+button_run (const dpp::button_click_t &event)
+{
+    auto player_manager = get_player_manager_ptr ();
+    if (player_manager == NULL)
+        return;
+
+    auto from = event.from;
+    auto user_id = event.command.usr.id;
+    auto guild_id = event.command.guild_id;
+
+    std::string arg_query = "";
+    int64_t arg_top = 0;
+    int64_t arg_slip = 0;
+
+    std::string out;
+    run (from, user_id, guild_id, event, out, arg_query, arg_top, arg_slip,
+         true, false);
+
+    player_manager->update_info_embed (event.command.guild_id, false, &event);
 }
 
 } // musicat::command::play

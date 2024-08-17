@@ -15,7 +15,7 @@ get_register_obj (const dpp::snowflake &sha_id)
     return slash;
 }
 
-static inline constexpr const command_handlers_map_t subcommand_handlers
+inline constexpr const command_handlers_map_t subcommand_handlers
     = { { "kick", kick::slash_run }, { NULL, NULL } };
 
 void

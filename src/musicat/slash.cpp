@@ -14,6 +14,7 @@
 #include "musicat/cmds/owner.h"
 #include "musicat/cmds/pause.h"
 #include "musicat/cmds/play.h"
+#include "musicat/cmds/playing.h"
 #include "musicat/cmds/playlist.h"
 #include "musicat/cmds/progress.h"
 #include "musicat/cmds/queue.h"
@@ -53,6 +54,7 @@ inline constexpr const command_handlers_map_t command_handlers
         { "filters", filters::slash_run },
         { "owner", owner::slash_run },
         { "say", say::slash_run },
+        { "playing", playing::slash_run },
         { NULL, NULL } };
 
 std::vector<dpp::slashcommand>
@@ -83,6 +85,7 @@ get_all (const dpp::snowflake &sha_id)
         filters::get_register_obj (sha_id),
         owner::get_register_obj (sha_id),
         say::get_register_obj (sha_id),
+        playing::get_register_obj (sha_id),
 
         // !TODO: finish n register mod cmds
     });

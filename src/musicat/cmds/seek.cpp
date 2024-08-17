@@ -1,6 +1,8 @@
 #include "musicat/cmds/seek.h"
+#include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include <cstdint>
 
 namespace musicat::command::seek
 {
@@ -20,68 +22,6 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 bool
-_reply_invalid_number (const dpp::interaction_create_t &event, char rechar)
-{
-    if (rechar != 0)
-        {
-            if (rechar == -1)
-                event.reply ("Empty number in argument");
-            else
-                event.reply (std::string ("Invalid number: `") + rechar + '`');
-            return true;
-        }
-
-    return false;
-}
-
-bool
-_reply_invalid_60 (const dpp::interaction_create_t &event, int &num,
-                   const char *name)
-{
-    if (num > 59 || num < 0)
-        {
-            event.reply (std::string ("Invalid ") + name + ": `"
-                         + std::to_string (num) + '`');
-            return true;
-        }
-
-    return false;
-}
-
-bool
-_reply_invalid_minute (const dpp::interaction_create_t &event, int &minute)
-{
-    return _reply_invalid_60 (event, minute, "minute");
-}
-
-bool
-_reply_invalid_second (const dpp::interaction_create_t &event, int &second)
-{
-    return _reply_invalid_60 (event, second, "second");
-}
-
-bool
-_reply_invalid_hour (const dpp::interaction_create_t &event, int &hour)
-{
-    if (hour > 23 || hour < 0)
-        {
-            event.reply (std::string ("Invalid hour: `")
-                         + std::to_string (hour) + '`');
-            return true;
-        }
-
-    return false;
-}
-
-std::string
-_pad0 (std::string str)
-{
-    if (str.length () < 2)
-        str = '0' + str;
-    return str;
-}
-
-bool
 is_valid_char (char c)
 {
     for (size_t i = 0;
@@ -92,18 +32,6 @@ is_valid_char (char c)
         }
 
     return false;
-}
-
-bool
-is_valid_str (const std::string &str)
-{
-    for (char c : str)
-        {
-            if (!is_valid_char (c))
-                return false;
-        }
-
-    return true;
 }
 
 struct arg_to_t
@@ -229,42 +157,40 @@ parse_arg_to (const std::string &str)
     return result;
 }
 
-void
-slash_run (const dpp::slashcommand_t &event)
+int
+run (const dpp::snowflake &guild_id, const std::string &arg_to,
+     std::string &out)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
         {
-            return;
+            return -1;
         }
 
     const bool debug = get_debug_state ();
-
-    std::string arg_to = "";
-    get_inter_param (event, "to", &arg_to);
 
     arg_to_t parsed = parse_arg_to (arg_to);
 
     if (!parsed.valid)
         {
-            event.reply (
-                "Invalid format, seek format should be "
-                "`[[hour:]minute:]second[.ms]`, Timestamp exceeding duration "
-                "implies skip.\nExamples:\n`360` "
-                "-> second\n`270.629` -> second.ms\n`3:24` -> "
-                "minute:second\n`2:15:37.899` -> hour:minute:second.ms");
+            out = "Invalid format, seek format should be "
+                  "`[[hour:]minute:]second[.ms]`, Timestamp exceeding "
+                  "duration "
+                  "implies skip.\nExamples:\n`360` "
+                  "-> second\n`270.629` -> second.ms\n`3:24` -> "
+                  "minute:second\n`2:15:37.899` -> hour:minute:second.ms";
 
-            return;
+            return 0;
         }
 
     // int64_t seek_byte = -1;
 
-    auto player = player_manager->get_player (event.command.guild_id);
+    auto player = player_manager->get_player (guild_id);
 
     if (!util::player_has_current_track (player))
         {
-            event.reply ("I'm not playing anything");
-            return;
+            out = "I'm not playing anything";
+            return 0;
         }
 
     // !TODO: probably add a mutex for safety just in case?
@@ -274,15 +200,15 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (!duration || !track.filesize)
         {
-            event.reply ("I'm sorry but the current track is not seek-able. "
-                         "Might be missing metadata or unsupported format");
+            out = "I'm sorry but the current track is not seek-able. "
+                  "Might be missing metadata or unsupported format";
 
-            return;
+            return 0;
         }
 
-    static const constexpr uint64_t second_ms = 1000;
-    static const constexpr uint64_t minute_ms = second_ms * 60;
-    static const constexpr uint64_t hour_ms = 60 * minute_ms;
+    constexpr uint64_t second_ms = 1000;
+    constexpr uint64_t minute_ms = second_ms * 60;
+    constexpr uint64_t hour_ms = 60 * minute_ms;
 
     const uint64_t total_ms = (parsed.hour * hour_ms)
                               + (parsed.minute * minute_ms)
@@ -314,171 +240,130 @@ slash_run (const dpp::slashcommand_t &event)
 
     track.seek_to = arg_to;
 
-    event.reply ("Seeking to " + arg_to);
+    out = "Seeking to " + arg_to;
+    return 0;
+}
 
-    /*
-    const uint64_t duration = track.info.duration ();
+void
+slash_run (const dpp::slashcommand_t &event)
+{
+    std::string arg_to = "";
+    get_inter_param (event, "to", &arg_to);
 
-    if (!track.seekable || !duration)
+    std::string out;
+    int status = run (event.command.guild_id, arg_to, out);
+
+    if (status == 0)
+        event.reply (out);
+}
+
+int
+button_run (const dpp::button_click_t &event,
+            int (*get_to_ms) (std::string &to_ms,
+                              player::track_progress &progress))
+{
+    auto pm_res = command::cmd_pre_get_player_manager_ready_werr (
+        event.command.guild_id);
+
+    if (pm_res.second != 0)
+        return pm_res.second;
+
+    auto player_manager = pm_res.first;
+    auto guild_player = player_manager->get_player (event.command.guild_id);
+    if (!guild_player || !guild_player->processing_audio)
         {
-            event.reply ("I'm sorry but the current track is unseek-able. "
-                         "Might be missing metadata or unsupported format");
-            return;
+            player_manager->update_info_embed (event.command.guild_id, false,
+                                               &event);
+            return -2;
         }
 
-    const size_t max_index = arg_to.length () - 1;
-    size_t index = arg_to.find (":", 0);
+    player::track_progress prog
+        = util::get_track_progress (guild_player->current_track);
 
-    int hour = 0;
-    int minute = 0;
-    int second = -1;
-
-    if (index == std::string::npos)
+    if (prog.status == 0)
         {
-            const char rechar = _valid_number (arg_to);
+            std::string to_ms;
+            int status = get_to_ms (to_ms, prog);
+            if (status)
+                return status;
 
-            if (_reply_invalid_number (event, rechar))
-                return;
-
-            second = atoi (arg_to.c_str ());
-
-            if (_reply_invalid_second (event, second))
-                return;
+            std::string out;
+            run (event.command.guild_id, to_ms, out);
         }
+
+    player_manager->update_info_embed (event.command.guild_id, false, &event);
+    return 0;
+}
+
+inline constexpr const int64_t second30 = 30 * 1000;
+
+int
+get_to_ms_rewind (std::string &to_ms, player::track_progress &progress)
+{
+    const bool debug = get_debug_state ();
+    if (progress.current_ms < second30)
+        to_ms = "0";
     else
         {
-            std::string first_n
-                = index == max_index ? "" : arg_to.substr (0, index);
+            to_ms = format_duration ((uint64_t)progress.current_ms - second30);
 
-            const char rechar1 = _valid_number (first_n);
-
-            if (_reply_invalid_number (event, rechar1))
-                return;
-
-            index = arg_to.find (":", index + 1);
-
-            if (index == std::string::npos)
+            if (debug)
                 {
-                    std::string second_n
-                        = index == max_index
-                              ? ""
-                              : arg_to.substr (first_n.length () + 1);
-
-                    const char rechar2 = _valid_number (second_n);
-
-                    if (_reply_invalid_number (event, rechar2))
-                        return;
-
-                    minute = atoi (first_n.c_str ());
-
-                    if (_reply_invalid_minute (event, minute))
-                        return;
-
-                    second = atoi (second_n.c_str ());
-
-                    if (_reply_invalid_second (event, second))
-                        return;
-                }
-            else
-                {
-                    const size_t first_n_len = first_n.length ();
-                    std::string second_n
-                        = index == max_index
-                              ? ""
-                              : arg_to.substr (first_n_len + 1,
-                                               index - first_n_len - 1);
-
-                    const char rechar2 = _valid_number (second_n);
-
-                    if (_reply_invalid_number (event, rechar2))
-                        return;
-
-                    std::string third_n
-                        = index == max_index ? "" : arg_to.substr (index + 1);
-
-                    const char rechar3 = _valid_number (third_n);
-
-                    if (_reply_invalid_number (event, rechar3))
-                        return;
-
-                    hour = atoi (first_n.c_str ());
-
-                    if (_reply_invalid_hour (event, hour))
-                        return;
-
-                    minute = atoi (second_n.c_str ());
-
-                    if (_reply_invalid_minute (event, minute))
-                        return;
-
-                    second = atoi (third_n.c_str ());
-
-                    if (_reply_invalid_second (event, second))
-                        return;
+                    fprintf (stderr,
+                             "[command::seek::get_to_ms_rewind] to_ms(%s)\n",
+                             to_ms.c_str ());
                 }
         }
 
+    return 0;
+}
+
+int
+get_to_ms_zero_less_30_err (std::string &to_ms,
+                            player::track_progress &progress)
+{
+    if (progress.current_ms < second30)
+        return 128;
+
+    to_ms = "0";
+
+    return 0;
+}
+
+int
+get_to_ms_forward (std::string &to_ms, player::track_progress &progress)
+{
     const bool debug = get_debug_state ();
 
+    to_ms = format_duration ((uint64_t)progress.current_ms + second30);
+
     if (debug)
-        {
-            printf ("[seek::slash_run] [arg_to] [hour] [minute] [second]: "
-                    "'%s' %d %d %d\n",
-                    arg_to.c_str (), hour, minute, second);
-        }
+        fprintf (stderr, "[command::seek::get_to_ms_forward] to_ms(%s)\n",
+                 to_ms.c_str ());
 
-    if (hour == 0 && minute == 0 && second == 0)
-        seek_byte = 0;
-    else
-        {
-            static const constexpr uint64_t second_ms = 1000;
-            static const constexpr uint64_t minute_ms = second_ms * 60;
-            static const constexpr uint64_t hour_ms = 60 * minute_ms;
+    return 0;
+}
 
-            const uint64_t total_ms = (hour * hour_ms) + (minute * minute_ms)
-                                      + (second * second_ms);
-            if (debug)
-                printf ("[seek::slash_run] [total_ms] [duration]: %ld %ld\n",
-                        total_ms, duration);
+// rewind 30 sec
+void
+button_run_rewind (const dpp::button_click_t &event)
+{
+    button_run (event, get_to_ms_rewind);
+}
 
-            if (total_ms > duration)
-                {
-                    event.reply (
-                        "Can't seek, seek target exceeding track duration");
-                    return;
-                }
+// seek to second 0 but returns 128 if current track progress is less than 30
+// second
+int
+button_seek_zero (const dpp::button_click_t &event)
+{
+    return button_run (event, get_to_ms_zero_less_30_err);
+}
 
-            float byte_per_ms = (float)track.filesize / (float)duration;
-
-            seek_byte = (int64_t)(byte_per_ms * total_ms);
-
-            if (debug)
-                {
-                    printf ("[seek::slash_run] [filesize] [duration] "
-                            "[byte_per_ms] [seek_byte]: "
-                            "%f %f %f %ld\n",
-                            (float)track.filesize, (float)duration,
-                            byte_per_ms, seek_byte);
-                }
-        }
-
-    if (second == -1)
-        second = 0;
-
-    std::string ts_str = _pad0 (std::to_string (hour)) + ':'
-                         + _pad0 (std::to_string (minute)) + ':'
-                         + _pad0 (std::to_string (second));
-
-    if (seek_byte < 0)
-        {
-            event.reply ("Invalid timestamp: `" + ts_str + '`');
-            return;
-        }
-
-    track.seek_to = seek_byte;
-
-    event.reply ("Seeking to " + ts_str);
-    */
+// forward 30 sec
+void
+button_run_forward (const dpp::button_click_t &event)
+{
+    button_run (event, get_to_ms_forward);
 }
 
 } // musicat::command::seek

@@ -1,4 +1,5 @@
 #include "musicat/events/on_form_submit.h"
+#include "musicat/cmds/loop.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
@@ -208,6 +209,21 @@ _handle_form_page_queue (const dpp::form_submit_t &event)
 }
 
 void
+_handle_form_loop_mode (const dpp::form_submit_t &event)
+{
+    if (!event.components.size ())
+        {
+            fprintf (stderr, "[events::_handle_form_loop_mode WARN] Form "
+                             "`loop_mode` doesn't contain "
+                             "any components row\n");
+
+            return;
+        }
+
+    /*command::loop::handle_button_modal_dialog (event);*/
+}
+
+void
 on_form_submit (dpp::cluster *client)
 {
     client->on_form_submit ([] (const dpp::form_submit_t &event) {
@@ -222,6 +238,10 @@ on_form_submit (dpp::cluster *client)
         else if (event.custom_id == "page_queue")
             {
                 _handle_form_page_queue (event);
+            }
+        else if (event.custom_id == "loop_mode")
+            {
+                _handle_form_loop_mode (event);
             }
     });
 }

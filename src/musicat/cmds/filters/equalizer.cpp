@@ -70,14 +70,14 @@ up the volume threshold to 500
 namespace musicat::command::filters::equalizer
 {
 
-static inline constexpr const struct
+inline constexpr const struct
 {
     const char *set = "0";
     const char *balance = "1";
     const char *reset = "2";
 } action_t_e;
 
-static inline constexpr const char *eq_options[][2] = {
+inline constexpr const char *eq_options[][2] = {
     { "band-1", "Set 65Hz band gain" },
     { "band-2", "Set 92Hz band gain" },
     { "band-3", "Set 131Hz band gain" },
@@ -99,11 +99,11 @@ static inline constexpr const char *eq_options[][2] = {
     { "band-18", "Set 20000Hz band gain" },
 };
 
-static inline constexpr const size_t eq_options_size
+inline constexpr const size_t eq_options_size
     = (sizeof (eq_options) / sizeof (*eq_options));
 
-static inline constexpr const int min_num_opt_val = 1;
-static inline constexpr const int max_num_opt_val = 200;
+inline constexpr const int min_num_opt_val = 1;
+inline constexpr const int max_num_opt_val = 200;
 
 void
 setup_subcommand (dpp::slashcommand &slash)
