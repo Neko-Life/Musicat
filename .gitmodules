@@ -14,9 +14,6 @@
 [submodule "libs/nekos-bestpp"]
 	path = libs/nekos-bestpp
 	url = https://github.com/Neko-Life/nekos-bestpp.git
-[submodule "libs/curlpp"]
-	path = libs/curlpp
-	url = https://github.com/jpbarrette/curlpp.git
 [submodule "libs/liboggz"]
 	path = libs/liboggz
 	url = https://github.com/kfish/liboggz.git
@@ -29,3 +26,6 @@
 [submodule "libs/cppcodec"]
 	path = libs/cppcodec
 	url = https://github.com/tplgy/cppcodec.git
+[submodule "libs/curlpp"]
+	path = libs/curlpp
+	url = https://github.com/Neko-Life/curlpp.git
