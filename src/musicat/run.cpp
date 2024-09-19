@@ -769,7 +769,17 @@ run (int argc, const char *argv[])
     client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);
 #endif
 
-    set_cached_nekos_best_endpoints (nekos_best::get_available_endpoints ());
+    try
+        {
+            set_cached_nekos_best_endpoints (
+                nekos_best::get_available_endpoints ());
+        }
+    catch (const std::exception &e)
+        {
+            fprintf (stderr,
+                     "[ERROR] nekos_best::get_available_endpoints:\n%s\n",
+                     e.what ());
+        }
     client.start (true);
 
     // start server
