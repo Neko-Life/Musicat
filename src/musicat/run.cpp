@@ -753,7 +753,7 @@ run (int argc, const char *argv[])
 
     events::load_events (client_ptr);
 
-#define MC_EX_VC_REC
+// #define MC_EX_VC_REC
 #ifdef MC_EX_VC_REC
     // client.on_voice_receive ([] (const dpp::voice_receive_t &event) {
     //     std::cout << "[voice_receive]:\n"
