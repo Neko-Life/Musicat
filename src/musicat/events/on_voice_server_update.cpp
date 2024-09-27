@@ -11,14 +11,16 @@ on_voice_server_update (dpp::cluster *client)
     client->on_voice_server_update (
         [] (const dpp::voice_server_update_t &event) {
             auto player_manager = get_player_manager_ptr ();
-            if (!player_manager
-                || player_manager->is_waiting_vc_ready (event.guild_id))
+            if (!player_manager)
                 return;
 
             if (auto guild_player
                 = player_manager->get_player (event.guild_id);
                 guild_player)
                 guild_player->check_for_to_seek ();
+
+            if (player_manager->is_waiting_vc_ready (event.guild_id))
+                return;
 
             dpp::voiceconn *connection
                 = event.from->get_voice (event.guild_id);
