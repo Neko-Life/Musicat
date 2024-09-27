@@ -40,7 +40,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                   << "\" in guild " << event.voice_client->server_id << '\n';
 
     prepare_play_stage_channel_routine (event.voice_client,
-                                        dpp::find_guild (guild_id));
+                                        dpp::find_guild (event.voice_client->server_id));
 
     auto guild_player = this->get_player (event.voice_client->server_id);
 
