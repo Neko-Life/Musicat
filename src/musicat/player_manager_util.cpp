@@ -1150,6 +1150,11 @@ Manager::stop_stream (const dpp::snowflake &guild_id)
         return -1;
 
     guild_player->current_track.stopping = true;
+
+    guild_player->current_track.current_byte = 0;
+    if (!guild_player->queue.empty ())
+        guild_player->queue.front ().current_byte = 0;
+
     return set_stream_stopping (guild_id);
 }
 
