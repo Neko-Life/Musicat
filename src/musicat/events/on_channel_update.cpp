@@ -44,8 +44,6 @@ on_channel_update (dpp::cluster *client)
         if (!guild_player || !guild_player->queue.size ())
             goto on_channel_update_skip_to_rejoin;
 
-        guild_player->check_for_to_seek();
-
     on_channel_update_skip_to_rejoin:
         // rejoin channel
         if (debug)

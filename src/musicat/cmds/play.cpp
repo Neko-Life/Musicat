@@ -62,7 +62,8 @@ int
 run (dpp::discord_client *from, const dpp::snowflake &user_id,
      const dpp::snowflake &guild_id, const dpp::interaction_create_t &event,
      std::string &out, const std::string &arg_query = "", int64_t arg_top = 0,
-     int64_t arg_slip = 0, bool button_run = false, bool update_info_embed = true)
+     int64_t arg_slip = 0, bool button_run = false,
+     bool update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
     if (pm_res.second == 1)
@@ -148,35 +149,11 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
                     out = "Sorry but I'm already in another voice channel";
                     return 1;
                 }
-
             vcclient_cont = false;
 
-            if (v)
-                {
-                    std::cerr
-                        << "Disconnecting as no member in vc: " << guild_id
-                        << " connecting "
-                           "to "
-                        << vcuser.first->id << '\n';
-
-                    if (v && v->voiceclient
-                        && v->voiceclient->get_secs_remaining () > 0.05f)
-                        {
-                            if (!v->voiceclient->terminating)
-                                {
-                                    v->voiceclient->pause_audio (false);
-                                    v->voiceclient->skip_to_next_marker ();
-                                }
-
-                            player_manager->stop_stream (guild_id);
-                        }
-
-                    // reconnect
-                    player_manager->full_reconnect (
-                        from, guild_id, vcclient.first->id, vcuser.first->id);
-
-                    reconnecting = true;
-                }
+            player_manager->full_reconnect (from, guild_id, vcclient.first->id,
+                                            vcuser.first->id);
+            reconnecting = true;
         }
 
     bool resumed = false;
@@ -185,7 +162,8 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
         {
-            player_manager->unpause (v->voiceclient, guild_id, update_info_embed);
+            player_manager->unpause (v->voiceclient, guild_id,
+                                     update_info_embed);
             if (no_query)
                 {
                     out = "Resumed";
@@ -230,11 +208,11 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
                 {
                     guild_player->tried_continuing = true;
 
-                    out = "Playback continued";
+                    out = "`[SUS]` Something's fishy going on with my mixer";
                     return 1;
                 }
 
-            out = "Seems like I'm broken, lemme fix myself brb";
+            out = "`[CRAP]` Seems like I'm broken, lemme fix myself brb";
 
             // reconnect
             player_manager->full_reconnect (from, guild_id, vcclient.first->id,

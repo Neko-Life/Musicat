@@ -15,6 +15,11 @@ on_voice_server_update (dpp::cluster *client)
                 || player_manager->is_waiting_vc_ready (event.guild_id))
                 return;
 
+            if (auto guild_player
+                = player_manager->get_player (event.guild_id);
+                guild_player)
+                guild_player->check_for_to_seek ();
+
             dpp::voiceconn *connection
                 = event.from->get_voice (event.guild_id);
 
@@ -26,11 +31,6 @@ on_voice_server_update (dpp::cluster *client)
                          "[events::on_voice_server_update] "
                          "Reconnecting to new Voice Server (%s)\n",
                          event.guild_id.str ().c_str ());
-
-            if (auto guild_player
-                = player_manager->get_player (event.guild_id);
-                guild_player)
-                guild_player->check_for_to_seek ();
 
             player_manager->set_waiting_vc_ready (event.guild_id);
 
