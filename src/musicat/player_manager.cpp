@@ -1,6 +1,5 @@
 #include "musicat/child/command.h"
 #include "musicat/child/dl_music.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
@@ -13,6 +12,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <utime.h>
+
+#define ENABLE_DAVE false
 
 namespace musicat::player
 {
@@ -81,7 +82,8 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
                         std::this_thread::sleep_for (500ms);
                 }
 
-                from->connect_voice (guild_id, a->second, false, true);
+                from->connect_voice (guild_id, a->second, false, true,
+                                     ENABLE_DAVE);
 
                 this->dl_cv.wait (lk, [this, &guild_id] () {
                     auto t = this->connecting.find (guild_id);
