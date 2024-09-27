@@ -619,6 +619,7 @@ run_processor (child::command::command_options_t &process_options)
     options.id = process_options.id;
     options.guild_id = process_options.guild_id;
     options.volume = process_options.volume;
+    options.seek_to = process_options.seek;
 
     bool debug = get_debug_state ();
     bool has_command = false;

@@ -15,15 +15,14 @@ on_channel_update (dpp::cluster *client)
         if (!event.updated || !player_manager)
             return;
 
-        bool debug = get_debug_state ();
+        const bool debug = get_debug_state ();
 
-        dpp::snowflake guild_id = event.updated->guild_id;
-        dpp::snowflake channel_id = event.updated->id;
+        const dpp::snowflake guild_id = event.updated->guild_id;
+        const dpp::snowflake channel_id = event.updated->id;
 
         dpp::voiceconn *v = event.from->get_voice (guild_id);
         dpp::channel *cached = nullptr;
         std::shared_ptr<player::Player> guild_player;
-        int64_t to_seek;
 
         // reconnect if has vc and different vc region
         if (!v || !v->channel_id || (event.updated->id != v->channel_id))
@@ -45,12 +44,7 @@ on_channel_update (dpp::cluster *client)
         if (!guild_player || !guild_player->queue.size ())
             goto on_channel_update_skip_to_rejoin;
 
-        to_seek = guild_player->current_track.current_byte - (BUFSIZ * 8);
-
-        if (to_seek < 0)
-            to_seek = 0;
-
-        guild_player->queue.front ().current_byte = to_seek;
+        guild_player->check_for_to_seek();
 
     on_channel_update_skip_to_rejoin:
         // rejoin channel

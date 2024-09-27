@@ -41,6 +41,50 @@ MCTrack::is_empty () const
 }
 
 void
+MCTrack::check_for_seek_to ()
+{
+    // check for last position and reseek
+    const bool debug = get_debug_state ();
+
+    seek_to = "";
+
+    if (debug)
+        {
+            fprintf (
+                stderr,
+                "[MCTrack::check_for_seek_to] Checking seek_to filesize(%ld) "
+                "current_byte(%ld)\n",
+                filesize, current_byte);
+        }
+
+    if (filesize == 0 || current_byte < 1)
+        return;
+
+    const uint64_t duration = mctrack::get_duration (*this);
+    if (debug)
+        {
+            fprintf (stderr,
+                     "[MCTrack::check_for_seek_to] Checking seek_to "
+                     "duration(%ld)\n",
+                     duration);
+        }
+
+    if (duration == 0)
+        return;
+
+    const float byte_per_ms = (float)filesize / (float)duration;
+
+    seek_to = std::to_string ((float)current_byte / byte_per_ms / 1000);
+
+    if (debug)
+        {
+            fprintf (stderr,
+                     "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n",
+                     mctrack::get_title (*this).c_str (), seek_to.c_str ());
+        }
+}
+
+void
 Player::init ()
 {
     this->guild_id = 0;
@@ -49,6 +93,7 @@ Player::init ()
     this->shifted_track = 0;
     this->info_message = nullptr;
     this->from = nullptr;
+    this->voice_client = nullptr;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -104,6 +149,7 @@ Player::~Player ()
     this->shifted_track = 0;
     this->info_message = nullptr;
     this->from = nullptr;
+    this->voice_client = nullptr;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -606,6 +652,21 @@ Player::fx_states_to_json ()
 }
 
 // ====================================================================
+
+void
+Player::check_for_to_seek ()
+{
+    int64_t to_seek = current_track.current_byte - (BUFSIZ * 8);
+
+    if (to_seek < 0)
+        to_seek = 0;
+
+    if (get_debug_state ())
+        fprintf (stderr, "[Player::check_for_to_seek] to_seek(%ld)\n",
+                 to_seek);
+
+    queue.front ().current_byte = to_seek;
+}
 
 } // player
 

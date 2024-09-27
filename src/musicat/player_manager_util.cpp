@@ -736,7 +736,7 @@ void
 decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
              const bool &continued)
 {
-    if (!from)
+    if (!from || !get_running_state ())
         return;
 
     dpp::snowflake sha_id = get_sha_id ();
@@ -827,14 +827,68 @@ Manager::set_waiting_vc_ready (const dpp::snowflake &guild_id,
     this->set_vc_ready_timeout (guild_id);
 }
 
+std::map<dpp::snowflake, unsigned long> timer_map;
+std::mutex timer_map_m;
+
+unsigned long
+get_timer_unlocked (const dpp::snowflake &guild_id)
+{
+    auto i = timer_map.find (guild_id);
+    if (i == timer_map.end ())
+        return 0;
+
+    return i->second;
+}
+
+unsigned long
+get_timer (const dpp::snowflake &guild_id)
+{
+    std::lock_guard lk (timer_map_m);
+    return get_timer_unlocked (guild_id);
+}
+
+// returns 1 if already has timer thread running for this guild
+int
+add_timer (const dpp::snowflake &guild_id, const unsigned long &timer)
+{
+    std::lock_guard lk (timer_map_m);
+    auto ct = get_timer_unlocked (guild_id);
+
+    timer_map.insert_or_assign (guild_id, timer + ct);
+
+    return ct > 0 ? 1 : 0;
+}
+
+void
+delete_timer (const dpp::snowflake &guild_id)
+{
+    std::lock_guard lk (timer_map_m);
+    timer_map.erase (guild_id);
+}
+
 void
 Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
                                const unsigned long &timer)
 {
-    std::thread t ([this, guild_id, timer] () {
-        thread_manager::DoneSetter tmds;
+    if (add_timer (guild_id, timer))
+        return;
 
-        std::this_thread::sleep_for (std::chrono::milliseconds (timer));
+    std::thread t ([this, guild_id] () {
+        thread_manager::DoneSetter tmds;
+        unsigned long timer = 0;
+        unsigned long elapsed = 0;
+
+        while (elapsed <= (timer = get_timer (guild_id)))
+            {
+                unsigned long sfor = elapsed > timer ? 0 : timer - elapsed;
+                if (sfor == 0)
+                    break;
+
+                std::this_thread::sleep_for (std::chrono::milliseconds (sfor));
+                elapsed += sfor;
+            }
+
+        delete_timer (guild_id);
 
         const int status = this->clear_wait_vc_ready (guild_id);
 
@@ -844,10 +898,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
         fprintf (stderr, "[Manager::set_vc_ready_timeout "
                          "WARN] Connection timeout\n");
 
-        auto player_manager = get_player_manager_ptr ();
-
-        auto guild_player
-            = player_manager ? player_manager->get_player (guild_id) : nullptr;
+        auto guild_player = get_player (guild_id);
 
         dpp::snowflake channel_id
             = guild_player ? guild_player->channel_id : dpp::snowflake (0);
@@ -857,7 +908,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
         std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
             vcs;
 
-        if (!player_manager || !guild_player || !guild_player->from)
+        if (!guild_player || !guild_player->from)
             goto skip_disconnecting;
 
         vcs = get_voice_from_gid (guild_id, sha_id);
@@ -865,7 +916,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
         if (!vcs.first || !vcs.first->id)
             goto skip_disconnecting;
 
-        player_manager->set_disconnecting (guild_id, vcs.first->id);
+        set_disconnecting (guild_id, vcs.first->id);
 
         guild_player->from->disconnect_voice (guild_id);
 

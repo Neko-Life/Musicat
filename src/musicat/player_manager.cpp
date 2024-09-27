@@ -412,51 +412,28 @@ Manager::download (const string &fname, const string &url,
 }
 
 int
-Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
+Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                const dpp::snowflake &channel_id)
 {
-    if (!v || v->terminating)
-        {
-            std::cerr << "[Manager::play ERROR] Voice client is null, "
-                         "unable to start streaming thread: '"
-                      << mctrack::get_title (track) << "' (" << channel_id
-                      << ")\n";
-
-            return 1;
-        }
-
     std::thread tj (
-        [this, &track] (dpp::discord_voice_client *v,
-                        dpp::snowflake channel_id) {
+        [this, &track, guild_id] (dpp::snowflake channel_id) {
             thread_manager::DoneSetter tmds;
-
-            if (!v || v->terminating)
-                {
-                    std::cerr
-                        << "[Manager::play ERROR] Voice client is null: '"
-                        << mctrack::get_title (track) << "' (" << channel_id
-                        << ")\n";
-
-                    return;
-                }
 
             bool debug = get_debug_state ();
 
-            auto server_id = v->server_id;
-            auto voice_channel_id = v->channel_id;
-
-            auto guild_player = this->get_player (server_id);
-
-            if (debug)
-                std::cerr << "[Manager::play] Attempt to stream: " << server_id
-                          << ' ' << voice_channel_id << '\n';
-
+            auto guild_player = this->get_player (guild_id);
             if (!guild_player)
                 {
                     std::cerr << "[Manager::play ERROR] Guild player missing: "
-                              << server_id << "\n";
+                              << guild_id << "\n";
                     return;
                 }
+
+            auto voice_channel_id = guild_player->voice_client->channel_id;
+
+            if (debug)
+                std::cerr << "[Manager::play] Attempt to stream: " << guild_id
+                          << ' ' << voice_channel_id << '\n';
 
             int err = 0;
             try
@@ -493,8 +470,7 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                         }
 
                     guild_player->processing_audio = true;
-
-                    this->stream (v, track);
+                    this->stream (guild_player->guild_id, track);
                 }
             catch (int e)
                 {
@@ -507,9 +483,9 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
                              e);
 
                     const bool has_send_msg_perm
-                        = server_id && voice_channel_id
+                        = guild_id && voice_channel_id
                           && has_permissions_from_ids (
-                              server_id, this->cluster->me.id, channel_id,
+                              guild_id, this->cluster->me.id, channel_id,
                               { dpp::p_view_channel, dpp::p_send_messages });
 
                     if (!has_send_msg_perm)
@@ -546,29 +522,29 @@ Manager::play (dpp::discord_voice_client *v, player::MCTrack &track,
 
             const bool err_processor = err == 3;
             // do not insert marker when error coming from duplicate processor
-            if (!err_processor && v && !v->terminating)
+            if (!err_processor && guild_player->voice_client
+                && !guild_player->voice_client->terminating)
                 {
-                    v->insert_marker ("e");
+                    guild_player->voice_client->insert_marker ("e");
                     return;
                 }
 
             if (err_processor)
                 return;
 
-            auto vcc = get_voice_from_gid (server_id, get_sha_id ());
+            auto vcc = get_voice_from_gid (guild_id, get_sha_id ());
 
             if (vcc.first)
                 {
                     return;
                 }
 
-            if (server_id && voice_channel_id)
+            if (guild_id && voice_channel_id)
                 {
-                    this->set_connecting (server_id, voice_channel_id);
+                    this->set_connecting (guild_id, voice_channel_id);
                 }
-            // if (v) v->~discord_voice_client();
         },
-        v, channel_id);
+        channel_id);
 
     thread_manager::dispatch (tj);
 

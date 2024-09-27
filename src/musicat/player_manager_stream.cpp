@@ -4,6 +4,7 @@
 #include "musicat/child/command.h"
 #include "musicat/config.h"
 #include "musicat/db.h"
+#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include <memory>
@@ -77,6 +78,18 @@ class EffectStatesListing
             }
     }
 };
+
+int
+wait_for_ready_event (const dpp::snowflake &guild_id)
+{
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return 1;
+
+    player_manager->wait_for_vc_ready (guild_id);
+
+    return 0;
+}
 
 std::string
 get_ffmpeg_vibrato_args (bool has_f, bool has_d,
@@ -182,15 +195,17 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
     bool track_seek_queried = !states.track.seek_to.empty ();
     if (track_seek_queried)
         {
-            std::string cmd = cc::command_options_keys_t.command + '='
-                              + cc::command_options_keys_t.seek + ';'
-                              + cc::command_options_keys_t.seek + '='
-                              + states.track.seek_to + ';' + dbg_str_arg;
+            std::string cmd
+                = cc::command_options_keys_t.command + '='
+                  + cc::command_options_keys_t.seek + ';'
+                  + cc::command_options_keys_t.seek + '='
+                  + cc::sanitize_command_value (states.track.seek_to) + ';'
+                  + dbg_str_arg;
 
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             // clear voice_client audio buffer
-            states.vc->stop_audio ();
+            states.guild_player->voice_client->stop_audio ();
 
             states.track.seek_to = "";
 
@@ -221,8 +236,11 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                         {
                             std::cerr
                                 << "[Manager::stream ERROR] POLL SEEK: gid("
-                                << states.vc->server_id << ") cid("
-                                << states.vc->channel_id << ")\n";
+                                << states.guild_player->voice_client->server_id
+                                << ") cid("
+                                << states.guild_player->voice_client
+                                       ->channel_id
+                                << ")\n";
 
                             break;
                         }
@@ -516,26 +534,23 @@ constexpr const char *msprrfmt
     = "[Manager::stream ERROR] Processor not ready or exited: %s\n";
 
 void
-Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
+Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
 {
+    auto guild_player = guild_id ? this->get_player (guild_id) : nullptr;
+    if (!guild_player || !guild_player->voice_client)
+        throw 2;
+
     const std::string &fname = track.filename;
 
-    dpp::snowflake server_id = 0;
     std::chrono::high_resolution_clock::time_point start_time;
 
     const std::string music_folder_path = get_music_folder_path ();
     const std::string file_path = music_folder_path + fname;
 
-    if (v && !v->terminating && v->is_ready ())
+    if (guild_player->voice_client && !guild_player->voice_client->terminating
+        && guild_player->voice_client->is_ready ())
         {
             bool debug = get_debug_state ();
-
-            server_id = v->server_id;
-            auto guild_player
-                = server_id ? this->get_player (server_id) : nullptr;
-
-            if (!server_id || !guild_player)
-                throw 2;
 
             guild_player->tried_continuing = false;
 
@@ -560,7 +575,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
 
             track.filesize = ofile_stat.st_size;
 
-            const std::string server_id_str = std::to_string (server_id);
+            const std::string server_id_str = std::to_string (guild_id);
             const std::string slave_id = "processor-" + server_id_str + "."
                                          + std::to_string (time (NULL));
 
@@ -634,6 +649,16 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 cmd += cc::command_options_keys_t.helper_chain + '='
                        + cc::sanitize_command_value ("earwax") + ';';
 
+            track.check_for_seek_to ();
+
+            if (!track.seek_to.empty ())
+                {
+                    cmd += cc::command_options_keys_t.seek + '='
+                           + cc::sanitize_command_value (track.seek_to) + ';';
+
+                    track.seek_to = "";
+                }
+
             const std::string exit_cmd = cc::get_exit_command (slave_id);
             cc::send_command (cmd);
             int status = cc::wait_slave_ready (slave_id, 10);
@@ -693,8 +718,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                 }
 
             handle_effect_chain_change_states_t effect_states
-                = { guild_player, track, command_fd,     read_fd,
-                    NULL,         v,     notification_fd };
+                = { guild_player, track, command_fd,
+                    read_fd,      NULL,  notification_fd };
 
             int throw_error = 0;
             bool running_state = get_running_state (), is_stopping;
@@ -709,7 +734,7 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     throw 2;
                 }
 
-            EffectStatesListing esl (server_id, &effect_states);
+            EffectStatesListing esl (guild_id, &effect_states);
 
             float dpp_audio_buffer_length_second = get_stream_buffer_size ();
             int64_t dpp_audio_sleep_on_buffer_threshold_ms
@@ -733,7 +758,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                     read_size += current_read;
                     total_read += current_read;
 
-                    if ((is_stopping = is_stream_stopping (server_id)))
+                    wait_for_ready_event (guild_id);
+                    if ((is_stopping = is_stream_stopping (guild_id)))
                         // !TODO: send shutdown command instead of breaking and
                         // abruptly closing output fd?
                         break;
@@ -746,17 +772,20 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                  total_read, read_size);
 
                     if (audio_processing::send_audio_routine (
-                            v, (uint16_t *)buffer, &read_size, false,
-                            guild_player->opus_encoder))
+                            guild_player->voice_client, (uint16_t *)buffer,
+                            &read_size, false, guild_player->opus_encoder))
                         break;
 
                     handle_effect_chain_change (effect_states);
 
                     float outbuf_duration;
 
-                    while ((running_state = get_running_state ()) && v
-                           && !v->terminating
-                           && ((outbuf_duration = v->get_secs_remaining ())
+                    while ((running_state = get_running_state ())
+                           && !wait_for_ready_event (guild_id)
+                           && guild_player->voice_client
+                           && !guild_player->voice_client->terminating
+                           && ((outbuf_duration = guild_player->voice_client
+                                                      ->get_secs_remaining ())
                                > dpp_audio_buffer_length_second))
                         {
                             handle_effect_chain_change (effect_states);
@@ -774,8 +803,8 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
                                  (total_read += read_size), read_size);
 
                     audio_processing::send_audio_routine (
-                        v, (uint16_t *)buffer, &read_size, true,
-                        guild_player->opus_encoder);
+                        guild_player->voice_client, (uint16_t *)buffer,
+                        &read_size, true, guild_player->opus_encoder);
                 }
 
             close (read_fd);
@@ -785,14 +814,14 @@ Manager::stream (dpp::discord_voice_client *v, player::MCTrack &track)
             notification_fd = -1;
 
             if (debug)
-                std::cerr << "Exiting " << server_id << '\n';
+                std::cerr << "Exiting " << guild_id << '\n';
 
             cc::send_command (exit_cmd);
 
             if (!running_state || is_stopping)
                 {
                     // clear voice client buffer
-                    v->stop_audio ();
+                    guild_player->voice_client->stop_audio ();
                 }
 
             auto end_time = std::chrono::high_resolution_clock::now ();
