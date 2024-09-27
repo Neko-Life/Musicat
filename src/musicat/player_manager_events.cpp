@@ -39,6 +39,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         std::cerr << "Handling voice marker: \"" << event.track_meta
                   << "\" in guild " << event.voice_client->server_id << '\n';
 
+    prepare_play_stage_channel_routine (event.voice_client,
+                                        dpp::find_guild (guild_id));
+
     auto guild_player = this->get_player (event.voice_client->server_id);
 
     if (!guild_player)
@@ -643,8 +646,6 @@ Manager::spawn_handle_track_marker_worker (
             dpp::channel *c = dpp::find_channel (channel_id);
             // guild
             dpp::guild *g = dpp::find_guild (guild_id);
-
-            prepare_play_stage_channel_routine (v, g);
 
             this->wait_for_download (track.filename);
 

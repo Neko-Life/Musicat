@@ -656,6 +656,9 @@ Player::fx_states_to_json ()
 void
 Player::check_for_to_seek ()
 {
+    if (queue.empty ())
+        return;
+
     int64_t to_seek = current_track.current_byte - (BUFSIZ * 8);
 
     if (to_seek < 0)
