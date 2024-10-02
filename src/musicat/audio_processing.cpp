@@ -6,6 +6,8 @@
 #include "musicat/helper_processor.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/server/routes/get_stream.h"
+#include "musicat/server/stream.h"
 #include "opus/opus.h"
 #include <fcntl.h>
 #include <poll.h>
@@ -565,6 +567,13 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                         {
                             vclient->send_audio_opus (packet, len,
                                                       FRAME_DURATION);
+
+                            // server::routes::send_to_all_streaming_state (
+                            //     vclient->server_id, packet, len);
+
+                            std::lock_guard lk_s (server::stream::ns_mutex);
+                            server::stream::handle_send_opus (
+                                vclient->server_id, packet, len);
                         }
 
                     pcmbuf.erase (pcmbuf.begin (),

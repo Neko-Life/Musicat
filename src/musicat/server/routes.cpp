@@ -5,6 +5,7 @@
 #include "musicat/server/routes/get_invite.h"
 #include "musicat/server/routes/get_login.h"
 #include "musicat/server/routes/get_root.h"
+#include "musicat/server/routes/get_stream.h"
 #include "musicat/server/routes/post_login.h"
 
 // !TODO: maybe move this to smt like server_config.h
@@ -101,6 +102,7 @@ inline constexpr const route_handler_t route_handlers[]
         { "/login", ROUTE_METHOD_POST, post_login },
         { "/guilds", ROUTE_METHOD_GET, get_guilds },
         { "/invite", ROUTE_METHOD_GET, get_invite },
+        { "/stream/:server_id", ROUTE_METHOD_GET, get_stream },
         { NULL, ROUTE_METHOD_NULL, NULL } };
 
 void

@@ -8,4 +8,7 @@
 // make the audio more exciting!
 #define AUDIO_INPUT_USE_EXCITER
 
+// uWebSockets: don't send write mark
+#define UWS_HTTPRESPONSE_NO_WRITEMARK
+
 #endif // MUSICAT_CONFIG_H
