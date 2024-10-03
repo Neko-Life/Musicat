@@ -115,6 +115,8 @@ struct MCTrack : yt_search::YTrack
     MCTrack ();
     explicit MCTrack (const yt_search::YTrack &t);
     ~MCTrack ();
+
+    void check_for_seek_to ();
 };
 
 struct track_progress
@@ -217,6 +219,7 @@ class Player
 
     dpp::cluster *cluster;
     dpp::discord_client *from;
+    dpp::discord_voice_client *voice_client;
     Manager *manager;
 
     /**
@@ -417,6 +420,8 @@ class Player
     nlohmann::json fx_states_to_json ();
 
     // ====================================================================
+
+    void check_for_to_seek ();
 };
 
 struct get_playing_info_embed_info_t
@@ -610,7 +615,7 @@ class Manager
 
     bool is_waiting_file_download (const std::string &file_name);
 
-    void stream (dpp::discord_voice_client *v, player::MCTrack &track);
+    void stream (const dpp::snowflake &guild_id, player::MCTrack &track);
     bool is_stream_stopping (const dpp::snowflake &guild_id);
     int set_stream_stopping (const dpp::snowflake &guild_id);
     int clear_stream_stopping (const dpp::snowflake &guild_id);
@@ -620,12 +625,12 @@ class Manager
 
     /**
      * @brief Start streaming thread, plays `track` on `v`
-     * @param v voice client to stream on
+     * @param guild_id guild Id to start stream on
      * @param track track to play
      * @param channel_id text channel for sending nowplaying embed
      * @return int 0 on success, 1 on fail
      */
-    int play (dpp::discord_voice_client *v, player::MCTrack &track,
+    int play (const dpp::snowflake &guild_id, player::MCTrack &track,
               const dpp::snowflake &channel_id = 0);
 
     /**
@@ -808,7 +813,6 @@ struct handle_effect_chain_change_states_t
     int &command_fd;
     int &read_fd;
     void /*OGGZ*/ *track_og;
-    dpp::discord_voice_client *vc;
     int notification_fd;
 };
 

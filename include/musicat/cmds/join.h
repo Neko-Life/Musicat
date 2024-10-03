@@ -6,6 +6,9 @@
 namespace musicat::command::join
 {
 dpp::slashcommand get_register_obj (const dpp::snowflake &sha_id);
+
+int run (const dpp::slashcommand_t &event, std::string &out);
+
 void slash_run (const dpp::slashcommand_t &event);
 } // musicat::command::join
 
