@@ -86,7 +86,25 @@ wait_for_ready_event (const dpp::snowflake &guild_id)
     if (!player_manager)
         return 1;
 
-    player_manager->wait_for_vc_ready (guild_id);
+    if (player_manager->wait_for_vc_ready (guild_id) == 0)
+        {
+            auto guild_player = player_manager->get_player (guild_id);
+
+            // this should never be happening
+            if (!guild_player)
+                return 0;
+
+            // reset current byte
+            guild_player->reset_first_track_current_byte ();
+
+            if (guild_player->voice_client)
+                {
+                    // check stage channel routine
+                    player_manager->prepare_play_stage_channel_routine (
+                        guild_player->voice_client,
+                        dpp::find_guild (guild_id));
+                }
+        }
 
     return 0;
 }
@@ -657,15 +675,21 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                            + cc::sanitize_command_value (track.seek_to) + ';';
 
                     track.seek_to = "";
+                    guild_player->reset_first_track_current_byte ();
                 }
 
-            const std::string exit_cmd = cc::get_exit_command (slave_id);
-            cc::send_command (cmd);
-            int status = cc::wait_slave_ready (slave_id, 10);
+            // const std::string exit_cmd = cc::get_exit_command (slave_id);
+            // cc::send_command (cmd);
+            // int status = cc::wait_slave_ready (slave_id, 10);
 
-            if (status != 0)
-                // !TODO: what to do here? shutting down existing processor is
-                // not right
+            // if (status != 0)
+            // // !TODO: what to do here? shutting down existing processor is
+            // // not right
+            // throw 3;
+
+            const std::string exit_cmd = cc::get_exit_command (slave_id);
+            // kill when fail
+            if (cc::send_command_wr (cmd, exit_cmd, slave_id, 10) != 0)
                 throw 3;
 
             const std::string fifo_stream_path
@@ -722,7 +746,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                     read_fd,      NULL,  notification_fd };
 
             int throw_error = 0;
-            bool running_state = get_running_state (), is_stopping;
+            bool running_state, is_stopping;
 
             if (!processor_read_ready)
                 {
@@ -751,6 +775,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
             uint8_t buffer[STREAM_BUFSIZ];
 
             while ((running_state = get_running_state ())
+                   && !(is_stopping = guild_player->stopping)
                    && ((current_read = read (read_fd, buffer + read_size,
                                              STREAM_BUFSIZ - read_size))
                        > 0))
@@ -759,7 +784,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                     total_read += current_read;
 
                     wait_for_ready_event (guild_id);
-                    if ((is_stopping = is_stream_stopping (guild_id)))
+                    if ((is_stopping = guild_player->stopping))
                         // !TODO: send shutdown command instead of breaking and
                         // abruptly closing output fd?
                         break;
@@ -843,45 +868,6 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
         }
     else
         throw 1;
-}
-
-bool
-Manager::is_stream_stopping (const dpp::snowflake &guild_id)
-{
-    std::lock_guard lk (sq_m);
-
-    if (guild_id && stop_queue[guild_id])
-        return true;
-
-    return false;
-}
-
-int
-Manager::set_stream_stopping (const dpp::snowflake &guild_id)
-{
-    std::lock_guard lk (sq_m);
-
-    if (guild_id)
-        {
-            stop_queue[guild_id] = true;
-            return 0;
-        }
-
-    return 1;
-}
-
-int
-Manager::clear_stream_stopping (const dpp::snowflake &guild_id)
-{
-    if (guild_id)
-        {
-            std::lock_guard lk (sq_m);
-            stop_queue.erase (guild_id);
-
-            return 0;
-        }
-
-    return 1;
 }
 
 void

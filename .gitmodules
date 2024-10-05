@@ -29,3 +29,6 @@
 [submodule "libs/curlpp"]
 	path = libs/curlpp
 	url = https://github.com/Neko-Life/curlpp.git
+[submodule "libs/ogg"]
+	path = libs/ogg
+	url = https://gitlab.xiph.org/xiph/ogg.git

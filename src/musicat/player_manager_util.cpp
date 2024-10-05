@@ -954,12 +954,12 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
     thread_manager::dispatch (t);
 }
 
-void
+int
 Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
 {
 
     if (!is_waiting_vc_ready (guild_id))
-        return;
+        return 1;
 
     if (get_debug_state ())
         std::cerr << "[Manager::wait_for_vc_ready] Waiting for ready state: "
@@ -970,6 +970,8 @@ Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
         return this->waiting_vc_ready.find (guild_id)
                == this->waiting_vc_ready.end ();
     });
+
+    return 0;
 }
 
 int
@@ -1149,13 +1151,8 @@ Manager::stop_stream (const dpp::snowflake &guild_id)
     if (!guild_player || !guild_player->processing_audio)
         return -1;
 
-    guild_player->current_track.stopping = true;
-
-    guild_player->current_track.current_byte = 0;
-    if (!guild_player->queue.empty ())
-        guild_player->queue.front ().current_byte = 0;
-
-    return set_stream_stopping (guild_id);
+    guild_player->stop ();
+    return 0;
 }
 
 bool

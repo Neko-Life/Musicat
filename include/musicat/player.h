@@ -93,10 +93,6 @@ struct MCTrack : yt_search::YTrack
 
     bool seekable;
 
-    // whether this track is in the process to stop
-    // its audio stream
-    bool stopping;
-
     int64_t repeat;
 
     // seek query, reset to empty string after seek performed.
@@ -302,6 +298,11 @@ class Player
     bool notification;
 
     /**
+     * @brief Is currently stopping its stream?
+     */
+    bool stopping;
+
+    /**
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
@@ -387,9 +388,12 @@ class Player
 
     bool shuffle (bool update_info_embed = true);
 
-    void set_stopped (const bool &val);
+    bool current_track_is_first_track () const;
 
-    bool is_stopped () const;
+    Player &stop ();
+
+    int init_for_stream ();
+    Player &done_streaming ();
 
     // ============================== FILTERS =============================
 
@@ -422,6 +426,7 @@ class Player
     // ====================================================================
 
     void check_for_to_seek ();
+    void reset_first_track_current_byte ();
 };
 
 struct get_playing_info_embed_info_t
@@ -457,9 +462,8 @@ class Manager
     // mp: manually_paused
     // imc: info_messages_cache
     // im: ignore_marker
-    // sq: stop_queue
     // as: audio_stream
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, sq_m, as_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, as_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv, as_cv;
@@ -469,7 +473,6 @@ class Manager
     std::map<std::string, processor_state_t> processor_states;
     std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
-    std::map<dpp::snowflake, bool> stop_queue;
     std::vector<dpp::snowflake> ignore_marker;
 
     Manager (dpp::cluster *_cluster);
@@ -549,7 +552,10 @@ class Manager
     void set_vc_ready_timeout (const dpp::snowflake &guild_id,
                                const unsigned long &timer = 10000);
 
-    void wait_for_vc_ready (const dpp::snowflake &guild_id);
+    /**
+     * @brief Returns 1 if doesn't need to wait, 0 otherwise
+     */
+    int wait_for_vc_ready (const dpp::snowflake &guild_id);
 
     int clear_wait_vc_ready (const dpp::snowflake &guild_id);
 
@@ -616,9 +622,6 @@ class Manager
     bool is_waiting_file_download (const std::string &file_name);
 
     void stream (const dpp::snowflake &guild_id, player::MCTrack &track);
-    bool is_stream_stopping (const dpp::snowflake &guild_id);
-    int set_stream_stopping (const dpp::snowflake &guild_id);
-    int clear_stream_stopping (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (
         dpp::discord_voice_client *voice_client, dpp::guild *guild);

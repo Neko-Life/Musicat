@@ -102,6 +102,7 @@ add_custom_target(archlinux-dist
 		build/libs/DPP/library/libdpp.so*
 		libs/curlpp/build/libcurlpp.so*
 		libs/icu/usr/local/lib/lib*
+		build/libs/ogg/libogg.so*
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
 
@@ -143,7 +144,7 @@ endif()
 target_link_libraries(Shasha
 	dpp
 	# oggz
-	# ogg
+	ogg
 	pq
 	curlpp
 	curl
@@ -194,6 +195,13 @@ set_target_properties(Shasha PROPERTIES
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
 add_subdirectory(libs/cppcodec)
+
+# libogg build options
+set(INSTALL_DOCS OFF)
+set(INSTALL_PKG_CONFIG_MODULE OFF)
+set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
+add_subdirectory(libs/ogg)
+
 # You can also add any other libs you want to use
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")

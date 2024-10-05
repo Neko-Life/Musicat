@@ -39,8 +39,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         std::cerr << "Handling voice marker: \"" << event.track_meta
                   << "\" in guild " << event.voice_client->server_id << '\n';
 
-    prepare_play_stage_channel_routine (event.voice_client,
-                                        dpp::find_guild (event.voice_client->server_id));
+    prepare_play_stage_channel_routine (
+        event.voice_client, dpp::find_guild (event.voice_client->server_id));
 
     auto guild_player = this->get_player (event.voice_client->server_id);
 
@@ -73,8 +73,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             return false;
         }
-
-    clear_stream_stopping (event.voice_client->server_id);
 
     if (debug)
         std::cerr
@@ -114,9 +112,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     // Do stuff according to loop mode when playback ends
     // avoid this track to be skipped right away if it has different current
     // playback and first track entry
-    if (event.track_meta == "e" && !guild_player->is_stopped ()
-        && guild_player->current_track.filename
-               == guild_player->queue.front ().filename)
+    if (event.track_meta == "e" && !guild_player->stopped
+        && guild_player->current_track_is_first_track ())
         {
             int64_t rpt = guild_player->current_track.repeat;
             if (rpt > 0
@@ -193,7 +190,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     guild_player->current_track = guild_player->queue.front ();
     guild_player->queue.front ().seek_to = "";
 
-    guild_player->set_stopped (false);
+    guild_player->stopped = false;
 
     if (!just_loaded_queue)
         database::update_guild_current_queue (event.voice_client->server_id,
@@ -762,10 +759,10 @@ Manager::spawn_handle_track_marker_worker (
                                 set_track_failed_playback_count (
                                     track.filename, failed_playback + 1);
 
-                                // set is_stopped to avoid marker handler
+                                // set stopped to avoid marker handler
                                 // popping the next song as its already skipped
                                 // above
-                                guild_player->set_stopped (true);
+                                guild_player->stopped = true;
 
                                 // play next song
                                 v->insert_marker ("e");

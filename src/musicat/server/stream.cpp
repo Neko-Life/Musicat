@@ -43,11 +43,26 @@ stream_state_t::packet_sent (packet_state_t &packet)
         remove_packet (packet.id);
 }
 
+stream_state_t::packet_que_t::iterator
+stream_state_t::packet_sent (const packet_que_t::iterator packet)
+{
+    if (packet->sent_count++; packet->sent_count >= subscriber_count)
+        return remove_packet (packet);
+    return packet + 1;
+}
+
 void
 stream_state_t::remove_packet (int64_t id)
 {
     if (const auto i = find_packet (id); i != packet_que.end ())
         packet_que.erase (i);
+}
+
+stream_state_t::packet_que_t::iterator
+stream_state_t::remove_packet (
+    const stream_state_t::packet_que_t::iterator packet)
+{
+    return packet_que.erase (packet);
 }
 
 void
@@ -160,18 +175,19 @@ void
 handle_send_opus (const dpp::snowflake &guild_id, uint8_t *packet,
                   int packet_len)
 {
-    if (auto i = find_stream_state (guild_id);
-        !stream_state_iterator_is_end (i))
-        {
-            std::lock_guard lk (i->state_m);
-            auto &np = i->new_packet ();
+    // !TODO
+    // if (auto i = find_stream_state (guild_id);
+    //     !stream_state_iterator_is_end (i))
+    //     {
+    //         std::lock_guard lk (i->state_m);
+    //         auto &np = i->new_packet ();
 
-            // copy packet to state
-            np.packet.assign (packet, packet + packet_len);
+    //         // copy packet to state
+    //         np.packet.assign (packet, packet + packet_len);
 
-            i->new_packet_done (np);
-            // return;
-        }
+    //         i->new_packet_done (np);
+    //         // return;
+    //     }
 
     // no subscriber for this server, ignore
 }

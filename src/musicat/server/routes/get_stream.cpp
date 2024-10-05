@@ -3,6 +3,7 @@
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/stream.h"
+#include <cstdio>
 #include <dpp/dpp.h>
 
 namespace musicat::server::routes
@@ -111,6 +112,29 @@ destroy_streaming_state (APIResponse *res, const dpp::snowflake &guild_id)
         }
 }
 
+int
+stream_ogg_page (APIResponse *res, ogg_page *packet)
+{
+    constexpr size_t max_buf_siz = 64 * 1024;
+    static char buf[max_buf_siz];
+
+    // buffer for streaming the ogg page
+    const size_t packet_siz
+        = (static_cast<size_t> (packet->header_len) + packet->body_len);
+    // an ogg page is guaranteed to have less than 64KB in size
+    // https://www.xiph.org/ogg/doc/libogg/ogg_page.html
+    assert ((sizeof (buf) / sizeof (*buf)) >= packet_siz);
+
+    memcpy (buf, packet->header, packet->header_len);
+    memcpy (buf + packet->header_len, packet->body, packet->body_len);
+
+    if (!res->write ({ static_cast<const char *> (buf), packet_siz }))
+        // failed
+        return 1;
+
+    return 0;
+}
+
 bool
 handle_streaming (APIResponse *res, const dpp::snowflake &guild_id,
                   uintmax_t offset)
@@ -171,26 +195,18 @@ handle_streaming (APIResponse *res, const dpp::snowflake &guild_id,
 
     // just iterate until end
     while (packet != packets_stream_state->packet_que.end ()
+           && packet->ready_to_send
            && !streaming_state.is_done_streaming_all_packet_from (
                *packets_stream_state))
         {
-            packet = packets_stream_state->find_packet (
-                streaming_state.current_processing_id);
-
-            if (!res->write (
-                    { reinterpret_cast<const char *> (packet->packet.data ())
-                          + streaming_state.current_processing_offset,
-                      (packet->packet.size () * sizeof (opus_int16)
-                       - streaming_state.current_processing_offset) }))
-                // failed
+            if (stream_ogg_page (res, &packet->packet) != 0)
                 break;
 
             // succeed writing this one, continue
-            auto next = packet + 1;
+            packet = packets_stream_state->packet_sent (packet);
             streaming_state.start_next (
-                next != packets_stream_state->packet_que.end () ? next->id
-                                                                : -1);
-            packets_stream_state->packet_sent (*packet);
+                packet != packets_stream_state->packet_que.end () ? packet->id
+                                                                  : -1);
         }
 
     // end of current write
@@ -238,7 +254,8 @@ get_stream (APIResponse *res, APIRequest *req)
         }
 
     ///
-    res_headers.push_back (std::make_pair ("Content-Type", "audio/opus"));
+    res_headers.push_back (
+        std::make_pair ("Content-Type", "audio/ogg; codecs=opus"));
     res_headers.push_back (std::make_pair ("Connection", "close"));
     res_headers.push_back (std::make_pair ("Cache-Control", "no-cache"));
     res_headers.push_back (std::make_pair ("Pragma", "no-cache"));

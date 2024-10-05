@@ -531,7 +531,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
 
             while (!pcmbuf.empty ())
                 {
-                    uint8_t packet[MAX_PACKET];
+                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
 
                     const auto pbufsiz = pcmbuf.size ();
                     if (pbufsiz < ENCODE_BUFFER_SIZE)
@@ -548,11 +548,11 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                             pcmbuf.resize (ENCODE_BUFFER_SIZE);
                         }
 
-                    int len = opus_encode (opus_encoder,
-                                           (opus_int16 *)pcmbuf.data (),
-                                           FRAME_SIZE, packet, MAX_PACKET);
+                    int len = opus_encode (
+                        opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE,
+                        packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
 
-                    if (len < 0 || len > MAX_PACKET)
+                    if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
                         {
                             fprintf (
                                 stderr,

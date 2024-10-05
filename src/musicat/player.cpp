@@ -3,6 +3,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include <memory>
+#include <opus/opus.h>
 
 namespace musicat
 {
@@ -28,7 +29,6 @@ MCTrack::init ()
 {
     seekable = false;
     seek_to = "";
-    stopping = false;
     current_byte = 0;
     filesize = 0;
     repeat = 0;
@@ -132,6 +132,7 @@ Player::init ()
     this->opus_encoder = NULL;
 
     this->notification = true;
+    this->stopping = false;
 }
 
 Player::Player () { this->init (); }
@@ -156,6 +157,7 @@ Player::~Player ()
     this->channel_id = 0;
     this->saved_queue_loaded = false;
     this->saved_config_loaded = false;
+    this->stopping = false;
 };
 
 Player &
@@ -248,7 +250,7 @@ Player::skip (dpp::voiceconn *v)
                     skipped = true;
                 }
 
-            if (this->is_stopped ())
+            if (stopped)
                 {
                     v->voiceclient->skip_to_next_marker ();
                     removed_tracks = this->skip_queue (1, false, true);
@@ -481,19 +483,84 @@ Player::shuffle (bool update_info_embed)
 
     if (update_info_embed)
         this->manager->update_info_embed (this->guild_id);
+
     return true;
 }
 
-void
-Player::set_stopped (const bool &val)
+bool
+Player::current_track_is_first_track () const
 {
-    this->stopped = val;
+    return !queue.empty ()
+           && current_track.filename == queue.front ().filename;
 }
 
-bool
-Player::is_stopped () const
+Player &
+Player::stop ()
 {
-    return this->stopped;
+    if (!processing_audio)
+        return *this;
+
+    stopping = true;
+    current_track.current_byte = 0;
+    reset_first_track_current_byte ();
+
+    return *this;
+}
+
+int
+Player::init_for_stream ()
+{
+    int status = 0;
+
+    opus_encoder
+        = opus_encoder_create (48000, 2, OPUS_APPLICATION_AUDIO, &status);
+
+    if (status != OPUS_OK)
+        {
+            std::cerr << "[Manager::play ERROR] "
+                         "opus_encoder_create() failure: "
+                      << status << "\n";
+
+            opus_encoder = NULL;
+
+            return status;
+        }
+
+    if ((status = opus_encoder_ctl (opus_encoder,
+                                    OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
+        != OPUS_OK)
+        {
+
+            std::cerr << "[Manager::play ERROR] "
+                         "opus_encoder_ctl() failure: "
+                      << status << "\n";
+
+            opus_encoder_destroy (opus_encoder);
+            opus_encoder = NULL;
+
+            return status;
+        }
+
+    reset_first_track_current_byte ();
+    processing_audio = true;
+
+    return status;
+}
+
+Player &
+Player::done_streaming ()
+{
+    if (opus_encoder)
+        {
+            opus_encoder_destroy (opus_encoder);
+            opus_encoder = NULL;
+        }
+
+    stopping = false;
+    processing_audio = false;
+    current_track.current_byte = 0;
+
+    return *this;
 }
 
 // ============================== FILTERS =============================
@@ -669,6 +736,13 @@ Player::check_for_to_seek ()
                  to_seek);
 
     queue.front ().current_byte = to_seek;
+}
+
+void
+Player::reset_first_track_current_byte ()
+{
+    if (!queue.empty ())
+        queue.front ().current_byte = 0;
 }
 
 } // player

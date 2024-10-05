@@ -1,6 +1,8 @@
 #ifndef MUSICAT_SERVER_STREAM_H
 #define MUSICAT_SERVER_STREAM_H
 
+#include "musicat/audio_config.h"
+#include "ogg/ogg.h"
 #include <cstdint>
 #include <dpp/dpp.h>
 #include <opus/opus.h>
@@ -11,14 +13,20 @@ namespace musicat::server::stream
 
 struct packet_state_t
 {
-    using packet_t = std::vector<opus_int16>;
+    // an ogg page to send as response
+    using packet_t = ogg_page;
+    static const unsigned long SYNC_BUFFER_SIZE = OPUS_MAX_ENCODE_OUTPUT_SIZE;
 
     int64_t id;
-    // !TODO: streaming opus through standard browser request is not possible
-    // change this to OGG frame
     packet_t packet;
     // count of subscriber which is done sending this packet
     uint64_t sent_count;
+
+    // ogg states
+    bool ready_to_send;
+    unsigned char ob[SYNC_BUFFER_SIZE];
+    ogg_stream_state og;
+    ogg_sync_state os;
 };
 
 struct stream_state_t
@@ -65,8 +73,12 @@ struct stream_state_t
 
     // might invalidates all existing iterator
     void packet_sent (packet_state_t &packet);
+    // returns the next iterator
+    packet_que_t::iterator packet_sent (const packet_que_t::iterator packet);
     // invalidates all existing iterator
     void remove_packet (int64_t id);
+    // returns the next iterator
+    packet_que_t::iterator remove_packet (const packet_que_t::iterator packet);
 
     void increment_subscriber ();
     void decrement_subscriber ();

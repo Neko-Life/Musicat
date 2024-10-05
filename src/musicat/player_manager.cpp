@@ -6,14 +6,13 @@
 #include "musicat/util/base64.h"
 #include <dirent.h>
 #include <memory>
-#include <opus/opus.h>
 #include <thread>
 
 #include <sys/stat.h>
 #include <time.h>
 #include <utime.h>
 
-#define ENABLE_DAVE false
+#define ENABLE_DAVE true
 
 namespace musicat::player
 {
@@ -440,38 +439,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
             int err = 0;
             try
                 {
-                    int error;
-                    guild_player->opus_encoder = opus_encoder_create (
-                        48000, 2, OPUS_APPLICATION_AUDIO, &error);
+                    if (guild_player->init_for_stream () != 0)
+                        return;
 
-                    if (error != OPUS_OK)
-                        {
-                            std::cerr << "[Manager::play ERROR] "
-                                         "opus_encoder_create() failure: "
-                                      << error << "\n";
-
-                            guild_player->opus_encoder = NULL;
-
-                            return;
-                        }
-
-                    if ((error = opus_encoder_ctl (
-                             guild_player->opus_encoder,
-                             OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
-                        != OPUS_OK)
-                        {
-
-                            std::cerr << "[Manager::play ERROR] "
-                                         "opus_encoder_ctl() failure: "
-                                      << error << "\n";
-
-                            opus_encoder_destroy (guild_player->opus_encoder);
-                            guild_player->opus_encoder = NULL;
-
-                            return;
-                        }
-
-                    guild_player->processing_audio = true;
                     this->stream (guild_player->guild_id, track);
                 }
             catch (int e)
@@ -512,15 +482,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                 }
 
         skip_send_msg:
-            if (guild_player->opus_encoder)
-                {
-                    opus_encoder_destroy (guild_player->opus_encoder);
-                    guild_player->opus_encoder = NULL;
-                }
-
-            track.stopping = false;
-
-            guild_player->processing_audio = false;
+            guild_player->done_streaming ();
 
             const bool err_processor = err == 3;
             // do not insert marker when error coming from duplicate processor
