@@ -792,9 +792,9 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                     if (read_size != STREAM_BUFSIZ)
                         continue;
 
-                    if ((debug = get_debug_state ()))
-                        fprintf (stderr, "Sending buffer: %ld %ld\n",
-                                 total_read, read_size);
+                    // if ((debug = get_debug_state ()))
+                    //     fprintf (stderr, "Sending buffer: %ld %ld\n",
+                    //              total_read, read_size);
 
                     if (audio_processing::send_audio_routine (
                             guild_player->voice_client, (uint16_t *)buffer,
