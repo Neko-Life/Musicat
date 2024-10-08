@@ -13,6 +13,7 @@
 #include <utime.h>
 
 #define ENABLE_DAVE true
+#define SELF_DEAF true
 
 namespace musicat::player
 {
@@ -81,7 +82,7 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
                         std::this_thread::sleep_for (500ms);
                 }
 
-                from->connect_voice (guild_id, a->second, false, true,
+                from->connect_voice (guild_id, a->second, false, SELF_DEAF,
                                      ENABLE_DAVE);
 
                 this->dl_cv.wait (lk, [this, &guild_id] () {
