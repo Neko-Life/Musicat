@@ -9,7 +9,10 @@
 #define FRAME_DURATION 40
 #define ENCODE_BUFFER_SIZE opus_encode_buffer_size
 #define FRAME_SIZE opus_frame_size
-#define MAX_PACKET 4096
+
+// this is the recommended value for encoded opus output buffer size
+// https://www.opus-codec.org/docs/html_api/group__opusencoder.html
+#define OPUS_MAX_ENCODE_OUTPUT_SIZE 1276
 
 inline constexpr const size_t opus_frame_size = FRAME_DURATION * 48;
 // FRAME_SIZE * channel * sizeof (opus_int16)

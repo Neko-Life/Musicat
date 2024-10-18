@@ -11,6 +11,7 @@
 #include "musicat/events/on_slashcommand.h"
 #include "musicat/events/on_user_update.h"
 #include "musicat/events/on_voice_ready.h"
+#include "musicat/events/on_voice_server_update.h"
 #include "musicat/events/on_voice_state_update.h"
 #include "musicat/events/on_voice_track_marker.h"
 
@@ -28,6 +29,7 @@ load_events (dpp::cluster *client)
     on_voice_ready (client);
     on_voice_state_update (client);
     on_voice_track_marker (client);
+    on_voice_server_update (client);
     on_message_delete (client);
     on_message_delete_bulk (client);
     on_channel_update (client);

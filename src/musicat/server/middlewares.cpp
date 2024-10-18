@@ -122,8 +122,12 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
             return {};
         }
 
-    header_v_t headers
-        = { { "Access-Control-Allow-Origin", std::string (origin) } };
+    header_v_t headers = {};
+    if (has_origin)
+        {
+            headers.push_back (
+                { "Access-Control-Allow-Origin", std::string (origin) });
+        }
 
     std::string_view req_allow_headers
         = req->getHeader ("access-control-request-headers");

@@ -11,14 +11,12 @@ get_register_obj (const dpp::snowflake &sha_id)
     return dpp::slashcommand ("join", "Join [your voice channel]", sha_id);
 }
 
-void
-slash_run (const dpp::slashcommand_t &event)
+int
+run (const dpp::slashcommand_t &event, std::string &out)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
-        {
-            return;
-        }
+        return -1;
 
     auto guild_player = player_manager->create_player (event.command.guild_id);
     guild_player->from = event.from;
@@ -30,30 +28,38 @@ slash_run (const dpp::slashcommand_t &event)
                           event.command.usr.id, event.from->creator->me.id);
 
     std::string msg;
-
     switch (res)
         {
         case 0:
-            msg = "Joining...";
+            out = "Joining...";
             guild_player->set_channel (event.command.channel_id);
             break;
         case 1:
-            msg = "Join a voice channel first you dummy";
+            out = "Join a voice channel first you dummy";
             break;
         case 2:
-            msg = "I'm already in a voice channel";
+            out = "I'm already in a voice channel";
             break;
         case 3:
-            msg = "`[ERROR]` No channel to join";
+            out = "`[ERROR]` No channel to join";
             break;
         case 4:
-            msg = "I have no permission to join your voice channel";
+            out = "I have no permission to join your voice channel";
             break;
         default:
-            msg = "`[ERROR]` Unknown status code: " + std::to_string (res);
+            out = "`[ERROR]` Unknown status code: " + std::to_string (res);
         }
 
-    return event.reply (msg);
+    return res;
+}
+
+void
+slash_run (const dpp::slashcommand_t &event)
+{
+    std::string out;
+    run (event, out);
+    if (!out.empty ())
+        event.reply (out);
 }
 } // join
 

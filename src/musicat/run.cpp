@@ -18,6 +18,7 @@
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
+// #define MC_EX_VC_REC
 
 #if RUN_TESTS
 #include "musicat/tests.h"
@@ -755,14 +756,26 @@ run (int argc, const char *argv[])
 
 #ifdef MC_EX_VC_REC
     client.on_voice_receive ([] (const dpp::voice_receive_t &event) {
-        std::cout << "[voice_receive]:\n" << event.raw_event;
-        std::cout << "\n:[voice_receive]\n";
+        std::cout << "[voice_receive]:\n"
+                  << event.raw_event << "\n:[voice_receive]\n";
+
+        static FILE *f = NULL;
+        if (f == NULL) f = fopen("out.pcm", "wb");
+
+        fwrite(event.audio_data.data(), 1, event.audio_data.size(), f);
     });
 
-    client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
-        std::cout << "[voice_receive_combined]:\n" << event.raw_event;
-        std::cout << "\n:[voice_receive_combined]\n";
-    });
+    // client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
+    //     std::cout << "[voice_receive_combined]:\n"
+    //               << event.raw_event << "\n:[voice_receive_combined]\n";
+    // });
+
+    // client.on_voice_buffer_send ([] (const dpp::voice_buffer_send_t &event) {
+    //     std::cout << "[on_voice_buffer_send]:\n"
+    //               << event.raw_event << "\n:[on_voice_buffer_send]\n"
+    //               << "buffer_size: " << event.buffer_size << "\n"
+    //               << "packets_left: " << event.packets_left << "\n";
+    // });
 #endif
 
 #ifdef MUSICAT_WS_P_ETF

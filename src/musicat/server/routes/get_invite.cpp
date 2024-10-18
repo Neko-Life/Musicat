@@ -6,9 +6,9 @@ namespace musicat::server::routes
 {
 
 void
-get_login (APIResponse *res, APIRequest *req)
+get_invite (APIResponse *res, APIRequest *req)
 {
-    return oauth::get_oauth_handler (res, req, get_oauth_link);
+    return oauth::get_oauth_handler (res, req, get_oauth_invite);
 }
 
 } // musicat::server::routes

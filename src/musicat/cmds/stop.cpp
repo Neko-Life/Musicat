@@ -40,7 +40,7 @@ slash_run (const dpp::slashcommand_t &event)
     player_manager->stop_stream (event.command.guild_id);
 
     p->skip (v);
-    p->set_stopped (true);
+    p->stopped = true;
     v->voiceclient->pause_audio (true);
 
     player_manager->set_manually_paused (event.command.guild_id);

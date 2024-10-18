@@ -465,7 +465,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
             if (info_struct)
                 {
                     info_struct->notification = guild_player->notification;
-                    info_struct->stopped = guild_player->is_stopped ();
+                    info_struct->stopped = guild_player->stopped;
                 }
 
             // Reset shifted tracks
