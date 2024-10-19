@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
-// #define MC_EX_VC_REC
+#define MC_EX_VC_REC
 
 #if RUN_TESTS
 #include "musicat/tests.h"
@@ -755,14 +755,18 @@ run (int argc, const char *argv[])
     events::load_events (client_ptr);
 
 #ifdef MC_EX_VC_REC
+    static FILE *f_ex_vc_rec = NULL;
+    static FILE *p_ex_vc_rec = NULL;
+
     client.on_voice_receive ([] (const dpp::voice_receive_t &event) {
         std::cout << "[voice_receive]:\n"
-                  << event.raw_event << "\n:[voice_receive]\n";
+                  /*<< event.raw_event <<*/ "\n:[voice_receive]\n";
 
-        static FILE *f = NULL;
-        if (f == NULL) f = fopen("out.pcm", "wb");
+        if (f_ex_vc_rec == NULL) f_ex_vc_rec = fopen("out.pcm", "wb");
+        if (p_ex_vc_rec == NULL) p_ex_vc_rec = popen("aplay -f dat -", "w");
 
-        fwrite(event.audio_data.data(), 1, event.audio_data.size(), f);
+        fwrite(event.audio_data.data(), 1, event.audio_data.size(), f_ex_vc_rec);
+        fwrite(event.audio_data.data(), 1, event.audio_data.size(), p_ex_vc_rec);
     });
 
     // client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
@@ -891,6 +895,17 @@ run (int argc, const char *argv[])
 
             thread_manager::join_done ();
         }
+
+#ifdef MC_EX_VC_REC
+    if (f_ex_vc_rec) {
+        fclose(f_ex_vc_rec);
+        f_ex_vc_rec = NULL;
+    }
+    if (p_ex_vc_rec) {
+        pclose(p_ex_vc_rec);
+        p_ex_vc_rec = NULL;
+    }
+#endif // MC_EX_VC_REC
 
     child::shutdown ();
 

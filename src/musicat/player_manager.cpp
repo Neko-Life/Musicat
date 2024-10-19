@@ -13,7 +13,7 @@
 #include <utime.h>
 
 #define ENABLE_DAVE true
-#define SELF_DEAF true
+#define SELF_DEAF false
 
 namespace musicat::player
 {
