@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
-#define MC_EX_VC_REC
+// #define MC_EX_VC_REC
 
 #if RUN_TESTS
 #include "musicat/tests.h"
