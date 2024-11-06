@@ -320,6 +320,8 @@ parse_command_to_options (const std::string &cmd, command_options_t &options)
 int
 wait_slave_ready (const std::string &id, int timeout)
 {
+    const bool debug = get_debug_state ();
+
     {
         std::lock_guard lk (sr_m);
         auto i = slave_ready_queue.find (id);
@@ -328,6 +330,14 @@ wait_slave_ready (const std::string &id, int timeout)
                 const int ret = i->second.second;
                 slave_ready_queue.erase (i);
 
+                if (debug)
+                    {
+                        fprintf (stderr,
+                                 "[child::command::wait_slave_ready] Slave "
+                                 "`%s` done ready with status %d\n",
+                                 id.c_str (), ret);
+                    }
+
                 return ret;
             }
     }
@@ -335,6 +345,14 @@ wait_slave_ready (const std::string &id, int timeout)
     {
         std::lock_guard lk (sr_m);
         slave_ready_queue.insert_or_assign (id, std::make_pair (false, -1));
+
+        if (debug)
+            {
+                fprintf (stderr,
+                         "[child::command::wait_slave_ready] Slave `%s` ready "
+                         "state initialized with status -1\n",
+                         id.c_str ());
+            }
     }
     {
         std::unique_lock ulk (sr_m);
@@ -352,11 +370,28 @@ wait_slave_ready (const std::string &id, int timeout)
     auto i = slave_ready_queue.find (id);
     if (i == slave_ready_queue.end ())
         {
+            if (debug)
+                {
+                    fprintf (
+                        stderr,
+                        "[child::command::wait_slave_ready] Slave `%s` ready "
+                        "state missing! Probably killed or init error\n",
+                        id.c_str ());
+                }
+
             return -1;
         }
 
     const int ret = i->second.second;
     slave_ready_queue.erase (i);
+
+    if (debug)
+        {
+            fprintf (stderr,
+                     "[child::command::wait_slave_ready] Slave `%s` now ready "
+                     "with status %d\n",
+                     id.c_str (), ret);
+        }
 
     return ret;
 }
