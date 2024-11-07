@@ -340,10 +340,7 @@ wait_slave_ready (const std::string &id, int timeout)
 
                 return ret;
             }
-    }
 
-    {
-        std::lock_guard lk (sr_m);
         slave_ready_queue.insert_or_assign (id, std::make_pair (false, -1));
 
         if (debug)
@@ -354,6 +351,7 @@ wait_slave_ready (const std::string &id, int timeout)
                          id.c_str ());
             }
     }
+
     {
         std::unique_lock ulk (sr_m);
         sr_cv.wait_until (ulk,
