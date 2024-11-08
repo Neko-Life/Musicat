@@ -4,6 +4,8 @@
 #include "musicat/musicat.h"
 #include <cstdint>
 
+#define SECOND_SEEK_STEP 30
+
 namespace musicat::command::seek
 {
 
@@ -295,17 +297,18 @@ button_run (const dpp::button_click_t &event,
     return 0;
 }
 
-inline constexpr const int64_t second30 = 30 * 1000;
+inline constexpr const int64_t second_seek_step = SECOND_SEEK_STEP * 1000;
 
 int
 get_to_ms_rewind (std::string &to_ms, player::track_progress &progress)
 {
     const bool debug = get_debug_state ();
-    if (progress.current_ms < second30)
+    if (progress.current_ms < second_seek_step)
         to_ms = "0";
     else
         {
-            to_ms = format_duration ((uint64_t)progress.current_ms - second30);
+            to_ms = format_duration ((uint64_t)progress.current_ms
+                                     - second_seek_step);
 
             if (debug)
                 {
@@ -319,10 +322,10 @@ get_to_ms_rewind (std::string &to_ms, player::track_progress &progress)
 }
 
 int
-get_to_ms_zero_less_30_err (std::string &to_ms,
-                            player::track_progress &progress)
+get_to_ms_zero_less_seek_step_err (std::string &to_ms,
+                                   player::track_progress &progress)
 {
-    if (progress.current_ms < second30)
+    if (progress.current_ms < second_seek_step)
         return 128;
 
     to_ms = "0";
@@ -335,7 +338,7 @@ get_to_ms_forward (std::string &to_ms, player::track_progress &progress)
 {
     const bool debug = get_debug_state ();
 
-    to_ms = format_duration ((uint64_t)progress.current_ms + second30);
+    to_ms = format_duration ((uint64_t)progress.current_ms + second_seek_step);
 
     if (debug)
         fprintf (stderr, "[command::seek::get_to_ms_forward] to_ms(%s)\n",
@@ -344,22 +347,22 @@ get_to_ms_forward (std::string &to_ms, player::track_progress &progress)
     return 0;
 }
 
-// rewind 30 sec
+// rewind seek_step sec
 void
 button_run_rewind (const dpp::button_click_t &event)
 {
     button_run (event, get_to_ms_rewind);
 }
 
-// seek to second 0 but returns 128 if current track progress is less than 30
-// second
+// seek to second 0 but returns 128 if current track progress is less than
+// seek_step second
 int
 button_seek_zero (const dpp::button_click_t &event)
 {
-    return button_run (event, get_to_ms_zero_less_30_err);
+    return button_run (event, get_to_ms_zero_less_seek_step_err);
 }
 
-// forward 30 sec
+// forward seek_step sec
 void
 button_run_forward (const dpp::button_click_t &event)
 {
