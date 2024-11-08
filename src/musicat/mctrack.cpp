@@ -215,10 +215,11 @@ fetch (const search_option_t &options)
               cc::command_options_keys_t.ytdlp_lib_path, get_ytdlp_lib_path ())
           + cc::create_arg_sanitize_value (
               cc::command_options_keys_t.ytdlp_query, q)
-          + (has_max_entries ? cc::create_arg (
-                 cc::command_options_keys_t.ytdlp_max_entries,
-                 std::to_string (options.max_entries))
-                             : "");
+          + (has_max_entries
+                 ? cc::create_arg (
+                       cc::command_options_keys_t.ytdlp_max_entries,
+                       std::to_string (options.max_entries))
+                 : "");
 
     const std::string exit_cmd = cc::get_exit_command (qid);
 
@@ -228,9 +229,10 @@ fetch (const search_option_t &options)
 
     if (status != 0)
         {
-            fprintf (
-                stderr,
-                "[mctrack::fetch ERROR] Fetch query already in progress\n");
+            fprintf (stderr,
+                     "[mctrack::fetch ERROR] Fetch query already in progress, "
+                     "status: %d\n",
+                     status);
 
             return nullptr;
         }

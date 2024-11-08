@@ -144,7 +144,13 @@ run ()
                       || (pfd[0].revents & POLLERR) == POLLERR);
 
             if (err)
-                break;
+                {
+                    fprintf (stderr,
+                             "[child::worker::run ERROR] read_loop err(%d) "
+                             "revents(%d)\n",
+                             err, pfd[0].revents);
+                    break;
+                }
 
             while (!err && read_ready
                    && (read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
@@ -161,6 +167,7 @@ run ()
                     has_event = poll (pfd, 1, 0);
                     read_ready = has_event != 0
                                  && (pfd[0].revents & POLLIN) == POLLIN;
+
                     err = has_event != 0
                           && ((pfd[0].revents & POLLHUP) == POLLHUP
                               || (pfd[0].revents & POLLERR) == POLLERR);

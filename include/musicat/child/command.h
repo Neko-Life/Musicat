@@ -302,10 +302,9 @@ inline void
 bail_out_afayc (const std::string &exit_cmd)
 {
     const std::string force_exit_cmd
-        = exit_cmd
-          + command::create_arg (command::command_options_keys_t.force, "1");
+        = exit_cmd + create_arg (command_options_keys_t.force, "1");
 
-    command::send_command (force_exit_cmd);
+    send_command (force_exit_cmd);
 }
 
 // send command and wait slave ready
@@ -314,16 +313,12 @@ inline int
 send_command_wr (const std::string &cmd, const std::string &exit_cmd,
                  const std::string &id, int timeout)
 {
-    namespace cw = child::worker;
-
     send_command (cmd);
 
     int status = wait_slave_ready (id, timeout);
 
-    if (cw::should_bail_out_afayc (status))
-        {
-            bail_out_afayc (exit_cmd);
-        }
+    if (worker::should_bail_out_afayc (status))
+        bail_out_afayc (exit_cmd);
 
     return status;
 }

@@ -24,6 +24,10 @@ if (COMPILE_GNUPLOT)
 	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
 endif()
 
+set(SED_NLOHMANN_JSON_INCLUDE_CMD "sed" "-i" "s/\#include <nlohmann\\/json.hpp>/\#include \"nlohmann\\/json.hpp\"/" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/json.h")
+message(${SED_NLOHMANN_JSON_INCLUDE_CMD})
+execute_process(COMMAND ${SED_NLOHMANN_JSON_INCLUDE_CMD})
+
 file(GLOB_RECURSE MUSICAT_HEADER_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/include/musicat/*.h)
 
@@ -102,6 +106,7 @@ add_custom_target(archlinux-dist
 		build/libs/DPP/library/libdpp.so*
 		libs/curlpp/build/libcurlpp.so*
 		libs/icu/usr/local/lib/lib*
+		build/libs/ogg/libogg.so*
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
 
@@ -143,7 +148,7 @@ endif()
 target_link_libraries(Shasha
 	dpp
 	# oggz
-	# ogg
+	ogg
 	pq
 	curlpp
 	curl
@@ -194,6 +199,13 @@ set_target_properties(Shasha PROPERTIES
 # Add DPP as dependency
 add_subdirectory(libs/DPP)
 add_subdirectory(libs/cppcodec)
+
+# libogg build options
+set(INSTALL_DOCS OFF)
+set(INSTALL_PKG_CONFIG_MODULE OFF)
+set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
+add_subdirectory(libs/ogg)
+
 # You can also add any other libs you want to use
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")

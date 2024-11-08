@@ -1,5 +1,6 @@
 #include "musicat/cmds.h"
 #include "musicat/db.h"
+#include "musicat/events.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -38,6 +39,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         std::cerr << "Handling voice marker: \"" << event.track_meta
                   << "\" in guild " << event.voice_client->server_id << '\n';
 
+    prepare_play_stage_channel_routine (
+        event.voice_client, dpp::find_guild (event.voice_client->server_id));
+
     auto guild_player = this->get_player (event.voice_client->server_id);
 
     if (!guild_player)
@@ -69,8 +73,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             return false;
         }
-
-    clear_stream_stopping (event.voice_client->server_id);
 
     if (debug)
         std::cerr
@@ -110,9 +112,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     // Do stuff according to loop mode when playback ends
     // avoid this track to be skipped right away if it has different current
     // playback and first track entry
-    if (event.track_meta == "e" && !guild_player->is_stopped ()
-        && guild_player->current_track.filename
-               == guild_player->queue.front ().filename)
+    if (event.track_meta == "e" && !guild_player->stopped
+        && guild_player->current_track_is_first_track ())
         {
             int64_t rpt = guild_player->current_track.repeat;
             if (rpt > 0
@@ -189,7 +190,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     guild_player->current_track = guild_player->queue.front ();
     guild_player->queue.front ().seek_to = "";
 
-    guild_player->set_stopped (false);
+    guild_player->stopped = false;
 
     if (!just_loaded_queue)
         database::update_guild_current_queue (event.voice_client->server_id,
@@ -233,6 +234,11 @@ void
 Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
 {
     const bool debug = get_debug_state ();
+
+    auto guild_player = get_player (event.voice_client->server_id);
+    if (guild_player)
+        guild_player->voice_client = event.voice_client;
+
     this->clear_wait_vc_ready (event.voice_client->server_id);
 
     auto i = event.voice_client->get_tracks_remaining ();
@@ -344,6 +350,10 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
         {
             this->clear_disconnecting (e_guild_id);
 
+            // remove voice_client pointer from guild player
+            if (auto guild_player = get_player (e_guild_id); guild_player)
+                guild_player->voice_client = nullptr;
+
             // update vcs cache
             vcs_setting_handle_disconnected (dpp::find_channel (e_channel_id));
             return;
@@ -382,6 +392,14 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     // situation
     if (v->channel_id == a.first->id)
         goto skip_reconnect;
+
+#ifdef USE_VOICE_SERVER_UPDATE_RECONNECT
+    // Update channel id manually when moved to different voice channel
+    // !TODO: this is the time to set previous playback position we can reseek
+    v->channel_id = a.first->id;
+
+    goto skip_reconnect;
+#endif
 
     this->stop_stream (e_guild_id);
 
@@ -610,7 +628,10 @@ Manager::spawn_handle_track_marker_worker (
                     return;
                 }
 
+            const bool debug = get_debug_state ();
+
             std::lock_guard lk (guild_player->t_mutex);
+            guild_player->voice_client = v;
             MCTrack &track = guild_player->current_track;
 
             // text channel to send embed
@@ -622,8 +643,6 @@ Manager::spawn_handle_track_marker_worker (
             dpp::channel *c = dpp::find_channel (channel_id);
             // guild
             dpp::guild *g = dpp::find_guild (guild_id);
-
-            prepare_play_stage_channel_routine (v, g);
 
             this->wait_for_download (track.filename);
 
@@ -740,10 +759,10 @@ Manager::spawn_handle_track_marker_worker (
                                 set_track_failed_playback_count (
                                     track.filename, failed_playback + 1);
 
-                                // set is_stopped to avoid marker handler
+                                // set stopped to avoid marker handler
                                 // popping the next song as its already skipped
                                 // above
-                                guild_player->set_stopped (true);
+                                guild_player->stopped = true;
 
                                 // play next song
                                 v->insert_marker ("e");
@@ -796,16 +815,16 @@ Manager::spawn_handle_track_marker_worker (
             // check for autoplay
             if (guild_player->auto_play)
                 this->get_next_autoplay_track (track_id, guild_player->from,
-                                               guild_player->guild_id);
+                                               guild_id);
 
-            // Send play info embed
             try
                 {
-                    int pstatus = this->play (v, track, channel_id);
+                    int pstatus = this->play (guild_id, track, channel_id);
 
                     if (!guild_player->notification)
                         return;
 
+                    // Send play info embed
                     bool should_update_embed = false,
                          not_repeating_song = false;
 

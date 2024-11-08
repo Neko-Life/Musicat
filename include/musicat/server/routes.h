@@ -16,11 +16,13 @@ enum route_method_e
     ROUTE_METHOD_ANY,
 };
 
+using route_handler_t_handler = void (*) (APIResponse *, APIRequest *);
+
 struct route_handler_t
 {
     const char *path;
     const route_method_e method;
-    void (*const handler) (APIResponse *, APIRequest *);
+    const route_handler_t_handler handler;
 };
 
 void define_routes (APIApp *app);

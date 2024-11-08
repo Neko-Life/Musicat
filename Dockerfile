@@ -23,7 +23,7 @@ RUN mkdir -p build && cd build && \
       export LDFLAGS='-flto -stdlib=libc++ -lc++' && \
       export CFLAGS='-flto' && \
       export CXXFLAGS='-flto -stdlib=libc++' && \
-      cmake .. && make all -j12
+      cmake .. -DDPP_BUILD_TEST=OFF -DRUN_LDCONFIG=OFF -DDPP_NO_VCPKG=ON -DDPP_USE_EXTERNAL_JSON=ON && make all -j12
       # cmake -DCOMPILE_GNUPLOT=ON .. && make all -j12
 
 FROM init as deploy
@@ -39,6 +39,7 @@ COPY --chown=musicat:musicat --from=build \
              /app/build/libs/DPP/library/libdpp.so* \
              /app/libs/curlpp/build/libcurlpp.so* \
              /app/libs/icu/usr/local/lib/lib* \
+             /app/build/libs/ogg/libogg.so* \
              /app/src/yt-dlp/ytdlp.py \
              /home/musicat/
 
