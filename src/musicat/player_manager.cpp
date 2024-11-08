@@ -130,11 +130,7 @@ Manager::pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
     if (!a)
         return a;
 
-    std::lock_guard lk (mp_m);
-
-    if (vector_find (&this->manually_paused, guild_id)
-        == this->manually_paused.end ())
-        this->manually_paused.push_back (guild_id);
+    this->set_manually_paused (guild_id);
 
     if (update_info_embed)
         this->update_info_embed (guild_id);

@@ -156,6 +156,10 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
             reconnecting = true;
         }
 
+    // no more perm check starting here
+    // remove manually paused
+    player_manager->clear_manually_paused (guild_id);
+
     bool resumed = false;
     const bool no_query = arg_query.empty ();
 
