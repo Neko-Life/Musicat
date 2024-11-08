@@ -4,7 +4,7 @@
 #include "musicat/musicat.h"
 #include <cstdint>
 
-#define SECOND_SEEK_STEP 30
+#define SECOND_SEEK_STEP 15
 
 namespace musicat::command::seek
 {
