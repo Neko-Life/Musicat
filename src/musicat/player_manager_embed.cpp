@@ -188,7 +188,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     const bool debug = get_debug_state ();
 
     const bool cant_update
-        = !player->info_message || player->info_message->id.empty ();
+        = !event && (!player->info_message || player->info_message->id.empty ());
 
     if (update && cant_update)
         {
