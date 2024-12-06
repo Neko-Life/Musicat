@@ -164,6 +164,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
         {
+            player_manager->pause (from, guild_id, user_id, false);
             player_manager->unpause (v->voiceclient, guild_id,
                                      update_info_embed);
             if (no_query)
