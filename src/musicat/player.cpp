@@ -430,9 +430,12 @@ Player::remove_track_by_user (const dpp::snowflake &user_id)
 }
 
 bool
-Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id) const
+Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
 {
-    auto v = from->get_voice (guild_id);
+    if (from)
+        this->from = from;
+
+    auto *v = get_voice_conn ();
     if (v && !v->voiceclient->is_paused ())
         {
             // !TODO: refactor to use status code!

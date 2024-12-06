@@ -3,6 +3,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/player_manager_timer.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
@@ -1420,6 +1421,102 @@ exec_pause_audio:
     v->voiceclient->pause_audio (true);
     this->update_info_embed (guild_id);
     return 0;
+}
+
+void
+Manager::check_autopause (const dpp::snowflake &e_guild_id,
+                          const dpp::snowflake &e_voice_channel_id)
+{
+    const bool debug = get_debug_state ();
+
+    bool did_manually_paused = this->is_manually_paused (e_guild_id);
+
+    std::pair<dpp::channel *, dpp::voicestate *> cached = { nullptr, nullptr };
+    auto guild_player = this->get_player (e_guild_id);
+    auto *v = guild_player ? guild_player->get_voice_conn () : nullptr;
+    auto *g = guild_player ? dpp::find_guild (e_guild_id) : nullptr;
+
+    dpp::voicestate *vstate = nullptr;
+    bool new_state_muted = false;
+    bool old_state_muted = false;
+    bool is_paused = false;
+
+    int tstatus = 1;
+
+    auto sha_id = get_sha_id ();
+
+    if (!v)
+        // no conn, skip everything
+        goto end;
+
+    // not modifying connection, check for server mute if
+    // not manually paused
+    if (!v->voiceclient || did_manually_paused)
+        goto end;
+    //
+    // get state cache
+    cached = vcs_setting_get_cache (v->channel_id);
+
+    if (g)
+        {
+            auto i = g->voice_members.find (sha_id);
+            if (i != g->voice_members.end ())
+                vstate = &i->second;
+        }
+
+    new_state_muted = vstate ? vstate->is_mute () : false;
+    old_state_muted = cached.second && cached.second->is_mute ();
+
+    // * new state has channel
+    //
+    // autopause if muted and vice versa
+    if (!cached.second)
+        // skip if state has no voice channel
+        goto end;
+
+    is_paused = v->voiceclient->is_paused ();
+
+    if (is_paused || !new_state_muted || old_state_muted)
+        goto skip_autopause;
+    // server muted, set autopause
+    if (this->set_autopause (v, e_guild_id, false) || !debug)
+        // skip if no debug
+        goto end;
+
+    std::cerr << "Paused " << e_guild_id << " as server muted\n";
+    goto end;
+
+skip_autopause:
+    // else block
+    if (!is_paused || new_state_muted || !old_state_muted)
+        // no condition met to resume, skip resuming
+        goto end;
+
+    // server unmuted, resume
+    // dispatch autoresume job
+    tstatus = timer::create_resume_timer (sha_id, e_voice_channel_id,
+                                          v->voiceclient, 0);
+
+    if (tstatus == 0)
+        // no error, skip warn
+        goto end;
+
+    std::cerr << "[Manager::handle_on_voice_state_update WARN] "
+                 "timer::create_resume_timer uid("
+              << sha_id << ") sid(" << e_guild_id << ") svcid("
+              << e_voice_channel_id << ") status(" << tstatus << ")\n";
+
+end:
+    if (debug)
+        {
+            std::cerr << "e_channel_id(" << e_voice_channel_id
+                      << ") is_paused(" << is_paused << ") new_state_muted("
+                      << new_state_muted << ") old_state_muted("
+                      << old_state_muted << ") v->voiceclient("
+                      << (v && v->voiceclient) << ") cached.first("
+                      << cached.first << ") cached.second(" << cached.second
+                      << ")\n";
+        }
 }
 
 } // player

@@ -382,8 +382,7 @@ class Player
 
     size_t remove_track_by_user (const dpp::snowflake &user_id);
 
-    bool pause (dpp::discord_client *from,
-                const dpp::snowflake &user_id) const;
+    bool pause (dpp::discord_client *from, const dpp::snowflake &user_id);
 
     bool shuffle (bool update_info_embed = true);
 
@@ -806,6 +805,9 @@ class Manager
      */
     int set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id,
                        bool check_listening_user = true);
+
+    void check_autopause (const dpp::snowflake &e_guild_id,
+                          const dpp::snowflake &e_voice_channel_id);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
