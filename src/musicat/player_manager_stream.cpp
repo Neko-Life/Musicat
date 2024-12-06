@@ -97,12 +97,11 @@ wait_for_ready_event (const dpp::snowflake &guild_id)
             // reset current byte
             guild_player->reset_first_track_current_byte ();
 
-            if (guild_player->voice_client)
+            if (auto *vc = guild_player->get_voice_client (); vc != nullptr)
                 {
                     // check stage channel routine
                     player_manager->prepare_play_stage_channel_routine (
-                        guild_player->voice_client,
-                        dpp::find_guild (guild_id));
+                        vc, dpp::find_guild (guild_id));
                 }
         }
 
@@ -210,6 +209,9 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
     const std::string dbg_str_arg = cc::get_dbg_str_arg ();
 
+    auto *vc = states.guild_player->get_voice_client ();
+    const bool has_vc = vc != nullptr;
+
     bool track_seek_queried = !states.track.seek_to.empty ();
     if (track_seek_queried)
         {
@@ -223,7 +225,8 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
             cc::write_command (cmd, states.command_fd, "Manager::stream");
 
             // clear voice_client audio buffer
-            states.guild_player->voice_client->stop_audio ();
+            if (has_vc)
+                vc->stop_audio ();
 
             states.track.seek_to = "";
 
@@ -254,10 +257,9 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                         {
                             std::cerr
                                 << "[Manager::stream ERROR] POLL SEEK: gid("
-                                << states.guild_player->voice_client->server_id
+                                << (has_vc ? vc->server_id.str () : "-1")
                                 << ") cid("
-                                << states.guild_player->voice_client
-                                       ->channel_id
+                                << (has_vc ? vc->channel_id.str () : "-1")
                                 << ")\n";
 
                             break;
@@ -555,7 +557,11 @@ void
 Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
 {
     auto guild_player = guild_id ? this->get_player (guild_id) : nullptr;
-    if (!guild_player || !guild_player->voice_client)
+    if (!guild_player)
+        throw 2;
+
+    auto *vclient = guild_player->get_voice_client ();
+    if (!vclient)
         throw 2;
 
     const std::string &fname = track.filename;
@@ -565,8 +571,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
     const std::string music_folder_path = get_music_folder_path ();
     const std::string file_path = music_folder_path + fname;
 
-    if (guild_player->voice_client && !guild_player->voice_client->terminating
-        && guild_player->voice_client->is_ready ())
+    if (vclient && !vclient->terminating && vclient->is_ready ())
         {
             bool debug = get_debug_state ();
 
@@ -796,22 +801,23 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                     //     fprintf (stderr, "Sending buffer: %ld %ld\n",
                     //              total_read, read_size);
 
+                    vclient = guild_player->get_voice_client ();
                     if (audio_processing::send_audio_routine (
-                            guild_player->voice_client, (uint16_t *)buffer,
-                            &read_size, false, guild_player->opus_encoder))
+                            vclient, (uint16_t *)buffer, &read_size, false,
+                            guild_player->opus_encoder))
                         break;
 
                     handle_effect_chain_change (effect_states);
 
                     float outbuf_duration;
 
-                    while ((running_state = get_running_state ())
-                           && !wait_for_ready_event (guild_id)
-                           && guild_player->voice_client
-                           && !guild_player->voice_client->terminating
-                           && ((outbuf_duration = guild_player->voice_client
-                                                      ->get_secs_remaining ())
-                               > dpp_audio_buffer_length_second))
+                    while (
+                        (running_state = get_running_state ())
+                        && !wait_for_ready_event (guild_id)
+                        && (vclient = guild_player->get_voice_client ())
+                        && vclient && !vclient->terminating
+                        && ((outbuf_duration = vclient->get_secs_remaining ())
+                            > dpp_audio_buffer_length_second))
                         {
                             handle_effect_chain_change (effect_states);
 
@@ -827,9 +833,10 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                         fprintf (stderr, "Final buffer: %ld %ld\n",
                                  (total_read += read_size), read_size);
 
+                    vclient = guild_player->get_voice_client ();
                     audio_processing::send_audio_routine (
-                        guild_player->voice_client, (uint16_t *)buffer,
-                        &read_size, true, guild_player->opus_encoder);
+                        vclient, (uint16_t *)buffer, &read_size, true,
+                        guild_player->opus_encoder);
                 }
 
             close (read_fd);
@@ -846,7 +853,9 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
             if (!running_state || is_stopping)
                 {
                     // clear voice client buffer
-                    guild_player->voice_client->stop_audio ();
+                    vclient = guild_player->get_voice_client ();
+                    if (vclient)
+                        vclient->stop_audio ();
                 }
 
             auto end_time = std::chrono::high_resolution_clock::now ();

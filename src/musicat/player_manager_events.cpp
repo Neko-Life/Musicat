@@ -236,8 +236,6 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
     const bool debug = get_debug_state ();
 
     auto guild_player = get_player (event.voice_client->server_id);
-    if (guild_player)
-        guild_player->voice_client = event.voice_client;
 
     this->clear_wait_vc_ready (event.voice_client->server_id);
 
@@ -349,10 +347,6 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     if (!e_channel_id)
         {
             this->clear_disconnecting (e_guild_id);
-
-            // remove voice_client pointer from guild player
-            if (auto guild_player = get_player (e_guild_id); guild_player)
-                guild_player->voice_client = nullptr;
 
             // update vcs cache
             vcs_setting_handle_disconnected (dpp::find_channel (e_channel_id));
@@ -628,10 +622,7 @@ Manager::spawn_handle_track_marker_worker (
                     return;
                 }
 
-            const bool debug = get_debug_state ();
-
             std::lock_guard lk (guild_player->t_mutex);
-            guild_player->voice_client = v;
             MCTrack &track = guild_player->current_track;
 
             // text channel to send embed

@@ -215,7 +215,6 @@ class Player
 
     dpp::cluster *cluster;
     dpp::discord_client *from;
-    dpp::discord_voice_client *voice_client;
     Manager *manager;
 
     /**
@@ -427,6 +426,8 @@ class Player
 
     void check_for_to_seek ();
     void reset_first_track_current_byte ();
+    dpp::voiceconn *get_voice_conn ();
+    dpp::discord_voice_client *get_voice_client ();
 };
 
 struct get_playing_info_embed_info_t

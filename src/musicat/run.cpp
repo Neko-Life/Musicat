@@ -658,6 +658,7 @@ run (int argc, const char *argv[])
             1,
             true,
             dpp::cache_policy::cpol_default,
+
             12,
             4 };
 
@@ -797,7 +798,7 @@ run (int argc, const char *argv[])
                      "[ERROR] nekos_best::get_available_endpoints:\n%s\n",
                      e.what ());
         }
-    client.start (true);
+    client.start (dpp::st_return);
 
     // start server
     std::thread server_thread ([] () {

@@ -93,7 +93,6 @@ Player::init ()
     this->shifted_track = 0;
     this->info_message = nullptr;
     this->from = nullptr;
-    this->voice_client = nullptr;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -150,7 +149,6 @@ Player::~Player ()
     this->shifted_track = 0;
     this->info_message = nullptr;
     this->from = nullptr;
-    this->voice_client = nullptr;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -743,6 +741,26 @@ Player::reset_first_track_current_byte ()
 {
     if (!queue.empty ())
         queue.front ().current_byte = 0;
+}
+
+dpp::voiceconn *
+Player::get_voice_conn ()
+{
+    if (from == nullptr)
+        return nullptr;
+
+    auto *conn = from->get_voice (guild_id);
+    return conn;
+}
+
+dpp::discord_voice_client *
+Player::get_voice_client ()
+{
+    auto *conn = get_voice_conn ();
+    if (conn == nullptr)
+        return nullptr;
+
+    return conn->voiceclient;
 }
 
 } // player

@@ -427,7 +427,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                     return;
                 }
 
-            auto voice_channel_id = guild_player->voice_client->channel_id;
+            auto *vclient = guild_player->get_voice_client ();
+
+            auto voice_channel_id = vclient->channel_id;
 
             if (debug)
                 std::cerr << "[Manager::play] Attempt to stream: " << guild_id
@@ -483,10 +485,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
 
             const bool err_processor = err == 3;
             // do not insert marker when error coming from duplicate processor
-            if (!err_processor && guild_player->voice_client
-                && !guild_player->voice_client->terminating)
+            if (!err_processor && vclient && !vclient->terminating)
                 {
-                    guild_player->voice_client->insert_marker ("e");
+                    vclient->insert_marker ("e");
                     return;
                 }
 
