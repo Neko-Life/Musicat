@@ -668,8 +668,7 @@ run (int argc, const char *argv[])
                 cluster_params.token, cluster_params.intents,
                 cluster_params.shards, cluster_params.cluster_id,
                 cluster_params.maxclusters, cluster_params.compressed,
-                cluster_params.policy, cluster_params.request_threads,
-                cluster_params.request_threads_raw);
+                cluster_params.policy);
 
             client_ptr = &client;
 
@@ -737,8 +736,7 @@ run (int argc, const char *argv[])
     dpp::cluster client (cluster_params.token, cluster_params.intents,
                          cluster_params.shards, cluster_params.cluster_id,
                          cluster_params.maxclusters, cluster_params.compressed,
-                         cluster_params.policy, cluster_params.request_threads,
-                         cluster_params.request_threads_raw);
+                         cluster_params.policy);
 
     player::Manager player_manager (&client);
 
