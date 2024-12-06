@@ -305,7 +305,7 @@ class Player
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
-    std::mutex t_mutex;
+    std::mutex t_mutex, stream_m;
 
     void init ();
 

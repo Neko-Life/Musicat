@@ -427,6 +427,8 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                     return;
                 }
 
+            std::lock_guard lkstream (guild_player->stream_m);
+
             auto *vclient = guild_player->get_voice_client ();
             if (!vclient)
                 {
