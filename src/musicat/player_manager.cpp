@@ -428,6 +428,12 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                 }
 
             auto *vclient = guild_player->get_voice_client ();
+            if (!vclient)
+                {
+                    std::cerr << "[Manager::play ERROR] Voice client missing: "
+                              << guild_id << "\n";
+                    return;
+                }
 
             auto voice_channel_id = vclient->channel_id;
 
