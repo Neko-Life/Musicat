@@ -144,7 +144,10 @@ Manager::unpause (dpp::discord_voice_client *voiceclient,
 {
     this->clear_manually_paused (guild_id);
 
-    voiceclient->pause_audio (false);
+    if (voiceclient)
+        {
+            voiceclient->pause_audio (false);
+        }
 
     if (update_info_embed)
         this->update_info_embed (guild_id);

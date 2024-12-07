@@ -259,10 +259,10 @@ void
 Manager::handle_non_sha_voice_state_update (
     const dpp::voice_state_update_t &event)
 {
-    bool debug = get_debug_state ();
+    const bool debug = get_debug_state ();
 
     dpp::snowflake e_user_id = event.state.user_id;
-    dpp::snowflake e_channel_id = event.state.channel_id;
+    dpp::snowflake e_voice_channel_id = event.state.channel_id;
     dpp::snowflake e_guild_id = event.state.guild_id;
 
     bool did_manually_paused = this->is_manually_paused (e_guild_id);
@@ -281,12 +281,13 @@ Manager::handle_non_sha_voice_state_update (
     bool is_paused = v->voiceclient->is_paused ();
 
     bool should_pause = !has_voice_session && !is_paused;
-    bool should_unpause = has_voice_session && is_paused;
+    bool should_unpause
+        = has_voice_session && (is_paused || !v->voiceclient->is_playing ());
 
     // join user channel if no one listening in current channel
     if (!should_pause && !should_unpause)
         {
-            if (!e_channel_id || has_voice_session)
+            if (!e_voice_channel_id || has_voice_session)
                 return;
 
             if (debug)
@@ -294,7 +295,7 @@ Manager::handle_non_sha_voice_state_update (
                                  "listening in current channel\n");
 
             this->full_reconnect (event.from, e_guild_id, v->channel_id,
-                                  e_channel_id, true);
+                                  e_voice_channel_id, true);
 
             return;
         }
@@ -322,36 +323,42 @@ Manager::handle_non_sha_voice_state_update (
 
     // unpause
     // dispatch autoresume job
-    int tstatus
-        = timer::create_resume_timer (e_user_id, e_channel_id, v->voiceclient);
+    int tstatus = timer::create_resume_timer (e_user_id, e_voice_channel_id,
+                                              v->voiceclient);
 
     if (tstatus != 0)
         {
             std::cerr << "[Manager::handle_on_voice_state_update WARN] "
                          "timer::create_resume_timer uid("
                       << e_user_id << ") sid(" << e_guild_id << ") svcid("
-                      << e_channel_id << ") status(" << tstatus << ")\n";
+                      << e_voice_channel_id << ") status(" << tstatus << ")\n";
+        }
+
+    if (debug)
+        {
+            std::cerr << "e_voice_channel_id(" << e_voice_channel_id
+                      << ") has_voice_session(" << has_voice_session
+                      << ") is_paused(" << is_paused << ") should_pause("
+                      << should_pause << ") should_unpause(" << should_unpause
+                      << ") v->voiceclient(" << (v && v->voiceclient) << ")\n";
         }
 }
 
 void
 Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 {
-    const bool debug = get_debug_state ();
-
     dpp::snowflake e_user_id = event.state.user_id;
-    dpp::snowflake e_channel_id = event.state.channel_id;
+    dpp::snowflake e_voice_channel_id = event.state.channel_id;
     dpp::snowflake e_guild_id = event.state.guild_id;
 
-    bool did_manually_paused = this->is_manually_paused (e_guild_id);
-
     // left vc
-    if (!e_channel_id)
+    if (!e_voice_channel_id)
         {
             this->clear_disconnecting (e_guild_id);
 
             // update vcs cache
-            vcs_setting_handle_disconnected (dpp::find_channel (e_channel_id));
+            vcs_setting_handle_disconnected (
+                dpp::find_channel (e_voice_channel_id));
             return;
         }
 
@@ -364,8 +371,6 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > a
         = { nullptr, {} };
     std::thread tj;
-    bool new_state_muted = false, old_state_muted = false, is_paused = false;
-    int tstatus = 1;
 
     if (!v)
         // no conn, skip everything
@@ -430,10 +435,10 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     goto end;
 skip_reconnect:
     // else block, autopause check
-    this->check_autopause (e_guild_id, e_channel_id);
+    this->check_autopause (e_guild_id, e_voice_channel_id);
 end:
     // update vcs cache
-    vcs_setting_handle_connected (dpp::find_channel (e_channel_id),
+    vcs_setting_handle_connected (dpp::find_channel (e_voice_channel_id),
                                   &event.state);
     // if (muted) player_manager->pause(event.guild_id);
     // else player_manager->resume(guild_id);

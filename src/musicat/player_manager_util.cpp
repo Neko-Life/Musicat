@@ -1509,7 +1509,7 @@ skip_autopause:
 end:
     if (debug)
         {
-            std::cerr << "e_channel_id(" << e_voice_channel_id
+            std::cerr << "e_voice_channel_id(" << e_voice_channel_id
                       << ") is_paused(" << is_paused << ") new_state_muted("
                       << new_state_muted << ") old_state_muted("
                       << old_state_muted << ") v->voiceclient("

@@ -1,6 +1,7 @@
 #include "musicat/events/on_voice_server_update.h"
 #include "musicat/events.h"
 #include "musicat/musicat.h"
+#include "musicat/thread_manager.h"
 
 namespace musicat::events
 {
@@ -22,23 +23,34 @@ on_voice_server_update (dpp::cluster *client)
             if (player_manager->is_waiting_vc_ready (event.guild_id))
                 return;
 
-            dpp::voiceconn *connection
-                = event.from->get_voice (event.guild_id);
+            std::thread t ([event] {
+                thread_manager::DoneSetter tmds;
 
-            if (!connection || !connection->is_active ())
-                return;
+                auto player_manager = get_player_manager_ptr ();
+                if (!player_manager)
+                    return;
 
-            if (get_debug_state ())
-                fprintf (stderr,
-                         "[events::on_voice_server_update] "
-                         "Reconnecting to new Voice Server (%s)\n",
-                         event.guild_id.str ().c_str ());
+                dpp::voiceconn *connection
+                    = event.from->get_voice (event.guild_id);
 
-            player_manager->set_waiting_vc_ready (event.guild_id);
+                if (!connection || !connection->is_active ())
+                    return;
 
-            connection->disconnect ();
-            connection->websocket_hostname = event.endpoint;
-            connection->connect (event.guild_id);
+                if (get_debug_state ())
+                    fprintf (stderr,
+                             "[events::on_voice_server_update] "
+                             "Reconnecting to new Voice Server (%s)\n",
+                             event.guild_id.str ().c_str ());
+
+                player_manager->set_waiting_vc_ready (event.guild_id);
+
+                std::lock_guard lk (event.from->voice_mutex);
+                connection->disconnect ();
+                connection->websocket_hostname = event.endpoint;
+                connection->connect (event.guild_id);
+            });
+
+            thread_manager::dispatch (t);
         });
 #endif
 }

@@ -17,8 +17,9 @@ struct resume_timer_t
 {
     long long ts;
     dpp::snowflake uid;
+    dpp::snowflake svid;
+    dpp::snowflake vcid;
     dpp::snowflake svcid;
-    dpp::discord_voice_client *vc;
     long long min_delay;
 };
 

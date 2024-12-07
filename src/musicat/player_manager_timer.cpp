@@ -51,9 +51,9 @@ is_rt_duplicate (const resume_timer_t &rt)
 
     while (i != rt_v.end ())
         {
-            bool sids = i->vc->server_id != rt.vc->server_id;
+            bool sids = i->svid != rt.svid;
             bool svcids = i->svcid != rt.svcid;
-            bool cids = i->vc->channel_id != rt.vc->channel_id;
+            bool cids = i->vcid != rt.vcid;
 
             if (sids || svcids || cids)
                 {
@@ -171,18 +171,25 @@ create_resume_timer (const dpp::snowflake &user_id,
     if (!vc)
         return 1;
 
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager || player_manager->is_manually_paused (vc->server_id))
+        {
+            return 2;
+        }
+
     std::lock_guard lk (rt_m);
 
-    resume_timer_t rt = { util::get_current_ts (), user_id,
-                          user_voice_channel_id, vc, min_delay };
+    resume_timer_t rt
+        = { util::get_current_ts (), user_id,  vc->server_id, vc->channel_id,
+            user_voice_channel_id,   min_delay };
 
     if (get_debug_state ())
         {
             std::cerr << "[player::timer::create_resume_timer] "
                          "Creating resume_timer_t: ts("
                       << rt.ts << ") uid(" << rt.uid << ") svcid(" << rt.svcid
-                      << ") vcsid(" << rt.vc->server_id << ") vcvcid("
-                      << rt.vc->channel_id << ")\n";
+                      << ") vcsid(" << rt.svid << ") vcvcid(" << rt.vcid
+                      << ")\n";
         }
 
     bool no = is_rt_duplicate (rt);
@@ -220,15 +227,9 @@ check_resume_timers ()
                     continue;
                 }
 
-            auto vc = i->vc;
+            auto server_id = i->svid;
 
-            if (!vc || vc->terminating)
-                {
-                    i = rt_v.erase (i);
-                    continue;
-                }
-
-            auto vgid = get_voice_from_gid (vc->server_id, i->uid);
+            auto vgid = get_voice_from_gid (server_id, i->uid);
 
             if (!vgid.first || vgid.first->id != i->svcid)
                 {
@@ -242,18 +243,16 @@ check_resume_timers ()
                                  "Unpausing resume_timer_t: now("
                               << now << ") ts(" << i->ts << ") diff(" << diff
                               << ") uid(" << i->uid << ") svcid(" << i->svcid
-                              << ") vcsid(" << i->vc->server_id << ") vcvcid("
-                              << i->vc->channel_id << ")\n";
+                              << ") vcsid(" << i->svid << ") vcvcid("
+                              << i->vcid << ")\n";
                 }
 
-            vc->pause_audio (false);
+            auto guild_player = player_manager->get_player (server_id);
 
-            try
+            if (guild_player)
                 {
-                    player_manager->update_info_embed (vc->server_id);
-                }
-            catch (...)
-                {
+                    player_manager->unpause (guild_player->get_voice_client (),
+                                             server_id, true);
                 }
 
             i = rt_v.erase (i);
