@@ -294,4 +294,17 @@ trim_str (const std::string &str)
     return std::regex_replace (str, re_s, "");
 }
 
+std::string
+max_len (const std::string &s, size_t max_len)
+{
+    const size_t len = s.length ();
+
+    if (len <= max_len)
+        {
+            return s;
+        }
+
+    return std::string (s.begin (), s.begin () + max_len);
+}
+
 } // musicat::util

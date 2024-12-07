@@ -4,6 +4,7 @@
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util/base64.h"
+#include "musicat/util.h"
 #include <dirent.h>
 #include <memory>
 #include <thread>
@@ -317,7 +318,7 @@ Manager::download (const string &fname, const string &url,
 
             namespace cc = child::command;
 
-            const std::string qid = util::base64::encode (fname);
+            const std::string qid = util::max_len(util::base64::encode (fname), 32);
 
             const std::string child_cmd
                 = cc::create_arg_sanitize_value (cc::command_options_keys_t.id,
