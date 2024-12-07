@@ -3,8 +3,8 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
-#include "musicat/util/base64.h"
 #include "musicat/util.h"
+#include "musicat/util/base64.h"
 #include <dirent.h>
 #include <memory>
 #include <thread>
@@ -318,7 +318,8 @@ Manager::download (const string &fname, const string &url,
 
             namespace cc = child::command;
 
-            const std::string qid = util::max_len(util::base64::encode (fname), 32);
+            const std::string qid
+                = util::max_len (util::base64::encode (fname), 32);
 
             const std::string child_cmd
                 = cc::create_arg_sanitize_value (cc::command_options_keys_t.id,
@@ -494,6 +495,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
 
         skip_send_msg:
             guild_player->done_streaming ();
+
+            // update voice client pointer after long stream session
+            vclient = guild_player->get_voice_client ();
 
             const bool err_processor = err == 3;
             // do not insert marker when error coming from duplicate processor
