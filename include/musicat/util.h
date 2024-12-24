@@ -88,7 +88,7 @@ find_focused (const std::vector<dpp::command_data_option> &options,
 
 std::string trim_str (const std::string &str);
 
-std::string max_len (const std::string &s, size_t max_len);
+std::string max_len (const std::string &s, size_t max_len, bool cut_front = false);
 
 } // musicat::util
 

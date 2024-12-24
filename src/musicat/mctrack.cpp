@@ -5,8 +5,8 @@
 #include "musicat/child/command.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
-#include "musicat/util/base64.h"
 #include "musicat/util.h"
+#include "musicat/util/base64.h"
 
 namespace musicat::mctrack
 {
@@ -202,7 +202,7 @@ fetch (const search_option_t &options)
     if (!options.is_url)
         q = "ytsearch" + std::to_string (options.max_entries) + ":" + q;
 
-    const std::string qid = util::max_len(util::base64::encode (q), 32);
+    const std::string qid = util::max_len (util::base64::encode (q), 40, true);
 
     const bool has_max_entries = options.max_entries >= 1;
 

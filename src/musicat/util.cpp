@@ -295,13 +295,18 @@ trim_str (const std::string &str)
 }
 
 std::string
-max_len (const std::string &s, size_t max_len)
+max_len (const std::string &s, size_t max_len, bool cut_front)
 {
     const size_t len = s.length ();
 
     if (len <= max_len)
         {
             return s;
+        }
+
+    if (cut_front)
+        {
+            return std::string (s.end () - max_len, s.end ());
         }
 
     return std::string (s.begin (), s.begin () + max_len);
