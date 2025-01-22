@@ -61,10 +61,10 @@ setup_subcommand (dpp::slashcommand &slash)
 std::string
 get_guild_count (const dpp::slashcommand_t &event)
 {
-    if (!event.from)
+    if (!event.from())
         return "ERR";
 
-    return std::to_string (event.from->get_guild_count ());
+    return std::to_string (event.from()->get_guild_count ());
 }
 
 constexpr
@@ -74,7 +74,7 @@ constexpr
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    dpp::cluster *client = event.from->creator;
+    dpp::cluster *client = event.from()->creator;
 
     std::lock_guard lk (active_presences_m);
     dpp::presence *active_presence = get_current_presence (client->cluster_id);

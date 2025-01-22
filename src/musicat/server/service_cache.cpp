@@ -188,10 +188,10 @@ set_cached_musicat_detailed_user (const nlohmann::json &data)
 void
 handle_guild_create (const dpp::guild_create_t &e)
 {
-    if (!e.created || e.created->owner_id.empty ())
+    if (!e.created.id || e.created.owner_id.empty ())
         return;
 
-    remove_cached_user_guilds (e.created->owner_id.str ());
+    remove_cached_user_guilds (e.created.owner_id.str ());
 
     std::lock_guard lk (cache_m);
 
@@ -207,7 +207,7 @@ handle_guild_create (const dpp::guild_create_t &e)
 
             std::string uid = i->first.substr (0, idx);
 
-            if (e.created->members.find (uid) == e.created->members.end ())
+            if (e.created.members.find (uid) == e.created.members.end ())
                 {
                     i++;
                     continue;

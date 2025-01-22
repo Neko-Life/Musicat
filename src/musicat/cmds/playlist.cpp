@@ -235,7 +235,7 @@ slash_run (const dpp::slashcommand_t &event)
             {
                 guild_player
                     = player_manager->create_player (event.command.guild_id);
-                guild_player->from = event.from;
+                guild_player->from = event.from();
             }
 
         const bool add_to_top = arg_top ? true : false;
@@ -310,7 +310,7 @@ slash_run (const dpp::slashcommand_t &event)
                 // try
                 // {
                 //     get_voice_from_gid(event.command.guild_id,
-                //     event.from->creator->me.id);
+                //     event.from()->creator->me.id);
                 // }
                 // catch (...)
                 // {
@@ -319,7 +319,7 @@ slash_run (const dpp::slashcommand_t &event)
 
                 // if (has_c && no_vc && c.first &&
                 // has_permissions_from_ids(event.command.guild_id,
-                //                                                           event.from->creator->me.id,
+                //                                                           event.from()->creator->me.id,
                 //                                                           c.first->id,
                 //                                                           {
                 //                                                           dpp::p_view_channel,dpp::p_connect

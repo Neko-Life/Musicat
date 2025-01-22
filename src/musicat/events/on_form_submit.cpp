@@ -1,5 +1,3 @@
-#include "musicat/events/on_form_submit.h"
-#include "musicat/cmds/loop.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
@@ -67,7 +65,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
 
     auto result = tracks.at (pos - 1);
 
-    auto from = event.from;
+    auto from = event.from();
     auto guild_id = event.command.guild_id;
 
     const std::string prepend_name

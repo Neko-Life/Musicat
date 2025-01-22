@@ -903,7 +903,7 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                 const dpp::snowflake channel_id, const dpp::snowflake sha_id,
                 bool from_interaction, dpp::discord_client *from,
                 const dpp::interaction_create_t event
-                = dpp::interaction_create_t (NULL, "{}"),
+                = dpp::interaction_create_t (NULL, 0, "{}"),
                 bool continued = false, int64_t arg_slip = 0,
                 const std::string &cache_id = "");
 

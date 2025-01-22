@@ -95,7 +95,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 // rather a feature where user who left the vc can clear their
                 // tracks to keep their friend happy)
                 if (!player_manager->voice_ready (event.command.guild_id,
-                                                  event.from,
+                                                  event.from(),
                                                   event.command.usr.id))
                     {
                         event.edit_response (
@@ -222,7 +222,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    const dpp::snowflake sha_id = event.from->creator->me.id;
+    const dpp::snowflake sha_id = event.from()->creator->me.id;
 
     // avoid getting timed out when loading large queue
     event.thinking ();

@@ -17,7 +17,7 @@ slash_run (const dpp::slashcommand_t &event)
         return;
 
     auto guild_player = player_manager->create_player (event.command.guild_id);
-    guild_player->from = event.from;
+    guild_player->from = event.from();
 
     if (guild_player->current_track.is_empty ())
         {
