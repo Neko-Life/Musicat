@@ -4,8 +4,8 @@
       "adapter": "vscode-cpptools",
       "configuration": {
         "request": "launch",
-        "program": "${workspaceRoot}/exe/Shasha",
-        "cwd": "${workspaceRoot}/exe/",
+        "program": "${workspaceRoot}/archlinux-dist/Shasha",
+        "cwd": "${workspaceRoot}/archlinux-dist/",
         "externalConsole": true,
         "MIMode": "gdb",
         "setupCommands": [
@@ -21,7 +21,7 @@
       "adapter": "vscode-cpptools",
       "configuration": {
         "request": "attach",
-        "program": "${workspaceRoot}/exe/Shasha",
+        "program": "${workspaceRoot}/archlinux-dist/Shasha",
         "MIMode": "gdb",
         "setupCommands": [
           {
@@ -36,9 +36,9 @@
       "adapter": "vscode-cpptools",
       "configuration": {
         "request": "launch",
-        "program": "${workspaceRoot}/exe/Shasha",
+        "program": "${workspaceRoot}/archlinux-dist/Shasha",
         "args": ["reg", "g"],
-        "cwd": "${workspaceRoot}/exe/",
+        "cwd": "${workspaceRoot}/archlinux-dist/",
         "externalConsole": true,
         "MIMode": "gdb",
         "setupCommands": [
