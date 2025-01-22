@@ -170,7 +170,7 @@ slash_run (const dpp::slashcommand_t &event)
 
         std::any storage_data = tracks;
         event.edit_response (m, paginate::get_inter_reply_cb (
-                                    event, paginate, event.from->creator,
+                                    event, paginate, event.from()->creator,
                                     embeds, storage_data));
     });
 

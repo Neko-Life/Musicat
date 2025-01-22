@@ -1374,7 +1374,7 @@ Manager::get_next_autoplay_track (const string &track_id,
                          + "&list=RD" + track_id;
 
     player::add_track (true, server_id, query, 0, true, NULL, 0, get_sha_id (),
-                       false, from, dpp::interaction_create_t (NULL, "{}"),
+                       false, from, dpp::interaction_create_t (NULL, 0, "{}"),
                        false, 0, track_id);
 }
 

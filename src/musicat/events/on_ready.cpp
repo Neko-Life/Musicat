@@ -6,7 +6,7 @@ void
 on_ready (dpp::cluster *client)
 {
     client->on_ready ([] (const dpp::ready_t &event) {
-        dpp::discord_client *from = event.from;
+        dpp::discord_client *from = event.from();
         dpp::user me = from->creator->me;
 
         fprintf (stderr, "[READY] Shard: %d\n", from->shard_id);

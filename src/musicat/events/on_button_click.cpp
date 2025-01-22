@@ -145,16 +145,16 @@ s_playnow (const dpp::button_click_t &event)
 
     try
         {
-            dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
+            dpp::voiceconn *v = event.from()->get_voice (event.command.guild_id);
             auto vcuser = get_voice_from_gid (event.command.guild_id,
                                               event.command.usr.id);
 
             auto p = player_manager->create_player (event.command.guild_id);
-            p->from = event.from;
+            p->from = event.from();
 
             if (p && vcuser.first && v && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (
-                    event.command.guild_id, event.from, event.command.usr.id)
+                    event.command.guild_id, event.from(), event.command.usr.id)
                 && !p->stopped)
                 {
                     player_manager->stop_stream (event.command.guild_id);
@@ -187,7 +187,7 @@ h_playnow (const dpp::button_click_t &event)
 
     try
         {
-            dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
+            dpp::voiceconn *v = event.from()->get_voice (event.command.guild_id);
             auto vcuser = get_voice_from_gid (event.command.guild_id,
                                               event.command.usr.id);
 
@@ -256,7 +256,7 @@ d_playnow (const dpp::button_click_t &event)
     try
         {
             auto p = player_manager->create_player (event.command.guild_id);
-            p->from = event.from;
+            p->from = event.from();
             p->notification = false;
 
             player_manager->update_info_embed (event.command.guild_id, false,
@@ -280,7 +280,7 @@ b_playnow (const dpp::button_click_t &event)
     try
         {
             auto p = player_manager->create_player (event.command.guild_id);
-            p->from = event.from;
+            p->from = event.from();
             p->notification = true;
 
             player_manager->update_info_embed (event.command.guild_id, false,
@@ -327,7 +327,7 @@ a_playnow (const dpp::button_click_t &event)
             {
                 auto guild_player
                     = player_manager->create_player (event.command.guild_id);
-                guild_player->from = event.from;
+                guild_player->from = event.from();
 
                 guild_player->set_auto_play (!guild_player->auto_play);
 
@@ -404,7 +404,7 @@ message (const dpp::button_click_t &event,
 
     if (param == "d")
         {
-            event.from->creator->message_delete (event.command.msg.id,
+            event.from()->creator->message_delete (event.command.msg.id,
                                                  event.command.msg.channel_id);
         }
     else

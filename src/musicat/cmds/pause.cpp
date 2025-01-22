@@ -48,7 +48,7 @@ slash_run (const dpp::slashcommand_t &event)
 {
     std::string out;
     int status
-        = run (event.from, event.command.usr.id, event.command.guild_id, out);
+        = run (event.from(), event.command.usr.id, event.command.guild_id, out);
 
     if (status == 1)
         {
@@ -64,7 +64,7 @@ button_run (const dpp::button_click_t &event)
         return;
 
     std::string out;
-    run (event.from, event.command.usr.id, event.command.guild_id, out, false);
+    run (event.from(), event.command.usr.id, event.command.guild_id, out, false);
 
     player_manager->update_info_embed (event.command.guild_id, false, &event);
 }

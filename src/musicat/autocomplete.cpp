@@ -109,7 +109,7 @@ create_response (
             if (b_25 && (++siz) >= 25)
                 break;
         }
-    event.from->creator->interaction_response_create (event.command.id,
+    event.from()->creator->interaction_response_create (event.command.id,
                                                       event.command.token, r);
 }
 } // namespace musicat::autocomplete

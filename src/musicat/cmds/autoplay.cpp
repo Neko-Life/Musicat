@@ -33,7 +33,7 @@ slash_run (const dpp::slashcommand_t &event)
                      &arg_no_duplicate_threashold);
 
     auto guild_player = player_manager->create_player (event.command.guild_id);
-    guild_player->from = event.from;
+    guild_player->from = event.from();
 
     if (guild_player->saved_config_loaded != true)
         player_manager->load_guild_player_config (event.command.guild_id);

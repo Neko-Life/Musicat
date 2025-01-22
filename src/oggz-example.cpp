@@ -35,7 +35,7 @@ int main(int argc, char const *argv[])
 
 		/* Tell the bot to play the sound file */
 		if (command == ".play") {
-			dpp::voiceconn* v = event.from->get_voice(event.msg.guild_id);
+			dpp::voiceconn* v = event.from()->get_voice(event.msg.guild_id);
 			if (v && v->voiceclient && v->voiceclient->is_ready()) {
                                 // load the audio file with oggz
                                 OGGZ *track_og = oggz_open("/path/to/opus.ogg", OGGZ_READ);

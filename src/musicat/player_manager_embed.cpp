@@ -345,7 +345,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         }
 
     dpp::interaction_response reply (dpp::ir_update_message, mn);
-    event->from->creator->interaction_response_create (
+    event->from()->creator->interaction_response_create (
         event->command.id, event->command.token, reply, m_cb);
 
     return true;
@@ -379,7 +379,7 @@ Manager::reply_info_embed (const dpp::interaction_create_t &event,
     if (reply_update_message)
         {
             dpp::interaction_response reply (dpp::ir_update_message, m);
-            event.from->creator->interaction_response_create (
+            event.from()->creator->interaction_response_create (
                 event.command.id, event.command.token, reply);
         }
     else

@@ -19,12 +19,12 @@ slash_run (const dpp::slashcommand_t &event)
         return;
 
     auto p = player_manager->get_player (event.command.guild_id);
-    dpp::voiceconn *v = event.from->get_voice (event.command.guild_id);
+    dpp::voiceconn *v = event.from()->get_voice (event.command.guild_id);
 
     if (util::is_player_not_playing (p, v))
         return event.reply ("I'm not playing anything");
 
-    if (!player_manager->voice_ready (event.command.guild_id, event.from,
+    if (!player_manager->voice_ready (event.command.guild_id, event.from(),
                                       event.command.usr.id))
         return event.reply ("Please wait while I'm getting ready to stream");
 

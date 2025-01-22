@@ -172,7 +172,7 @@ slash_run (const dpp::slashcommand_t &event)
                 if (!guild_player)
                     return e_re_no_track (event);
 
-                auto conn = event.from->get_voice (guild_id);
+                auto conn = event.from()->get_voice (guild_id);
 
                 std::lock_guard lk (guild_player->t_mutex);
 

@@ -117,7 +117,7 @@ update_progress (const dpp::button_click_t &event)
                                                            value.current_ms,
                                                            value.duration));
 
-            event.from->creator->interaction_response_create (
+            event.from()->creator->interaction_response_create (
                 event.command.id, event.command.token, reply);
         }
     catch (const exception &e)

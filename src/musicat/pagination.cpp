@@ -155,7 +155,7 @@ pages_t::edit (size_t c, const dpp::interaction_create_t &event)
 
     dpp::interaction_response reply (dpp::ir_update_message, *this->message);
 
-    event.from->creator->interaction_response_create (
+    event.from()->creator->interaction_response_create (
         event.command.id, event.command.token, reply,
         [this, c] (const dpp::confirmation_callback_t &cb) {
             this->edit_cb (cb, c);
@@ -570,11 +570,11 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
 
     if (!edit_response)
         event.reply (msg, paginate::get_inter_reply_cb (
-                              event, paginate, event.from->creator, embeds));
+                              event, paginate, event.from()->creator, embeds));
     else
         event.edit_response (
             msg, paginate::get_inter_reply_cb (event, paginate,
-                                               event.from->creator, embeds));
+                                               event.from()->creator, embeds));
 
 } // reply_paginated_playlist
 } // paginate

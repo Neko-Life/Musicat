@@ -107,11 +107,11 @@ slash_run (const dpp::slashcommand_t &event)
                     false,
                     [sndmsg, event] (
                         const dpp::confirmation_callback_t &thinking_res) {
-                        if (thinking_res.is_error () || !event.from
-                            || !event.from->creator)
+                        if (thinking_res.is_error () || !event.from()
+                            || !event.from()->creator)
                             return;
 
-                        event.from->creator->message_create (
+                        event.from()->creator->message_create (
                             sndmsg, [event] (const dpp::confirmation_callback_t
                                                  &create_res) {
                                 if (create_res.is_error ())

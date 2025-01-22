@@ -31,7 +31,7 @@ on_voice_server_update (dpp::cluster *client)
                     return;
 
                 dpp::voiceconn *connection
-                    = event.from->get_voice (event.guild_id);
+                    = event.from()->get_voice (event.guild_id);
 
                 if (!connection || !connection->is_active ())
                     return;
@@ -44,7 +44,7 @@ on_voice_server_update (dpp::cluster *client)
 
                 player_manager->set_waiting_vc_ready (event.guild_id);
 
-                std::lock_guard lk (event.from->voice_mutex);
+                std::lock_guard lk (event.from()->voice_mutex);
                 connection->disconnect ();
                 connection->websocket_hostname = event.endpoint;
                 connection->connect (event.guild_id);

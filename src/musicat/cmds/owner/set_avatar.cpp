@@ -28,8 +28,8 @@ std::vector<std::string> valid_avatar_formats
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::string musicat_username = (event.from && event.from->creator)
-                                       ? event.from->creator->me.username
+    std::string musicat_username = (event.from() && event.from()->creator)
+                                       ? event.from()->creator->me.username
                                        : "";
 
     if (musicat_username.empty ())

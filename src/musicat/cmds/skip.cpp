@@ -76,7 +76,7 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "remove", &rm);
 
     std::string out;
-    int status = run (event.from, event.command.usr.id, event.command.guild_id,
+    int status = run (event.from(), event.command.usr.id, event.command.guild_id,
                       out, am, rm);
     if (status == 1)
         {
@@ -111,7 +111,7 @@ button_run_prev (const dpp::button_click_t &event)
             guild_player->queue.push_front (guild_player->queue.back ());
             guild_player->queue.pop_back ();
 
-            dpp::voiceconn *v = event.from->get_voice (guild_id);
+            dpp::voiceconn *v = event.from()->get_voice (guild_id);
 
             bool stopping = false;
             // stop it! it will be resumed by auto marker at the ends of every
@@ -141,7 +141,7 @@ button_run_next (const dpp::button_click_t &event)
         return;
 
     std::string out;
-    run (event.from, event.command.usr.id, event.command.guild_id, out);
+    run (event.from(), event.command.usr.id, event.command.guild_id, out);
 
     player_manager->update_info_embed (event.command.guild_id, false, &event);
 }

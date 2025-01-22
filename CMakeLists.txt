@@ -6,7 +6,7 @@ project(Musicat
 	LANGUAGES CXX
 	DESCRIPTION "Discord Music Bot written in C++")
 
-option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" OFF)
+option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" ON)
 option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" ON)
 option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 
@@ -135,6 +135,8 @@ if (MUSICAT_WITH_CORO)
 	set(DPP_CORO ON)
 
 	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_CORO)
+	target_compile_definitions(Shasha PUBLIC DPP_CORO)
+
 	set(MUSICAT_CXX_STANDARD 20)
 endif()
 

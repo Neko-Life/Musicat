@@ -236,7 +236,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto from = event.from;
+    auto from = event.from();
     auto user_id = event.command.usr.id;
     auto guild_id = event.command.guild_id;
 
@@ -266,7 +266,7 @@ button_run (const dpp::button_click_t &event)
     if (player_manager == NULL)
         return;
 
-    auto from = event.from;
+    auto from = event.from();
     auto user_id = event.command.usr.id;
     auto guild_id = event.command.guild_id;
 
