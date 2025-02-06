@@ -80,6 +80,7 @@ void
 save (const dpp::slashcommand_t &event)
 {
     std::thread rt ([event] () {
+        thread_manager::DoneSetter tmds;
         auto *player_manager = get_player_manager_ptr ();
         if (!player_manager)
             {
@@ -133,6 +134,7 @@ void
 load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
 {
     std::thread rt ([event, is_view] () {
+        thread_manager::DoneSetter tmds;
         auto *player_manager = get_player_manager_ptr ();
         if (!player_manager)
             {
