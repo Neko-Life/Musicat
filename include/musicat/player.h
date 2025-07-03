@@ -214,7 +214,8 @@ class Player
     size_t shifted_track;
 
     dpp::cluster *cluster;
-    dpp::discord_client *from;
+    // TODO: this shouldn't be here
+    // dpp::discord_client *from;
     Manager *manager;
 
     /**

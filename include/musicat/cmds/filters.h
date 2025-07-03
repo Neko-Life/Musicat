@@ -125,6 +125,14 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // equalizer_presets
 
+namespace reverb {
+
+void setup_subcommand (dpp::slashcommand &slash);
+
+void slash_run (const dpp::slashcommand_t &event);
+
+} // reverb
+
 } // musicat::command::filters
 
 #endif // MUSICAT_COMMAND_FILTERS_H
