@@ -1,5 +1,5 @@
 # minimum CMake version required
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.5)
 # Project name, version and description
 project(Musicat 
 	VERSION 0.1.1
