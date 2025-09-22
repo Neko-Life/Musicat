@@ -65,7 +65,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
 
     auto result = tracks.at (pos - 1);
 
-    auto from = event.from();
+    auto from = event.from ();
     auto guild_id = event.command.guild_id;
 
     const std::string prepend_name
@@ -127,8 +127,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event,
                     event.edit_response (edit_response);
                 }
 
-            if (from)
-                guild_player->from = from;
+            guild_player->set_shard (from);
 
             player::MCTrack t (result);
             t.filename = fname;

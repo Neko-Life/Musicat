@@ -1,5 +1,5 @@
 # minimum CMake version required
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.15)
 # Project name, version and description
 project(Musicat 
 	VERSION 0.1.1
@@ -19,7 +19,7 @@ set(WITH_COMPILE_GNUPLOT 0)
 
 if (COMPILE_GNUPLOT)
 	set(WITH_COMPILE_GNUPLOT 1)
-	set(GNUPLOT_VERSION 6.0.0)
+	set(GNUPLOT_VERSION 6.0.3)
 
 	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
 endif()

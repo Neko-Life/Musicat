@@ -267,7 +267,7 @@ Manager::handle_non_sha_voice_state_update (
 
     bool did_manually_paused = this->is_manually_paused (e_guild_id);
 
-    dpp::voiceconn *v = event.from()->get_voice (e_guild_id);
+    dpp::voiceconn *v = event.from ()->get_voice (e_guild_id);
 
     if (!v || !v->channel_id || !v->voiceclient || v->voiceclient->terminating)
         return;
@@ -294,7 +294,7 @@ Manager::handle_non_sha_voice_state_update (
                 fprintf (stderr, "// join user channel if no one "
                                  "listening in current channel\n");
 
-            this->full_reconnect (event.from(), e_guild_id, v->channel_id,
+            this->full_reconnect (event.from (), e_guild_id, v->channel_id,
                                   e_voice_channel_id, true);
 
             return;
@@ -302,7 +302,7 @@ Manager::handle_non_sha_voice_state_update (
 
     // Whether the track paused automatically
     // return if the track was paused manually
-    if (!event.from() || did_manually_paused)
+    if (!event.from () || did_manually_paused)
         // not automatically paused
         return;
 
@@ -324,7 +324,7 @@ Manager::handle_non_sha_voice_state_update (
     // unpause
     // dispatch autoresume job
     int tstatus = timer::create_resume_timer (e_user_id, e_voice_channel_id,
-                                              v->voiceclient);
+                                              v->voiceclient.get());
 
     if (tstatus != 0)
         {
@@ -365,7 +365,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     // joined vc
     this->clear_connecting (e_guild_id);
 
-    auto v = event.from()->get_voice (e_guild_id);
+    auto v = event.from ()->get_voice (e_guild_id);
 
     // declare vars here for clean code standard!!!!
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > a
@@ -411,7 +411,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     this->set_disconnecting (e_guild_id, v->channel_id);
 
-    event.from()->disconnect_voice (e_guild_id);
+    event.from ()->disconnect_voice (e_guild_id);
 
     if (has_listener (&a.second))
         {
@@ -428,7 +428,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
             this->voice_ready (e_guild_id, from);
         },
-        event.from());
+        event.from ());
 
     thread_manager::dispatch (tj);
     // reconnecting, shouldn't check for autopause, skip it
@@ -735,11 +735,12 @@ Manager::spawn_handle_track_marker_worker (
 
                                 // decide whether to trigger track marker after
                                 // dowload
-                                if (v && !v->terminating && guild_player->from)
+                                dpp::discord_client *pc = nullptr;
+                                if (v && !v->terminating
+                                    && (pc = guild_player->get_client ()))
                                     {
-                                        player::decide_play (
-                                            guild_player->from, guild_id,
-                                            false);
+                                        player::decide_play (pc, guild_id,
+                                                             false);
                                     }
                             },
                             track);
@@ -761,8 +762,8 @@ Manager::spawn_handle_track_marker_worker (
 
             // check for autoplay
             if (guild_player->auto_play)
-                this->get_next_autoplay_track (track_id, guild_player->from,
-                                               guild_id);
+                this->get_next_autoplay_track (
+                    track_id, guild_player->get_client (), guild_id);
 
             try
                 {

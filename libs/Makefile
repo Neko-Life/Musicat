@@ -12,7 +12,9 @@ GNUPLOT_BUILD_DIR = $(PWD)/$(GNUPLOT_DIR)/build/
 GNUPLOT_BIN = $(GNUPLOT_BUILD_DIR)bin/gnuplot
 GNUPLOT_CONFIGURE = $(PWD)/$(GNUPLOT_DIR)/configure
 GNUPLOT_TARFILE = $(GNUPLOT_DIR).tar.gz
-GNUPLOT_BUILD_ENVS = CC=gcc LDFLAGS= CFLAGS=
+GNUPLOT_DL_TAR = https://zenlayer.dl.sourceforge.net/project/gnuplot/gnuplot/$(GNUPLOT_VERSION)/$(GNUPLOT_TARFILE)
+GNUPLOT_BUILD_ENVS =
+# CC=gcc LDFLAGS= CFLAGS=
 
 curl_dl = curl -L
 tar_extract = tar --skip-old-files -xf
@@ -50,4 +52,5 @@ $(GNUPLOT_CONFIGURE): $(GNUPLOT_TARFILE)
 	$(tar_extract) $(GNUPLOT_TARFILE)
 
 $(GNUPLOT_TARFILE):
-	$(curl_dl) https://zenlayer.dl.sourceforge.net/project/gnuplot/gnuplot/$(GNUPLOT_VERSION)/$(GNUPLOT_TARFILE) -o $(GNUPLOT_TARFILE)
+	echo 'Downloading '$(GNUPLOT_DL_TAR)
+	$(curl_dl) $(GNUPLOT_DL_TAR) -o $(GNUPLOT_TARFILE)

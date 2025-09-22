@@ -188,7 +188,8 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
     const bool debug = get_debug_state ();
 
     const bool cant_update
-        = !event && (!player->info_message || player->info_message->id.empty ());
+        = !event
+          && (!player->info_message || player->info_message->id.empty ());
 
     if (update && cant_update)
         {
@@ -345,7 +346,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update,
         }
 
     dpp::interaction_response reply (dpp::ir_update_message, mn);
-    event->from()->creator->interaction_response_create (
+    event->from ()->creator->interaction_response_create (
         event->command.id, event->command.token, reply, m_cb);
 
     return true;
@@ -379,7 +380,7 @@ Manager::reply_info_embed (const dpp::interaction_create_t &event,
     if (reply_update_message)
         {
             dpp::interaction_response reply (dpp::ir_update_message, m);
-            event.from()->creator->interaction_response_create (
+            event.from ()->creator->interaction_response_create (
                 event.command.id, event.command.token, reply);
         }
     else
@@ -600,9 +601,10 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id,
 
             bool has_p = false;
 
-            if (guild_player->from)
+            auto *pc = guild_player->get_client ();
+            if (pc)
                 {
-                    auto con = guild_player->from->get_voice (guild_id);
+                    auto con = pc->get_voice (guild_id);
                     if (con && con->voiceclient
                         && con->voiceclient->get_secs_remaining () > 0.05f)
                         {

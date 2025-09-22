@@ -164,7 +164,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
     if (v && v->voiceclient && v->voiceclient->is_paused ()
         && v->channel_id == vcuser.first->id)
         {
-            player_manager->unpause (v->voiceclient, guild_id,
+            player_manager->unpause (v->voiceclient.get (), guild_id,
                                      update_info_embed);
             if (no_query)
                 {
@@ -179,9 +179,28 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
     if (guild_player)
         {
             std::lock_guard lk (guild_player->t_mutex);
-            if (v && v->voiceclient && guild_player->queue.size ()
-                && !v->voiceclient->is_paused ()
-                && v->voiceclient->get_secs_remaining () < 0.05f)
+
+            const bool has_vc = v && v->voiceclient;
+            const size_t npsiz = guild_player->queue.size ();
+            const bool not_paused = has_vc && !v->voiceclient->is_paused ();
+            const bool detected_stop
+                = has_vc && v->voiceclient->get_secs_remaining () < 0.05f;
+
+            const bool should_continue
+                = has_vc && npsiz && not_paused && detected_stop;
+
+            if (debug)
+                {
+                    std::cerr << "CONTINUE? "
+                                 "has_vc("
+                              << has_vc << ") " << "npsiz(" << npsiz << ") "
+                              << "not_paused(" << not_paused << ") "
+                              << "detected_stop(" << detected_stop
+                              << ")"
+                                 "\n";
+                }
+
+            if (should_continue)
                 {
                     v->voiceclient->stop_audio ();
                     v->voiceclient->insert_marker ("c");
@@ -236,7 +255,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto from = event.from();
+    auto from = event.from ();
     auto user_id = event.command.usr.id;
     auto guild_id = event.command.guild_id;
 
@@ -266,7 +285,7 @@ button_run (const dpp::button_click_t &event)
     if (player_manager == NULL)
         return;
 
-    auto from = event.from();
+    auto from = event.from ();
     auto user_id = event.command.usr.id;
     auto guild_id = event.command.guild_id;
 

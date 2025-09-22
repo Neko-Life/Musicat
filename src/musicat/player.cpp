@@ -92,7 +92,7 @@ Player::init ()
     this->loop_mode = loop_mode_t::l_none;
     this->shifted_track = 0;
     this->info_message = nullptr;
-    this->from = nullptr;
+    this->shard_id = 0xFFFFFFFF;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -148,7 +148,7 @@ Player::~Player ()
     this->loop_mode = loop_mode_t::l_none;
     this->shifted_track = 0;
     this->info_message = nullptr;
-    this->from = nullptr;
+    this->shard_id = 0xFFFFFFFF;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -157,6 +157,26 @@ Player::~Player ()
     this->saved_config_loaded = false;
     this->stopping = false;
 };
+
+dpp::discord_client *
+Player::get_client ()
+{
+    return manager->get_client (shard_id);
+}
+
+void
+Player::set_shard (dpp::discord_client *from)
+{
+    if (!from)
+        return;
+    this->set_shard (from->shard_id);
+}
+
+void
+Player::set_shard (uint32_t shard_id)
+{
+    this->shard_id = shard_id;
+}
 
 Player &
 Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
@@ -246,6 +266,14 @@ Player::skip (dpp::voiceconn *v)
                     v->voiceclient->skip_to_next_marker ();
 
                     skipped = true;
+                }
+
+            if (get_debug_state ())
+                {
+                    std::cerr << "stopped(" << stopped << ") "
+                              << "processing_audio(" << processing_audio
+                              << ") "
+                              << "stopping(" << stopping << ")\n";
                 }
 
             if (stopped)
@@ -432,8 +460,7 @@ Player::remove_track_by_user (const dpp::snowflake &user_id)
 bool
 Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
 {
-    if (from)
-        this->from = from;
+    set_shard (from);
 
     auto *v = get_voice_conn ();
     if (v && !v->voiceclient->is_paused ())
@@ -749,10 +776,11 @@ Player::reset_first_track_current_byte ()
 dpp::voiceconn *
 Player::get_voice_conn ()
 {
-    if (from == nullptr)
+    dpp::discord_client *pc = get_client ();
+    if (pc == nullptr)
         return nullptr;
 
-    auto *conn = from->get_voice (guild_id);
+    auto *conn = pc->get_voice (guild_id);
     return conn;
 }
 
@@ -763,7 +791,7 @@ Player::get_voice_client ()
     if (conn == nullptr)
         return nullptr;
 
-    return conn->voiceclient;
+    return conn->voiceclient.get ();
 }
 
 } // player

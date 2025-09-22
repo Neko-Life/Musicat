@@ -575,7 +575,11 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
            const dpp::interaction_create_t event, bool continued,
            int64_t arg_slip, const std::string &cache_id)
 {
-    std::thread rt ([=] () {
+    uint32_t shard_id = from->shard_id;
+
+    std::thread rt ([shard_id, arg_query, playlist, guild_id, cache_id, event,
+                     from_interaction, vcclient_cont, channel_id, v, arg_top,
+                     arg_slip, sha_id, continued] () {
         thread_manager::DoneSetter tmds;
 
         auto player_manager = get_player_manager_ptr ();
@@ -680,18 +684,30 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                          download_result.second);
             }
 
-        std::thread pjt ([player_manager, from, guild_id] () {
+        std::thread pjt ([guild_id, shard_id] () {
             thread_manager::DoneSetter tmds;
-            player_manager->reconnect (from, guild_id);
+
+            auto *player_manager = get_player_manager_ptr ();
+
+            if (!player_manager)
+                return;
+            player_manager->reconnect (player_manager->get_client (shard_id),
+                                       guild_id);
         });
 
         thread_manager::dispatch (pjt);
 
         std::thread dlt (
-            [player_manager, sha_id, dling, fname, arg_top, from_interaction,
-             guild_id, from, continued, arg_slip,
-             event] (player::MCTrack result) {
+            [shard_id, sha_id, dling, fname, arg_top, from_interaction,
+             guild_id, continued, arg_slip, event] (player::MCTrack result) {
                 thread_manager::DoneSetter tmds;
+
+                auto *player_manager = get_player_manager_ptr ();
+
+                if (!player_manager)
+                    return;
+
+                auto *from = player_manager->get_client (shard_id);
 
                 dpp::snowflake user_id
                     = from_interaction ? event.command.usr.id : sha_id;
@@ -710,8 +726,7 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
                                     mctrack::get_title (result),
                                     arg_top ? arg_top : arg_slip));
                     }
-                if (from)
-                    guild_player->from = from;
+                guild_player->set_shard (from);
 
                 player::MCTrack t (result);
                 t.filename = fname;
@@ -909,7 +924,8 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
         std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
             vcs;
 
-        if (!guild_player || !guild_player->from)
+        dpp::discord_client *pc = nullptr;
+        if (!guild_player || !(pc = guild_player->get_client ()))
             goto skip_disconnecting;
 
         vcs = get_voice_from_gid (guild_id, sha_id);
@@ -919,7 +935,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id,
 
         set_disconnecting (guild_id, vcs.first->id);
 
-        guild_player->from->disconnect_voice (guild_id);
+        pc->disconnect_voice (guild_id);
 
         // this jump means there's no need to disconnect
     skip_disconnecting:
@@ -1063,75 +1079,82 @@ Manager::voice_ready (const dpp::snowflake &guild_id,
     if (!re || !from)
         return false;
 
-    std::thread t (
-        [this, user_id, guild_id] (dpp::discord_client *from) {
-            thread_manager::DoneSetter tmds;
+    uint32_t shard_id = from->shard_id;
 
-            std::pair<dpp::channel *,
-                      std::map<dpp::snowflake, dpp::voicestate> >
-                uservc;
+    std::thread t ([shard_id, user_id, guild_id] () {
+        thread_manager::DoneSetter tmds;
 
-            uservc = get_voice_from_gid (guild_id, user_id);
+        auto *player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            return;
 
-            bool user_vc = uservc.first != nullptr;
-            auto f = from->connecting_voice_channels.find (guild_id);
-            auto c = get_voice_from_gid (guild_id, from->creator->me.id);
+        std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
+            uservc;
 
-            if (!c.first)
-                goto reset_vc;
+        uservc = get_voice_from_gid (guild_id, user_id);
+        auto *from = player_manager->get_client (shard_id);
+        if (!from)
+            return;
 
-            if (f == from->connecting_voice_channels.end () || !f->second)
-                {
-                    this->set_disconnecting (guild_id, 1);
+        bool user_vc = uservc.first != nullptr;
+        auto f = from->connecting_voice_channels.find (guild_id);
+        auto c = get_voice_from_gid (guild_id, from->creator->me.id);
 
-                    from->disconnect_voice (guild_id);
-                }
-            else if (user_vc && uservc.first->id != c.first->id)
-                {
-                    if (get_debug_state ())
-                        std::cerr << "Disconnecting as it "
-                                     "seems I just got moved "
-                                     "to different vc and "
-                                     "connection not updated "
-                                     "yet: "
-                                  << guild_id << '\n';
+        if (!c.first)
+            goto reset_vc;
 
-                    this->set_disconnecting (guild_id, f->second->channel_id);
+        if (f == from->connecting_voice_channels.end () || !f->second)
+            {
+                player_manager->set_disconnecting (guild_id, 1);
 
-                    this->set_connecting (guild_id, uservc.first->id);
+                from->disconnect_voice (guild_id);
+            }
+        else if (user_vc && uservc.first->id != c.first->id)
+            {
+                if (get_debug_state ())
+                    std::cerr << "Disconnecting as it "
+                                 "seems I just got moved "
+                                 "to different vc and "
+                                 "connection not updated "
+                                 "yet: "
+                              << guild_id << '\n';
 
-                    from->disconnect_voice (guild_id);
-                }
+                player_manager->set_disconnecting (guild_id,
+                                                   f->second->channel_id);
 
-            goto reconnect;
+                player_manager->set_connecting (guild_id, uservc.first->id);
 
-        reset_vc:
-            reset_voice_channel (from, guild_id);
+                from->disconnect_voice (guild_id);
+            }
 
-            if (user_id && user_vc)
-                {
-                    std::lock_guard lk (this->c_m);
-                    auto p = this->connecting.find (guild_id);
+        goto reconnect;
 
-                    std::map<dpp::snowflake, dpp::voicestate> vm = {};
+    reset_vc:
+        reset_voice_channel (from, guild_id);
 
-                    if (p == this->connecting.end ())
-                        goto reconnect;
+        if (user_id && user_vc)
+            {
+                std::lock_guard lk (player_manager->c_m);
+                auto p = player_manager->connecting.find (guild_id);
 
-                    auto gc = dpp::find_channel (p->second);
-                    if (gc)
-                        vm = gc->get_voice_members ();
+                std::map<dpp::snowflake, dpp::voicestate> vm = {};
 
-                    auto l = has_listener (&vm);
-                    if (!l && p->second != uservc.first->id)
-                        p->second = uservc.first->id;
-                }
-            // goto reconnect;
+                if (p == player_manager->connecting.end ())
+                    goto reconnect;
 
-        reconnect:
-            this->reconnect (from, guild_id);
-        },
-        from);
+                auto gc = dpp::find_channel (p->second);
+                if (gc)
+                    vm = gc->get_voice_members ();
+
+                auto l = has_listener (&vm);
+                if (!l && p->second != uservc.first->id)
+                    p->second = uservc.first->id;
+            }
+        // goto reconnect;
+
+    reconnect:
+        player_manager->reconnect (from, guild_id);
+    });
 
     thread_manager::dispatch (t);
 
@@ -1342,11 +1365,16 @@ Manager::full_reconnect (dpp::discord_client *from,
                                       connect_channel_id);
 
     from->disconnect_voice (guild_id);
+    uint32_t shard_id = from->shard_id;
 
-    std::thread pjt ([this, from, guild_id] () {
+    std::thread pjt ([shard_id, guild_id] () {
         thread_manager::DoneSetter tmds;
 
-        this->reconnect (from, guild_id);
+        auto *player_manager = get_player_manager_ptr ();
+        if (!player_manager)
+            return;
+
+        player_manager->reconnect (shard_id, guild_id);
     });
 
     thread_manager::dispatch (pjt);
@@ -1495,7 +1523,7 @@ skip_autopause:
     // server unmuted, resume
     // dispatch autoresume job
     tstatus = timer::create_resume_timer (sha_id, e_voice_channel_id,
-                                          v->voiceclient, 0);
+                                          v->voiceclient.get (), 0);
 
     if (tstatus == 0)
         // no error, skip warn

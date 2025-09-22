@@ -93,7 +93,7 @@ save (const dpp::slashcommand_t &event)
         if (!guild_player)
             return event.reply ("`[ERROR]` Failed creating guild player");
 
-        guild_player->from = event.from();
+        guild_player->set_shard (event.from ());
 
         if (guild_player->equalizer.empty ())
             return event.reply ("Equalizer not set");
@@ -147,7 +147,7 @@ load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
         if (!guild_player)
             return event.reply ("`[ERROR]` Failed creating guild player");
 
-        guild_player->from = event.from();
+        guild_player->set_shard (event.from ());
 
         std::string name;
         get_inter_param (event, "name", &name);

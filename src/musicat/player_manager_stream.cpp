@@ -97,7 +97,7 @@ wait_for_ready_event (const dpp::snowflake &guild_id)
             // reset current byte
             guild_player->reset_first_track_current_byte ();
 
-            if (auto *vc = guild_player->get_voice_client (); vc != nullptr)
+            if (auto vc = guild_player->get_voice_client (); vc != nullptr)
                 {
                     // check stage channel routine
                     player_manager->prepare_play_stage_channel_routine (
@@ -209,7 +209,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 {
     const std::string dbg_str_arg = cc::get_dbg_str_arg ();
 
-    auto *vc = states.guild_player->get_voice_client ();
+    auto vc = states.guild_player->get_voice_client ();
     const bool has_vc = vc != nullptr;
 
     bool track_seek_queried = !states.track.seek_to.empty ();
@@ -560,7 +560,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
     if (!guild_player)
         throw 2;
 
-    auto *vclient = guild_player->get_voice_client ();
+    auto vclient = guild_player->get_voice_client ();
     if (!vclient)
         throw 2;
 

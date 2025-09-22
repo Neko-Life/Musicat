@@ -56,6 +56,14 @@ Manager::get_player (const dpp::snowflake &guild_id)
 void
 Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
 {
+    uint32_t shard_id = from ? from->shard_id : 0;
+
+    reconnect (shard_id, guild_id);
+}
+
+void
+Manager::reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
+{
     bool from_dc = false;
     {
         std::unique_lock lk (this->dc_m);
@@ -83,13 +91,23 @@ Manager::reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id)
                         std::this_thread::sleep_for (500ms);
                 }
 
-                from->connect_voice (guild_id, a->second, false, SELF_DEAF,
-                                     ENABLE_DAVE);
+                dpp::discord_client *from = get_client (shard_id);
 
-                this->dl_cv.wait (lk, [this, &guild_id] () {
-                    auto t = this->connecting.find (guild_id);
-                    return t == this->connecting.end ();
-                });
+                if (from)
+                    {
+                        from->connect_voice (guild_id, a->second, false,
+                                             SELF_DEAF, ENABLE_DAVE);
+
+                        this->dl_cv.wait (lk, [this, &guild_id] () {
+                            auto t = this->connecting.find (guild_id);
+                            return t == this->connecting.end ();
+                        });
+                    }
+                else
+                    fprintf (stderr,
+                             "[ERROR Manager::reconnect] %u %s: Failed "
+                             "get_client, no connecting took place...\n",
+                             shard_id, guild_id.str ().c_str ());
             }
     }
 }
@@ -434,7 +452,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
 
             std::lock_guard lkstream (guild_player->stream_m);
 
-            auto *vclient = guild_player->get_voice_client ();
+            auto vclient = guild_player->get_voice_client ();
             if (!vclient)
                 {
                     std::cerr << "[Manager::play ERROR] Voice client missing: "
@@ -548,6 +566,12 @@ Manager::shuffle_queue (const dpp::snowflake &guild_id, bool update_info_embed)
         return false;
 
     return guild_player->shuffle (update_info_embed);
+}
+
+dpp::discord_client *
+Manager::get_client (uint32_t shard_id)
+{
+    return cluster->get_shard (shard_id);
 }
 
 } // musicat::player

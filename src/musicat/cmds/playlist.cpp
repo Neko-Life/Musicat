@@ -235,7 +235,7 @@ slash_run (const dpp::slashcommand_t &event)
             {
                 guild_player
                     = player_manager->create_player (event.command.guild_id);
-                guild_player->from = event.from();
+                guild_player->set_shard (event.from ());
             }
 
         const bool add_to_top = arg_top ? true : false;

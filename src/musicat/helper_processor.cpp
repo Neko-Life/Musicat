@@ -526,7 +526,7 @@ read_first_fd_routine (int ni_fd, bool *first_read_fd_ready,
 
         skip_write:
             // make sure there's no more buffer by waiting a bit longer
-            int crevent = poll (crpfd, 1, 20);
+            int crevent = poll (crpfd, 1, 5);
 
             *first_read_fd_ready
                 = (crevent > 0) && (crpfd[0].revents & POLLIN);
@@ -601,9 +601,9 @@ run_through_chain (uint8_t *buffer, ssize_t *size,
     while (pfds)
         {
             iter++;
-            event = poll (pfds, fds_n, 50);
+            event = poll (pfds, fds_n, 10);
 
-            // nothing in 50 ms?
+            // nothing in 10 ms?
             if (!event && !pending_read.size () && !pending_write.size ())
                 {
                     free (pfds);

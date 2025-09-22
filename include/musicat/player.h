@@ -214,8 +214,7 @@ class Player
     size_t shifted_track;
 
     dpp::cluster *cluster;
-    // TODO: this shouldn't be here
-    // dpp::discord_client *from;
+    uint32_t shard_id;
     Manager *manager;
 
     /**
@@ -313,6 +312,12 @@ class Player
     Player ();
     Player (dpp::cluster *_cluster, const dpp::snowflake &_guild_id);
     ~Player ();
+
+    dpp::discord_client *get_client ();
+
+    void set_shard (dpp::discord_client *from);
+
+    void set_shard (uint32_t shard_id);
 
     Player &add_track (MCTrack &track, bool top = false,
                        const dpp::snowflake &guild_id = 0,
@@ -495,7 +500,16 @@ class Manager
      */
     std::shared_ptr<Player> get_player (const dpp::snowflake &guild_id);
 
+    /**
+     * @brief Get discord_client object, return NULL if not exist
+     *
+     * @param shard_id
+     * @return dpp::discord_client*
+     */
+    dpp::discord_client *get_client (uint32_t shard_id);
+
     void reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id);
+    void reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id);
 
     /**
      * @brief Return false if guild doesn't have player in the first place

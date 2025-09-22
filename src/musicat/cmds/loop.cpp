@@ -99,7 +99,7 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
         }
 
     auto guild_player = player_manager->create_player (guild_id);
-    guild_player->from = from;
+    guild_player->set_shard (from);
 
     if (guild_player->saved_config_loaded != true)
         player_manager->load_guild_player_config (guild_id);
@@ -198,7 +198,7 @@ slash_run (const dpp::slashcommand_t &event)
 
         std::string out_reply;
         int status = run (event.command.guild_id, event.command.usr.id,
-                          event.from(), get_mode_param_getter (event),
+                          event.from (), get_mode_param_getter (event),
                           get_loop_amount_param_getter (event), out_reply);
 
         if (status == 1 && !out_reply.empty ())
@@ -252,7 +252,7 @@ handle_button_modal_dialog (const dpp::button_click_t &event)
         // int status =
 
         run (
-            event.command.guild_id, event.command.usr.id, event.from(),
+            event.command.guild_id, event.command.usr.id, event.from (),
             [event] (int64_t &a_l, int64_t &current_val) {
                 if (current_val >= 3)
                     a_l = 0;

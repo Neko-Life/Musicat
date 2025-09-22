@@ -88,7 +88,26 @@ find_focused (const std::vector<dpp::command_data_option> &options,
 
 std::string trim_str (const std::string &str);
 
-std::string max_len (const std::string &s, size_t max_len, bool cut_front = false);
+std::string max_len (const std::string &s, size_t max_len,
+                     bool cut_front = false);
+
+using ret_hook_fn = void (*) (void *data);
+
+class ret_hook_t
+{
+    void *data;
+    ret_hook_fn hook;
+
+  public:
+    ret_hook_t () : data (nullptr), hook (nullptr) {}
+    ret_hook_t (void *data, ret_hook_fn hook) : data (data), hook (hook) {}
+
+    ~ret_hook_t ()
+    {
+        if (hook)
+            hook (data);
+    }
+};
 
 } // musicat::util
 

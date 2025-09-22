@@ -1,16 +1,54 @@
 #include "musicat/events/on_voice_server_update.h"
 #include "musicat/events.h"
 #include "musicat/musicat.h"
-#include "musicat/thread_manager.h"
+#include "musicat/util.h"
+#include <stdio.h>
 
 namespace musicat::events
 {
+
+void
+ret_pline (void *status)
+{
+    int *s = (int *)status;
+
+    switch (*s)
+        {
+        case 1:
+            fprintf (stderr, "[WAITING_VC_READY]");
+            break;
+        case 2:
+            fprintf (stderr, "[NO_CONN]");
+            break;
+        case 3:
+            fprintf (stderr, "[NO_ACTIVE_CONN]");
+            break;
+        case 4:
+            fprintf (stderr, "[NO_OP]");
+            break;
+        }
+
+    fprintf (stderr, "\n");
+}
+
 void
 on_voice_server_update (dpp::cluster *client)
 {
 #ifdef USE_VOICE_SERVER_UPDATE_RECONNECT
     client->on_voice_server_update (
         [] (const dpp::voice_server_update_t &event) {
+            const bool debug = get_debug_state ();
+
+            if (debug)
+                fprintf (stderr,
+                         "[events::on_voice_server_update] "
+                         "%s: %s <- ",
+                         event.guild_id.str ().c_str (),
+                         event.endpoint.c_str ());
+
+            int status = 0;
+            util::ret_hook_t h{ &status, ret_pline };
+
             auto player_manager = get_player_manager_ptr ();
             if (!player_manager)
                 return;
@@ -21,36 +59,38 @@ on_voice_server_update (dpp::cluster *client)
                 guild_player->check_for_to_seek ();
 
             if (player_manager->is_waiting_vc_ready (event.guild_id))
-                return;
-
-            std::thread t ([event] {
-                thread_manager::DoneSetter tmds;
-
-                auto player_manager = get_player_manager_ptr ();
-                if (!player_manager)
+                {
+                    status = 1;
                     return;
+                }
 
-                dpp::voiceconn *connection
-                    = event.from()->get_voice (event.guild_id);
+            dpp::voiceconn *connection
+                = event.from ()->get_voice (event.guild_id);
 
-                if (!connection || !connection->is_active ())
+            if (!connection)
+                {
+                    status = 2;
                     return;
+                }
 
-                if (get_debug_state ())
-                    fprintf (stderr,
-                             "[events::on_voice_server_update] "
-                             "Reconnecting to new Voice Server (%s)\n",
-                             event.guild_id.str ().c_str ());
+            fprintf (stderr, "%s ", connection->websocket_hostname.c_str ());
 
-                player_manager->set_waiting_vc_ready (event.guild_id);
+            if (!connection->is_active ())
+                {
+                    status = 3;
+                    return;
+                }
 
-                std::lock_guard lk (event.from()->voice_mutex);
-                connection->disconnect ();
-                connection->websocket_hostname = event.endpoint;
-                connection->connect (event.guild_id);
-            });
+            if (connection->websocket_hostname == event.endpoint)
+                {
+                    status = 4;
+                    return;
+                }
 
-            thread_manager::dispatch (t);
+            // reconnect voice
+            player_manager->full_reconnect (event.from (), event.guild_id,
+                                            connection->channel_id,
+                                            connection->channel_id);
         });
 #endif
 }
