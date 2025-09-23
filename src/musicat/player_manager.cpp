@@ -571,6 +571,8 @@ Manager::shuffle_queue (const dpp::snowflake &guild_id, bool update_info_embed)
 dpp::discord_client *
 Manager::get_client (uint32_t shard_id)
 {
+    if (!cluster) return nullptr;
+
     return cluster->get_shard (shard_id);
 }
 
