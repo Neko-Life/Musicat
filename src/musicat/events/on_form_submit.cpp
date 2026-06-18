@@ -5,10 +5,54 @@
 #include "musicat/storage.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
-
+#include <cstdio>
 #include <exception>
+
 namespace musicat::events
 {
+
+// unused, small test to use the default download thread for now
+void
+_run_download_thread (const bool dling, const std::string &fname, const dpp::snowflake &guild_id, const bool top, const int64_t &arg_slip,
+                      const std::string &edit_response, const dpp::form_submit_t &event, const player::MCTrack &result)
+{
+    try
+        {
+            auto *player_manager = get_player_manager_ptr ();
+
+            if (!player_manager)
+                return;
+
+            dpp::snowflake user_id = event.command.usr.id;
+            auto guild_player = player_manager->create_player (guild_id);
+            auto *from = event.from ();
+            guild_player->set_shard (from);
+
+            if (dling)
+                {
+                    // waits for a while here ...
+                    player_manager->wait_for_download (fname);
+                    event.edit_response (edit_response);
+                }
+
+            player::MCTrack t (result);
+            t.filename = fname;
+            t.user_id = user_id;
+
+            guild_player->add_track (t, top, guild_id, dling, arg_slip);
+
+            from = event.from ();
+            if (from)
+                player::decide_play (from, guild_id, false);
+            else if (get_debug_state ())
+                fprintf (stderr, "[modal_p] No client to decide play\n");
+        }
+    catch (const std::exception &e)
+        {
+            fprintf (stderr, "[events::_handle_modal_p_que_s_track ::dlt ERROR] %s\n", e.what ());
+        }
+}
+
 dpp::task<void>
 _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::component &comp, dpp::component &comp_2, bool &second_input)
 {
@@ -102,47 +146,12 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
                 }
 
             std::thread dlt (
-                [comp, prepend_name, dling, fname, guild_id, top, arg_slip, edit_response] (const dpp::interaction_create_t event,
-                                                                                            player::MCTrack result)
+                [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()
                     {
                         thread_manager::DoneSetter tmds;
-
-                        try
-                            {
-                                auto player_manager = get_player_manager_ptr ();
-
-                                if (!player_manager)
-                                    return;
-
-                                dpp::snowflake user_id = event.command.usr.id;
-                                auto guild_player = player_manager->create_player (guild_id);
-                                auto from = event.from ();
-                                guild_player->set_shard (from);
-
-                                if (dling)
-                                    {
-                                        // waits for a while here ...
-                                        player_manager->wait_for_download (fname);
-                                        event.edit_response (edit_response);
-                                    }
-
-                                player::MCTrack t (result);
-                                t.filename = fname;
-                                t.user_id = user_id;
-                                guild_player->add_track (t, top ? true : false, guild_id, dling, arg_slip);
-
-                                from = event.from ();
-                                if (from)
-                                    player::decide_play (from, guild_id, false);
-                                else if (get_debug_state ())
-                                    fprintf (stderr, "[modal_p] No client to decide play\n");
-                            }
-                        catch (const std::exception &e)
-                            {
-                                fprintf (stderr, "[events::_handle_modal_p_que_s_track ::dlt ERROR] %s\n", e.what ());
-                            }
-                    },
-                event, result);
+                        player::run_download_thread (event.from ()->shard_id, get_sha_id (), dling, fname, top, true, guild_id, false,
+                                                     arg_slip, event, result, edit_response);
+                    });
 
             thread_manager::dispatch (dlt);
         }
@@ -150,6 +159,27 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
         {
             fprintf (stderr, "[events::_handle_modal_p_que_s_track ERROR] %s\n", e.what ());
         }
+}
+
+void
+print_components(const std::vector<dpp::component> &comps) {
+    fprintf(stderr, "\nvvvvv comps size: %ld vvvvv\n", comps.size());
+
+    int idx = 0;
+    for (const auto &c : comps) {
+        fprintf(stderr, "===== index %d =====\n", idx++);
+
+        fprintf(stderr, "type: %d\n", c.type);
+        fprintf(stderr, "label: %s\n", c.label.c_str());
+        fprintf(stderr, "custom_id: %s\n", c.custom_id.c_str());
+        fprintf(stderr, "placeholder: %s\n", c.placeholder.c_str());
+        fprintf(stderr, "content: %s\n", c.content.c_str());
+        fprintf(stderr, "description: %s\n", c.description.c_str());
+
+        fprintf(stderr, "===== end index %d =====\n", idx++);
+    }
+
+    fprintf(stderr, "^^^^^ end print comps ^^^^^\n");
 }
 
 dpp::task<void>
@@ -162,16 +192,19 @@ _handle_form_modal_p (const dpp::form_submit_t &event)
             co_return;
         }
 
-    auto comp = event.components.at (0).components.at (0);
+    const bool debug = get_debug_state();
+    if (debug) print_components(event.components);
+
+    auto comp = event.components.at (0);
     bool second_input = event.components.size () > 1;
     dpp::component comp_2;
 
     if (second_input)
-        comp_2 = event.components.at (1).components.at (0);
+        comp_2 = event.components.at (1);
 
     if (comp.custom_id.find ("que_s_track") != std::string::npos)
         {
-            _handle_modal_p_que_s_track (event, comp, comp_2, second_input);
+            co_await _handle_modal_p_que_s_track (event, comp, comp_2, second_input);
         }
 }
 
@@ -198,7 +231,7 @@ _handle_form_page_queue (const dpp::form_submit_t &event)
             return;
         }
 
-    auto comp = event.components.at (0).components.at (0);
+    auto comp = event.components.at (0);
 
     if (comp.custom_id == "j")
         {
@@ -230,7 +263,7 @@ on_form_submit (dpp::cluster *client)
 
                 if (event.custom_id == "modal_p")
                     {
-                        _handle_form_modal_p (event);
+                        co_await _handle_form_modal_p (event);
                     }
                 else if (event.custom_id == "page_queue")
                     {

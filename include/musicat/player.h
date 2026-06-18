@@ -4,6 +4,7 @@
 #include "musicat/config.h"
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
+#include <cstdint>
 #include <deque>
 #include <dpp/dpp.h>
 #include <map>
@@ -444,10 +445,12 @@ struct get_playing_info_embed_info_t
     ~get_playing_info_embed_info_t () = default;
 };
 
+// this will be read and write by multiple event threads
 class Manager
 {
   public:
     dpp::cluster *cluster;
+
     std::map<dpp::snowflake, std::shared_ptr<Player> > players;
     std::map<dpp::snowflake, std::shared_ptr<dpp::message> > info_messages_cache;
 
@@ -500,7 +503,9 @@ class Manager
      */
     dpp::discord_client *get_client (uint32_t shard_id);
 
+    // waits for disconnect then request to connect and waits for connected event
     void reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id);
+    // waits for disconnect then request to connect and waits for connected event
     void reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id);
 
     /**
@@ -578,12 +583,13 @@ class Manager
      * playback and player queue, will auto reconnect if `from` provided
      *
      * @param guild_id
-     * @param from
+     * @param shard_id
      * @param user_id User who's invoked the function and in a vc
      * @return true
      * @return false
      */
-    bool voice_ready (const dpp::snowflake &guild_id, dpp::discord_client *from = nullptr, const dpp::snowflake &user_id = 0);
+    bool voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id = Player::INVALID_SHARD_ID,
+                      const dpp::snowflake &user_id = 0);
 
     /**
      * @brief Stop guild player audio stream
@@ -764,7 +770,7 @@ class Manager
     /**
      * @brief Fetch next autoplay track and add it to queue
      */
-    void get_next_autoplay_track (const std::string &track_id, dpp::discord_client *from, const dpp::snowflake &server_id);
+    void get_next_autoplay_track (const std::string &track_id, const uint32_t shard_id, const dpp::snowflake &server_id);
 
     /**
      * @brief Set autopause if needed
@@ -834,6 +840,29 @@ std::pair<bool, int> track_exist (const std::string &fname, const std::string &u
                                   bool from_interaction, dpp::snowflake guild_id, bool no_download = false);
 
 /**
+ * @brief Default download thread for search and add track to guild queue, can be used for interaction and
+ * non interaction. Interaction must have already deferred/replied.
+ *
+ * @param shard_id Shard ID for the Discord client
+ * @param sha_id Client user Id
+ * @param dling Whether currently downloading or not, used for interaction response content
+ * @param fname Path to file
+ * @param arg_top Whether to add the track to the top of the queue or not
+ * @param from_interaction Whether from an interaction or not
+ * @param guild_id Guild which data to be updated with
+ * @param continued Whether marker to initialize playback has been inserted
+ * @param arg_slip Slip track into position in the queue
+ * @param event Can be incomplete type or filled if from interaction, used for interaction response if from interaction
+ * @param result Search result for the track, used for interaction response if from interaction and for getting filename if not provided in
+ * argument
+ * @param downloaded_response Response content to send when download finished if from interaction, ignored otherwise
+ */
+void run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, const bool dling, const std::string &fname,
+                          const bool arg_top, const bool from_interaction, const dpp::snowflake &guild_id, const bool continued,
+                          const int64_t arg_slip, const dpp::interaction_create_t &event, const player::MCTrack &result,
+                          const std::string &downloaded_response);
+
+/**
  * @brief Search and add track to guild queue, can be used for interaction and
  * non interaction. Interaction must have already deferred/replied.
  *
@@ -849,13 +878,13 @@ std::pair<bool, int> track_exist (const std::string &fname, const std::string &u
  * tracks to
  * @param sha_id Client user Id
  * @param from_interaction Whether from an interaction or not
- * @param from Discord client used to reconnect/join voice channel
+ * @param shard_id Shard ID for the Discord client
  * @param event Can be incomplete type or filled if from interaction
  * @param continued Whether marker to initialize playback has been inserted
  * @param cache_id Id to search in cache
  */
 void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
-                const dpp::snowflake channel_id, const dpp::snowflake sha_id, bool from_interaction, dpp::discord_client *from,
+                const dpp::snowflake channel_id, const dpp::snowflake sha_id, bool from_interaction, const uint32_t shard_id,
                 const dpp::interaction_create_t event = dpp::interaction_create_t (NULL, 0, "{}"), bool continued = false,
                 int64_t arg_slip = 0, const std::string &cache_id = "");
 

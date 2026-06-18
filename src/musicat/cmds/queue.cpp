@@ -95,7 +95,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 // rather a feature where user who left the vc can clear their
                 // tracks to keep their friend happy)
                 if (!player_manager->voice_ready (event.command.guild_id,
-                                                  event.from(),
+                                                  event.from()->shard_id,
                                                   event.command.usr.id))
                     {
                         event.edit_response (

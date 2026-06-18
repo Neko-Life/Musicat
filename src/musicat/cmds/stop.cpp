@@ -24,7 +24,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (util::is_player_not_playing (p, v))
         return event.reply ("I'm not playing anything");
 
-    if (!player_manager->voice_ready (event.command.guild_id, event.from(),
+    if (!player_manager->voice_ready (event.command.guild_id, event.from()->shard_id,
                                       event.command.usr.id))
         return event.reply ("Please wait while I'm getting ready to stream");
 
