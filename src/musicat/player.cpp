@@ -92,7 +92,7 @@ Player::init ()
     this->loop_mode = loop_mode_t::l_none;
     this->shifted_track = 0;
     this->info_message = nullptr;
-    this->shard_id = 0xFFFFFFFF;
+    this->shard_id = INVALID_SHARD_ID;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -148,7 +148,7 @@ Player::~Player ()
     this->loop_mode = loop_mode_t::l_none;
     this->shifted_track = 0;
     this->info_message = nullptr;
-    this->shard_id = 0xFFFFFFFF;
+    this->shard_id = INVALID_SHARD_ID;
     this->auto_play = false;
     this->max_history_size = 0;
     this->stopped = false;
@@ -161,6 +161,7 @@ Player::~Player ()
 dpp::discord_client *
 Player::get_client ()
 {
+    if (shard_id == INVALID_SHARD_ID) return nullptr;
     return manager->get_client (shard_id);
 }
 
@@ -169,6 +170,7 @@ Player::set_shard (dpp::discord_client *from)
 {
     if (!from)
         return;
+
     this->set_shard (from->shard_id);
 }
 

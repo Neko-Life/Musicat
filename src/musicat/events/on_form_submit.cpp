@@ -6,156 +6,160 @@
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
 
+#include <exception>
 namespace musicat::events
 {
-void
-_handle_modal_p_que_s_track (const dpp::form_submit_t &event,
-                             const dpp::component &comp,
-                             dpp::component &comp_2, bool &second_input)
+dpp::task<void>
+_handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::component &comp, dpp::component &comp_2, bool &second_input)
 {
-    int64_t pos = 0;
-    {
-        if (!std::holds_alternative<std::string> (comp.value))
-            return;
-
-        std::string q = std::get<std::string> (comp.value);
-        if (q.empty ())
-            return;
-
-        sscanf (q.c_str (), "%ld", &pos);
-        if (pos < 1)
-            return;
-    }
-
-    bool top = comp.custom_id.find ("top") != std::string::npos;
-
-    int64_t arg_slip = 0;
-    if (second_input)
+    try
         {
-            if (!std::holds_alternative<std::string> (comp_2.value))
-                return;
+            if (!std::holds_alternative<std::string> (comp.value))
+                co_return;
 
-            std::string q = std::get<std::string> (comp_2.value);
-            if (q.empty ())
-                return;
+            int64_t pos = 0;
+            {
+                std::string q = std::get<std::string> (comp.value);
+                if (q.empty ())
+                    co_return;
 
-            sscanf (q.c_str (), "%ld", &arg_slip);
+                sscanf (q.c_str (), "%ld", &pos);
+                if (pos < 1)
+                    co_return;
+            }
 
-            if (arg_slip < 1)
-                return;
+            bool top = comp.custom_id.find ("top") != std::string::npos;
 
-            if (arg_slip == 1)
-                top = true;
-        }
-
-    auto storage = storage::get (event.command.message_id);
-    if (!storage.has_value ())
-        {
-            dpp::message m ("It seems like this result is "
-                            "outdated, try make a new search");
-
-            m.flags |= dpp::m_ephemeral;
-            event.reply (m);
-            return;
-        }
-
-    auto tracks = std::any_cast<std::vector<player::MCTrack> > (storage);
-    if (tracks.size () < (size_t)pos)
-        return;
-
-    auto result = tracks.at (pos - 1);
-
-    auto from = event.from ();
-    auto guild_id = event.command.guild_id;
-
-    const std::string prepend_name
-        = util::response::str_mention_user (event.command.usr.id);
-
-    std::string edit_response
-        = prepend_name
-          + util::response::reply_added_track (mctrack::get_title (result),
-                                               top ? 1 : arg_slip);
-
-    event.thinking ();
-
-    const std::string fname = player::get_filename_from_result (result);
-
-    bool dling = false;
-
-    std::ifstream test (get_music_folder_path () + fname,
-                        std::ios_base::in | std::ios_base::binary);
-
-    if (!test.is_open ())
-        {
-            dling = true;
-            event.edit_response (prepend_name
-                                 + util::response::reply_downloading_track (
-                                     mctrack::get_title (result)));
-
-            auto player_manager = get_player_manager_ptr ();
-
-            if (player_manager
-                && player_manager->waiting_file_download.find (fname)
-                       == player_manager->waiting_file_download.end ())
+            int64_t arg_slip = 0;
+            if (second_input)
                 {
-                    auto url = mctrack::get_url (result);
-                    player_manager->download (fname, url, guild_id);
+                    if (!std::holds_alternative<std::string> (comp_2.value))
+                        co_return;
+
+                    std::string q = std::get<std::string> (comp_2.value);
+                    if (q.empty ())
+                        co_return;
+
+                    sscanf (q.c_str (), "%ld", &arg_slip);
+
+                    if (arg_slip < 1)
+                        co_return;
+
+                    if (arg_slip == 1)
+                        top = true;
                 }
-        }
-    else
-        {
-            test.close ();
-            event.edit_response (edit_response);
-        }
 
-    std::thread dlt (
-        [comp, prepend_name, dling, fname, guild_id, from, top, arg_slip,
-         edit_response] (const dpp::interaction_create_t event,
-                         player::MCTrack result) {
-            thread_manager::DoneSetter tmds;
-            auto player_manager = get_player_manager_ptr ();
-
-            if (!player_manager)
-                return;
-
-            dpp::snowflake user_id = event.command.usr.id;
-            auto guild_player = player_manager->create_player (guild_id);
-
-            if (dling)
+            auto storage = storage::get (event.command.message_id);
+            if (!storage.has_value ())
                 {
-                    player_manager->wait_for_download (fname);
+                    dpp::message m ("It seems like this result is outdated, try make a new search");
+
+                    m.flags |= dpp::m_ephemeral;
+                    event.reply (m);
+                    co_return;
+                }
+
+            auto tracks = std::any_cast<std::vector<player::MCTrack> > (storage);
+            if (tracks.size () < (size_t)pos)
+                co_return;
+
+            auto result = tracks.at (pos - 1);
+
+            auto guild_id = event.command.guild_id;
+
+            const std::string prepend_name = util::response::str_mention_user (event.command.usr.id);
+
+            std::string edit_response = prepend_name + util::response::reply_added_track (mctrack::get_title (result), top ? 1 : arg_slip);
+
+            dpp::async thinking = event.co_thinking ();
+
+            const std::string fname = player::get_filename_from_result (result);
+
+            bool dling = false;
+
+            std::ifstream test (get_music_folder_path () + fname, std::ios_base::in | std::ios_base::binary);
+
+            if (!test.is_open ())
+                {
+                    dling = true;
+                    co_await thinking;
+                    event.edit_response (prepend_name + util::response::reply_downloading_track (mctrack::get_title (result)));
+
+                    auto player_manager = get_player_manager_ptr ();
+
+                    if (player_manager
+                        && player_manager->waiting_file_download.find (fname) == player_manager->waiting_file_download.end ())
+                        {
+                            auto url = mctrack::get_url (result);
+                            player_manager->download (fname, url, guild_id);
+                        }
+                }
+            else
+                {
+                    test.close ();
+                    co_await thinking;
                     event.edit_response (edit_response);
                 }
 
-            guild_player->set_shard (from);
+            std::thread dlt (
+                [comp, prepend_name, dling, fname, guild_id, top, arg_slip, edit_response] (const dpp::interaction_create_t event,
+                                                                                            player::MCTrack result)
+                    {
+                        thread_manager::DoneSetter tmds;
 
-            player::MCTrack t (result);
-            t.filename = fname;
-            t.user_id = user_id;
-            guild_player->add_track (t, top ? true : false, guild_id, dling,
-                                     arg_slip);
+                        try
+                            {
+                                auto player_manager = get_player_manager_ptr ();
 
-            if (from)
-                player::decide_play (from, guild_id, false);
-            else if (get_debug_state ())
-                fprintf (stderr, "[modal_p] No client to "
-                                 "decide play\n");
-        },
-        event, result);
+                                if (!player_manager)
+                                    return;
 
-    thread_manager::dispatch (dlt);
+                                dpp::snowflake user_id = event.command.usr.id;
+                                auto guild_player = player_manager->create_player (guild_id);
+                                auto from = event.from ();
+                                guild_player->set_shard (from);
+
+                                if (dling)
+                                    {
+                                        // waits for a while here ...
+                                        player_manager->wait_for_download (fname);
+                                        event.edit_response (edit_response);
+                                    }
+
+                                player::MCTrack t (result);
+                                t.filename = fname;
+                                t.user_id = user_id;
+                                guild_player->add_track (t, top ? true : false, guild_id, dling, arg_slip);
+
+                                from = event.from ();
+                                if (from)
+                                    player::decide_play (from, guild_id, false);
+                                else if (get_debug_state ())
+                                    fprintf (stderr, "[modal_p] No client to decide play\n");
+                            }
+                        catch (const std::exception &e)
+                            {
+                                fprintf (stderr, "[events::_handle_modal_p_que_s_track ::dlt ERROR] %s\n", e.what ());
+                            }
+                    },
+                event, result);
+
+            thread_manager::dispatch (dlt);
+        }
+    catch (const std::exception &e)
+        {
+            fprintf (stderr, "[events::_handle_modal_p_que_s_track ERROR] %s\n", e.what ());
+        }
 }
 
-void
+dpp::task<void>
 _handle_form_modal_p (const dpp::form_submit_t &event)
 {
     if (!event.components.size ())
         {
-            fprintf (stderr, "[events::_handle_form_modal_p WARN] Form "
-                             "`modal_p` doesn't contain "
-                             "any components row\n");
+            fprintf (stderr, "[events::_handle_form_modal_p WARN] Form `modal_p` doesn't contain any components row\n");
 
-            return;
+            co_return;
         }
 
     auto comp = event.components.at (0).components.at (0);
@@ -172,8 +176,7 @@ _handle_form_modal_p (const dpp::form_submit_t &event)
 }
 
 void
-_handle_page_queue_j (const dpp::form_submit_t &event,
-                      const dpp::component &comp)
+_handle_page_queue_j (const dpp::form_submit_t &event, const dpp::component &comp)
 {
     if (!std::holds_alternative<std::string> (comp.value))
         return;
@@ -190,9 +193,7 @@ _handle_form_page_queue (const dpp::form_submit_t &event)
 {
     if (!event.components.size ())
         {
-            fprintf (stderr, "[events::_handle_form_page_queue WARN] Form "
-                             "`page_queue` doesn't contain "
-                             "any components row\n");
+            fprintf (stderr, "[events::_handle_form_page_queue WARN] Form `page_queue` doesn't contain any components row\n");
 
             return;
         }
@@ -210,9 +211,7 @@ _handle_form_loop_mode (const dpp::form_submit_t &event)
 {
     if (!event.components.size ())
         {
-            fprintf (stderr, "[events::_handle_form_loop_mode WARN] Form "
-                             "`loop_mode` doesn't contain "
-                             "any components row\n");
+            fprintf (stderr, "[events::_handle_form_loop_mode WARN] Form `loop_mode` doesn't contain any components row\n");
 
             return;
         }
@@ -223,23 +222,24 @@ _handle_form_loop_mode (const dpp::form_submit_t &event)
 void
 on_form_submit (dpp::cluster *client)
 {
-    client->on_form_submit ([] (const dpp::form_submit_t &event) {
-        if (get_debug_state ())
-            std::cerr << "[FORM] " << event.custom_id << ' '
-                      << event.command.message_id << "\n";
+    client->on_form_submit (
+        [] (const dpp::form_submit_t &event) -> dpp::task<void>
+            {
+                if (get_debug_state ())
+                    std::cerr << "[FORM] " << event.custom_id << ' ' << event.command.message_id << "\n";
 
-        if (event.custom_id == "modal_p")
-            {
-                _handle_form_modal_p (event);
-            }
-        else if (event.custom_id == "page_queue")
-            {
-                _handle_form_page_queue (event);
-            }
-        else if (event.custom_id == "loop_mode")
-            {
-                _handle_form_loop_mode (event);
-            }
-    });
+                if (event.custom_id == "modal_p")
+                    {
+                        _handle_form_modal_p (event);
+                    }
+                else if (event.custom_id == "page_queue")
+                    {
+                        _handle_form_page_queue (event);
+                    }
+                else if (event.custom_id == "loop_mode")
+                    {
+                        _handle_form_loop_mode (event);
+                    }
+            });
 }
 } // musicat::events

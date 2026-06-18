@@ -1,7 +1,6 @@
 #include "musicat/eliza.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
-#include <filesystem>
 #include <regex>
 #include <stdio.h>
 #include <sys/stat.h>

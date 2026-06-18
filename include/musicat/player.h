@@ -144,6 +144,8 @@ using player_manager_ptr_t = Manager *;
 class Player
 {
   public:
+    static const uint32_t INVALID_SHARD_ID = 0xFFFFFFFF;
+
     /**
      * @brief Guild Id this player belongs to.
      *
@@ -319,9 +321,7 @@ class Player
 
     void set_shard (uint32_t shard_id);
 
-    Player &add_track (MCTrack &track, bool top = false,
-                       const dpp::snowflake &guild_id = 0,
-                       const bool update_embed = true,
+    Player &add_track (MCTrack &track, bool top = false, const dpp::snowflake &guild_id = 0, const bool update_embed = true,
                        const int64_t &arg_slip = 0);
 
     Player &set_max_history_size (const size_t &siz = 0);
@@ -349,9 +349,7 @@ class Player
      *
      * @return std::deque<MCTrack> list of removed track
      */
-    std::deque<MCTrack> skip_queue (int64_t amount = 1, bool remove = false,
-                                    bool pop_current = false,
-                                    bool push_back = false);
+    std::deque<MCTrack> skip_queue (int64_t amount = 1, bool remove = false, bool pop_current = false, bool push_back = false);
 
     /**
      * @brief Set player auto play mode
@@ -383,8 +381,7 @@ class Player
      */
     Player &set_channel (const dpp::snowflake &channel_id);
 
-    size_t remove_track (const size_t &pos, size_t amount = 1,
-                         const size_t &to = -1);
+    size_t remove_track (const size_t &pos, size_t amount = 1, const size_t &to = -1);
 
     size_t remove_track_by_user (const dpp::snowflake &user_id);
 
@@ -442,11 +439,7 @@ struct get_playing_info_embed_info_t
     bool notification;
     bool stopped;
 
-    get_playing_info_embed_info_t ()
-        : play_pause_icon (NULL), playing (false), notification (true),
-          stopped (false)
-    {
-    }
+    get_playing_info_embed_info_t () : play_pause_icon (NULL), playing (false), notification (true), stopped (false) {}
 
     ~get_playing_info_embed_info_t () = default;
 };
@@ -456,8 +449,7 @@ class Manager
   public:
     dpp::cluster *cluster;
     std::map<dpp::snowflake, std::shared_ptr<Player> > players;
-    std::map<dpp::snowflake, std::shared_ptr<dpp::message> >
-        info_messages_cache;
+    std::map<dpp::snowflake, std::shared_ptr<dpp::message> > info_messages_cache;
 
     // Mutexes
     // dl: waiting_file_download
@@ -538,34 +530,27 @@ class Manager
      * @return false
      * @throw musicat::exception
      */
-    bool pause (dpp::discord_client *from, const dpp::snowflake &guild_id,
-                const dpp::snowflake &user_id, bool update_info_embed = true);
+    bool pause (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool update_info_embed = true);
 
-    void unpause (dpp::discord_voice_client *voiceclient,
-                  const dpp::snowflake &guild_id,
-                  bool update_info_embed = true);
+    void unpause (dpp::discord_voice_client *voiceclient, const dpp::snowflake &guild_id, bool update_info_embed = true);
 
     bool is_disconnecting (const dpp::snowflake &guild_id);
 
-    void set_disconnecting (const dpp::snowflake &guild_id,
-                            const dpp::snowflake &voice_channel_id);
+    void set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
 
     void clear_disconnecting (const dpp::snowflake &guild_id);
 
     bool is_connecting (const dpp::snowflake &guild_id);
 
-    void set_connecting (const dpp::snowflake &guild_id,
-                         const dpp::snowflake &voice_channel_id);
+    void set_connecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
 
     int clear_connecting (const dpp::snowflake &guild_id);
 
     bool is_waiting_vc_ready (const dpp::snowflake &guild_id);
 
-    void set_waiting_vc_ready (const dpp::snowflake &guild_id,
-                               const std::string &second = "0");
+    void set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string &second = "0");
 
-    void set_vc_ready_timeout (const dpp::snowflake &guild_id,
-                               const unsigned long &timer = 10000);
+    void set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned long &timer = 10000);
 
     /**
      * @brief Returns 1 if doesn't need to wait, 0 otherwise
@@ -580,8 +565,7 @@ class Manager
 
     void clear_manually_paused (const dpp::snowflake &guild_id);
 
-    void set_processor_state (std::string &server_id_str,
-                              processor_state_t state);
+    void set_processor_state (std::string &server_id_str, processor_state_t state);
 
     processor_state_t get_processor_state (std::string &server_id_str);
 
@@ -599,9 +583,7 @@ class Manager
      * @return true
      * @return false
      */
-    bool voice_ready (const dpp::snowflake &guild_id,
-                      dpp::discord_client *from = nullptr,
-                      const dpp::snowflake &user_id = 0);
+    bool voice_ready (const dpp::snowflake &guild_id, dpp::discord_client *from = nullptr, const dpp::snowflake &user_id = 0);
 
     /**
      * @brief Stop guild player audio stream
@@ -623,14 +605,10 @@ class Manager
      *
      * @throw musicat::exception
      */
-    std::pair<std::deque<MCTrack>, int> skip (dpp::voiceconn *v,
-                                              const dpp::snowflake &guild_id,
-                                              const dpp::snowflake &user_id,
-                                              const int64_t &amount = 1,
-                                              const bool remove = false);
+    std::pair<std::deque<MCTrack>, int> skip (dpp::voiceconn *v, const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
+                                              const int64_t &amount = 1, const bool remove = false);
 
-    void download (const std::string &fname, const std::string &url,
-                   const dpp::snowflake &guild_id);
+    void download (const std::string &fname, const std::string &url, const dpp::snowflake &guild_id);
 
     void wait_for_download (const std::string &file_name);
 
@@ -638,8 +616,7 @@ class Manager
 
     void stream (const dpp::snowflake &guild_id, player::MCTrack &track);
 
-    void prepare_play_stage_channel_routine (
-        dpp::discord_voice_client *voice_client, dpp::guild *guild);
+    void prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
     /**
      * @brief Start streaming thread, plays `track` on `v`
@@ -648,8 +625,7 @@ class Manager
      * @param channel_id text channel for sending nowplaying embed
      * @return int 0 on success, 1 on fail
      */
-    int play (const dpp::snowflake &guild_id, player::MCTrack &track,
-              const dpp::snowflake &channel_id = 0);
+    int play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp::snowflake &channel_id = 0);
 
     /**
      * @brief Try to send currently playing song info to player channel
@@ -663,8 +639,7 @@ class Manager
      * @return false
      * @throw musicat::exception
      */
-    bool send_info_embed (const dpp::snowflake &guild_id, bool update = false,
-                          const bool force_playing_status = false,
+    bool send_info_embed (const dpp::snowflake &guild_id, bool update = false, const bool force_playing_status = false,
                           const dpp::interaction_create_t *event = nullptr);
 
     /**
@@ -678,16 +653,13 @@ class Manager
      * @return false
      * @throw musicat::exception
      */
-    bool update_info_embed (const dpp::snowflake &guild_id,
-                            const bool force_playing_status = false,
+    bool update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status = false,
                             const dpp::interaction_create_t *event = nullptr);
 
     /**
      * @brief For use in slash command
      */
-    void reply_info_embed (const dpp::interaction_create_t &event,
-                           bool expand_button,
-                           bool reply_update_message = false);
+    void reply_info_embed (const dpp::interaction_create_t &event, bool expand_button, bool reply_update_message = false);
 
     /**
      * @brief Delete currently playing song info embed, return false if no info
@@ -698,14 +670,11 @@ class Manager
      * @return true - Message is deleted
      * @return false - No player or no info embed exist
      */
-    bool delete_info_embed (const dpp::snowflake &guild_id,
-                            dpp::command_completion_event_t callback
-                            = dpp::utility::log_error ());
+    bool delete_info_embed (const dpp::snowflake &guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error ());
 
     bool handle_on_track_marker (const dpp::voice_track_marker_t &event);
 
-    void
-    spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event);
+    void spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event);
 
     /**
      * @brief Returns embed and status.
@@ -717,34 +686,26 @@ class Manager
      *
      * -1: other error (dpp/logic error).
      */
-    std::pair<dpp::embed, int>
-    get_playing_info_embed (const dpp::snowflake &guild_id,
-                            bool force_playing_status,
-                            get_playing_info_embed_info_t *info_struct = NULL);
+    std::pair<dpp::embed, int> get_playing_info_embed (const dpp::snowflake &guild_id, bool force_playing_status,
+                                                       get_playing_info_embed_info_t *info_struct = NULL);
 
     /**
      * @brief Get complete playing info message, returns status code.
      * Statuses:
      * get_playing_info_embed() statuses.
      */
-    int get_playing_info_message (dpp::message &msg,
-                                  const dpp::snowflake &guild_id,
-                                  bool force_playing_status,
-                                  bool button_expanded);
+    int get_playing_info_message (dpp::message &msg, const dpp::snowflake &guild_id, bool force_playing_status, bool button_expanded);
 
     void handle_on_voice_ready (const dpp::voice_ready_t &event);
 
-    void
-    handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event);
-    void
-    handle_sha_voice_state_update (const dpp::voice_state_update_t &event);
+    void handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event);
+    void handle_sha_voice_state_update (const dpp::voice_state_update_t &event);
 
     void handle_on_voice_state_update (const dpp::voice_state_update_t &event);
 
     bool set_info_message_as_deleted (dpp::snowflake id);
     void handle_on_message_delete (const dpp::message_delete_t &event);
-    void
-    handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event);
+    void handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event);
 
     /**
      * @brief Remove guild's queue's amount of track starting from pos
@@ -755,11 +716,9 @@ class Manager
      * @param to
      * @return size_t Amount of track actually removed
      */
-    size_t remove_track (const dpp::snowflake &guild_id, const size_t &pos,
-                         const size_t &amount = 1, const size_t &to = -1);
+    size_t remove_track (const dpp::snowflake &guild_id, const size_t &pos, const size_t &amount = 1, const size_t &to = -1);
 
-    bool shuffle_queue (const dpp::snowflake &guild_id,
-                        bool update_info_embed = true);
+    bool shuffle_queue (const dpp::snowflake &guild_id, bool update_info_embed = true);
 
     void set_ignore_marker (const dpp::snowflake &guild_id);
     void remove_ignore_marker (const dpp::snowflake &guild_id);
@@ -773,8 +732,7 @@ class Manager
      * @param user_id User to be the author of the tracks added
      * @return int -1 if json is null, -2 if no row found in the table else 0
      */
-    int load_guild_current_queue (const dpp::snowflake &guild_id,
-                                  const dpp::snowflake *user_id = NULL);
+    int load_guild_current_queue (const dpp::snowflake &guild_id, const dpp::snowflake *user_id = NULL);
 
     /**
      * @brief Load guild player config saved in database, you wanna call this
@@ -794,35 +752,27 @@ class Manager
      *
      * @return int 0 if success, -1 guild_id is 0, 1 connect_channel_id is 0
      */
-    int set_reconnect (const dpp::snowflake &guild_id,
-                       const dpp::snowflake &disconnect_channel_id,
+    int set_reconnect (const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id,
                        const dpp::snowflake &connect_channel_id);
 
     /**
      * @brief Perform full voice channel reconnect/rejoin
      */
-    int full_reconnect (dpp::discord_client *from,
-                        const dpp::snowflake &guild_id,
-                        const dpp::snowflake &disconnect_channel_id,
-                        const dpp::snowflake &connect_channel_id,
-                        const bool &for_listener = false);
+    int full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id,
+                        const dpp::snowflake &connect_channel_id, const bool &for_listener = false);
 
     /**
      * @brief Fetch next autoplay track and add it to queue
      */
-    void get_next_autoplay_track (const std::string &track_id,
-                                  dpp::discord_client *from,
-                                  const dpp::snowflake &server_id);
+    void get_next_autoplay_track (const std::string &track_id, dpp::discord_client *from, const dpp::snowflake &server_id);
 
     /**
      * @brief Set autopause if needed
      * returns 0 if autopause set, 1 if bad arg, -1 if not set
      */
-    int set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id,
-                       bool check_listening_user = true);
+    int set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool check_listening_user = true);
 
-    void check_autopause (const dpp::snowflake &e_guild_id,
-                          const dpp::snowflake &e_voice_channel_id);
+    void check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake &e_voice_channel_id);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -837,8 +787,7 @@ struct handle_effect_chain_change_states_t
     int notification_fd;
 };
 
-using effect_states_list_t
-    = std::vector<handle_effect_chain_change_states_t *>;
+using effect_states_list_t = std::vector<handle_effect_chain_change_states_t *>;
 
 extern std::mutex effect_states_list_m; // EXTERN_VARIABLE
 
@@ -846,8 +795,7 @@ extern std::mutex effect_states_list_m; // EXTERN_VARIABLE
  * @brief Get guild effect states.
  * Must lock `effect_states_list_m` until done using the returned ptr
  */
-handle_effect_chain_change_states_t *
-get_effect_states (const dpp::snowflake &guild_id);
+handle_effect_chain_change_states_t *get_effect_states (const dpp::snowflake &guild_id);
 
 /**
  * @brief Get effect states list.
@@ -865,8 +813,7 @@ effect_states_list_t *get_effect_states_list ();
  *
  * @return std::vector<gat_t>
  */
-std::vector<gat_t> get_available_tracks (const size_t &amount = 0,
-                                         bool with_stat = false);
+std::vector<gat_t> get_available_tracks (const size_t &amount = 0, bool with_stat = false);
 
 void control_music_cache (const size_t size_limit);
 
@@ -877,20 +824,14 @@ int set_track_failed_playback_count (const std::string &filename, int c);
 
 // ================================================================================
 
-std::pair<player::MCTrack, int>
-find_track (const bool playlist, const std::string &arg_query,
-            player::player_manager_ptr_t player_manager,
-            const dpp::snowflake guild_id, const bool no_check_history = false,
-            const std::string &cache_id = "");
+std::pair<player::MCTrack, int> find_track (const bool playlist, const std::string &arg_query, player::player_manager_ptr_t player_manager,
+                                            const dpp::snowflake guild_id, const bool no_check_history = false,
+                                            const std::string &cache_id = "");
 
 std::string get_filename_from_result (player::MCTrack &result);
 
-std::pair<bool, int> track_exist (const std::string &fname,
-                                  const std::string &url,
-                                  player::player_manager_ptr_t player_manager,
-                                  bool from_interaction,
-                                  dpp::snowflake guild_id,
-                                  bool no_download = false);
+std::pair<bool, int> track_exist (const std::string &fname, const std::string &url, player::player_manager_ptr_t player_manager,
+                                  bool from_interaction, dpp::snowflake guild_id, bool no_download = false);
 
 /**
  * @brief Search and add track to guild queue, can be used for interaction and
@@ -913,14 +854,10 @@ std::pair<bool, int> track_exist (const std::string &fname,
  * @param continued Whether marker to initialize playback has been inserted
  * @param cache_id Id to search in cache
  */
-void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
-                int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
-                const dpp::snowflake channel_id, const dpp::snowflake sha_id,
-                bool from_interaction, dpp::discord_client *from,
-                const dpp::interaction_create_t event
-                = dpp::interaction_create_t (NULL, 0, "{}"),
-                bool continued = false, int64_t arg_slip = 0,
-                const std::string &cache_id = "");
+void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, int64_t arg_top, bool vcclient_cont, dpp::voiceconn *v,
+                const dpp::snowflake channel_id, const dpp::snowflake sha_id, bool from_interaction, dpp::discord_client *from,
+                const dpp::interaction_create_t event = dpp::interaction_create_t (NULL, 0, "{}"), bool continued = false,
+                int64_t arg_slip = 0, const std::string &cache_id = "");
 
 /**
  * @brief Decide whether the client need to play or not at its current state
@@ -928,8 +865,7 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query,
  * @param guild_id
  * @param continued
  */
-void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id,
-                  const bool &continued);
+void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, const bool &continued);
 
 // ================================================================================
 
