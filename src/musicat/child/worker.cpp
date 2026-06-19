@@ -43,8 +43,7 @@ execute (command::command_options_t &options)
             goto ret;
         }
 
-    if (options.command
-        == command::command_execute_commands_t.create_audio_processor)
+    if (options.command == command::command_execute_commands_t.create_audio_processor)
         {
             status = worker_command::create_audio_processor (options);
         }
@@ -62,8 +61,7 @@ execute (command::command_options_t &options)
         {
             status = worker_command::call_ytdlp (options);
         }
-    else if (options.command
-             == command::command_execute_commands_t.call_system)
+    else if (options.command == command::command_execute_commands_t.call_system)
         {
             status = worker_command::call_system (options);
         }
@@ -78,10 +76,8 @@ execute (command::command_options_t &options)
         }
 
 ret:
-    ready_msg += '=' + std::to_string (status) + ';'
-                 + command::command_options_keys_t.id + '=' + options.id + ';'
-                 + command::command_options_keys_t.command + '='
-                 + command::command_options_keys_t.ready + ';';
+    ready_msg += '=' + std::to_string (status) + ';' + command::command_options_keys_t.id + '=' + options.id + ';'
+                 + command::command_options_keys_t.command + '=' + command::command_options_keys_t.ready + ';';
 
     command::write_command (ready_msg, write_fd, "child::worker::execute");
 
@@ -133,15 +129,14 @@ run ()
     pfd[0].fd = read_fd;
     int has_event;
     bool read_ready;
-    bool err;
+    bool err, pollhup, pollerr;
 
     while (true)
         {
             has_event = poll (pfd, 1, 1000);
             read_ready = has_event != 0 && (pfd[0].revents & POLLIN) == POLLIN;
             err = has_event != 0
-                  && ((pfd[0].revents & POLLHUP) == POLLHUP
-                      || (pfd[0].revents & POLLERR) == POLLERR);
+                  && (pollhup = ((pfd[0].revents & POLLHUP) == POLLHUP) || (pollerr = (pfd[0].revents & POLLERR) == POLLERR));
 
             if (err)
                 {
@@ -152,25 +147,20 @@ run ()
                     break;
                 }
 
-            while (!err && read_ready
-                   && (read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
+            while (!err && read_ready && (read_size = read (read_fd, cmd, CMD_BUFSIZE)) > 0)
                 {
                     cmd[read_size] = '\0';
 
                     if (get_debug_state ())
-                        fprintf (stderr,
-                                 "[child::worker] Received command: `%s`\n",
-                                 cmd);
+                        fprintf (stderr, "[child::worker] Received command: `%s`\n", cmd);
 
                     handle_command (cmd);
 
                     has_event = poll (pfd, 1, 0);
-                    read_ready = has_event != 0
-                                 && (pfd[0].revents & POLLIN) == POLLIN;
+                    read_ready = has_event != 0 && (pfd[0].revents & POLLIN) == POLLIN;
 
                     err = has_event != 0
-                          && ((pfd[0].revents & POLLHUP) == POLLHUP
-                              || (pfd[0].revents & POLLERR) == POLLERR);
+                          && (pollhup = ((pfd[0].revents & POLLHUP) == POLLHUP) || (pollerr = (pfd[0].revents & POLLERR) == POLLERR));
                 }
 
             // loop through shutdown_queue to reap queued child
@@ -184,9 +174,7 @@ run ()
                     // this calls waitpid with nohang flag
                     // force kill if 30 second passed and still
                     // in the queue
-                    int status = slave_manager::wait (
-                        i->id,
-                        i->force || ((time (NULL) - i->ts_queued) > 30));
+                    int status = slave_manager::wait (i->id, i->force || ((time (NULL) - i->ts_queued) > 30));
 
                     if (status != -1 && status != -2)
                         {
@@ -198,6 +186,8 @@ run ()
                     i++;
                 }
         }
+
+    fprintf (stderr, "[child::worker] Shutting down with has_event(%d) hup(%d) err(%d)...\n", has_event, pollhup, pollerr);
 
     close (read_fd);
 
@@ -247,8 +237,7 @@ call_fork (const char *debug_child_name)
     if (pid == -1)
         perror ("[child::worker::call_fork ERROR] fork");
     else if (debug_child_name && pid != 0 && get_debug_state ())
-        fprintf (stderr, "[child::worker::call_fork] New child: %s (%d)\n",
-                 debug_child_name, pid);
+        fprintf (stderr, "[child::worker::call_fork] New child: %s (%d)\n", debug_child_name, pid);
 
     return pid;
 }
@@ -263,8 +252,7 @@ call_waitpid (pid_t cpid)
     pid_t w;
 
     if (debug)
-        fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n",
-                 cpid);
+        fprintf (stderr, "[child::worker::call_waitpid] Reaping child %d\n", cpid);
 
     do
         {
@@ -291,8 +279,7 @@ call_waitpid (pid_t cpid)
     while (!WIFEXITED (wstatus) && !WIFSIGNALED (wstatus));
 
     if (debug)
-        fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n",
-                 cpid);
+        fprintf (stderr, "[child::worker::call_waitpid] Child %d reaped\n", cpid);
 
     return exitstatus;
 }
@@ -335,10 +322,7 @@ call_waitpid_nohang (pid_t cpid)
 
     if (w != cpid)
         {
-            fprintf (
-                stderr,
-                "[child::worker::call_waitpid_nohang] %d: w is not cpid\n",
-                cpid);
+            fprintf (stderr, "[child::worker::call_waitpid_nohang] %d: w is not cpid\n", cpid);
         }
 
     if (WIFEXITED (wstatus))
