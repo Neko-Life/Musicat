@@ -15,6 +15,7 @@
 #include "musicat/server.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
+#include <exception>
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
@@ -24,8 +25,7 @@
 #include "musicat/tests.h"
 #endif
 
-static const std::string OAUTH_BASE_URL
-    = "https://discord.com/api/oauth2/authorize";
+static const std::string OAUTH_BASE_URL = "https://discord.com/api/oauth2/authorize";
 
 namespace musicat
 {
@@ -66,8 +66,7 @@ std::atomic<bool> should_check_music_cache = true;
 // ================================================================================
 
 // doesn't guarantee valid voicestate
-std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> >
-    _connected_vcs_setting = {};
+std::map<dpp::snowflake, std::pair<dpp::channel, dpp::voicestate> > _connected_vcs_setting = {};
 std::mutex _connected_vcs_setting_mutex;
 
 // ================================================================================
@@ -141,23 +140,19 @@ get_cached_nekos_best_endpoints ()
 }
 
 int
-vcs_setting_handle_connected (const dpp::channel *channel,
-                              const dpp::voicestate *state)
+vcs_setting_handle_connected (const dpp::channel *channel, const dpp::voicestate *state)
 {
     if (!channel || !state || !is_voice_channel (channel->get_type ()))
         return -1;
 
     std::lock_guard lk (_connected_vcs_setting_mutex);
 
-    _connected_vcs_setting.insert_or_assign (
-        channel->id,
-        std::make_pair (dpp::channel (*channel), dpp::voicestate (*state)));
+    _connected_vcs_setting.insert_or_assign (channel->id, std::make_pair (dpp::channel (*channel), dpp::voicestate (*state)));
     return 0;
 }
 
 int
-vcs_setting_handle_updated (const dpp::channel *updated,
-                            dpp::voicestate *state)
+vcs_setting_handle_updated (const dpp::channel *updated, dpp::voicestate *state)
 {
     if (!updated || !is_voice_channel (updated->get_type ()))
         return -1;
@@ -175,11 +170,9 @@ vcs_setting_handle_updated (const dpp::channel *updated,
                 }
         }
 
-    _connected_vcs_setting.insert_or_assign (
-        updated->id, std::make_pair (dpp::channel (*updated),
-                                     prev_state ? std::move (*state)
-                                     : state    ? dpp::voicestate (*state)
-                                                : dpp::voicestate ()));
+    _connected_vcs_setting.insert_or_assign (updated->id, std::make_pair (dpp::channel (*updated), prev_state ? std::move (*state)
+                                                                                                   : state    ? dpp::voicestate (*state)
+                                                                                                              : dpp::voicestate ()));
 
     return 0;
 }
@@ -218,8 +211,7 @@ vcs_setting_get_cache (dpp::snowflake channel_id)
 bool
 is_voice_channel (dpp::channel_type channel_type)
 {
-    return channel_type == dpp::channel_type::CHANNEL_VOICE
-           || channel_type == dpp::channel_type::CHANNEL_STAGE;
+    return channel_type == dpp::channel_type::CHANNEL_VOICE || channel_type == dpp::channel_type::CHANNEL_STAGE;
 }
 
 int
@@ -232,9 +224,18 @@ load_config (const std::string &config_file)
             return -1;
         }
 
-    scs >> sha_cfg;
-    scs.close ();
-    return 0;
+    try
+        {
+            scs >> sha_cfg;
+            scs.close ();
+            return 0;
+        }
+    catch (const std::exception &e)
+        {
+            fprintf (stderr, "[ERROR] Failed to parse config file (%s): %s\n", config_file.c_str (), e.what ());
+            scs.close ();
+            return -1;
+        }
 }
 
 bool
@@ -284,8 +285,7 @@ get_music_folder_path ()
 
     if (is_empty)
         {
-            music_folder_path
-                = get_config_value<std::string> ("MUSIC_FOLDER", "");
+            music_folder_path = get_config_value<std::string> ("MUSIC_FOLDER", "");
 
             if (music_folder_path.empty ())
                 {
@@ -293,9 +293,7 @@ get_music_folder_path ()
                 }
             else if (*(music_folder_path.end () - 1) != '/')
                 {
-                    fprintf (stderr,
-                             "[get_music_folder_path ERROR] MUSIC_FOLDER must "
-                             "have a trailing slash '/'\n");
+                    fprintf (stderr, "[get_music_folder_path ERROR] MUSIC_FOLDER must have a trailing slash '/'\n");
 
                     std::terminate ();
                 }
@@ -360,9 +358,7 @@ construct_scopes_param (const std::string scopes)
 std::string
 get_invite_link ()
 {
-    const std::string append_str
-        = construct_permissions_param (get_invite_permissions ())
-          + construct_scopes_param (get_invite_scopes ());
+    const std::string append_str = construct_permissions_param (get_invite_permissions ()) + construct_scopes_param (get_invite_scopes ());
 
     if (append_str.empty ())
         return "";
@@ -373,14 +369,12 @@ get_invite_link ()
 std::string
 get_oauth_link ()
 {
-    const std::string append_str
-        = construct_scopes_param (get_oauth_scopes ());
+    const std::string append_str = construct_scopes_param (get_oauth_scopes ());
 
     if (append_str.empty ())
         return "";
 
-    return get_invite_oauth_base_url () + get_default_oauth_params ()
-           + append_str;
+    return get_invite_oauth_base_url () + get_default_oauth_params () + append_str;
 }
 
 std::string
@@ -391,15 +385,12 @@ get_oauth_invite ()
 
     const std::string append_str
         = construct_permissions_param (get_invite_permissions ())
-          + ((!invite_scopes.empty () && !oauth_scopes.empty ())
-                 ? construct_scopes_param (invite_scopes + " " + oauth_scopes)
-                 : "");
+          + ((!invite_scopes.empty () && !oauth_scopes.empty ()) ? construct_scopes_param (invite_scopes + " " + oauth_scopes) : "");
 
     if (append_str.empty ())
         return "";
 
-    return get_invite_oauth_base_url () + get_default_oauth_params ()
-           + append_str;
+    return get_invite_oauth_base_url () + get_default_oauth_params () + append_str;
 }
 
 std::string
@@ -500,8 +491,7 @@ get_stream_sleep_on_buffer_threshold_ms ()
 
     if (_stream_sleep_on_buffer_threshold_ms < 1)
         {
-            int64_t set_v = get_config_value<int64_t> (
-                "STREAM_SLEEP_ON_BUFFER_THRESHOLD_MS", 0);
+            int64_t set_v = get_config_value<int64_t> ("STREAM_SLEEP_ON_BUFFER_THRESHOLD_MS", 0);
 
             if (set_v < 1)
                 set_v = 1;
@@ -571,8 +561,7 @@ get_max_music_cache_size ()
 
     if (max_music_cache_size == (size_t)-1)
         {
-            size_t set_v
-                = get_config_value<size_t> ("MAX_MUSIC_CACHE_SIZE", (size_t)0);
+            size_t set_v = get_config_value<size_t> ("MAX_MUSIC_CACHE_SIZE", (size_t)0);
 
             max_music_cache_size = set_v;
         }
@@ -596,17 +585,14 @@ on_sigint ([[maybe_unused]] int code)
 
     if (_sigint_count > 1)
         {
-            static const char stuck_help[]
-                = "If the program seems stuck try type something into your "
-                  "terminal and then press ENTER\n";
+            static const char stuck_help[] = "If the program seems stuck try type something into your terminal and then press ENTER\n";
 
             write (STDERR_FILENO, stuck_help, STR_SIZE (stuck_help));
         }
 
     if (_sigint_count >= 5)
         {
-            static const char force_exit_msg[]
-                = "Understood, force exiting...\n";
+            static const char force_exit_msg[] = "Understood, force exiting...\n";
 
             write (STDERR_FILENO, force_exit_msg, STR_SIZE (force_exit_msg));
 
@@ -650,25 +636,21 @@ run (int argc, const char *argv[])
     load_config_admins ();
     load_config_cors_enabled_origin ();
 
-    const musicat_cluster_params_t cluster_params
-        = { sha_token,
-            dpp::i_guild_members | dpp::i_default_intents,
-            0,
-            0,
-            1,
-            true,
-            dpp::cache_policy::cpol_default,
+    const musicat_cluster_params_t cluster_params = { sha_token,
+                                                      dpp::i_guild_members | dpp::i_default_intents,
+                                                      0,
+                                                      0,
+                                                      1,
+                                                      true,
+                                                      dpp::cache_policy::cpol_default,
 
-            12,
-            4 };
+                                                      12,
+                                                      4 };
 
     if (argc > 1)
         {
-            dpp::cluster client (
-                cluster_params.token, cluster_params.intents,
-                cluster_params.shards, cluster_params.cluster_id,
-                cluster_params.maxclusters, cluster_params.compressed,
-                cluster_params.policy);
+            dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
+                                 cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
 
             client_ptr = &client;
 
@@ -682,17 +664,14 @@ run (int argc, const char *argv[])
 
     if ((python_v = child::ytdlp::has_python ()) == -1)
         {
-            fprintf (stderr,
-                     "[FATAL] Unable to invoke python, this program requires "
-                     "python to use yt-dlp capabilities, exiting...\n");
+            fprintf (stderr, "[FATAL] Unable to invoke python, this program requires python to use yt-dlp capabilities, exiting...\n");
 
             return -1;
         }
 
     if (eliza::init () != 0)
         {
-            fprintf (stderr,
-                     "[ERROR] Something wrong when initializing Eliza...\n");
+            fprintf (stderr, "[ERROR] Something wrong when initializing Eliza...\n");
         }
 
     // no return after this, init child
@@ -713,8 +692,7 @@ run (int argc, const char *argv[])
 
     if (no_db)
         {
-            fprintf (stderr, "[WARN] No database configured, some "
-                             "functionality might not work\n");
+            fprintf (stderr, "[WARN] No database configured, some functionality might not work\n");
         }
     else
         {
@@ -723,33 +701,30 @@ run (int argc, const char *argv[])
             if (status != CONNECTION_OK)
                 {
                     database::shutdown ();
-                    fprintf (
-                        stderr,
-                        "[ERROR] Error initializing database, code: %d\n"
-                        "Some functionality using database might not work\n",
-                        status);
+                    fprintf (stderr, "[ERROR] Error initializing database, code: %d\nSome functionality using database might not work\n",
+                             status);
                 }
         }
 
     // initialize cluster here since constructing cluster
     // also spawns threads
-    dpp::cluster client (cluster_params.token, cluster_params.intents,
-                         cluster_params.shards, cluster_params.cluster_id,
-                         cluster_params.maxclusters, cluster_params.compressed,
-                         cluster_params.policy);
+    dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
+                         cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
 
     player::Manager player_manager (&client);
 
     client_ptr = &client;
     player_manager_ptr = &player_manager;
 
-    client.on_log ([] (const dpp::log_t &event) {
-        if (!get_debug_state ())
-            return;
+    client.on_log (
+        [] (const dpp::log_t &event)
+            {
+                if (!get_debug_state ())
+                    return;
 
-        dpp_cout_logger (event);
-        fprintf (stderr, "%s\n", event.raw_event.c_str ());
-    });
+                dpp_cout_logger (event);
+                fprintf (stderr, "%s\n", event.raw_event.c_str ());
+            });
 
     events::load_events (client_ptr);
 
@@ -757,16 +732,20 @@ run (int argc, const char *argv[])
     static FILE *f_ex_vc_rec = NULL;
     static FILE *p_ex_vc_rec = NULL;
 
-    client.on_voice_receive ([] (const dpp::voice_receive_t &event) {
-        std::cout << "[voice_receive]:\n"
-                  /*<< event.raw_event <<*/ "\n:[voice_receive]\n";
+    client.on_voice_receive (
+        [] (const dpp::voice_receive_t &event)
+            {
+                std::cout << "[voice_receive]:\n"
+                             /*<< event.raw_event <<*/ "\n:[voice_receive]\n";
 
-        if (f_ex_vc_rec == NULL) f_ex_vc_rec = fopen("out.pcm", "wb");
-        if (p_ex_vc_rec == NULL) p_ex_vc_rec = popen("aplay -f dat -", "w");
+                if (f_ex_vc_rec == NULL)
+                    f_ex_vc_rec = fopen ("out.pcm", "wb");
+                if (p_ex_vc_rec == NULL)
+                    p_ex_vc_rec = popen ("aplay -f dat -", "w");
 
-        fwrite(event.audio_data.data(), 1, event.audio_data.size(), f_ex_vc_rec);
-        fwrite(event.audio_data.data(), 1, event.audio_data.size(), p_ex_vc_rec);
-    });
+                fwrite (event.audio_data.data (), 1, event.audio_data.size (), f_ex_vc_rec);
+                fwrite (event.audio_data.data (), 1, event.audio_data.size (), p_ex_vc_rec);
+            });
 
     // client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
     //     std::cout << "[voice_receive_combined]:\n"
@@ -787,23 +766,22 @@ run (int argc, const char *argv[])
 
     try
         {
-            set_cached_nekos_best_endpoints (
-                nekos_best::get_available_endpoints ());
+            set_cached_nekos_best_endpoints (nekos_best::get_available_endpoints ());
         }
     catch (const std::exception &e)
         {
-            fprintf (stderr,
-                     "[ERROR] nekos_best::get_available_endpoints:\n%s\n",
-                     e.what ());
+            fprintf (stderr, "[ERROR] nekos_best::get_available_endpoints:\n%s\n", e.what ());
         }
     client.start (dpp::st_return);
 
     // start server
-    std::thread server_thread ([] () {
-        thread_manager::DoneSetter tmds;
+    std::thread server_thread (
+        [] ()
+            {
+                thread_manager::DoneSetter tmds;
 
-        server::run ();
-    });
+                server::run ();
+            });
 
     thread_manager::dispatch (server_thread);
 
@@ -832,8 +810,7 @@ run (int argc, const char *argv[])
                     if (debug)
                         fprintf (stderr, "[GC] Starting scheduled gc\n");
 
-                    auto start_time
-                        = std::chrono::high_resolution_clock::now ();
+                    auto start_time = std::chrono::high_resolution_clock::now ();
 
                     // gc codes
                     paginate::gc (!running);
@@ -842,12 +819,10 @@ run (int argc, const char *argv[])
                     time (&last_gc);
 
                     auto end_time = std::chrono::high_resolution_clock::now ();
-                    auto done = std::chrono::duration_cast<
-                        std::chrono::milliseconds> (end_time - start_time);
+                    auto done = std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time);
 
                     if (debug)
-                        fprintf (stderr, "[GC] Ran for %lld ms\n",
-                                 done.count ());
+                        fprintf (stderr, "[GC] Ran for %lld ms\n", done.count ());
                 }
 
             if (r_s && (cur_time - last_5sec) > 5)
@@ -855,21 +830,14 @@ run (int argc, const char *argv[])
                     // db reconnect check
                     if (!no_db)
                         {
-                            ConnStatusType status = database::reconnect (
-                                false, db_connect_param);
+                            ConnStatusType status = database::reconnect (false, db_connect_param);
 
                             if (status != CONNECTION_OK && debug)
-                                fprintf (
-                                    stderr,
-                                    "[ERROR DB_RECONNECT] Status code: %d\n",
-                                    status);
+                                fprintf (stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
                         }
 
                     const size_t mcs = get_max_music_cache_size ();
-                    if ((should_check_music_cache
-                         || ((cur_time - last_music_cache_check)
-                             > ONE_HOUR_SECOND))
-                        && mcs != 0)
+                    if ((should_check_music_cache || ((cur_time - last_music_cache_check) > ONE_HOUR_SECOND)) && mcs != 0)
                         {
                             player::control_music_cache (mcs);
 
@@ -896,14 +864,16 @@ run (int argc, const char *argv[])
         }
 
 #ifdef MC_EX_VC_REC
-    if (f_ex_vc_rec) {
-        fclose(f_ex_vc_rec);
-        f_ex_vc_rec = NULL;
-    }
-    if (p_ex_vc_rec) {
-        pclose(p_ex_vc_rec);
-        p_ex_vc_rec = NULL;
-    }
+    if (f_ex_vc_rec)
+        {
+            fclose (f_ex_vc_rec);
+            f_ex_vc_rec = NULL;
+        }
+    if (p_ex_vc_rec)
+        {
+            pclose (p_ex_vc_rec);
+            p_ex_vc_rec = NULL;
+        }
 #endif // MC_EX_VC_REC
 
     child::shutdown ();
