@@ -295,6 +295,8 @@ slash_run (const dpp::slashcommand_t &event)
                 event.edit_response (util::response::reply_added_playlist (
                     p_id, arg_top, count));
 
+                join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
+
                 // !TODO: this is probably for connect and play when adding
                 // playlist but bot isn't in user vc
                 //

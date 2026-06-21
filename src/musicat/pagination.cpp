@@ -533,13 +533,9 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
                           std::deque<player::MCTrack> queue,
                           const std::string &title, const bool edit_response)
 {
-    // unused var
-    // const bool debug = get_debug_state ();
-
     std::vector<dpp::embed> embeds = {};
 
     dpp::embed embed;
-    // std::vector<std::string> queue_str;
     std::string desc = "";
     size_t id = 1;
     size_t qs = queue.size ();
@@ -566,6 +562,7 @@ reply_paginated_playlist (const dpp::interaction_create_t &event,
     if (paginate)
         {
             paginate::add_pagination_buttons (&msg);
+            // !TODO: add Load, Load Slip, Load Top (and close?) button
         }
 
     if (!edit_response)

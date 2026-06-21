@@ -123,13 +123,12 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
 
             std::ifstream test (get_music_folder_path () + fname, std::ios_base::in | std::ios_base::binary);
 
+            auto player_manager = get_player_manager_ptr ();
             if (!test.is_open ())
                 {
                     dling = true;
                     co_await thinking;
                     event.edit_response (prepend_name + util::response::reply_downloading_track (mctrack::get_title (result)));
-
-                    auto player_manager = get_player_manager_ptr ();
 
                     if (player_manager
                         && player_manager->waiting_file_download.find (fname) == player_manager->waiting_file_download.end ())
@@ -144,6 +143,8 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
                     co_await thinking;
                     event.edit_response (edit_response);
                 }
+
+            if (player_manager) join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
             std::thread dlt (
                 [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()
