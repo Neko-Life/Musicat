@@ -4,7 +4,6 @@
 #include "nlohmann/json.hpp"
 #include <cstdio>
 #include <dpp/dpp.h>
-#include <dpp/nlohmann/json_fwd.hpp>
 #include <dpp/snowflake.h>
 #include <libpq-fe.h>
 #include <mutex>

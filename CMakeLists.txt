@@ -24,9 +24,13 @@ if (COMPILE_GNUPLOT)
 	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
 endif()
 
-set(SED_NLOHMANN_JSON_INCLUDE_CMD "sed" "-i" "s/\#include <nlohmann\\/json.hpp>/\#include \"nlohmann\\/json.hpp\"/" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/json.h")
-message(${SED_NLOHMANN_JSON_INCLUDE_CMD})
-execute_process(COMMAND ${SED_NLOHMANN_JSON_INCLUDE_CMD})
+set(RM_NLOHMANN_JSON_INCLUDE_CMD "rm" "-rf" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/nlohmann")
+message(${RM_NLOHMANN_JSON_INCLUDE_CMD})
+execute_process(COMMAND ${RM_NLOHMANN_JSON_INCLUDE_CMD})
+
+# globally include nlohmann
+include_directories(include)
+
 
 file(GLOB_RECURSE MUSICAT_HEADER_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/include/musicat/*.h)
