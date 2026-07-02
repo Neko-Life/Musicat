@@ -86,17 +86,20 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
 
     dpp::user const *sha_user = dpp::find_user (sha_id);
 
-    uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user), sha_user, vcuser.first);
-
-    if (debug)
+    // only calculate permissions if user cache's populated
+    if (sha_user)
         {
-            fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel, cperm & dpp::p_connect);
-        }
+            uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user), sha_user, vcuser.first);
+            if (debug)
+            {
+                fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel, cperm & dpp::p_connect);
+            }
 
-    if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
-        {
-            out = "I have no permission to join your voice channel";
-            return 1;
+            if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
+            {
+                out = "I have no permission to join your voice channel";
+                return 1;
+            }
         }
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vcclient;

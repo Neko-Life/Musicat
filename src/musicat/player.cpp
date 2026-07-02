@@ -465,7 +465,7 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
     set_shard (from);
 
     auto *v = get_voice_conn ();
-    if (v && !v->voiceclient->is_paused ())
+    if (v && v->voiceclient && !v->voiceclient->is_paused ())
         {
             // !TODO: refactor to use status code!
             auto u = get_voice_from_gid (guild_id, user_id);

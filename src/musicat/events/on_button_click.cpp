@@ -153,7 +153,7 @@ s_playnow (const dpp::button_click_t &event)
             auto p = player_manager->create_player (event.command.guild_id);
             p->set_shard (event.from ());
 
-            if (p && vcuser.first && v && v->channel_id == vcuser.first->id
+            if (p && vcuser.first && v && v->voiceclient && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (event.command.guild_id,
                                                 event.from ()->shard_id,
                                                 event.command.usr.id)

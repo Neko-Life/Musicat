@@ -92,6 +92,15 @@ on_voice_server_update (dpp::cluster *client)
                                             connection->channel_id,
                                             connection->channel_id);
         });
+#else
+    client->on_voice_server_update (
+        [] (const dpp::voice_server_update_t &event) {
+
+            const bool debug = get_debug_state();
+            if (debug)
+                std::cerr << "[events::on_voice_server_update]: " << event.raw_event << "\n";
+
+        });
 #endif
 }
 } // musicat::events

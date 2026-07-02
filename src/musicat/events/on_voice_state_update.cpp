@@ -10,6 +10,10 @@ on_voice_state_update (dpp::cluster *client)
         [] (const dpp::voice_state_update_t &event) {
             auto player_manager = get_player_manager_ptr ();
 
+            const bool debug = get_debug_state();
+            if (debug)
+                std::cerr << "[events::on_voice_state_update]: " << event.raw_event << "\n";
+
             if (player_manager)
                 player_manager->handle_on_voice_state_update (event);
         });

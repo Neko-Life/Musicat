@@ -1360,7 +1360,8 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
 
     std::pair<dpp::channel *, dpp::voicestate *> cached = { nullptr, nullptr };
     auto guild_player = this->get_player (e_guild_id);
-    auto *v = guild_player ? guild_player->get_voice_conn () : nullptr;
+    auto *c = guild_player ? guild_player->get_client () : nullptr;
+    auto *v = c ? c->get_voice (e_guild_id) : nullptr;
     auto *g = guild_player ? dpp::find_guild (e_guild_id) : nullptr;
 
     dpp::voicestate *vstate = nullptr;
@@ -1376,10 +1377,21 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
         // no conn, skip everything
         goto end;
 
-    // not modifying connection, check for server mute if
-    // not manually paused
-    if (!v->voiceclient || did_manually_paused)
+
+    // this is bizarre, voiceconn exist so continue connecting it
+    if (!v->voiceclient)
+        {
+            // you should only call check_autopause() on bot voice state update or voice ready
+            // so this makes sense to fix for connection error here
+            // a cleaner way is to have dedicated function to call
+            v->connect();
+            goto end;
+        }
+
+    // not modifying connection, check for server mute if not manually paused
+    if (did_manually_paused)
         goto end;
+
     //
     // get state cache
     cached = vcs_setting_get_cache (v->channel_id);
@@ -1410,7 +1422,7 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
         // skip if no debug
         goto end;
 
-    std::cerr << "Paused " << e_guild_id << " as server muted\n";
+    std::cerr << "[Manager::check_autopause] Paused " << e_guild_id << " as server muted\n";
     goto end;
 
 skip_autopause:
@@ -1427,15 +1439,16 @@ skip_autopause:
         // no error, skip warn
         goto end;
 
-    std::cerr << "[Manager::handle_on_voice_state_update WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id
+    std::cerr << "[Manager::check_autopause WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id
               << ") svcid(" << e_voice_channel_id << ") status(" << tstatus << ")\n";
 
 end:
     if (debug)
         {
-            std::cerr << "e_voice_channel_id(" << e_voice_channel_id << ") is_paused(" << is_paused << ") new_state_muted("
-                      << new_state_muted << ") old_state_muted(" << old_state_muted << ") v->voiceclient(" << (v && v->voiceclient)
-                      << ") cached.first(" << cached.first << ") cached.second(" << cached.second << ")\n";
+            std::cerr << "[Manager::check_autopause] "
+                "e_voice_channel_id(" << e_voice_channel_id << ") is_paused(" << is_paused << ") new_state_muted("
+                << new_state_muted << ") old_state_muted(" << old_state_muted << ") v(" << v << ") v->voiceclient(" << (v && v->voiceclient)
+                << ") cached.first(" << cached.first << ") cached.second(" << cached.second << ")\n";
         }
 }
 

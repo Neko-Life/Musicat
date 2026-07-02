@@ -323,6 +323,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
 void
 Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 {
+    const bool debug = get_debug_state();
     dpp::snowflake e_user_id = event.state.user_id;
     dpp::snowflake e_voice_channel_id = event.state.channel_id;
     dpp::snowflake e_guild_id = event.state.guild_id;
@@ -353,10 +354,14 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     a = get_voice_from_gid (e_guild_id, e_user_id);
 
-    if (v->voiceclient && v->voiceclient->is_ready ())
+    if (v->voiceclient)
         {
-            // reset waiting vc ready state
-            this->clear_wait_vc_ready (e_guild_id);
+            if (v->voiceclient->is_ready ()) {
+                // reset waiting vc ready state
+                this->clear_wait_vc_ready (e_guild_id);
+            } else if (debug) {
+                std::cerr << "[Manager::handle_sha_voice_state_update] Connected to guild(" << e_guild_id << ") vc(" << e_voice_channel_id << ") but voiceclient isn't ready yet!!!\n";
+            }
         }
 
     if (!a.first || !v->channel_id)

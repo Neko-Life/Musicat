@@ -116,13 +116,15 @@ button_run_prev (const dpp::button_click_t &event)
             bool stopping = false;
             // stop it! it will be resumed by auto marker at the ends of every
             // stream
-            if (v && v->voiceclient
-                && v->voiceclient->get_secs_remaining () > 0.05f)
-                stopping = player_manager->stop_stream (guild_id) == 0;
+            if (v && v->voiceclient)
+                {
+                    if (v->voiceclient->get_secs_remaining () > 0.05f)
+                        stopping = player_manager->stop_stream (guild_id) == 0;
 
-            // we havent had any playback session?
-            if (!stopping)
-                v->voiceclient->insert_marker ("e");
+                    // we havent had any playback session?
+                    if (!stopping)
+                        v->voiceclient->insert_marker ("e");
+                }
         }
     else
         fprintf (

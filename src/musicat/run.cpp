@@ -636,13 +636,17 @@ run (int argc, const char *argv[])
     load_config_admins ();
     load_config_cors_enabled_origin ();
 
+    auto conf_cache_policy = dpp::cache_policy::cpol_default;
+    // make fetching guild members to be lazy
+    conf_cache_policy.user_policy = dpp::cp_lazy;
+
     const musicat_cluster_params_t cluster_params = { sha_token,
                                                       dpp::i_guild_members | dpp::i_default_intents,
                                                       0,
                                                       0,
                                                       1,
                                                       true,
-                                                      dpp::cache_policy::cpol_default,
+                                                      conf_cache_policy,
 
                                                       12,
                                                       4 };
