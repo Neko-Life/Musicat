@@ -189,10 +189,10 @@ run_standalone (const processor_options_t &options,
 
     char *rest_args[] = { "-v",
                           "debug",
-#ifdef FFMPEG_REALTIME
-                          "-probesize",
-                          "32",
-#endif
+                          "-c:a",
+                          "opus",
+                          "-f",
+                          "ogg",
                           "-i",
                           (char *)file_path.c_str (),
                           "-af",
@@ -571,9 +571,9 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
                             // server::routes::send_to_all_streaming_state (
                             //     vclient->server_id, packet, len);
 
-                            std::lock_guard lk_s (server::stream::ns_mutex);
-                            server::stream::handle_send_opus (
-                                vclient->server_id, packet, len);
+                            // std::lock_guard lk_s (server::stream::ns_mutex);
+                            // server::stream::handle_send_opus (
+                            //     vclient->server_id, packet, len);
                         }
 
                     pcmbuf.erase (pcmbuf.begin (),
