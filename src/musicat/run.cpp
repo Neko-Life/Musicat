@@ -142,7 +142,19 @@ get_cached_nekos_best_endpoints ()
 int
 vcs_setting_handle_connected (const dpp::channel *channel, const dpp::voicestate *state)
 {
-    if (!channel || !state || !is_voice_channel (channel->get_type ()))
+    const bool debug = get_debug_state ();
+    const bool is_vc = channel && is_voice_channel (channel->get_type ());
+
+    if (debug)
+        {
+            std::cerr << "[vcs_setting_handle_connected]: channel(" << channel << ") state(" << state << ") is_vc(" << is_vc << ") ";
+            if (channel)
+                std::cerr << "channel->id(" << channel->id << ") ";
+
+            std::cerr << "\n";
+        }
+
+    if (!channel || !state || !is_vc)
         return -1;
 
     std::lock_guard lk (_connected_vcs_setting_mutex);

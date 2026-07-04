@@ -30,7 +30,6 @@ MCTrack::init ()
     seekable = false;
     seek_to = "";
     current_byte = 0;
-    filesize = 0;
     repeat = 0;
 }
 
@@ -45,6 +44,7 @@ MCTrack::check_for_seek_to ()
 {
     // check for last position and reseek
     const bool debug = get_debug_state ();
+    const std::string tit = mctrack::get_title (*this);
 
     seek_to = "";
 
@@ -52,35 +52,20 @@ MCTrack::check_for_seek_to ()
         {
             fprintf (
                 stderr,
-                "[MCTrack::check_for_seek_to] Checking seek_to filesize(%ld) "
-                "current_byte(%ld)\n",
-                filesize, current_byte);
+                "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n",
+                tit.c_str(), current_byte);
         }
 
-    if (filesize == 0 || current_byte < 1)
+    if (current_byte < 1)
         return;
 
-    const uint64_t duration = mctrack::get_duration (*this);
-    if (debug)
-        {
-            fprintf (stderr,
-                     "[MCTrack::check_for_seek_to] Checking seek_to "
-                     "duration(%ld)\n",
-                     duration);
-        }
-
-    if (duration == 0)
-        return;
-
-    const float byte_per_ms = (float)filesize / (float)duration;
-
-    seek_to = std::to_string ((float)current_byte / byte_per_ms / 1000);
+    seek_to = std::to_string ((float)current_byte / opus_byte_per_ms / 1000);
 
     if (debug)
         {
             fprintf (stderr,
                      "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n",
-                     mctrack::get_title (*this).c_str (), seek_to.c_str ());
+                     tit.c_str (), seek_to.c_str ());
         }
 }
 
@@ -772,7 +757,13 @@ void
 Player::reset_first_track_current_byte ()
 {
     if (!queue.empty ())
-        queue.front ().current_byte = 0;
+        {
+            const bool debug = get_debug_state ();
+            queue.front ().current_byte = 0;
+
+            if (debug)
+                std::cerr << "[Player::reset_first_track_current_byte] reset: title(" << mctrack::get_title(queue.front ()) << ")\n";
+        }
 }
 
 dpp::voiceconn *
@@ -816,13 +807,11 @@ get_track_progress (const player::MCTrack &track)
 {
     int64_t duration = mctrack::get_duration (track);
 
-    if (!duration || !track.filesize)
+    if (!duration)
         return { 0, 0, 1 };
 
-    float byte_per_ms = (float)track.filesize / (float)duration;
-
-    int64_t current_ms = track.current_byte && byte_per_ms
-                             ? (float)track.current_byte / byte_per_ms
+    int64_t current_ms = track.current_byte
+                             ? (float)track.current_byte / player::opus_byte_per_ms
                              : 0;
 
     return { current_ms, duration, 0 };

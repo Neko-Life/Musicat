@@ -27,11 +27,11 @@ struct helper_chain_t
     // child pid
     pid_t pid;
 
-    audio_processing::helper_chain_option_t options;
-    // stream state
-
+    // parent continue signaling
     sem_t *sem;
     std::string sem_full_key;
+
+    audio_processing::helper_chain_option_t options;
 };
 
 void close_all_helper_fds ();

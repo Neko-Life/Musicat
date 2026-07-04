@@ -1,12 +1,17 @@
 #include "musicat/audio_config.h"
-#include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
-#include "musicat/config.h"
 #include "musicat/db.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/audio_processing.h"
+#include "musicat/mctrack.h"
+#include "musicat/musicat.h"
+#include "musicat/server/routes/get_stream.h"
+#include "musicat/server/stream.h"
+#include "opus/opus.h"
+
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <sys/poll.h>
@@ -550,6 +555,121 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
                        "Manager::stream");
 }
 
+// this should be called
+// inside the streaming thread
+int
+send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
+                    ssize_t *send_buffer_length, bool no_wait,
+                    OpusEncoder *opus_encoder)
+{
+    // const bool debug = get_debug_state ();
+    bool running_state = get_running_state ();
+
+    if (!running_state || !vclient || vclient->terminating)
+        {
+            return 1;
+        }
+
+    const bool debug = get_debug_state ();
+
+    // calculate duration
+    if ((*send_buffer_length > 0))
+        {
+            auto player_manager = get_player_manager_ptr ();
+            auto guild_player
+                = player_manager
+                      ? player_manager->get_player (vclient->server_id)
+                      : NULL;
+
+            if (guild_player)
+                {
+                    int64_t samp_calc = guild_player->sampling_rate == -1
+                                            ? 48000
+                                            : guild_player->sampling_rate;
+
+                    // take account earwax resampling
+                    if (guild_player->earwax)
+                        samp_calc -= 3900;
+
+                    // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
+                    int64_t add = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms) * guild_player->tempo);
+                    guild_player->current_track.current_byte += add;
+                }
+        }
+
+    try
+        {
+            if (!opus_encoder)
+                return 2;
+
+            /* vclient->send_audio_raw (send_buffer, *send_buffer_length); */
+            std::vector<uint16_t> pcmbuf (send_buffer,
+                                          send_buffer + *send_buffer_length);
+
+            while (!pcmbuf.empty ())
+                {
+                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
+
+                    const auto pbufsiz = pcmbuf.size ();
+                    if (pbufsiz < ENCODE_BUFFER_SIZE)
+                        {
+                            if (debug)
+                                {
+                                    fprintf (stderr,
+                                             "[player::send_audio_"
+                                             "routine] Found last chunk of "
+                                             "PCM buffer with size: %ld\n",
+                                             pbufsiz);
+                                }
+
+                            pcmbuf.resize (ENCODE_BUFFER_SIZE);
+                        }
+
+                    int len = opus_encode (
+                        opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE,
+                        packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
+
+                    if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
+                        {
+                            fprintf (
+                                stderr,
+                                "[player::send_audio_routine ERROR] "
+                                "opus_encode() returned %d\n",
+                                len);
+
+                            return len;
+                        }
+
+                    if (len > 2)
+                        {
+                            vclient->send_audio_opus (packet, len,
+                                                      FRAME_DURATION);
+
+                            // server::routes::send_to_all_streaming_state (
+                            //     vclient->server_id, packet, len);
+
+                            // std::lock_guard lk_s (server::stream::ns_mutex);
+                            // server::stream::handle_send_opus (
+                            //     vclient->server_id, packet, len);
+                        }
+
+                    pcmbuf.erase (pcmbuf.begin (),
+                                  pcmbuf.begin () + ENCODE_BUFFER_SIZE);
+                }
+        }
+    catch (const dpp::voice_exception &e)
+        {
+            fprintf (stderr,
+                     "[player::send_audio_routine ERROR] %s\n",
+                     e.what ());
+        }
+
+    *send_buffer_length = 0;
+
+    return 0;
+}
+
+
 constexpr const char *msprrfmt
     = "[Manager::stream ERROR] Processor not ready or exited: %s\n";
 
@@ -577,26 +697,15 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
 
             guild_player->tried_continuing = false;
 
+            // check if we actually have the file
             FILE *ofile = fopen (file_path.c_str (), "r");
-
             if (!ofile)
                 {
                     std::filesystem::create_directory (music_folder_path);
                     throw 2;
                 }
-
-            struct stat ofile_stat;
-            if (fstat (fileno (ofile), &ofile_stat) != 0)
-                {
-                    fclose (ofile);
-                    ofile = NULL;
-                    throw 2;
-                }
-
             fclose (ofile);
             ofile = NULL;
-
-            track.filesize = ofile_stat.st_size;
 
             const std::string server_id_str = std::to_string (guild_id);
             const std::string slave_id = "processor-" + server_id_str + "."
@@ -802,7 +911,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                     //              total_read, read_size);
 
                     vclient = guild_player->get_voice_client ();
-                    if (audio_processing::send_audio_routine (
+                    if (send_audio_routine (
                             vclient, (uint16_t *)buffer, &read_size, false,
                             guild_player->opus_encoder))
                         break;
@@ -834,7 +943,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
                                  (total_read += read_size), read_size);
 
                     vclient = guild_player->get_voice_client ();
-                    audio_processing::send_audio_routine (
+                    send_audio_routine (
                         vclient, (uint16_t *)buffer, &read_size, true,
                         guild_player->opus_encoder);
                 }
@@ -850,12 +959,22 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
 
             cc::send_command (exit_cmd);
 
+            vclient = guild_player->get_voice_client ();
             if (!running_state || is_stopping)
                 {
                     // clear voice client buffer
-                    vclient = guild_player->get_voice_client ();
                     if (vclient)
                         vclient->stop_audio ();
+                }
+            else if (!vclient && !guild_player->queue.empty())
+                {
+                    // somethins wrong, set last byte so we can continue playback later
+                    guild_player->queue.front().current_byte = guild_player->current_track.current_byte;
+
+                    if (debug)
+                        std::cerr << "[Manager::stream] set current_byte: guild_player->queue.front("
+                            << mctrack::get_title(guild_player->queue.front()) << ") current_byte("
+                            << guild_player->current_track.current_byte << ")\n";
                 }
 
             auto end_time = std::chrono::high_resolution_clock::now ();

@@ -198,16 +198,6 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to,
     // !TODO: probably add a mutex for safety just in case?
     player::MCTrack &track = player->current_track;
 
-    uint64_t duration = mctrack::get_duration (track);
-
-    if (!duration || !track.filesize)
-        {
-            out = "I'm sorry but the current track is not seek-able. "
-                  "Might be missing metadata or unsupported format";
-
-            return 0;
-        }
-
     constexpr uint64_t second_ms = 1000;
     constexpr uint64_t minute_ms = second_ms * 60;
     constexpr uint64_t hour_ms = 60 * minute_ms;
@@ -216,8 +206,8 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to,
                               + (parsed.minute * minute_ms)
                               + (parsed.second * second_ms) + parsed.ms;
     if (debug)
-        fprintf (stderr, "[seek::slash_run] [total_ms] [duration]: %ld %ld\n",
-                 total_ms, duration);
+        fprintf (stderr, "[seek::slash_run] [total_ms]: %ld\n",
+                 total_ms);
 
     // skip instead of error
     // if (total_ms > duration)
@@ -226,17 +216,12 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to,
     //         duration"); return;
     //     }
 
-    float byte_per_ms = (float)track.filesize / (float)duration;
-
-    track.current_byte = (int64_t)(byte_per_ms * total_ms);
+    track.current_byte = (int64_t)(player::opus_byte_per_ms * total_ms);
 
     if (debug)
         {
             fprintf (stderr,
-                     "[seek::slash_run] [filesize] [duration] "
-                     "[byte_per_ms] [seek_byte]: "
-                     "%f %f %f %ld\n",
-                     (float)track.filesize, (float)duration, byte_per_ms,
+                     "[seek::slash_run] [seek_byte]: %ld\n",
                      track.current_byte);
         }
 

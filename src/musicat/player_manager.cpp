@@ -2,6 +2,7 @@
 #include "musicat/child/dl_music.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/mctrack.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
@@ -471,6 +472,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track,
                 {
                     if (guild_player->init_for_stream () != 0)
                         return;
+
+                    if (debug)
+                        std::cerr << "[Manager::play thread] track(" << mctrack::get_title(track) << ") current_byte(" << track.current_byte << ")\n";
 
                     this->stream (guild_player->guild_id, track);
                 }

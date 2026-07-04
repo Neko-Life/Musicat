@@ -63,9 +63,14 @@ struct track_data_t
 // when updating this
 struct helper_chain_option_t
 {
-    bool debug;
     std::string raw_args;
+
+    bool debug;
     bool parsed;
+    // whether this is the first entry in the chain
+    bool first_chain;
+    // whether this is the last entry in the chain
+    bool final_chain;
 };
 
 // update create_options impl below when changing this struct
@@ -108,6 +113,7 @@ parse_helper_chain_option (
 
     // parse ehl string args
     size_t co_length = command_options.helper_chain.length ();
+    size_t co_maxi = co_length - 1;
     size_t start_d = 0;
     bool exclusive = false;
 #ifndef EHL_ALL_EXCLUSIVE
@@ -156,7 +162,7 @@ parse_helper_chain_option (
                 }
 #else
             processor_options.helper_chain.push_back (
-                { command_options.debug, rarg, false });
+                { rarg, command_options.debug, false, i == 0, co_maxi == i });
 #endif
 
             exclusive = false;
@@ -172,7 +178,7 @@ parse_helper_chain_option (
     for (const auto &arg : ehl_args)
         {
             processor_options.helper_chain.push_back (
-                { command_options.debug, arg, false });
+                { arg, command_options.debug, false, ???, ??? });
         }
 #endif
 
@@ -181,14 +187,6 @@ parse_helper_chain_option (
 
 ssize_t write_stdout (uint8_t *buffer, ssize_t *size,
                       bool no_effect_chain = false);
-
-// this should be called inside the streaming thread
-// returns 1 if vclient terminating or null
-// 0 on success
-int send_audio_routine (dpp::discord_voice_client *vclient,
-                        uint16_t *send_buffer, ssize_t *send_buffer_length,
-                        bool no_wait = false,
-                        OpusEncoder *opus_encoder = NULL);
 
 // should be run as a child process
 int run_processor (child::command::command_options_t &process_options);

@@ -174,8 +174,13 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     // guild_player->queue.front ().seekable = false;
 
     guild_player->current_track = guild_player->queue.front ();
-    guild_player->queue.front ().seek_to = "";
+    if (debug)
+        std::cerr << "[Manager::spawn_handle_track_marker_worker] guild_player->current_track("
+            << mctrack::get_title(guild_player->current_track)
+            << ") guild_player->current_track.current_byte("
+            << guild_player->current_track.current_byte << ")\n";
 
+    guild_player->queue.front ().seek_to = "";
     guild_player->stopped = false;
 
     if (!just_loaded_queue)
@@ -367,6 +372,16 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     if (!a.first || !v->channel_id)
         goto end;
 
+    if (debug)
+        {
+            std::cerr << "[Manager::handle_sha_voice_state_update] v->channel_id(" << v->channel_id << ") ";
+            if (a.first)
+                std::cerr << "a.first->id(" << a.first->id << ")";
+
+            std::cerr << "\n";
+
+        }
+
     // reconnect when bot user is in vc but no vc state in
     // dpp cache can means bot stays in vc after reboot
     // situation
@@ -396,7 +411,6 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     if (has_listener (&a.second))
         {
             this->set_connecting (e_guild_id, a.first->id);
-
             this->set_waiting_vc_ready (e_guild_id);
         }
 

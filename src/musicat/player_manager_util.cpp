@@ -1384,7 +1384,7 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
             // you should only call check_autopause() on bot voice state update or voice ready
             // so this makes sense to fix for connection error here
             // a cleaner way is to have dedicated function to call
-            v->connect();
+            // v->connect();
             goto end;
         }
 

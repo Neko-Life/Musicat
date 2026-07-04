@@ -1,14 +1,9 @@
 #include "musicat/audio_processing.h"
-#include "musicat/audio_config.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/config.h"
 #include "musicat/helper_processor.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/server/routes/get_stream.h"
-#include "musicat/server/stream.h"
-#include "opus/opus.h"
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -461,135 +456,6 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
     *size = 0;
 
     return written;
-}
-
-// this should be called
-// inside the streaming thread
-int
-send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer,
-                    ssize_t *send_buffer_length, bool no_wait,
-                    OpusEncoder *opus_encoder)
-{
-    // const bool debug = get_debug_state ();
-    bool running_state = get_running_state ();
-
-    if (!running_state || !vclient || vclient->terminating)
-        {
-            return 1;
-        }
-
-    const bool debug = get_debug_state ();
-
-    // calculate duration
-    if ((*send_buffer_length > 0))
-        {
-            auto player_manager = get_player_manager_ptr ();
-            auto guild_player
-                = player_manager
-                      ? player_manager->get_player (vclient->server_id)
-                      : NULL;
-
-            if (guild_player && guild_player->current_track.filesize)
-                {
-                    uint64_t duration
-                        = mctrack::get_duration (guild_player->current_track);
-
-                    float byte_per_ms
-                        = (float)guild_player->current_track.filesize
-                          / (float)duration;
-
-                    int64_t samp_calc = guild_player->sampling_rate == -1
-                                            ? 48000
-                                            : guild_player->sampling_rate;
-
-                    // take account earwax resampling
-                    if (guild_player->earwax)
-                        samp_calc -= 3900;
-
-                    guild_player->current_track.current_byte
-                        // (buffer_size /
-                        // (sampling rate * channel *
-                        // (bit width(16) / bit per byte(8))
-                        // ) * 1 second in ms)
-                        // * opus byte_per_ms
-                        += (int64_t)((double)((float)((float)*send_buffer_length
-                                                      / (samp_calc * 2 * 2)
-                                                      * 1000)
-                                              * byte_per_ms)
-                                     * guild_player->tempo);
-                }
-        }
-
-    try
-        {
-            if (!opus_encoder)
-                return 2;
-
-            /* vclient->send_audio_raw (send_buffer, *send_buffer_length); */
-            std::vector<uint16_t> pcmbuf (send_buffer,
-                                          send_buffer + *send_buffer_length);
-
-            while (!pcmbuf.empty ())
-                {
-                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
-
-                    const auto pbufsiz = pcmbuf.size ();
-                    if (pbufsiz < ENCODE_BUFFER_SIZE)
-                        {
-                            if (debug)
-                                {
-                                    fprintf (stderr,
-                                             "[audio_processing::send_audio_"
-                                             "routine] Found last chunk of "
-                                             "PCM buffer with size: %ld\n",
-                                             pbufsiz);
-                                }
-
-                            pcmbuf.resize (ENCODE_BUFFER_SIZE);
-                        }
-
-                    int len = opus_encode (
-                        opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE,
-                        packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
-
-                    if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
-                        {
-                            fprintf (
-                                stderr,
-                                "[audio_processing::send_audio_routine ERROR] "
-                                "opus_encode() returned %d\n",
-                                len);
-
-                            return len;
-                        }
-
-                    if (len > 2)
-                        {
-                            vclient->send_audio_opus (packet, len,
-                                                      FRAME_DURATION);
-
-                            // server::routes::send_to_all_streaming_state (
-                            //     vclient->server_id, packet, len);
-
-                            // std::lock_guard lk_s (server::stream::ns_mutex);
-                            // server::stream::handle_send_opus (
-                            //     vclient->server_id, packet, len);
-                        }
-
-                    pcmbuf.erase (pcmbuf.begin (),
-                                  pcmbuf.begin () + ENCODE_BUFFER_SIZE);
-                }
-        }
-    catch (const dpp::voice_exception &e)
-        {
-            fprintf (stderr,
-                     "[audio_processing::send_audio_routine ERROR] %s\n",
-                     e.what ());
-        }
-
-    *send_buffer_length = 0;
-
-    return 0;
 }
 
 static void

@@ -1,12 +1,12 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
-#include "musicat/config.h"
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
 #include <cstdint>
 #include <deque>
 #include <dpp/dpp.h>
+#include "opus/opus.h"
 #include <map>
 #include <memory>
 #include <mutex>
@@ -17,6 +17,9 @@ namespace musicat
 {
 namespace player
 {
+
+// ms * (48kHz/1s) * channels * sample_size
+inline constexpr int64_t opus_byte_per_ms = 1 * 48 * 2 * sizeof (opus_int16);
 
 /**
  * Component Ids
@@ -102,8 +105,6 @@ struct MCTrack : yt_search::YTrack
 
     // current byte position
     int64_t current_byte;
-
-    size_t filesize;
 
     bool is_empty () const;
 
@@ -895,6 +896,15 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, i
  * @param continued
  */
 void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, const bool &continued);
+
+// this should be called inside the streaming thread
+// returns 1 if vclient terminating or null
+// 0 on success
+int send_audio_routine (dpp::discord_voice_client *vclient,
+                        uint16_t *send_buffer, ssize_t *send_buffer_length,
+                        bool no_wait = false,
+                        OpusEncoder *opus_encoder = NULL);
+
 
 // ================================================================================
 
