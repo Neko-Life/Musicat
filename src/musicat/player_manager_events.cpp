@@ -735,7 +735,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                 guild_player = this->get_player (guild_id);
                 // check for autoplay
-                if (guild_player->auto_play)
+                if (guild_player->auto_play && track.current_byte == 0)
                     this->get_next_autoplay_track (track_id, guild_player->shard_id, guild_id);
 
                 try
