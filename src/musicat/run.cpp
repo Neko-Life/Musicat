@@ -25,6 +25,9 @@
 #include "musicat/tests.h"
 #endif
 
+// uncomment for multi-shard tests
+// #define SHARD_TEST
+
 static const std::string OAUTH_BASE_URL = "https://discord.com/api/oauth2/authorize";
 
 namespace musicat
@@ -654,7 +657,11 @@ run (int argc, const char *argv[])
 
     const musicat_cluster_params_t cluster_params = { sha_token,
                                                       dpp::i_guild_members | dpp::i_default_intents,
+#ifdef SHARD_TEST
+                                                      1000,
+#else
                                                       0,
+#endif
                                                       0,
                                                       1,
                                                       true,
