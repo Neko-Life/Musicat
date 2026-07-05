@@ -658,7 +658,7 @@ run (int argc, const char *argv[])
     const musicat_cluster_params_t cluster_params = { sha_token,
                                                       dpp::i_guild_members | dpp::i_default_intents,
 #ifdef SHARD_TEST
-                                                      1000,
+                                                      20,
 #else
                                                       0,
 #endif
