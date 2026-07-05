@@ -23,9 +23,9 @@ void
 reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id,
                      bool delete_voiceconn)
 {
-    auto v = client->connecting_voice_channels.find (guild_id);
-    if (v == client->connecting_voice_channels.end ())
-        return;
+    // auto v = client->connecting_voice_channels.find (guild_id);
+    // if (v == client->connecting_voice_channels.end ())
+    //     return;
 
     // unused since dpp update, probably can be removed
     // if (v->second && delete_voiceconn)
@@ -33,7 +33,7 @@ reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id,
     //         delete v->second;
     //         v->second = nullptr;
     //     }
-    client->connecting_voice_channels.erase (v);
+    // client->connecting_voice_channels.erase (v);
 }
 
 /**
