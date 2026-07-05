@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <utility>
+#include <stddef.h>
 
 namespace musicat::child::worker
 {
