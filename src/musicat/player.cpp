@@ -197,7 +197,7 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
 
         if (top)
             {
-                this->queue.push_front (track);
+                this->queue_add_front (track);
                 if (this->shifted_track
                     < /* Check queue size after push_front */ (
                         this->queue.size () - 1))
@@ -208,11 +208,9 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
 
         // This is correct, don't "optimize" it
         else if (arg_slip > 1 && siz > (size_t)arg_slip)
-            {
-                this->queue.insert (this->queue.begin () + arg_slip, track);
-            }
+            this->queue_insert (track, arg_slip);
         else
-            this->queue.push_back (track);
+            this->queue_add (track);
     }
 
     if (update_embed && siz > 0UL && guild_id && this->manager)
@@ -311,7 +309,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current,
 
             MCTrack l = this->queue.front ();
 
-            this->queue.pop_front ();
+            this->queue_pop_front ();
             if (get_debug_state ())
                 fprintf (stderr, "POPPED FROM QUEUE: '%s'\n",
                          mctrack::get_title (l).c_str ());
@@ -321,7 +319,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current,
             if (!remove && (push_back || l_s || l_q))
                 {
                     l.repeat = 0;
-                    this->queue.push_back (l);
+                    this->queue_add (l);
                 }
         }
 
@@ -342,9 +340,9 @@ Player::reset_shifted ()
     if (this->queue.size () && this->shifted_track > 0)
         {
             auto i = this->queue.begin () + this->shifted_track;
-            auto s = *i;
+            auto s = std::move(*i);
             this->queue.erase (i);
-            this->queue.push_front (s);
+            this->queue_add_front (s);
             this->shifted_track = 0;
             return true;
         }
@@ -490,10 +488,10 @@ Player::shuffle (bool update_info_embed)
         for (auto i : b)
             n_queue.push_back (this->queue.at (i));
 
-        this->queue.clear ();
+        this->queue_clear ();
 
-        this->queue = n_queue;
-        this->queue.push_front (os);
+        this->set_queue (std::move(n_queue));
+        this->queue_add_front (os);
     }
 
     if (update_info_embed)
@@ -785,6 +783,87 @@ Player::get_voice_client ()
         return nullptr;
 
     return conn->voiceclient.get ();
+}
+
+
+// queue operations
+Player &
+Player::queue_add(const MCTrack &t) {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_add] " << guild_id << ": `" << mctrack::get_title(t) << "`\n";
+
+    queue.push_back (t);
+    return *this;
+}
+
+Player &
+Player::queue_pop() {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_pop] " << guild_id << "\n";
+
+    queue.pop_back ();
+    return *this;
+}
+
+Player &
+Player::queue_add_front(const MCTrack &t) {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_add_front] " << guild_id << ": `" << mctrack::get_title(t) << "`\n";
+
+    queue.push_front (t);
+    return *this;
+}
+
+Player &
+Player::queue_pop_front() {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_pop_front] " << guild_id << "\n";
+
+    queue.pop_front ();
+    return *this;
+}
+
+Player &
+Player::queue_insert(const MCTrack &t, size_t pos) {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_insert] " << guild_id << ": `" << mctrack::get_title(t) << "` pos(" << pos << ")\n";
+
+    queue.insert (queue.begin () + pos, t);
+    return *this;
+}
+
+Player &
+Player::queue_erase(size_t pos) {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_erase] " << guild_id << ": pos(" << pos << ")\n";
+
+    queue.erase (queue.begin () + pos);
+    return *this;
+}
+
+Player &
+Player::set_queue(const track_queue &q) {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::set_queue] " << guild_id << " siz(" << q.size() << ")\n";
+
+    queue = q;
+    return *this;
+}
+
+Player &Player::queue_clear() {
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_clear] " << guild_id << "\n";
+
+    queue.clear ();
+    return *this;
 }
 
 } // player

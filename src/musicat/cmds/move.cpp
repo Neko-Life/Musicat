@@ -67,9 +67,8 @@ slash_run (const dpp::slashcommand_t &event)
                 a = mctrack::get_title (guild_player->queue.at (1));
                 b = mctrack::get_title (guild_player->queue.back ());
 
-                guild_player->queue.erase (guild_player->queue.begin () + fr);
-                guild_player->queue.insert (guild_player->queue.begin () + to,
-                                            track);
+                guild_player->queue_erase (fr);
+                guild_player->queue_insert (track, to);
             }
 
             if (a != mctrack::get_title (guild_player->queue.at (1))

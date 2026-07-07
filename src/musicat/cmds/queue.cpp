@@ -32,8 +32,8 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 
                 {
                     player::MCTrack t = guild_player->queue.at (0);
-                    guild_player->queue.clear ();
-                    guild_player->queue.push_back (t);
+                    guild_player->queue_clear ();
+                    guild_player->queue_add (t);
                 }
 
                 player_manager->update_info_embed (event.command.guild_id);
@@ -78,9 +78,9 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                     for (size_t i = (siz - 1); i > 0; i--)
                         n_queue.push_back (guild_player->queue.at (i));
 
-                    guild_player->queue.clear ();
-                    guild_player->queue = std::move (n_queue);
-                    guild_player->queue.push_front (t);
+                    guild_player->queue_clear ();
+                    guild_player->set_queue(std::move (n_queue));
+                    guild_player->queue_add_front (t);
                 }
                 player_manager->update_info_embed (event.command.guild_id);
 

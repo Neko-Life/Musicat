@@ -108,8 +108,8 @@ button_run_prev (const dpp::button_click_t &event)
             guild_player->queue.front ().repeat = 0;
 
             // move the back of the queue to front
-            guild_player->queue.push_front (guild_player->queue.back ());
-            guild_player->queue.pop_back ();
+            guild_player->queue_add_front (guild_player->queue.back ());
+            guild_player->queue_pop ();
 
             dpp::voiceconn *v = event.from()->get_voice (guild_id);
 

@@ -119,15 +119,15 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                     {
                     case loop_mode_t::l_none:
                         {
-                            guild_player->queue.pop_front ();
+                            guild_player->queue_pop_front ();
                             break;
                         }
 
                     case loop_mode_t::l_queue:
                         {
                             auto l = guild_player->queue.front ();
-                            guild_player->queue.pop_front ();
-                            guild_player->queue.push_back (l);
+                            guild_player->queue_pop_front ();
+                            guild_player->queue_add (l);
                             break;
                         }
 
@@ -139,7 +139,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
         {
             const string removed_title = debug ? mctrack::get_title (guild_player->queue.front ()) : "";
 
-            guild_player->queue.pop_front ();
+            guild_player->queue_pop_front ();
 
             if (debug)
                 {

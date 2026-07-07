@@ -145,6 +145,8 @@ using player_manager_ptr_t = Manager *;
 
 class Player
 {
+    using track_queue = std::deque<MCTrack>;
+
   public:
     static const uint32_t INVALID_SHARD_ID = 0xFFFFFFFF;
 
@@ -225,7 +227,7 @@ class Player
      * @brief Track queue.
      *
      */
-    std::deque<MCTrack> queue;
+    track_queue queue;
 
     /**
      * @brief Current track stream
@@ -432,6 +434,18 @@ class Player
     void reset_first_track_current_byte ();
     dpp::voiceconn *get_voice_conn ();
     dpp::discord_voice_client *get_voice_client ();
+
+    // queue operations
+    Player &queue_add(const MCTrack &t);
+    Player &queue_pop();
+    Player &queue_add_front(const MCTrack &t);
+    Player &queue_pop_front();
+
+    Player &queue_insert(const MCTrack &t, size_t pos);
+    Player &queue_erase(size_t pos);
+
+    Player &set_queue(const track_queue &q);
+    Player &queue_clear();
 };
 
 struct get_playing_info_embed_info_t

@@ -137,7 +137,7 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
             if (guild_player->queue.size () > 0)
                 guild_player->queue.front ().repeat = l_amount;
             else
-                guild_player->queue.push_back (guild_player->current_track);
+                guild_player->queue_add (guild_player->current_track);
 
             const bool set_to_no_repeat = l_amount == 0;
 
