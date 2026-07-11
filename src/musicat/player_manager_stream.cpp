@@ -8,7 +8,6 @@
 #include "musicat/player.h"
 #include "musicat/server/routes/get_stream.h"
 #include "musicat/server/stream.h"
-#include "opus/opus.h"
 
 #include <cstdint>
 #include <memory>
@@ -482,7 +481,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 // inside the streaming thread
 int
 send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait,
-                    OpusEncoder *opus_encoder)
+                    OggOpusEnc *opus_encoder)
 {
     // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
@@ -521,11 +520,11 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
                 return 2;
 
             /* vclient->send_audio_raw (send_buffer, *send_buffer_length); */
-            std::vector<uint16_t> pcmbuf (send_buffer, send_buffer + *send_buffer_length);
+            std::vector<uint16_t> pcmbuf (send_buffer, send_buffer + (*send_buffer_length/2));
 
             while (!pcmbuf.empty ())
                 {
-                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
+                    // uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
 
                     const auto pbufsiz = pcmbuf.size ();
                     if (pbufsiz < ENCODE_BUFFER_SIZE)
@@ -539,34 +538,36 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
                                              pbufsiz);
                                 }
 
-                            pcmbuf.resize (ENCODE_BUFFER_SIZE);
+                            // pcmbuf.resize (ENCODE_BUFFER_SIZE);
                         }
 
-                    int len = opus_encode (opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE, packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
+                    // int len = opus_encode (opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE, packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
+                    if (ope_encoder_write (opus_encoder, (opus_int16 *)pcmbuf.data (), pbufsiz / 2) != OPE_OK)
+                        return 3;
 
-                    if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
-                        {
-                            fprintf (stderr,
-                                     "[player::send_audio_routine ERROR] "
-                                     "opus_encode() returned %d\n",
-                                     len);
+                    // if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
+                    //     {
+                    //         fprintf (stderr,
+                    //                  "[player::send_audio_routine ERROR] "
+                    //                  "opus_encode() returned %d\n",
+                    //                  len);
+                    //
+                    //         return len;
+                    //     }
+                    //
+                    // if (len > 2)
+                    //     {
+                    //         vclient->send_audio_opus (packet, len, FRAME_DURATION);
+                    //
+                    //         // server::routes::send_to_all_streaming_state (
+                    //         //     vclient->server_id, packet, len);
+                    //
+                    //         // std::lock_guard lk_s (server::stream::ns_mutex);
+                    //         // server::stream::handle_send_opus (
+                    //         //     vclient->server_id, packet, len);
+                    //     }
 
-                            return len;
-                        }
-
-                    if (len > 2)
-                        {
-                            vclient->send_audio_opus (packet, len, FRAME_DURATION);
-
-                            // server::routes::send_to_all_streaming_state (
-                            //     vclient->server_id, packet, len);
-
-                            // std::lock_guard lk_s (server::stream::ns_mutex);
-                            // server::stream::handle_send_opus (
-                            //     vclient->server_id, packet, len);
-                        }
-
-                    pcmbuf.erase (pcmbuf.begin (), pcmbuf.begin () + ENCODE_BUFFER_SIZE);
+                    pcmbuf.clear();
                 }
         }
     catch (const dpp::voice_exception &e)
@@ -784,6 +785,8 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
             vclient = guild_player->get_voice_client ();
             send_audio_routine (vclient, (uint16_t *)buffer, &read_size, true, guild_player->opus_encoder);
         }
+
+    ope_encoder_drain (guild_player->opus_encoder);
 
     close (read_fd);
     read_fd = -1;

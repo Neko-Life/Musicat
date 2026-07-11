@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <deque>
 #include <dpp/dpp.h>
-#include "opus/opus.h"
+#include "opusenc.h"
 #include <map>
 #include <memory>
 #include <mutex>
@@ -285,7 +285,8 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
-    OpusEncoder *opus_encoder;
+    OggOpusEnc *opus_encoder;
+    OggOpusComments *opus_encoder_comments;
 
     /**
      * @brief Should set equalizer?
@@ -917,7 +918,7 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, con
 int send_audio_routine (dpp::discord_voice_client *vclient,
                         uint16_t *send_buffer, ssize_t *send_buffer_length,
                         bool no_wait = false,
-                        OpusEncoder *opus_encoder = NULL);
+                        OggOpusEnc *opus_encoder = NULL);
 
 
 // ================================================================================

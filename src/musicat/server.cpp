@@ -5,6 +5,7 @@
 #include "musicat/server/routes.h"
 #include "musicat/server/service_cache.h"
 #include "musicat/server/states.h"
+#include "musicat/server/stream.h"
 #include "musicat/server/ws.h"
 #include "musicat/server/ws/player.h"
 #include <stdio.h>
@@ -396,6 +397,8 @@ shutdown ()
         {
             return 3;
         }
+
+    stream::shutdown();
 
     _loop_ptr->defer ([] () {
         if (!running)

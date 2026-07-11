@@ -1,9 +1,13 @@
 #include "musicat/player.h"
+#include "musicat/audio_config.h"
+#include "opusenc.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/server/routes/get_stream.h"
+#include "musicat/server/stream.h"
+#include <cstddef>
 #include <memory>
-#include <opus/opus.h>
 
 namespace musicat
 {
@@ -520,39 +524,65 @@ Player::stop ()
     return *this;
 }
 
+void handle_packet(void *guild_player, const unsigned char *packet_ptr, opus_int32 packet_len, opus_uint32 flags){
+    if (!guild_player) return;
+
+    dpp::discord_voice_client *vclient = ((Player *)guild_player)->get_voice_client ();
+    if (!vclient) return;
+
+    vclient->send_audio_opus (packet_ptr, packet_len, FRAME_DURATION);
+}
+
 int
 Player::init_for_stream ()
 {
     int status = 0;
 
-    opus_encoder
-        = opus_encoder_create (48000, 2, OPUS_APPLICATION_AUDIO, &status);
+    // opus_encoder
+    //     = opus_encoder_create (48000, 2, OPUS_APPLICATION_AUDIO, &status);
 
-    if (status != OPUS_OK)
+    OpusEncCallbacks cbs;
+    cbs.write = [] (void *guild_player, const unsigned char *page, opus_int32 len)
+        {
+            if (!guild_player) return 1;
+            server::stream::broadcast (((Player *)guild_player)->guild_id, page, len);
+            return 0;
+        };
+
+    cbs.close = [] (void *guild_player) { return 0; };
+
+    opus_encoder_comments = ope_comments_create();
+    opus_encoder = ope_encoder_create_callbacks(&cbs, this, opus_encoder_comments, 48000, 2, 0, &status);
+
+    if (!opus_encoder)
         {
             std::cerr << "[Manager::play ERROR] "
                          "opus_encoder_create() failure: "
                       << status << "\n";
 
+            ope_comments_destroy(opus_encoder_comments);
             opus_encoder = NULL;
+            opus_encoder_comments = NULL;
 
             return status;
         }
 
-    if ((status = opus_encoder_ctl (opus_encoder,
-                                    OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
-        != OPUS_OK)
-        {
+    ope_encoder_ctl(opus_encoder, OPE_SET_PACKET_CALLBACK(handle_packet, this));
 
-            std::cerr << "[Manager::play ERROR] "
-                         "opus_encoder_ctl() failure: "
-                      << status << "\n";
-
-            opus_encoder_destroy (opus_encoder);
-            opus_encoder = NULL;
-
-            return status;
-        }
+    // if ((status = opus_encoder_ctl (opus_encoder,
+    //                                 OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
+    //     != OPUS_OK)
+    //     {
+    //
+    //         std::cerr << "[Manager::play ERROR] "
+    //                      "opus_encoder_ctl() failure: "
+    //                   << status << "\n";
+    //
+    //         opus_encoder_destroy (opus_encoder);
+    //         opus_encoder = NULL;
+    //
+    //         return status;
+    //     }
 
     reset_first_track_current_byte ();
     processing_audio = true;
@@ -565,8 +595,10 @@ Player::done_streaming ()
 {
     if (opus_encoder)
         {
-            opus_encoder_destroy (opus_encoder);
+            ope_encoder_destroy (opus_encoder);
+            ope_comments_destroy(opus_encoder_comments);
             opus_encoder = NULL;
+            opus_encoder_comments = NULL;
         }
 
     stopping = false;

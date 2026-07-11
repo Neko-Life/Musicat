@@ -1,195 +1,132 @@
 #include "musicat/server/stream.h"
+#include <map>
 
 namespace musicat::server::stream
 {
 
-/// packet_state_t
-
-/// stream_state_t
-
-[[nodiscard]] packet_state_t &
-stream_state_t::new_packet ()
+struct stream_state_t
 {
-    packet_que.resize (packet_que.size () + 1);
-    return packet_que.back ();
+    dpp::snowflake guild_id;
+    bool headers_sent;
+};
+
+stream_state_t
+create_stream_state (const dpp::snowflake &guild_id)
+{
+    return { guild_id, false };
+}
+
+static std::map<APIResponse *, stream_state_t> subs;
+static std::mutex subs_m;
+
+static std::map<dpp::snowflake, std::vector<std::string> > headers_cache;
+
+void
+subscribe (APIResponse *res, const dpp::snowflake &guild_id)
+{
+    std::lock_guard lk (subs_m);
+    subs[res] = create_stream_state (guild_id);
 }
 
 void
-stream_state_t::new_packet_done (packet_state_t &packet)
+unsubscribe (APIResponse *res, bool aborted)
 {
-    int64_t id;
-
-    do
-        id = create_packet_id ();
-    while (find_packet (id) != packet_que.end ());
-
-    packet.id = id;
-}
-
-[[nodiscard]] stream_state_t::packet_que_t::iterator
-stream_state_t::find_packet (int64_t id)
-{
-    for (auto i = packet_que.begin (); i != packet_que.end (); i++)
-        if (i->id == id)
-            return i;
-
-    return packet_que.end ();
-}
-
-void
-stream_state_t::packet_sent (packet_state_t &packet)
-{
-    if (packet.sent_count++; packet.sent_count >= subscriber_count)
-        remove_packet (packet.id);
-}
-
-stream_state_t::packet_que_t::iterator
-stream_state_t::packet_sent (const packet_que_t::iterator packet)
-{
-    if (packet->sent_count++; packet->sent_count >= subscriber_count)
-        return remove_packet (packet);
-    return packet + 1;
-}
-
-void
-stream_state_t::remove_packet (int64_t id)
-{
-    if (const auto i = find_packet (id); i != packet_que.end ())
-        packet_que.erase (i);
-}
-
-stream_state_t::packet_que_t::iterator
-stream_state_t::remove_packet (
-    const stream_state_t::packet_que_t::iterator packet)
-{
-    return packet_que.erase (packet);
-}
-
-void
-stream_state_t::increment_subscriber ()
-{
-    subscriber_count++;
-    if (subscriber_count == 0)
-        {
-            subscriber_count--;
-            throw std::runtime_error ("WOW TOO MANY SUBSCRIBER!");
-        }
-}
-
-void
-stream_state_t::decrement_subscriber ()
-{
-    if (subscriber_count == 0)
-        return;
-    subscriber_count--;
-}
-
-// stream_state_t statics
-
-int64_t
-stream_state_t::create_packet_id ()
-{
-    return std::chrono::steady_clock::now ().time_since_epoch ().count ();
-}
-
-/// MANAGER stream_state_t
-
-std::mutex ns_mutex; // EXTERN_VARIABLE
-stream_states_t states;
-
-stream_state_t &
-new_stream_state (const dpp::snowflake &guild_id)
-{
-    states.resize (states.size () + 1);
-    auto &i = states.back ();
-
-    std::lock_guard lk (i.state_m);
-    i.guild_id = guild_id;
-
-    return i;
-}
-
-void
-remove_stream_state (const dpp::snowflake &guild_id)
-{
-    if (const auto i = find_stream_state (guild_id); i != states.end ())
-        states.erase (i);
-}
-
-[[nodiscard]] stream_states_t::iterator
-find_stream_state (const dpp::snowflake &guild_id)
-{
-    for (auto i = states.begin (); i != states.end (); i++)
-        if (i->guild_id == guild_id)
-            return i;
-
-    return states.end ();
-}
-
-[[nodiscard]] bool
-stream_state_iterator_is_end (const stream_states_t::iterator i)
-{
-    return i == states.end ();
-}
-
-void
-subscribe (const dpp::snowflake &guild_id)
-{
-    if (auto i = find_stream_state (guild_id);
-        !stream_state_iterator_is_end (i))
-        {
-            std::lock_guard lk (i->state_m);
-            i->increment_subscriber ();
-        }
-    else
-        {
-            // create new stream state to be filled by guild player
-            new_stream_state (guild_id);
-        }
+    std::lock_guard lk (subs_m);
+    if (!aborted)
+        defer ([res] () { res->end (); });
+    subs.erase (res);
 }
 
 void
 unsubscribe (const dpp::snowflake &guild_id)
 {
-    if (auto i = find_stream_state (guild_id);
-        !stream_state_iterator_is_end (i))
+    std::lock_guard lk (subs_m);
+    auto i = subs.begin ();
+    while (i != subs.end ())
         {
-            bool should_erase_iterator = false;
-
-            {
-                std::lock_guard lk (i->state_m);
-                i->decrement_subscriber ();
-                should_erase_iterator = i->subscriber_count <= 0;
-            }
-
-            if (should_erase_iterator)
+            if (i->second.guild_id != guild_id)
                 {
-                    // delete this stream state
-                    // refactor remove_stream_state if this logic should change
-                    states.erase (i);
+                    i++;
+                    continue;
                 }
+            auto *res = i->first;
+            defer ([res] () { res->end (); });
+            i = subs.erase (i);
         }
+    headers_cache.erase (guild_id);
 }
 
 void
-handle_send_opus (const dpp::snowflake &guild_id, uint8_t *packet,
-                  int packet_len)
+shutdown ()
 {
-    // !TODO
-    // if (auto i = find_stream_state (guild_id);
-    //     !stream_state_iterator_is_end (i))
-    //     {
-    //         std::lock_guard lk (i->state_m);
-    //         auto &np = i->new_packet ();
+    std::lock_guard lk (subs_m);
+    auto i = subs.begin ();
+    while (i != subs.end ())
+        {
+            auto *res = i->first;
+            defer ([res] () { res->end (); });
+            headers_cache.erase (i->second.guild_id);
+            i = subs.erase (i);
+        }
+}
 
-    //         // copy packet to state
-    //         np.packet.assign (packet, packet + packet_len);
+static int
+check_for_headers (const dpp::snowflake &guild_id, const std::string &p)
+{
+    // cache OpusHead and OpusTag headers for late subscribers
+    const char *packet = p.data ();
+    size_t packet_len = p.size ();
 
-    //         i->new_packet_done (np);
-    //         // return;
-    //     }
+    if (packet_len <= 27)
+        return -1;
 
-    // no subscriber for this server, ignore
+    int lacing_size = packet[26];
+    size_t header_size = 27 + lacing_size;
+    if (packet_len <= (header_size + 8))
+        return -1;
+
+    const char *payload = packet + header_size;
+    if (!memcmp ("OpusHead", payload, 8))
+        {
+            headers_cache[guild_id] = {};
+            headers_cache[guild_id].push_back (p);
+        }
+    else if (!memcmp ("OpusTags", payload, 8))
+        {
+            headers_cache[guild_id].push_back (p);
+        }
+    else
+        return -1;
+
+    return 0;
+}
+
+void
+broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t packet_len)
+{
+    std::string p{ packet, packet + packet_len };
+
+    defer (
+        [guild_id, p] ()
+            {
+                std::lock_guard lk (subs_m);
+                for (auto &[res, s] : subs)
+                    {
+                        if (guild_id != s.guild_id)
+                            continue;
+
+                        if (!s.headers_sent)
+                            {
+                                for (const std::string &h : headers_cache[guild_id])
+                                    res->write (h);
+                                s.headers_sent = true;
+                            }
+
+                        res->write (p);
+                    }
+
+                check_for_headers (guild_id, p);
+            });
 }
 
 } // musicat::server::stream

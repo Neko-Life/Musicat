@@ -7,9 +7,6 @@
 namespace musicat::server::routes
 {
 
-void send_to_all_streaming_state (const dpp::snowflake &guild_id,
-                                  uint8_t *packet, int len);
-
 void get_stream (APIResponse *res, APIRequest *req);
 
 } // musicat::server::routes

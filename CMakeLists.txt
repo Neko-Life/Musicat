@@ -111,6 +111,7 @@ add_custom_target(archlinux-dist
 		libs/curlpp/build/libcurlpp.so*
 		libs/icu/usr/local/lib/lib*
 		build/libs/ogg/libogg.so*
+		libs/libopusenc/build/lib/libopusenc.so*
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
 
@@ -153,6 +154,7 @@ endif()
 # Linking libraries
 target_link_libraries(Shasha
 	dpp
+	opusenc
 	# oggz
 	ogg
 	pq
@@ -184,6 +186,8 @@ target_include_directories(Shasha PRIVATE
 	libs/curlpp/include
 	# libs/liboggz/include
 	libs/jwt-cpp/include
+	libs/libopusenc/include
+	/usr/include/opus
 	/usr/include/postgresql
 	libs/ELIZA/src
 	# Remember to add the include directories of any other libraries too
@@ -193,6 +197,7 @@ target_link_directories(Shasha PRIVATE
 	libs/curlpp/build
 	libs/icu/usr/local/lib
 	# libs/liboggz/build/lib
+	libs/libopusenc/build/lib
 	)
 
 # Set C++ version
@@ -211,6 +216,8 @@ set(INSTALL_DOCS OFF)
 set(INSTALL_PKG_CONFIG_MODULE OFF)
 set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
 add_subdirectory(libs/ogg)
+
+add_subdirectory(src/stream-codec)
 
 # You can also add any other libs you want to use
 

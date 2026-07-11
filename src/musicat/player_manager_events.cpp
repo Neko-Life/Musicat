@@ -3,6 +3,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/server/stream.h"
 #include "musicat/player_manager_timer.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
@@ -337,6 +338,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     if (!e_voice_channel_id)
         {
             this->clear_disconnecting (e_guild_id);
+            server::stream::unsubscribe(e_guild_id);
 
             // update vcs cache
             vcs_setting_handle_disconnected (dpp::find_channel (e_voice_channel_id));
