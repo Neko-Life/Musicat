@@ -32,3 +32,6 @@
 [submodule "libs/ogg"]
 	path = libs/ogg
 	url = https://gitlab.xiph.org/xiph/ogg.git
+[submodule "libs/libopusenc"]
+	path = libs/libopusenc
+	url = https://github.com/xiph/libopusenc.git

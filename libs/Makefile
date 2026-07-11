@@ -7,6 +7,10 @@ LIBOGGZ_BUILD_DIR = $(PWD)/liboggz/build/
 LIBOGGZ_SO = $(LIBOGGZ_BUILD_DIR)lib/liboggz.so
 LIBOGGZ_BUILD_ENVS = CC=gcc LDFLAGS=-flto
 
+LIBOPUSENC_BUILD_DIR = $(PWD)/libopusenc/build/
+LIBOPUSENC_SO = $(LIBOPUSENC_BUILD_DIR)lib/libopusenc.so
+LIBOPUSENC_BUILD_ENVS = CC=gcc LDFLAGS=-flto
+
 GNUPLOT_DIR = gnuplot-$(GNUPLOT_VERSION)
 GNUPLOT_BUILD_DIR = $(PWD)/$(GNUPLOT_DIR)/build/
 GNUPLOT_BIN = $(GNUPLOT_BUILD_DIR)bin/gnuplot
@@ -23,7 +27,7 @@ ifeq ($(COMPILE_GNUPLOT),1)
 	override GNUPLOT_TARGET = gnuplot
 endif
 
-all: icu curlpp $(GNUPLOT_TARGET) # liboggz 
+all: icu curlpp $(GNUPLOT_TARGET) libopusenc # liboggz 
 
 icu: $(ICUDATA_SO)
 
@@ -37,6 +41,11 @@ curlpp: $(CURLPP_SO)
 
 $(CURLPP_SO):
 	cd curlpp && mkdir -p build && cd build && cmake .. && make
+
+libopusenc: $(LIBOPUSENC_SO)
+
+$(LIBOPUSENC_SO):
+	cd libopusenc && $(LIBOPUSENC_BUILD_ENVS) ./autogen.sh && $(LIBOPUSENC_BUILD_ENVS) ./configure --prefix=$(LIBOPUSENC_BUILD_DIR) --disable-examples --disable-doc --enable-year2038 --enable-static=no && $(LIBOPUSENC_BUILD_ENVS) make install
 
 liboggz: $(LIBOGGZ_SO)
 
