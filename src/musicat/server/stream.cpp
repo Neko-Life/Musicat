@@ -6,72 +6,102 @@ namespace musicat::server::stream
 
 struct stream_state_t
 {
-    dpp::snowflake guild_id;
+    APIResponse *res;
     bool headers_sent;
 };
 
-stream_state_t
-create_stream_state (const dpp::snowflake &guild_id)
+struct guild_stream_state_t
 {
-    return { guild_id, false };
-}
+    std::vector<stream_state_t> streams;
+    std::mutex streams_m;
 
-static std::map<APIResponse *, stream_state_t> subs;
+    std::vector<std::string> headers_cache;
+};
+
+static std::map<dpp::snowflake, guild_stream_state_t> subs;
 static std::mutex subs_m;
 
-static std::map<dpp::snowflake, std::vector<std::string> > headers_cache;
+static guild_stream_state_t &
+get_guild_stream_state (const dpp::snowflake &guild_id)
+{
+    std::lock_guard lk (subs_m);
+    guild_stream_state_t &s = subs[guild_id];
+    return s;
+}
 
 void
 subscribe (APIResponse *res, const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (subs_m);
-    subs[res] = create_stream_state (guild_id);
+    guild_stream_state_t &state = get_guild_stream_state (guild_id);
+
+    std::lock_guard lk (state.streams_m);
+    state.streams.push_back (stream_state_t{ res, false });
 }
 
 void
-unsubscribe (APIResponse *res, bool aborted)
+unsubscribe (APIResponse *res, const dpp::snowflake &guild_id, bool aborted)
 {
-    std::lock_guard lk (subs_m);
     if (!aborted)
         defer ([res] () { res->end (); });
-    subs.erase (res);
+
+    guild_stream_state_t &state = get_guild_stream_state (guild_id);
+
+    std::lock_guard lk (state.streams_m);
+    auto i = state.streams.begin ();
+    while (i != state.streams.end ())
+        {
+            if (i->res != res)
+                {
+                    i++;
+                    continue;
+                }
+
+            state.streams.erase (i);
+            break;
+        }
 }
 
 void
 unsubscribe (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (subs_m);
-    auto i = subs.begin ();
-    while (i != subs.end ())
-        {
-            if (i->second.guild_id != guild_id)
+    defer (
+        [guild_id] ()
+            {
                 {
-                    i++;
-                    continue;
+                    guild_stream_state_t &state = get_guild_stream_state (guild_id);
+
+                    std::lock_guard lk (state.streams_m);
+                    for (auto &s : state.streams)
+                        s.res->end ();
                 }
-            auto *res = i->first;
-            defer ([res] () { res->end (); });
-            i = subs.erase (i);
-        }
-    headers_cache.erase (guild_id);
+
+                std::lock_guard lk (subs_m);
+                subs.erase (guild_id);
+            });
 }
 
 void
 shutdown ()
 {
-    std::lock_guard lk (subs_m);
-    auto i = subs.begin ();
-    while (i != subs.end ())
-        {
-            auto *res = i->first;
-            defer ([res] () { res->end (); });
-            headers_cache.erase (i->second.guild_id);
-            i = subs.erase (i);
-        }
+    defer (
+        [] ()
+            {
+                std::lock_guard lk (subs_m);
+                auto i = subs.begin ();
+                while (i != subs.end ())
+                    {
+                        {
+                            std::lock_guard lk (i->second.streams_m);
+                            for (auto &s : i->second.streams)
+                                s.res->end ();
+                        }
+                        i = subs.erase (i);
+                    }
+            });
 }
 
 static int
-check_for_headers (const dpp::snowflake &guild_id, const std::string &p)
+check_for_headers (guild_stream_state_t &state, const std::string &p)
 {
     // cache OpusHead and OpusTag headers for late subscribers
     const char *packet = p.data ();
@@ -88,12 +118,12 @@ check_for_headers (const dpp::snowflake &guild_id, const std::string &p)
     const char *payload = packet + header_size;
     if (!memcmp ("OpusHead", payload, 8))
         {
-            headers_cache[guild_id] = {};
-            headers_cache[guild_id].push_back (p);
+            state.headers_cache.clear ();
+            state.headers_cache.push_back (p);
         }
     else if (!memcmp ("OpusTags", payload, 8))
         {
-            headers_cache[guild_id].push_back (p);
+            state.headers_cache.push_back (p);
         }
     else
         return -1;
@@ -109,23 +139,23 @@ broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t p
     defer (
         [guild_id, p] ()
             {
-                std::lock_guard lk (subs_m);
-                for (auto &[res, s] : subs)
-                    {
-                        if (guild_id != s.guild_id)
-                            continue;
+                guild_stream_state_t &state = get_guild_stream_state (guild_id);
+                {
+                    std::lock_guard lk (state.streams_m);
+                    for (auto &s : state.streams)
+                        {
+                            if (!s.headers_sent)
+                                {
+                                    for (const std::string &h : state.headers_cache)
+                                        s.res->write (h);
+                                    s.headers_sent = true;
+                                }
 
-                        if (!s.headers_sent)
-                            {
-                                for (const std::string &h : headers_cache[guild_id])
-                                    res->write (h);
-                                s.headers_sent = true;
-                            }
+                            s.res->write (p);
+                        }
+                }
 
-                        res->write (p);
-                    }
-
-                check_for_headers (guild_id, p);
+                check_for_headers (state, p);
             });
 }
 

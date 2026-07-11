@@ -46,7 +46,7 @@ get_stream (APIResponse *res, APIRequest *req)
     // subscribe to the guild stream state
     stream::subscribe (res, guild_id);
 
-    res->onAborted ([res] () { stream::unsubscribe (res, true); });
+    res->onAborted ([res, guild_id] () { stream::unsubscribe (res, guild_id, true); });
 }
 
 } // musicat::server::routes
