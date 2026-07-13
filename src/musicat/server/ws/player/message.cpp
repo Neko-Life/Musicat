@@ -39,10 +39,6 @@ void
 message (uws_ws_t *ws, std::string_view msg, uWS::OpCode code)
 {
     const bool debug = get_debug_state ();
-
-    // std::string message(msg);
-    // std::string logmessage = std::string ("`") + message
-    //                       + "` " + std::to_string (code);
     if (debug)
         {
             fprintf (stderr, "[server MESSAGE] %lu %d: %s\n", (uintptr_t)ws,
@@ -54,7 +50,7 @@ message (uws_ws_t *ws, std::string_view msg, uWS::OpCode code)
 
     if (msg == "0")
         {
-            ws->send ("1");
+            ws->send ("0");
             return;
         }
 

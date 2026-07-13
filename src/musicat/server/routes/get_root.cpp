@@ -108,7 +108,7 @@ get_root (APIResponse *res, APIRequest *req)
                        && musicat_u.banner.second != 0);
 
                 musicat_data["locale"] = musicat_u.locale;
-                musicat_data["email"] = musicat_u.email;
+                // musicat_data["email"] = musicat_u.email;
                 musicat_data["accent_color"] = musicat_u.accent_color;
                 musicat_data["verified"] = musicat_u.verified;
                 musicat_data["banner"] = musicat_u_has_banner
