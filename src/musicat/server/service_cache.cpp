@@ -61,6 +61,7 @@ remove (const std::string &key)
 void
 create_invalidate_timer (const std::string &key, int second_max_age)
 {
+    remove_invalidate_timer(key);
     std::lock_guard lk (_timers_m);
 
     _timers.push_back ({ std::chrono::high_resolution_clock::now ()

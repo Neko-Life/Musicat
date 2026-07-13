@@ -45,59 +45,7 @@ open (uws_ws_t *ws)
     nlohmann::json payload_bot_info = get_bot_info_payload (bot);
     ws->send (payload_bot_info.dump ());
 
-    /*
-                        //!TODO: this should get user guilds instead
-                    case ws_req_t::server_list:
-                        {
-                            // on open
-                            auto *guild_cache = dpp::get_guild_cache ();
-                            if (!guild_cache)
-                                {
-                                    _set_resd_error (resd, "No guild cached");
-                                    break;
-                                }
-
-                            // lock cache mutex for thread safety
-                            std::shared_mutex &cache_mutex
-                                = guild_cache->get_mutex ();
-                            std::lock_guard<std::shared_mutex &> lk
-       (cache_mutex);
-
-                            for (auto &pair : guild_cache->get_container ())
-                                {
-                                    dpp::guild *guild = pair.second;
-                                    if (!guild)
-                                        continue;
-
-                                    nlohmann::json to_push;
-
-                                    try
-                                        {
-                                            to_push = nlohmann::json::parse (
-                                                guild->build_json (true));
-                                        }
-                                    catch (...)
-                                        {
-                                            fprintf (
-                                                stderr,
-                                                "[server::_handle_req ERROR] "
-                                                "Error building guild json\n");
-                                            continue;
-                                        }
-
-                                    to_push["icon_url"]
-                                        = guild->get_icon_url (512,
-       dpp::i_webp); to_push["banner_url"] = guild->get_banner_url ( 1024,
-       dpp::i_webp); to_push["splash_url"] = guild->get_splash_url ( 1024,
-       dpp::i_webp); to_push["discovery_splash_url"] =
-       guild->get_discovery_splash_url ( 1024, dpp::i_webp);
-
-                                    resd.push_back (to_push);
-                                }
-
-                            break;
-                        }
-    */
+    // send any random active player info
 }
 
 } // musicat::server::ws::player::events

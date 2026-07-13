@@ -7,25 +7,20 @@ namespace musicat::server::routes
 {
 
 void
-set_endres_response_with_musicat_data (dpp::cluster *bot,
-                                       response::end_t &endres,
-                                       const nlohmann::json &musicat_data)
+set_endres_response_with_musicat_data (dpp::cluster *bot, response::end_t &endres, const nlohmann::json &musicat_data)
 {
     const bool has_detailed_data = musicat_data.is_object ();
 
-    endres.response
-        = response::payload (
-              {
-                  { "avatar_url",
-                    bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp) },
-                  { "username", bot->me.username },
-                  { "description", get_bot_description () },
-                  {
-                      "banner_url",
-                      has_detailed_data ? musicat_data["banner_url"] : nullptr,
-                  },
-              })
-              .dump ();
+    endres.response = response::payload ({
+                                             { "avatar_url", bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp) },
+                                             { "username", bot->me.username },
+                                             { "description", get_bot_description () },
+                                             {
+                                                 "banner_url",
+                                                 has_detailed_data ? musicat_data["banner_url"] : nullptr,
+                                             },
+                                         })
+                          .dump ();
 }
 
 void
@@ -45,15 +40,12 @@ get_root (APIResponse *res, APIRequest *req)
     if (!bot)
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-            endres.response = response::error (response::ERROR_CODE_NOTHING,
-                                               "Bot not running")
-                                  .dump ();
+            endres.response = response::error (response::ERROR_CODE_NOTHING, "Bot not running").dump ();
 
             return;
         }
 
-    const nlohmann::json musicat_data
-        = service_cache::get_cached_musicat_detailed_user ();
+    const nlohmann::json musicat_data = service_cache::get_cached_musicat_detailed_user ();
     if (musicat_data.is_object ())
         {
             set_endres_response_with_musicat_data (bot, endres, musicat_data);
@@ -62,71 +54,67 @@ get_root (APIResponse *res, APIRequest *req)
         }
 
     // required to be able to end req in another thread
-    res->onAborted ([] () {
-        // what to do on abort?
-    });
+    res->onAborted (
+        [] ()
+            {
+                // what to do on abort?
+            });
 
     endres.res = NULL;
 
     const char *lstatus = endres.status;
     header_v_t lheaders = endres.headers;
     std::string lresponse = endres.response;
-    bot->current_user_get ([res, lstatus, lheaders, lresponse] (
-                               const dpp::confirmation_callback_t &ev) {
-        response::end_t endres (res);
-        endres.status = lstatus;
-        endres.headers = lheaders;
-        endres.response = lresponse;
-        response::defer_end_t dendt (endres);
-
-        auto bot = get_client_ptr ();
-        if (!bot) [[unlikely]]
+    bot->current_user_get (
+        [res, lstatus, lheaders, lresponse] (const dpp::confirmation_callback_t &ev)
             {
-                endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-                endres.response
-                    = response::error (response::ERROR_CODE_NOTHING,
-                                       "Bot not running")
-                          .dump ();
+                response::end_t endres (res);
+                endres.status = lstatus;
+                endres.headers = lheaders;
+                endres.response = lresponse;
+                response::defer_end_t dendt (endres);
 
-                return;
-            }
+                auto bot = get_client_ptr ();
+                if (!bot) [[unlikely]]
+                    {
+                        endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
+                        endres.response = response::error (response::ERROR_CODE_NOTHING, "Bot not running").dump ();
 
-        nlohmann::json musicat_data;
+                        return;
+                    }
 
-        if (ev.is_error ())
-            {
-                fprintf (stderr,
-                         "[server::routes::get_root bot->current_user_get "
-                         "ERROR]:\n%s\n",
-                         ev.http_info.body.c_str ());
-            }
-        else
-            {
-                auto musicat_u = ev.get<dpp::user_identified> ();
-                const bool musicat_u_has_banner
-                    = (musicat_u.banner.first != 0
-                       && musicat_u.banner.second != 0);
+                nlohmann::json musicat_data;
 
-                musicat_data["locale"] = musicat_u.locale;
-                // musicat_data["email"] = musicat_u.email;
-                musicat_data["accent_color"] = musicat_u.accent_color;
-                musicat_data["verified"] = musicat_u.verified;
-                musicat_data["banner"] = musicat_u_has_banner
-                                             ? musicat_u.banner.to_string ()
-                                             : nullptr;
-                musicat_data["banner_url"]
-                    = musicat_u_has_banner
-                          ? musicat_u.get_banner_url (4096, dpp::i_webp)
-                          : nullptr;
-            }
+                if (ev.is_error ())
+                    {
+                        fprintf (stderr,
+                                 "[server::routes::get_root bot->current_user_get "
+                                 "ERROR]:\n%s\n",
+                                 ev.http_info.body.c_str ());
+                    }
+                else
+                    {
+                        auto musicat_u = ev.get<dpp::user_identified> ();
+                        const bool musicat_u_has_banner = (musicat_u.banner.first != 0 && musicat_u.banner.second != 0);
 
-        if (musicat_data.is_object ())
-            {
-                service_cache::set_cached_musicat_detailed_user (musicat_data);
-            }
+                        musicat_data["locale"] = musicat_u.locale;
+                        // musicat_data["email"] = musicat_u.email;
+                        musicat_data["accent_color"] = musicat_u.accent_color;
+                        musicat_data["verified"] = musicat_u.verified;
+                        if (musicat_u_has_banner)
+                            {
+                                musicat_data["banner"] = musicat_u.banner.to_string ();
+                                musicat_data["banner_url"] = musicat_u.get_banner_url (4096, dpp::i_webp);
+                            }
+                    }
 
-        set_endres_response_with_musicat_data (bot, endres, musicat_data);
-    });
+                if (musicat_data.is_object ())
+                    {
+                        service_cache::set_cached_musicat_detailed_user (musicat_data);
+                    }
+
+                set_endres_response_with_musicat_data (bot, endres, musicat_data);
+            });
 }
 
 } // musicat::server::routes

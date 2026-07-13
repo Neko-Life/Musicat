@@ -16,6 +16,7 @@ nlohmann::json get (const std::string &key);
 
 void remove (const std::string &key);
 
+// create/reset timer with key
 void create_invalidate_timer (const std::string &key, int second_max_age);
 void check_timers ();
 void remove_invalidate_timer (const std::string &key);
