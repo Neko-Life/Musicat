@@ -1119,19 +1119,18 @@ Manager::wait_for_download (const std::string &file_name)
 }
 
 bool
-Manager::set_info_message_as_deleted (dpp::snowflake id)
+Manager::set_info_message_as_deleted (dpp::snowflake guild_id, dpp::snowflake message_id)
 {
-    std::lock_guard lk (this->imc_m);
-    auto m = this->info_messages_cache.find (id);
-    if (m != this->info_messages_cache.end ())
-        {
-            if (!m->second->is_source_message_deleted ())
-                {
-                    m->second->set_flags (m->second->flags | dpp::m_source_message_deleted);
-                    return true;
-                }
-        }
-    return false;
+    auto player = get_player (guild_id);
+    if (!player)
+        return false;
+
+    auto pim = player->get_info_message ();
+    if (pim.second != 0 || pim.first.id != message_id)
+        return false;
+
+    player->info_message["flags"] = player->info_message["flags"].get<uint16_t> () & dpp::message_flags::m_source_message_deleted;
+    return true;
 }
 
 void
@@ -1377,7 +1376,6 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
         // no conn, skip everything
         goto end;
 
-
     // this is bizarre, voiceconn exist so continue connecting it
     if (!v->voiceclient)
         {
@@ -1439,16 +1437,17 @@ skip_autopause:
         // no error, skip warn
         goto end;
 
-    std::cerr << "[Manager::check_autopause WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id
-              << ") svcid(" << e_voice_channel_id << ") status(" << tstatus << ")\n";
+    std::cerr << "[Manager::check_autopause WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id << ") svcid("
+              << e_voice_channel_id << ") status(" << tstatus << ")\n";
 
 end:
     if (debug)
         {
             std::cerr << "[Manager::check_autopause] "
-                "e_voice_channel_id(" << e_voice_channel_id << ") is_paused(" << is_paused << ") new_state_muted("
-                << new_state_muted << ") old_state_muted(" << old_state_muted << ") v(" << v << ") v->voiceclient(" << (v && v->voiceclient)
-                << ") cached.first(" << cached.first << ") cached.second(" << cached.second << ")\n";
+                         "e_voice_channel_id("
+                      << e_voice_channel_id << ") is_paused(" << is_paused << ") new_state_muted(" << new_state_muted
+                      << ") old_state_muted(" << old_state_muted << ") v(" << v << ") v->voiceclient(" << (v && v->voiceclient)
+                      << ") cached.first(" << cached.first << ") cached.second(" << cached.second << ")\n";
         }
 }
 

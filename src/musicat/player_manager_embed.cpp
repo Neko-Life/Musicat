@@ -5,9 +5,7 @@
 #include "musicat/player.h"
 #include "musicat/util.h"
 #include "snowflake.h"
-#include <chrono>
 #include <mutex>
-#include <thread>
 #include <variant>
 
 namespace musicat
@@ -15,165 +13,105 @@ namespace musicat
 namespace player
 {
 // these are the most ridiculous code I have ever wrote....
-using string = std::string;
 
-static std::mutex pe_m;
-static std::vector<dpp::snowflake> processing_embed = {};
-
-auto
-get_processing_embed (const dpp::snowflake &guild_id)
+// EMBED OPERATION QUEUE //////////////////////////////////////////////////////////////////////////////
+struct embed_op_t
 {
-    std::lock_guard lk (pe_m);
-    return vector_find (&processing_embed, guild_id);
+    bool update;
+    bool force_playing_status;
+    bool has_event;
+    bool delete_original;
+    dpp::snowflake guild_id;
+    dpp::snowflake channel_id;
+    dpp::interaction_create_t event;
+    dpp::command_completion_event_t message_callback;
+    dpp::message prev_message;
+};
+
+static bool
+is_embed_op_duplicate (const embed_op_t &is_this, const embed_op_t &duplicate)
+{
+    return is_this.guild_id == duplicate.guild_id && is_this.channel_id == duplicate.channel_id;
 }
 
-bool has_pending_task_for_guild (const dpp::snowflake &guild_id);
+static std::vector<embed_op_t> embed_q;
+static std::mutex embed_q_m;
 
-bool
-is_processing_embed (const dpp::snowflake &guild_id)
+static void
+run_embed_op (const embed_op_t &o)
 {
-    return get_processing_embed (guild_id) != processing_embed.end ();
-}
-
-void
-set_processing_embed (const dpp::snowflake &guild_id)
-{
-    if (is_processing_embed (guild_id))
+    auto *manager = get_player_manager_ptr ();
+    if (!manager)
         return;
 
-    std::lock_guard lk (pe_m);
-    processing_embed.push_back (guild_id);
+    if (!o.update)
+        {
+            dpp::message m;
+            if (manager->get_playing_info_message (m, o.guild_id, o.force_playing_status, false) != 0)
+                return;
+
+            m.set_channel_id (o.channel_id);
+
+            if (o.has_event && !o.delete_original)
+                {
+                    o.event.reply (m, o.message_callback);
+                    return;
+                }
+
+            manager->cluster->message_create (m, o.message_callback);
+            return;
+        }
+
+    auto pm = o.prev_message;
+    if (manager->get_playing_info_message (pm, o.guild_id, o.force_playing_status, player::playing_info_utils::is_button_expanded (pm))
+        != 0)
+        return;
+
+    if (!o.has_event)
+        {
+            manager->cluster->message_edit (pm, o.message_callback);
+            return;
+        }
+
+    dpp::interaction_response reply (dpp::ir_update_message, pm);
+    o.event.from ()->creator->interaction_response_create (o.event.command.id, o.event.command.token, reply, o.message_callback);
 }
 
-void
-clear_processing_embed (const dpp::snowflake &guild_id)
+static void
+queue_embed_op (const embed_op_t &o)
 {
-    auto i = get_processing_embed (guild_id);
-
-    std::lock_guard lk (pe_m);
-    while (i != processing_embed.end ())
+    std::lock_guard lk (embed_q_m);
+    auto i = embed_q.begin ();
+    while (i != embed_q.end ())
         {
-            if (*i != guild_id)
+            if (!is_embed_op_duplicate (*i, o))
                 {
                     i++;
                     continue;
                 }
-
-            i = processing_embed.erase (i);
+            i = embed_q.erase (i);
+            break;
         }
+    embed_q.push_back (o);
 }
-
-// this could be made template class util
-struct debounce_process_embed_trigger_t
-{
-    dpp::snowflake guild_id;
-    long long ts;
-
-    debounce_process_embed_trigger_t (const dpp::snowflake &guild_id, const long long current_ts) : guild_id (guild_id), ts (current_ts) {}
-
-    debounce_process_embed_trigger_t (const debounce_process_embed_trigger_t &) = delete;
-    void operator= (const debounce_process_embed_trigger_t &) = delete;
-
-    debounce_process_embed_trigger_t (const debounce_process_embed_trigger_t &&o) noexcept
-    {
-        guild_id = std::move (o.guild_id);
-        ts = std::move (o.ts);
-    }
-
-    void
-    operator= (const debounce_process_embed_trigger_t &&o) noexcept
-    {
-        guild_id = std::move (o.guild_id);
-        ts = std::move (o.ts);
-    }
-};
-
-static std::vector<debounce_process_embed_trigger_t> dpet;
-static std::mutex dpet_m;
-
-bool
-has_pending_task_for_guild (const dpp::snowflake &guild_id, long long debounce_ms)
-{
-    long long current_ts = util::get_current_ts ();
-
-    {
-        std::lock_guard lk (dpet_m);
-        for (auto &trigger : dpet)
-            {
-                if (trigger.guild_id != guild_id)
-                    continue;
-                trigger.ts = current_ts;
-                return true;
-            }
-        dpet.emplace_back (guild_id, current_ts);
-    }
-
-    const std::chrono::milliseconds sleep_ms = std::chrono::milliseconds{ debounce_ms };
-    while (true)
-        {
-            std::this_thread::sleep_for (sleep_ms);
-
-            std::lock_guard lk (dpet_m);
-            for (auto trigger = dpet.begin (); trigger != dpet.end (); trigger++)
-                {
-                    if (trigger->guild_id != guild_id)
-                        continue;
-
-                    if (util::get_current_ts () - trigger->ts < debounce_ms)
-                        // ts not over, sleep again
-                        break;
-
-                    dpet.erase (trigger);
-                    return false;
-                }
-        }
-
-    return false;
-}
-
-inline constexpr long long DEFAULT_EMBED_REQ_DEBOUNCE_MS = 200;
-
-bool
-has_pending_task_for_guild (const dpp::snowflake &guild_id)
-{
-    return has_pending_task_for_guild (guild_id, DEFAULT_EMBED_REQ_DEBOUNCE_MS);
-}
-
-class ProcessingEmbedClearer
-{
-    const dpp::snowflake guild_id;
-    bool no_clear;
-
-  public:
-    ProcessingEmbedClearer (const dpp::snowflake &guild_id, bool no_set_blocker = false) : guild_id (guild_id), no_clear (false)
-    {
-        if (no_set_blocker)
-            return;
-
-        set_processing_embed (this->guild_id);
-    };
-
-    void
-    set_no_clear (bool no_clear)
-    {
-        this->no_clear = no_clear;
-    }
-
-    ~ProcessingEmbedClearer ()
-    {
-        if (this->no_clear)
-            return;
-
-        clear_processing_embed (this->guild_id);
-    };
-};
 
 void
+check_embed_op_queue ()
+{
+    std::lock_guard lk (embed_q_m);
+    auto i = embed_q.begin ();
+    while (i != embed_q.end ())
+        {
+            run_embed_op (*i);
+            i = embed_q.erase (i);
+        }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static void
 send_info_embed_cb (const dpp::confirmation_callback_t &cb, const dpp::snowflake &guild_id)
 {
-    // this function is called inside another thread, construct new ProcessingEmbedClearer
-    ProcessingEmbedClearer pec (guild_id, true);
-
     if (cb.is_error ())
         {
             auto e_i = cb.get_error ();
@@ -198,69 +136,49 @@ send_info_embed_cb (const dpp::confirmation_callback_t &cb, const dpp::snowflake
         }
 
     auto player_manager_ptr = get_player_manager_ptr ();
-
     if (!player_manager_ptr)
         {
             fprintf (stderr, "[player::send_info_embed_cb ERROR] Missing player manager\n");
-
             return;
         }
 
     auto player = player_manager_ptr->get_player (guild_id);
-
     if (!player)
         {
             fprintf (stderr, "[player::send_info_embed_cb ERROR] PLAYER GONE WTFF\n");
-
             return;
         }
 
-    std::lock_guard lk (player_manager_ptr->imc_m);
-
-    dpp::snowflake id;
-
-    if (player->info_message)
-        {
-            id = player->info_message->id;
-            player_manager_ptr->info_messages_cache.erase (id);
-        }
-
-    player->info_message = std::make_shared<dpp::message> (std::get<dpp::message> (cb.value));
-
-    if (!player->info_message)
-        return;
-
-    id = player->info_message->id;
-
-    player_manager_ptr->info_messages_cache[id] = player->info_message;
+    dpp::message new_message = std::get<dpp::message> (cb.value);
+    player->set_info_message (new_message);
 
     if (debug)
-        std::cerr << "[player::send_info_embed_cb] New message info: " << id << '\n';
+        std::cerr << "[player::send_info_embed_cb] New message info: " << new_message.id.str () << '\n';
 }
 
-bool
+void
 Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const bool force_playing_status,
                           const dpp::interaction_create_t *event)
 {
-    if (is_processing_embed (guild_id) || has_pending_task_for_guild (guild_id))
-        return false;
+    auto *manager = get_player_manager_ptr ();
+    if (!manager)
+        return;
 
-    ProcessingEmbedClearer pec (guild_id);
-
-    auto player = this->get_player (guild_id);
+    auto player = manager->get_player (guild_id);
     if (!player)
         throw exception ("No player");
 
     const bool debug = get_debug_state ();
 
-    const bool cant_update = !event && (!player->info_message || player->info_message->id.empty ());
+    auto pim = player->get_info_message ();
+    const bool cant_update = !event && pim.second != 0;
 
     if (update && cant_update)
         {
             if (debug)
-                fprintf (stderr, "[Manager:send_info_embed] No message to update\n");
+                fprintf (stderr, "[Manager::send_info_embed] No message to update\n");
 
-            return false;
+            return;
         }
 
     auto channel_id = player->channel_id;
@@ -268,14 +186,15 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
     auto g = dpp::find_guild (guild_id);
     auto c = dpp::find_channel (channel_id);
 
-    bool embed_perms = has_permissions (g, &this->cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
+    bool embed_perms = has_permissions (g, &manager->cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
 
-    bool view_history_perm = has_permissions (g, &this->cluster->me, c, { dpp::p_read_message_history });
+    bool view_history_perm = has_permissions (g, &manager->cluster->me, c, { dpp::p_read_message_history });
 
     bool delete_original = false;
     if (update)
         {
-            if (!view_history_perm || (player->info_message && player->info_message->is_source_message_deleted ()))
+            auto pim = player->get_info_message ();
+            if (pim.second != 0 || pim.first.is_source_message_deleted () || !view_history_perm)
                 {
                     update = false;
                     delete_original = true;
@@ -294,7 +213,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
             // or at least it should
             assert (update == false);
 
-            this->delete_info_embed (guild_id);
+            manager->delete_info_embed (guild_id);
         }
 
     // TODO: Refactor this horrendous `update` flag system and check for
@@ -310,31 +229,26 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
                 {
                     mn = event->command.msg;
 
-                    // update info message
-                    if (player->info_message && !player->info_message->id.empty ())
+                    // if cached message has same id then update its json
+                    // else keep previous cache, this event probably come from /playing cmd
+                    if (pim.second == 0 && pim.first.id == mn.id)
                         {
-                            dpp::snowflake id = player->info_message->id;
-
-                            if (id == mn.id)
-                                {
-                                    player->info_message = std::make_shared<dpp::message> (mn);
-
-                                    this->info_messages_cache[id] = player->info_message;
-                                }
+                            player->set_info_message (mn);
+                            pim.first = mn;
                         }
 
                     has_msg_to_update = true;
                 }
-            else if (player->info_message)
+            else if (pim.second == 0)
                 {
-                    mn = *player->info_message;
+                    mn = pim.first;
                     has_msg_to_update = true;
                 }
 
             invalid_update = update && !mn.channel_id && !mn.id;
             if (invalid_update && debug)
                 {
-                    std::cerr << "[MANAGER::SEND_INFO_EMBED WARN] Invalid update for gid(" << guild_id << ") cid(" << channel_id
+                    std::cerr << "[Manager::send_info_embed WARN] Invalid update for gid(" << guild_id << ") cid(" << channel_id
                               << "), fallback to create\n";
                 }
         }
@@ -342,67 +256,54 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
     // not update
     if (!update || invalid_update)
         {
-            dpp::message m;
-
-            if (this->get_playing_info_message (m, guild_id, force_playing_status, false) != 0)
-                return false;
-
-            m.set_channel_id (channel_id);
-
-            // m_cb is used after here, set no_clear to clear it on callback
-            pec.set_no_clear (true);
-
-            if (event && !delete_original)
-                {
-                    event->reply (m, m_cb);
-                    return true;
-                }
-
-            this->cluster->message_create (m, m_cb);
-            return true;
+            queue_embed_op ({ false,
+                              force_playing_status,
+                              event != nullptr,
+                              delete_original,
+                              guild_id,
+                              channel_id,
+                              event ? *event : dpp::interaction_create_t{},
+                              m_cb,
+                              {} });
+            return;
         }
 
     // else update
 
     if (!has_msg_to_update)
-        return false;
+        return;
 
     if (debug)
-        std::cerr << "[MANAGER::SEND_INFO_EMBED] Channel Info Embed Id Edit: " << mn.channel_id << " " << mn.id << '\n';
+        std::cerr << "[Manager::send_info_embed] Channel Info Embed Id Edit: " << mn.channel_id << " " << mn.id << '\n';
 
     if (invalid_update)
         {
             if (debug)
-                std::cerr << "Canceling Info Embed Update" << '\n';
+                std::cerr << "[Manager::send_info_embed] Invalid update, canceling Info Embed Update" << '\n';
 
-            return false;
+            return;
         }
 
-    if (this->get_playing_info_message (mn, guild_id, force_playing_status, player::playing_info_utils::is_button_expanded (mn)) != 0)
-        return false;
-
-    // m_cb is used after here, set no_clear to clear it on callback
-    pec.set_no_clear (true);
-
-    if (!event)
-        {
-            this->cluster->message_edit (mn, m_cb);
-            return true;
-        }
-
-    dpp::interaction_response reply (dpp::ir_update_message, mn);
-    event->from ()->creator->interaction_response_create (event->command.id, event->command.token, reply, m_cb);
-
-    return true;
+    queue_embed_op ({
+        true,
+        force_playing_status,
+        event != nullptr,
+        delete_original,
+        guild_id,
+        channel_id,
+        event ? *event : dpp::interaction_create_t{},
+        m_cb,
+        mn,
+    });
 }
 
-bool
+void
 Manager::update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status, const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
         fprintf (stderr, "[Manager::update_info_embed] Update info called\n");
 
-    return this->send_info_embed (guild_id, true, force_playing_status, event);
+    this->send_info_embed (guild_id, true, force_playing_status, event);
 }
 
 void
@@ -424,56 +325,26 @@ Manager::reply_info_embed (const dpp::interaction_create_t &event, bool expand_b
         event.reply (m);
 }
 
-static bool
-delete_info_embed_retdel (Manager *m, std::shared_ptr<Player> player)
-{
-    std::lock_guard lk (m->imc_m);
-
-    if (player->info_message)
-        {
-            auto id = player->info_message->id;
-            m->info_messages_cache.erase (id);
-            return true;
-        }
-
-    return false;
-}
-
 bool
-Manager::delete_info_embed (const dpp::snowflake &guild_id, dpp::command_completion_event_t callback)
+Manager::delete_info_embed (const dpp::snowflake &guild_id, const dpp::command_completion_event_t &callback)
 {
     auto player = this->get_player (guild_id);
     if (!player)
         return false;
 
-    if (!player->info_message)
+    auto pim = player->get_info_message ();
+
+    if (pim.second != 0 || pim.first.is_source_message_deleted ())
         return false;
 
-    // !TODO: i dont think info_message ever got its `deleted` flag updated
-    if (player->info_message->is_source_message_deleted ())
-        return delete_info_embed_retdel (this, player);
-
-    auto mid = player->info_message->id;
-    auto cid = player->info_message->channel_id;
+    auto mid = pim.first.id;
+    auto cid = pim.first.channel_id;
 
     if (get_debug_state ())
         std::cerr << "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: " << cid << '\n';
 
-    bool info_message_erased = delete_info_embed_retdel (this, player);
-    this->cluster->message_delete (mid, cid,
-                                   [this, guild_id, callback] (const dpp::confirmation_callback_t &res)
-                                       {
-                                           if (!res.is_error ())
-                                               {
-                                                   auto player = this->get_player (guild_id);
-                                                   if (player)
-                                                       player->info_message = nullptr;
-                                               }
-
-                                           callback (res);
-                                       });
-
-    return info_message_erased;
+    this->cluster->message_delete (mid, cid, [callback] (const dpp::confirmation_callback_t &res) { callback (res); });
+    return true;
 }
 
 constexpr inline const char err_prefix[] = "[Manager::get_playing_info_embed ERROR] Failed to get_playing_info_embed";
@@ -558,7 +429,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
 
             uint32_t color = h_r ? h_r->colour : 0;
 
-            string eaname;
+            std::string eaname;
 
             if (member_found)
                 {
@@ -593,7 +464,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
 
             static const char *p_mode[] = { MUSICAT_U8 ("⏸️"), MUSICAT_U8 ("▶️") };
 
-            const string et = mctrack::get_thumbnail (track);
+            const std::string et = mctrack::get_thumbnail (track);
 
             dpp::embed e;
             e.set_description (mctrack::get_description (track))
@@ -610,7 +481,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
             if (!skip_track.raw.is_null ())
                 e.add_field ("SKIP", "[" + mctrack::get_title (skip_track) + "](" + mctrack::get_url (skip_track) + ")");
 
-            string ft = "";
+            std::string ft = "";
 
             track_progress prog = util::get_track_progress (track);
             if (prog.status == 0)
@@ -685,7 +556,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
                     ft += MUSICAT_U8 ("♾️");
 
                     if (guild_player->max_history_size)
-                        ft += string (" (") + std::to_string (guild_player->max_history_size) + ")";
+                        ft += std::string (" (") + std::to_string (guild_player->max_history_size) + ")";
                 }
 
             // !TODO: remove this when fully using ytdlp to support non-yt
@@ -696,7 +567,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
                     if (!ft.empty ())
                         ft += " | ";
 
-                    ft += string ("[") + std::to_string (track.info.average_bitrate ()) + "]";
+                    ft += std::string ("[") + std::to_string (track.info.average_bitrate ()) + "]";
                 }
 
             int64_t rpt = guild_player->current_track.repeat;
@@ -705,7 +576,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
                     if (!ft.empty ())
                         ft += " | ";
 
-                    ft += string ("R ") + std::to_string (rpt);
+                    ft += std::string ("R ") + std::to_string (rpt);
                 }
 
             int fx_count = guild_player->fx_get_active_count ();
@@ -715,7 +586,7 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
                     if (!ft.empty ())
                         ft += " | ";
 
-                    ft += string ("FX") + (fx_count > 1 ? " (" + std::to_string (fx_count) + ")" : "");
+                    ft += std::string ("FX") + (fx_count > 1 ? " (" + std::to_string (fx_count) + ")" : "");
                 }
 
             if (!ft.empty ())

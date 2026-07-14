@@ -1,12 +1,12 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
+#include "opusenc.h"
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
 #include <cstdint>
 #include <deque>
 #include <dpp/dpp.h>
-#include "opusenc.h"
 #include <map>
 #include <memory>
 #include <mutex>
@@ -166,7 +166,7 @@ class Player
      * @brief Message info of currently playing song.
      *
      */
-    std::shared_ptr<dpp::message> info_message;
+    nlohmann::json info_message;
 
     /**
      * @brief Loop mode of the currently playing song.
@@ -398,6 +398,10 @@ class Player
 
     Player &stop ();
 
+    // return pair of message and status 0 if has valid info_message
+    std::pair<dpp::message, int> get_info_message ();
+    Player &set_info_message (const dpp::message &message);
+
     int init_for_stream ();
     Player &done_streaming ();
 
@@ -437,16 +441,16 @@ class Player
     dpp::discord_voice_client *get_voice_client ();
 
     // queue operations
-    Player &queue_add(const MCTrack &t);
-    Player &queue_pop();
-    Player &queue_add_front(const MCTrack &t);
-    Player &queue_pop_front();
+    Player &queue_add (const MCTrack &t);
+    Player &queue_pop ();
+    Player &queue_add_front (const MCTrack &t);
+    Player &queue_pop_front ();
 
-    Player &queue_insert(const MCTrack &t, size_t pos);
-    Player &queue_erase(size_t pos);
+    Player &queue_insert (const MCTrack &t, size_t pos);
+    Player &queue_erase (size_t pos);
 
-    Player &set_queue(const track_queue &q);
-    Player &queue_clear();
+    Player &set_queue (const track_queue &q);
+    Player &queue_clear ();
 };
 
 struct get_playing_info_embed_info_t
@@ -468,7 +472,6 @@ class Manager
     dpp::cluster *cluster;
 
     std::map<dpp::snowflake, std::shared_ptr<Player> > players;
-    std::map<dpp::snowflake, std::shared_ptr<dpp::message> > info_messages_cache;
 
     // Mutexes
     // dl: waiting_file_download
@@ -477,10 +480,9 @@ class Manager
     // dc: disconnecting
     // ps: players
     // mp: manually_paused
-    // imc: info_messages_cache
     // im: ignore_marker
     // as: audio_stream
-    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, imc_m, im_m, as_m;
+    std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, im_m, as_m;
 
     // Conditional variable, use notify_all
     std::condition_variable dl_cv, stop_queue_cv, as_cv;
@@ -657,11 +659,9 @@ class Manager
      * one, return false if no info embed exist
      * @param force_playing_status
      * @param event event to reply/update to
-     * @return true
-     * @return false
      * @throw musicat::exception
      */
-    bool send_info_embed (const dpp::snowflake &guild_id, bool update = false, const bool force_playing_status = false,
+    void send_info_embed (const dpp::snowflake &guild_id, bool update = false, const bool force_playing_status = false,
                           const dpp::interaction_create_t *event = nullptr);
 
     /**
@@ -675,7 +675,7 @@ class Manager
      * @return false
      * @throw musicat::exception
      */
-    bool update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status = false,
+    void update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status = false,
                             const dpp::interaction_create_t *event = nullptr);
 
     /**
@@ -692,7 +692,7 @@ class Manager
      * @return true - Message is deleted
      * @return false - No player or no info embed exist
      */
-    bool delete_info_embed (const dpp::snowflake &guild_id, dpp::command_completion_event_t callback = dpp::utility::log_error ());
+    bool delete_info_embed (const dpp::snowflake &guild_id, const dpp::command_completion_event_t &callback = dpp::utility::log_error ());
 
     bool handle_on_track_marker (const dpp::voice_track_marker_t &event);
 
@@ -725,7 +725,7 @@ class Manager
 
     void handle_on_voice_state_update (const dpp::voice_state_update_t &event);
 
-    bool set_info_message_as_deleted (dpp::snowflake id);
+    bool set_info_message_as_deleted (dpp::snowflake guild_id, dpp::snowflake message_id);
     void handle_on_message_delete (const dpp::message_delete_t &event);
     void handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event);
 
@@ -915,11 +915,11 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, con
 // this should be called inside the streaming thread
 // returns 1 if vclient terminating or null
 // 0 on success
-int send_audio_routine (dpp::discord_voice_client *vclient,
-                        uint16_t *send_buffer, ssize_t *send_buffer_length,
-                        bool no_wait = false,
+int send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait = false,
                         OggOpusEnc *opus_encoder = NULL);
 
+// main loop routine
+void check_embed_op_queue ();
 
 // ================================================================================
 

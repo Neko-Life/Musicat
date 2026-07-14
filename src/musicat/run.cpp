@@ -655,20 +655,16 @@ run (int argc, const char *argv[])
     // make fetching guild members to be lazy
     conf_cache_policy.user_policy = dpp::cp_lazy;
 
-    const musicat_cluster_params_t cluster_params = { sha_token,
-                                                      dpp::i_guild_members | dpp::i_default_intents,
+    const musicat_cluster_params_t cluster_params = { sha_token, dpp::i_guild_members | dpp::i_default_intents,
 #ifdef SHARD_TEST
                                                       20,
 #else
                                                       0,
 #endif
-                                                      0,
-                                                      1,
-                                                      true,
-                                                      conf_cache_policy,
+                                                      0,         1,
+                                                      true,      conf_cache_policy,
 
-                                                      12,
-                                                      4 };
+                                                      12,        4 };
 
     if (argc > 1)
         {
@@ -822,7 +818,7 @@ run (int argc, const char *argv[])
     bool r_s;
     while ((r_s = get_running_state ()))
         {
-            std::this_thread::sleep_for (std::chrono::milliseconds (750));
+            std::this_thread::sleep_for (std::chrono::milliseconds (50));
 
             bool debug = get_debug_state ();
             time_t cur_time = time (NULL);
@@ -880,6 +876,7 @@ run (int argc, const char *argv[])
             player::timer::check_track_marker_rm_timers ();
             player::timer::check_resume_timers ();
             player::timer::check_failed_playback_reset_timers ();
+            player::check_embed_op_queue ();
 
             server::main_loop_routine ();
 

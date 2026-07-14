@@ -3,8 +3,8 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
-#include "musicat/server/stream.h"
 #include "musicat/player_manager_timer.h"
+#include "musicat/server/stream.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
 #include <memory>
@@ -177,9 +177,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     guild_player->current_track = guild_player->queue.front ();
     if (debug)
         std::cerr << "[Manager::spawn_handle_track_marker_worker] guild_player->current_track("
-            << mctrack::get_title(guild_player->current_track)
-            << ") guild_player->current_track.current_byte("
-            << guild_player->current_track.current_byte << ")\n";
+                  << mctrack::get_title (guild_player->current_track) << ") guild_player->current_track.current_byte("
+                  << guild_player->current_track.current_byte << ")\n";
 
     guild_player->queue.front ().seek_to = "";
     guild_player->stopped = false;
@@ -329,7 +328,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
 void
 Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 {
-    const bool debug = get_debug_state();
+    const bool debug = get_debug_state ();
     dpp::snowflake e_user_id = event.state.user_id;
     dpp::snowflake e_voice_channel_id = event.state.channel_id;
     dpp::snowflake e_guild_id = event.state.guild_id;
@@ -338,7 +337,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     if (!e_voice_channel_id)
         {
             this->clear_disconnecting (e_guild_id);
-            server::stream::unsubscribe(e_guild_id);
+            server::stream::unsubscribe (e_guild_id);
 
             // update vcs cache
             vcs_setting_handle_disconnected (dpp::find_channel (e_voice_channel_id));
@@ -363,12 +362,16 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     if (v->voiceclient)
         {
-            if (v->voiceclient->is_ready ()) {
-                // reset waiting vc ready state
-                this->clear_wait_vc_ready (e_guild_id);
-            } else if (debug) {
-                std::cerr << "[Manager::handle_sha_voice_state_update] Connected to guild(" << e_guild_id << ") vc(" << e_voice_channel_id << ") but voiceclient isn't ready yet!!!\n";
-            }
+            if (v->voiceclient->is_ready ())
+                {
+                    // reset waiting vc ready state
+                    this->clear_wait_vc_ready (e_guild_id);
+                }
+            else if (debug)
+                {
+                    std::cerr << "[Manager::handle_sha_voice_state_update] Connected to guild(" << e_guild_id << ") vc("
+                              << e_voice_channel_id << ") but voiceclient isn't ready yet!!!\n";
+                }
         }
 
     if (!a.first || !v->channel_id)
@@ -381,7 +384,6 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
                 std::cerr << "a.first->id(" << a.first->id << ")";
 
             std::cerr << "\n";
-
         }
 
     // reconnect when bot user is in vc but no vc state in
@@ -463,14 +465,14 @@ skip_not_sha_event:
 void
 Manager::handle_on_message_delete (const dpp::message_delete_t &event)
 {
-    this->set_info_message_as_deleted (event.id);
+    this->set_info_message_as_deleted (event.guild_id, event.id);
 }
 
 void
 Manager::handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event)
 {
     for (auto i : event.deleted)
-        this->set_info_message_as_deleted (i);
+        this->set_info_message_as_deleted (event.deleting_guild.id, i);
 }
 
 void
@@ -750,14 +752,14 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                         // Send play info embed
                         bool should_update_embed = false, not_repeating_song = false;
+                        auto pim = guild_player->get_info_message ();
 
                         if (!embed_perms)
                             goto log_no_embed;
 
                         // Update if last message is the
                         // info embed message
-                        should_update_embed
-                            = c && guild_player->info_message && c->last_message_id && c->last_message_id == guild_player->info_message->id;
+                        should_update_embed = c && pim.second == 0 && c->last_message_id && c->last_message_id == pim.first.id;
 
                         if (!should_update_embed)
                             goto del_info_embed;

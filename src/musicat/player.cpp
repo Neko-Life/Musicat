@@ -1,11 +1,10 @@
 #include "musicat/player.h"
 #include "musicat/audio_config.h"
-#include "opusenc.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/server/routes/get_stream.h"
 #include "musicat/server/stream.h"
+#include "opusenc.h"
 #include <cstddef>
 #include <memory>
 
@@ -54,10 +53,7 @@ MCTrack::check_for_seek_to ()
 
     if (debug)
         {
-            fprintf (
-                stderr,
-                "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n",
-                tit.c_str(), current_byte);
+            fprintf (stderr, "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n", tit.c_str (), current_byte);
         }
 
     if (current_byte < 1)
@@ -67,9 +63,7 @@ MCTrack::check_for_seek_to ()
 
     if (debug)
         {
-            fprintf (stderr,
-                     "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n",
-                     tit.c_str (), seek_to.c_str ());
+            fprintf (stderr, "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n", tit.c_str (), seek_to.c_str ());
         }
 }
 
@@ -150,7 +144,8 @@ Player::~Player ()
 dpp::discord_client *
 Player::get_client ()
 {
-    if (shard_id == INVALID_SHARD_ID) return nullptr;
+    if (shard_id == INVALID_SHARD_ID)
+        return nullptr;
     return manager->get_client (shard_id);
 }
 
@@ -170,8 +165,7 @@ Player::set_shard (uint32_t shard_id)
 }
 
 Player &
-Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
-                   const bool update_embed, const int64_t &arg_slip)
+Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
 {
     size_t siz = 0;
     {
@@ -179,17 +173,13 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
         if (track.info.raw.is_null ())
             try
                 {
-                    track.info.raw
-                        = yt_search::get_track_info (mctrack::get_url (track))
-                              .audio_info (251)
-                              .raw;
+                    track.info.raw = yt_search::get_track_info (mctrack::get_url (track)).audio_info (251).raw;
 
                     // track.thumbnails ();
                 }
             catch (std::exception &e)
                 {
-                    std::cerr << "[Player::add_track ERROR] " << this->guild_id
-                              << ':' << e.what () << '\n';
+                    std::cerr << "[Player::add_track ERROR] " << this->guild_id << ':' << e.what () << '\n';
 
                     return *this;
                 }
@@ -202,9 +192,7 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id,
         if (top)
             {
                 this->queue_add_front (track);
-                if (this->shifted_track
-                    < /* Check queue size after push_front */ (
-                        this->queue.size () - 1))
+                if (this->shifted_track < /* Check queue size after push_front */ (this->queue.size () - 1))
                     {
                         this->shifted_track++;
                     }
@@ -260,8 +248,7 @@ Player::skip (dpp::voiceconn *v)
             if (get_debug_state ())
                 {
                     std::cerr << "stopped(" << stopped << ") "
-                              << "processing_audio(" << processing_audio
-                              << ") "
+                              << "processing_audio(" << processing_audio << ") "
                               << "stopping(" << stopping << ")\n";
                 }
 
@@ -282,8 +269,7 @@ Player::skip (dpp::voiceconn *v)
 }
 
 std::deque<MCTrack>
-Player::skip_queue (int64_t amount, bool remove, bool pop_current,
-                    bool push_back)
+Player::skip_queue (int64_t amount, bool remove, bool pop_current, bool push_back)
 {
     this->reset_shifted ();
 
@@ -315,8 +301,7 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current,
 
             this->queue_pop_front ();
             if (get_debug_state ())
-                fprintf (stderr, "POPPED FROM QUEUE: '%s'\n",
-                         mctrack::get_title (l).c_str ());
+                fprintf (stderr, "POPPED FROM QUEUE: '%s'\n", mctrack::get_title (l).c_str ());
 
             removed_tracks.push_back (l);
 
@@ -344,7 +329,7 @@ Player::reset_shifted ()
     if (this->queue.size () && this->shifted_track > 0)
         {
             auto i = this->queue.begin () + this->shifted_track;
-            auto s = std::move(*i);
+            auto s = std::move (*i);
             this->queue.erase (i);
             this->queue_add_front (s);
             this->shifted_track = 0;
@@ -494,7 +479,7 @@ Player::shuffle (bool update_info_embed)
 
         this->queue_clear ();
 
-        this->set_queue (std::move(n_queue));
+        this->set_queue (std::move (n_queue));
         this->queue_add_front (os);
     }
 
@@ -507,8 +492,7 @@ Player::shuffle (bool update_info_embed)
 bool
 Player::current_track_is_first_track () const
 {
-    return !queue.empty ()
-           && current_track.filename == queue.front ().filename;
+    return !queue.empty () && current_track.filename == queue.front ().filename;
 }
 
 Player &
@@ -524,11 +508,31 @@ Player::stop ()
     return *this;
 }
 
-void handle_packet(void *guild_player, const unsigned char *packet_ptr, opus_int32 packet_len, opus_uint32 flags){
-    if (!guild_player) return;
+std::pair<dpp::message, int>
+Player::get_info_message ()
+{
+    if (!info_message.is_object ())
+        return { {}, -1 };
+
+    return { dpp::message ().fill_from_json (&info_message), 0 };
+}
+
+Player &
+Player::set_info_message (const dpp::message &message)
+{
+    info_message = message.to_json (true, false);
+    return *this;
+}
+
+static void
+handle_packet (void *guild_player, const unsigned char *packet_ptr, opus_int32 packet_len, opus_uint32 flags)
+{
+    if (!guild_player)
+        return;
 
     dpp::discord_voice_client *vclient = ((Player *)guild_player)->get_voice_client ();
-    if (!vclient) return;
+    if (!vclient)
+        return;
 
     vclient->send_audio_opus (packet_ptr, packet_len, FRAME_DURATION);
 }
@@ -544,15 +548,16 @@ Player::init_for_stream ()
     OpusEncCallbacks cbs;
     cbs.write = [] (void *guild_player, const unsigned char *page, opus_int32 len)
         {
-            if (!guild_player) return 1;
+            if (!guild_player)
+                return 1;
             server::stream::broadcast (((Player *)guild_player)->guild_id, page, len);
             return 0;
         };
 
     cbs.close = [] (void *guild_player) { return 0; };
 
-    opus_encoder_comments = ope_comments_create();
-    opus_encoder = ope_encoder_create_callbacks(&cbs, this, opus_encoder_comments, 48000, 2, 0, &status);
+    opus_encoder_comments = ope_comments_create ();
+    opus_encoder = ope_encoder_create_callbacks (&cbs, this, opus_encoder_comments, 48000, 2, 0, &status);
 
     if (!opus_encoder)
         {
@@ -560,14 +565,14 @@ Player::init_for_stream ()
                          "opus_encoder_create() failure: "
                       << status << "\n";
 
-            ope_comments_destroy(opus_encoder_comments);
+            ope_comments_destroy (opus_encoder_comments);
             opus_encoder = NULL;
             opus_encoder_comments = NULL;
 
             return status;
         }
 
-    ope_encoder_ctl(opus_encoder, OPE_SET_PACKET_CALLBACK(handle_packet, this));
+    ope_encoder_ctl (opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, this));
 
     // if ((status = opus_encoder_ctl (opus_encoder,
     //                                 OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC)))
@@ -596,7 +601,7 @@ Player::done_streaming ()
     if (opus_encoder)
         {
             ope_encoder_destroy (opus_encoder);
-            ope_comments_destroy(opus_encoder_comments);
+            ope_comments_destroy (opus_encoder_comments);
             opus_encoder = NULL;
             opus_encoder_comments = NULL;
         }
@@ -751,14 +756,10 @@ nlohmann::json
 Player::fx_states_to_json ()
 {
     return {
-        { "tempo", this->tempo },
-        { "pitch", this->pitch },
-        { "equalizer", this->equalizer },
-        { "sampling_rate", this->sampling_rate },
-        { "vibrato_f", this->vibrato_f },
-        { "vibrato_d", this->vibrato_d },
-        { "tremolo_f", this->tremolo_f },
-        { "tremolo_d", this->tremolo_d },
+        { "tempo", this->tempo },         { "pitch", this->pitch },
+        { "equalizer", this->equalizer }, { "sampling_rate", this->sampling_rate },
+        { "vibrato_f", this->vibrato_f }, { "vibrato_d", this->vibrato_d },
+        { "tremolo_f", this->tremolo_f }, { "tremolo_d", this->tremolo_d },
         { "earwax", this->earwax },
     };
 }
@@ -777,8 +778,7 @@ Player::check_for_to_seek ()
         to_seek = 0;
 
     if (get_debug_state ())
-        fprintf (stderr, "[Player::check_for_to_seek] to_seek(%ld)\n",
-                 to_seek);
+        fprintf (stderr, "[Player::check_for_to_seek] to_seek(%ld)\n", to_seek);
 
     queue.front ().current_byte = to_seek;
 }
@@ -792,7 +792,7 @@ Player::reset_first_track_current_byte ()
             queue.front ().current_byte = 0;
 
             if (debug)
-                std::cerr << "[Player::reset_first_track_current_byte] reset: title(" << mctrack::get_title(queue.front ()) << ")\n";
+                std::cerr << "[Player::reset_first_track_current_byte] reset: title(" << mctrack::get_title (queue.front ()) << ")\n";
         }
 }
 
@@ -817,20 +817,21 @@ Player::get_voice_client ()
     return conn->voiceclient.get ();
 }
 
-
 // queue operations
 Player &
-Player::queue_add(const MCTrack &t) {
+Player::queue_add (const MCTrack &t)
+{
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_add] " << guild_id << ": `" << mctrack::get_title(t) << "`\n";
+        std::cerr << "[Player::queue_add] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
 
     queue.push_back (t);
     return *this;
 }
 
 Player &
-Player::queue_pop() {
+Player::queue_pop ()
+{
     const bool debug = get_debug_state ();
     if (debug)
         std::cerr << "[Player::queue_pop] " << guild_id << "\n";
@@ -840,17 +841,19 @@ Player::queue_pop() {
 }
 
 Player &
-Player::queue_add_front(const MCTrack &t) {
+Player::queue_add_front (const MCTrack &t)
+{
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_add_front] " << guild_id << ": `" << mctrack::get_title(t) << "`\n";
+        std::cerr << "[Player::queue_add_front] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
 
     queue.push_front (t);
     return *this;
 }
 
 Player &
-Player::queue_pop_front() {
+Player::queue_pop_front ()
+{
     const bool debug = get_debug_state ();
     if (debug)
         std::cerr << "[Player::queue_pop_front] " << guild_id << "\n";
@@ -860,17 +863,19 @@ Player::queue_pop_front() {
 }
 
 Player &
-Player::queue_insert(const MCTrack &t, size_t pos) {
+Player::queue_insert (const MCTrack &t, size_t pos)
+{
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_insert] " << guild_id << ": `" << mctrack::get_title(t) << "` pos(" << pos << ")\n";
+        std::cerr << "[Player::queue_insert] " << guild_id << ": `" << mctrack::get_title (t) << "` pos(" << pos << ")\n";
 
     queue.insert (queue.begin () + pos, t);
     return *this;
 }
 
 Player &
-Player::queue_erase(size_t pos) {
+Player::queue_erase (size_t pos)
+{
     const bool debug = get_debug_state ();
     if (debug)
         std::cerr << "[Player::queue_erase] " << guild_id << ": pos(" << pos << ")\n";
@@ -880,16 +885,19 @@ Player::queue_erase(size_t pos) {
 }
 
 Player &
-Player::set_queue(const track_queue &q) {
+Player::set_queue (const track_queue &q)
+{
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::set_queue] " << guild_id << " siz(" << q.size() << ")\n";
+        std::cerr << "[Player::set_queue] " << guild_id << " siz(" << q.size () << ")\n";
 
     queue = q;
     return *this;
 }
 
-Player &Player::queue_clear() {
+Player &
+Player::queue_clear ()
+{
     const bool debug = get_debug_state ();
     if (debug)
         std::cerr << "[Player::queue_clear] " << guild_id << "\n";
@@ -906,8 +914,7 @@ namespace util
 bool
 player_has_current_track (std::shared_ptr<player::Player> guild_player)
 {
-    if (!guild_player || guild_player->current_track.raw.is_null ()
-        || !guild_player->queue.size ())
+    if (!guild_player || guild_player->current_track.raw.is_null () || !guild_player->queue.size ())
         return false;
 
     return true;
@@ -921,9 +928,7 @@ get_track_progress (const player::MCTrack &track)
     if (!duration)
         return { 0, 0, 1 };
 
-    int64_t current_ms = track.current_byte
-                             ? (float)track.current_byte / player::opus_byte_per_ms
-                             : 0;
+    int64_t current_ms = track.current_byte ? (float)track.current_byte / player::opus_byte_per_ms : 0;
 
     return { current_ms, duration, 0 };
 }
