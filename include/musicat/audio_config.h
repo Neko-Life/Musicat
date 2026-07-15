@@ -6,7 +6,9 @@
 #include <cstdio>
 #include <opus/opus_types.h>
 
-// #define USING_LIBOPUSENC
+// !TODO: http streaming requires this for now
+// until we can implement opus headers builder
+#define USING_LIBOPUSENC
 
 #ifdef USING_LIBOPUSENC
 #define FRAME_DURATION 20

@@ -13,6 +13,7 @@ enum ogg_stream_mode_e : uint8_t
     OGG_STREAM_READ_OPUS_PACKET,
     // reading ogg encapsulated packets
     OGG_STREAM_READ_OGG_PAGE,
+    // !TODO: implement this
     // submit non encapsulated, raw opus packets buffers
     OGG_STREAM_SUBMIT_OPUS_PACKET,
 };
@@ -52,7 +53,9 @@ class ogg_stream_t
     ogg_stream_t &init_stream_state (int serialno);
     ogg_stream_t &clear_stream_state ();
 
+    // !TODO: implement this
     int get_next_page_submit_opus (ogg_page &o, char *buf, size_t buf_len);
+
     int get_next_page_opus (ogg_page &o);
     int get_next_page_ogg (ogg_page &o);
 

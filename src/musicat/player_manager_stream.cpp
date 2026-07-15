@@ -623,7 +623,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
                         {
                             vclient->send_audio_opus (packet, len, FRAME_DURATION);
 
-                            // !TODO: use ogg_stream_t
+                            // !TODO: use ogg_stream_t (need to build OpusHead and OpusTags headers manually)
                             // stream_codec::ogg_stream_t s (fd, stream_codec::OGG_STREAM_SUBMIT_OPUS_PACKET);
                         }
 
