@@ -586,7 +586,7 @@ Manager::shutdown ()
         }
 
     // wait for disconnect messages to be sent
-    std::this_thread::sleep_for (std::chrono::seconds (3));
+    std::this_thread::sleep_for (std::chrono::seconds (5));
 }
 
 } // musicat::player

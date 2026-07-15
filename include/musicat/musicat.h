@@ -4,8 +4,6 @@
 #include "musicat/player.h"
 #include "nekos-best++.hpp"
 #include <dpp/dpp.h>
-#include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -178,8 +176,7 @@ vector_find (std::vector<T> *_vec, T _find)
  * @param delete_voiceconn Whether to delete found voiceconn, can cause
  * segfault if the underlying structure doesn't exist
  */
-void reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id,
-                          bool delete_voiceconn = false);
+void reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id, bool delete_voiceconn = false);
 
 /**
  * @brief Get the voice object and connected voice members a vc of a guild
@@ -189,8 +186,7 @@ void reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id,
  * @return std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
  * @throw const char* User isn't in vc
  */
-std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
-get_voice (dpp::guild *guild, dpp::snowflake user_id);
+std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > get_voice (dpp::guild *guild, dpp::snowflake user_id);
 
 /**
  * @brief Get the voice object and connected voice members a vc of a guild
@@ -199,8 +195,7 @@ get_voice (dpp::guild *guild, dpp::snowflake user_id);
  * @param user_id Target member
  * @return std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
  */
-std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
-get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id);
+std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id);
 
 /**
  * @brief Execute shell cmd and return anything it printed to console
@@ -213,9 +208,7 @@ std::string exec (std::string cmd);
 
 bool has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
 
-bool
-has_listener_fetch (dpp::cluster *client,
-                    std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
+bool has_listener_fetch (dpp::cluster *client, std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
 
 /**
  * @brief Get interaction argument param
@@ -250,16 +243,11 @@ class exception : std::exception
     virtual int code () const noexcept;
 };
 
-int cli (dpp::cluster &client, dpp::snowflake sha_id, int argc,
-         const char *argv[]);
+int cli (dpp::cluster &client, dpp::snowflake sha_id, int argc, const char *argv[]);
 
-bool has_permissions (dpp::guild *guild, dpp::user *user,
-                      dpp::channel *channel,
-                      const std::vector<uint64_t> &permissions = {});
+bool has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel, const std::vector<uint64_t> &permissions = {});
 
-bool has_permissions_from_ids (const dpp::snowflake &guild_id,
-                               const dpp::snowflake &user_id,
-                               const dpp::snowflake &channel_id,
+bool has_permissions_from_ids (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, const dpp::snowflake &channel_id,
                                const std::vector<uint64_t> &permissions = {});
 
 /**
@@ -289,10 +277,8 @@ std::vector<size_t> shuffle_indexes (size_t len);
  *
  * @return int 0 if request to connect sent
  */
-int join_voice (dpp::discord_client *from,
-                player::player_manager_ptr_t player_manager,
-                const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
-                const dpp::snowflake &sha_id);
+int join_voice (dpp::discord_client *from, player::player_manager_ptr_t player_manager, const dpp::snowflake &guild_id,
+                const dpp::snowflake &user_id, const dpp::snowflake &sha_id);
 
 nekos_best::endpoint_map get_cached_nekos_best_endpoints ();
 
@@ -325,14 +311,12 @@ int set_cached_nekos_best_endpoints (const nekos_best::endpoint_map &em);
  * @brief Handle bot connected to new vc event, updating _connected_vcs_setting
  * cache
  */
-int vcs_setting_handle_connected (const dpp::channel *channel,
-                                  const dpp::voicestate *state);
+int vcs_setting_handle_connected (const dpp::channel *channel, const dpp::voicestate *state);
 
 /**
  * @brief Handle vc updated event, updating _connected_vcs_setting cache
  */
-int vcs_setting_handle_updated (const dpp::channel *updated,
-                                dpp::voicestate *state);
+int vcs_setting_handle_updated (const dpp::channel *updated, dpp::voicestate *state);
 
 /**
  * @brief Handle bot disconnected from vc event, updating
@@ -343,12 +327,14 @@ int vcs_setting_handle_disconnected (const dpp::channel *channel);
 /**
  * @brief Get cached vc state from _connected_vcs_setting
  */
-std::pair<dpp::channel *, dpp::voicestate *>
-vcs_setting_get_cache (dpp::snowflake channel_id);
+std::pair<dpp::channel *, dpp::voicestate *> vcs_setting_get_cache (dpp::snowflake channel_id);
 
 bool is_voice_channel (dpp::channel_type channel_type);
 
 void close_valid_fd (int *i);
+
+dpp::task<dpp::guild *> fetch_guild (const dpp::snowflake &guild_id);
+dpp::task<dpp::guild *> find_or_fetch_guild (const dpp::snowflake &guild_id, bool allow_fetch = true, bool force_fetch = false);
 
 std::vector<std::string> get_cors_enabled_origins ();
 

@@ -284,33 +284,33 @@ close_valid_fd (int *i)
     *i = -1;
 }
 
-// dpp::task<dpp::guild *>
-// fetch_guild (dpp::snowflake &guild_id)
-// {
-//     dpp::cluster *cluster = get_client_ptr ();
-//     if (!cluster)
-//         co_return nullptr;
-//
-//     auto cc = co_await cluster->co_guild_get (guild_id);
-//     if (!std::holds_alternative<dpp::guild> (cc.value))
-//         co_return nullptr;
-//
-//     dpp::guild *g = new dpp::guild{ cc.get<dpp::guild> () };
-//     dpp::get_guild_cache ()->store (g);
-//     co_return g;
-// }
-//
-// dpp::task<dpp::guild *>
-// find_or_fetch_guild (dpp::snowflake &guild_id, bool allow_fetch = true, bool force_fetch = false)
-// {
-//     if (force_fetch)
-//         co_return co_await fetch_guild (guild_id);
-//
-//     auto *g = dpp::find_guild (guild_id);
-//     if (!g && allow_fetch)
-//         co_return co_await fetch_guild (guild_id);
-//
-//     co_return g;
-// }
+dpp::task<dpp::guild *>
+fetch_guild (const dpp::snowflake &guild_id)
+{
+    dpp::cluster *cluster = get_client_ptr ();
+    if (!cluster)
+        co_return nullptr;
+
+    auto cc = co_await cluster->co_guild_get (guild_id);
+    if (!std::holds_alternative<dpp::guild> (cc.value))
+        co_return nullptr;
+
+    dpp::guild *g = new dpp::guild{ cc.get<dpp::guild> () };
+    dpp::get_guild_cache ()->store (g);
+    co_return g;
+}
+
+dpp::task<dpp::guild *>
+find_or_fetch_guild (const dpp::snowflake &guild_id, bool allow_fetch, bool force_fetch)
+{
+    if (force_fetch)
+        co_return co_await fetch_guild (guild_id);
+
+    auto *g = dpp::find_guild (guild_id);
+    if (!g && allow_fetch)
+        co_return co_await fetch_guild (guild_id);
+
+    co_return g;
+}
 
 } // musicat
