@@ -736,6 +736,43 @@ Manager::set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake
     this->disconnecting.insert_or_assign (guild_id, voice_channel_id);
 }
 
+static std::string
+jsonobj_to_string (dpp::discord_client *dc, const nlohmann::json &json)
+{
+    if (dc->protocol == dpp::ws_json)
+        {
+            return json.dump (-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        }
+    else
+        {
+            dpp::etf_parser etf;
+            return etf.build (json);
+        }
+}
+
+void
+Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id)
+{
+    if (!dc)
+        return;
+
+    dc->log (dpp::ll_debug, "[Manager::disconnect_voice] Disconnecting voice, guild: " + std::to_string (guild_id));
+    dc->queue_message (jsonobj_to_string (dc, nlohmann::json ({ { "op", dpp::ft_voice_state_update },
+                                                                { "d",
+                                                                  {
+                                                                      { "guild_id", std::to_string (guild_id) },
+                                                                      { "channel_id", nlohmann::json::value_t::null },
+                                                                      { "self_mute", false },
+                                                                      { "self_deaf", false },
+                                                                  } } })),
+                       false);
+
+    std::unique_lock lock (dc->voice_mutex);
+    auto v = dc->connecting_voice_channels.find (guild_id);
+    if (v != dc->connecting_voice_channels.end ())
+        dc->connecting_voice_channels.erase (v);
+}
+
 void
 Manager::clear_disconnecting (const dpp::snowflake &guild_id)
 {
@@ -875,7 +912,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
 
                 set_disconnecting (guild_id, vcs.first->id);
 
-                pc->disconnect_voice (guild_id);
+                disconnect_voice (pc, guild_id);
 
                 // this jump means there's no need to disconnect
             skip_disconnecting:
@@ -1033,7 +1070,7 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
                     {
                         player_manager->set_disconnecting (guild_id, 1);
 
-                        from->disconnect_voice (guild_id);
+                        player_manager->disconnect_voice (from, guild_id);
                     }
                 else if (user_vc && uservc.first->id != c.first->id)
                     {
@@ -1045,7 +1082,7 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
 
                         player_manager->set_connecting (guild_id, uservc.first->id);
 
-                        from->disconnect_voice (guild_id);
+                        player_manager->disconnect_voice (from, guild_id);
                     }
 
                 goto reconnect;
@@ -1270,7 +1307,7 @@ Manager::full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_
 
     int status = this->set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
 
-    from->disconnect_voice (guild_id);
+    disconnect_voice (from, guild_id);
     uint32_t shard_id = from->shard_id;
 
     std::thread pjt (

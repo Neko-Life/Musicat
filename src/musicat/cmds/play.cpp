@@ -54,9 +54,8 @@ get_register_obj (const dpp::snowflake &sha_id)
 }
 
 int
-run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::interaction_create_t &event,
-     std::string &out, const std::string &arg_query = "", int64_t arg_top = 0, int64_t arg_slip = 0, bool button_run = false,
-     bool update_info_embed = true)
+run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::interaction_create_t &event, std::string &out,
+     const std::string &arg_query = "", int64_t arg_top = 0, int64_t arg_slip = 0, bool button_run = false, bool update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
     if (pm_res.second == 1)
@@ -91,15 +90,15 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
         {
             uint64_t cperm = g->permission_overwrites (g->base_permissions (sha_user), sha_user, vcuser.first);
             if (debug)
-            {
-                fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel, cperm & dpp::p_connect);
-            }
+                {
+                    fprintf (stderr, "c: %ld\npv: %ld\npp: %ld\n", cperm, cperm & dpp::p_view_channel, cperm & dpp::p_connect);
+                }
 
             if (!(cperm & dpp::p_view_channel && cperm & dpp::p_connect))
-            {
-                out = "I have no permission to join your voice channel";
-                return 1;
-            }
+                {
+                    out = "I have no permission to join your voice channel";
+                    return 1;
+                }
         }
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > vcclient;
@@ -107,17 +106,17 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
     vcclient = get_voice (g, sha_id);
     // Whether client in vc and vcclient exist
     bool vcclient_cont = vcclient.first != nullptr;
-    if (!vcclient_cont && event.from()->connecting_voice_channels.find (guild_id) != event.from()->connecting_voice_channels.end ())
+    if (!vcclient_cont && event.from ()->connecting_voice_channels.find (guild_id) != event.from ()->connecting_voice_channels.end ())
         {
             std::cerr << "Disconnecting as not in vc but connected state "
                          "still in cache: "
                       << guild_id << '\n';
 
-            event.from()->disconnect_voice (guild_id);
+            player_manager->disconnect_voice (event.from (), guild_id);
         }
 
     // Client voice conn
-    dpp::voiceconn *v = event.from()->get_voice (guild_id);
+    dpp::voiceconn *v = event.from ()->get_voice (guild_id);
     if (vcclient_cont && v && v->channel_id != vcclient.first->id)
         {
             vcclient_cont = false;
@@ -127,7 +126,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
 
             player_manager->set_disconnecting (guild_id, vcclient.first->id);
 
-            event.from()->disconnect_voice (guild_id);
+            player_manager->disconnect_voice (event.from (), guild_id);
         }
 
     bool reconnecting = false;
@@ -141,7 +140,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                 }
             vcclient_cont = false;
 
-            player_manager->full_reconnect (event.from(), guild_id, vcclient.first->id, vcuser.first->id);
+            player_manager->full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
             reconnecting = true;
         }
 
@@ -217,7 +216,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
             out = "`[CRAP]` Seems like I'm broken, lemme fix myself brb";
 
             // reconnect
-            player_manager->full_reconnect (event.from(), guild_id, vcclient.first->id, vcuser.first->id);
+            player_manager->full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
             return 1;
         }
 
@@ -225,8 +224,8 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
         return -2;
 
     event.thinking ();
-    player::add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v, vcuser.first->id, sha_id, true, event.from()->shard_id, event, continued,
-                       arg_slip);
+    player::add_track (false, guild_id, arg_query, arg_top, vcclient_cont, v, vcuser.first->id, sha_id, true, event.from ()->shard_id,
+                       event, continued, arg_slip);
 
     return 0;
 }

@@ -49,17 +49,13 @@ should_break_oauth_states (const std::string &val)
 }
 
 void
-util_create_remove_thread (int second_sleep, const std::string &val,
-                           int (*remove_fn) (const std::string &,
-                                             std::string *),
+util_create_remove_thread (int second_sleep, const std::string &val, int (*remove_fn) (const std::string &, std::string *),
                            bool (*should_break) (const std::string &) = NULL)
 {
-    register_timer ({ util::get_current_ts (), second_sleep, val, remove_fn,
-                      should_break });
+    register_timer ({ util::get_current_ts (), second_sleep, val, remove_fn, should_break });
 }
 
-inline constexpr const char token[]
-    = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+inline constexpr const char token[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 inline constexpr const int token_size = (sizeof (token) / sizeof (*token)) - 1;
 
@@ -87,20 +83,29 @@ generate_oauth_state (const std::string &redirect)
 
     _oauth_states.insert_or_assign (state, redirect);
 
-    util_create_remove_thread (STATE_LIFETIME, state, remove_oauth_state,
-                               should_break_oauth_states);
+    util_create_remove_thread (STATE_LIFETIME, state, remove_oauth_state, should_break_oauth_states);
 
     return state;
 }
 
 recv_body_t
-create_recv_body_t (const char *endpoint, const std::string &id,
-                    APIResponse *res, APIRequest *req,
-                    const header_v_t &cors_headers)
+create_recv_body_t (const char *endpoint, const std::string &id, APIResponse *res, APIRequest *req, const header_v_t &cors_headers)
 {
-    return {
-        util::get_current_ts (), endpoint, id, "", res, req, cors_headers
-    };
+    recv_body_t struct_body{ util::get_current_ts (), endpoint, id, "", res, req, cors_headers };
+
+    std::lock_guard lk (recv_body_cache_m);
+    int status = store_recv_body_cache (struct_body);
+
+    if (status)
+        {
+            // called twice on the same struct body?
+            // this should never happen, there's smt wrong with your code
+            fprintf (stderr, "[states::create_recv_body_t FATAL] Duplicate request found, terminating\n");
+
+            std::terminate ();
+        }
+
+    return struct_body;
 }
 
 std::vector<recv_body_t>::iterator
@@ -109,8 +114,7 @@ get_recv_body_cache (const recv_body_t &struct_body)
     auto i = _recv_body_cache.begin ();
     while (i != _recv_body_cache.end ())
         {
-            if (i->ts == struct_body.ts && i->id == struct_body.id
-                && i->endpoint == struct_body.endpoint)
+            if (i->ts == struct_body.ts && i->id == struct_body.id && i->endpoint == struct_body.endpoint)
                 return i;
 
             i++;
@@ -152,6 +156,43 @@ reserve_recv_body_cache (size_t siz)
     _recv_body_cache.reserve (siz);
 }
 
+void
+default_recv_on_data (const recv_body_t &struct_body, std::string_view chunk, bool is_last,
+                      std::function<void (const recv_body_t &state)> handler)
+{
+    std::lock_guard lk (recv_body_cache_m);
+    std::vector<recv_body_t>::iterator cache = get_recv_body_cache (struct_body);
+
+    if (is_recv_body_cache_end_iterator (cache))
+        {
+            // request aborted, returns now
+            return;
+        }
+
+    cache->body.append (chunk);
+
+    if (is_last)
+        {
+            handler (*cache);
+            delete_recv_body_cache (cache);
+        }
+}
+
+void
+default_recv_on_aborted (const recv_body_t &struct_body)
+{
+    std::lock_guard lk (recv_body_cache_m);
+    std::vector<recv_body_t>::iterator cache = get_recv_body_cache (struct_body);
+
+    if (is_recv_body_cache_end_iterator (cache))
+        {
+            // well nothing to clean up, what else to do?
+            return;
+        }
+
+    delete_recv_body_cache (cache);
+}
+
 int
 init ()
 {
@@ -175,8 +216,7 @@ get_jwt_verifier_ptr ()
 bool
 oauth_timer_t_is (const oauth_timer_t &t1, const oauth_timer_t &t2)
 {
-    return t1.ts == t2.ts && t1.val == t2.val && t1.remove_fn == t2.remove_fn
-           && t1.second_sleep == t2.second_sleep
+    return t1.ts == t2.ts && t1.val == t2.val && t1.remove_fn == t2.remove_fn && t1.second_sleep == t2.second_sleep
            && t1.should_break == t2.should_break;
 }
 

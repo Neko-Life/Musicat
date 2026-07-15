@@ -24,9 +24,7 @@ run (const dpp::slashcommand_t &event, std::string &out)
     if (!guild_player->channel_id)
         guild_player->set_channel (event.command.channel_id);
 
-    int res
-        = join_voice (event.from (), player_manager, event.command.guild_id,
-                      event.command.usr.id, event.from ()->creator->me.id);
+    int res = join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
     std::string msg;
     switch (res)
@@ -81,8 +79,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > usc,
-        vcc;
+    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > usc, vcc;
 
     usc = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
     if (!usc.first)
@@ -91,8 +88,7 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    vcc = get_voice_from_gid (event.command.guild_id,
-                              event.from ()->creator->me.id);
+    vcc = get_voice_from_gid (event.command.guild_id, event.from ()->creator->me.id);
     if (!vcc.first)
         {
             event.reply ("I'm not in a voice channel");
@@ -107,7 +103,7 @@ slash_run (const dpp::slashcommand_t &event)
 
     player_manager->set_disconnecting (event.command.guild_id, usc.first->id);
 
-    event.from ()->disconnect_voice (event.command.guild_id);
+    player_manager->disconnect_voice (event.from (), event.command.guild_id);
     event.reply ("Leaving...");
 }
 } // leave

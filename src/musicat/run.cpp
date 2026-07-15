@@ -899,8 +899,11 @@ run (int argc, const char *argv[])
     child::shutdown ();
 
     server::shutdown ();
+
+    player_manager.shutdown();
     client.shutdown ();
 
+    player_manager_ptr = nullptr;
     client_ptr = nullptr;
 
     thread_manager::join_all ();

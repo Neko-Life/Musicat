@@ -1,9 +1,6 @@
 #include "musicat/musicat.h"
-#include "musicat/cmds.h"
 #include "musicat/util.h"
-#include <chrono>
 #include <dpp/discordclient.h>
-#include <mutex>
 #include <vector>
 
 namespace musicat
@@ -20,8 +17,7 @@ using string = std::string;
  * segfault if the underlying structure doesn't exist
  */
 void
-reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id,
-                     bool delete_voiceconn)
+reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id, bool delete_voiceconn)
 {
     // auto v = client->connecting_voice_channels.find (guild_id);
     // if (v == client->connecting_voice_channels.end ())
@@ -53,8 +49,7 @@ get_voice (dpp::guild *guild, dpp::snowflake user_id)
             if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
                 continue;
 
-            std::map<dpp::snowflake, dpp::voicestate> vm
-                = gc->get_voice_members ();
+            std::map<dpp::snowflake, dpp::voicestate> vm = gc->get_voice_members ();
 
             if (vm.find (user_id) != vm.end ())
                 {
@@ -89,8 +84,7 @@ has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
     if (!vstate_map || vstate_map->size () <= 1)
         return false;
 
-    for (const std::pair<const dpp::snowflake, dpp::voicestate> &r :
-         *vstate_map)
+    for (const std::pair<const dpp::snowflake, dpp::voicestate> &r : *vstate_map)
         {
             const dpp::snowflake uid = r.second.user_id;
             if (!uid)
@@ -108,8 +102,7 @@ has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 }
 
 bool
-has_listener_fetch (dpp::cluster *client,
-                    std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
+has_listener_fetch (dpp::cluster *client, std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 {
     if (vstate_map->size () < 2)
         return false;
@@ -167,14 +160,12 @@ exception::code () const noexcept
 }
 
 bool
-has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel,
-                 const std::vector<uint64_t> &permissions)
+has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel, const std::vector<uint64_t> &permissions)
 {
     if (!guild || !user || !channel)
         return false;
 
-    uint64_t p = guild->permission_overwrites (guild->base_permissions (user),
-                                               user, channel);
+    uint64_t p = guild->permission_overwrites (guild->base_permissions (user), user, channel);
     for (uint64_t i : permissions)
         if (!(p & i))
             return false;
@@ -183,17 +174,13 @@ has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel,
 }
 
 bool
-has_permissions_from_ids (const dpp::snowflake &guild_id,
-                          const dpp::snowflake &user_id,
-                          const dpp::snowflake &channel_id,
+has_permissions_from_ids (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, const dpp::snowflake &channel_id,
                           const std::vector<uint64_t> &permissions)
 {
     if (!guild_id || !user_id || !channel_id)
         return false;
 
-    return has_permissions (dpp::find_guild (guild_id),
-                            dpp::find_user (user_id),
-                            dpp::find_channel (channel_id), permissions);
+    return has_permissions (dpp::find_guild (guild_id), dpp::find_user (user_id), dpp::find_channel (channel_id), permissions);
 }
 
 string
@@ -216,8 +203,7 @@ format_duration (uint64_t dur)
     string mstr = std::to_string (minute);
     string sstr = std::to_string (second);
 
-    ret += string (mstr.length () < 2 ? "0" : "") + mstr + ":"
-           + string (sstr.length () < 2 ? "0" : "") + sstr;
+    ret += string (mstr.length () < 2 ? "0" : "") + mstr + ":" + string (sstr.length () < 2 ? "0" : "") + sstr;
 
     return ret;
 }
@@ -248,21 +234,17 @@ shuffle_indexes (size_t len)
 
     size_t s = ret.size ();
     if (s != len)
-        fprintf (stderr, "[WARN(musicat.209)] Return size %ld != %ld\n", s,
-                 len);
+        fprintf (stderr, "[WARN(musicat.209)] Return size %ld != %ld\n", s, len);
 
     return ret;
 }
 
 int
-join_voice (dpp::discord_client *from,
-            player::player_manager_ptr_t player_manager,
-            const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
-            const dpp::snowflake &sha_id)
+join_voice (dpp::discord_client *from, player::player_manager_ptr_t player_manager, const dpp::snowflake &guild_id,
+            const dpp::snowflake &user_id, const dpp::snowflake &sha_id)
 {
 
-    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > c,
-        c2;
+    std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > c, c2;
 
     c = get_voice_from_gid (guild_id, user_id);
 
@@ -281,15 +263,11 @@ join_voice (dpp::discord_client *from,
     if (has_listener (&c2.second))
         return 2;
 
-    if (!has_permissions_from_ids (guild_id, sha_id, c.first->id,
-                                   { dpp::p_view_channel, dpp::p_connect }))
+    if (!has_permissions_from_ids (guild_id, sha_id, c.first->id, { dpp::p_view_channel, dpp::p_connect }))
         // no permission
         return 4;
 
-    player_manager->full_reconnect (
-        from, guild_id,
-        (c2.first && c2.first->id) ? c2.first->id : dpp::snowflake (0),
-        c.first->id);
+    player_manager->full_reconnect (from, guild_id, (c2.first && c2.first->id) ? c2.first->id : dpp::snowflake (0), c.first->id);
 
     // success dispatching join voice channel
     return 0;
@@ -305,5 +283,34 @@ close_valid_fd (int *i)
 
     *i = -1;
 }
+
+// dpp::task<dpp::guild *>
+// fetch_guild (dpp::snowflake &guild_id)
+// {
+//     dpp::cluster *cluster = get_client_ptr ();
+//     if (!cluster)
+//         co_return nullptr;
+//
+//     auto cc = co_await cluster->co_guild_get (guild_id);
+//     if (!std::holds_alternative<dpp::guild> (cc.value))
+//         co_return nullptr;
+//
+//     dpp::guild *g = new dpp::guild{ cc.get<dpp::guild> () };
+//     dpp::get_guild_cache ()->store (g);
+//     co_return g;
+// }
+//
+// dpp::task<dpp::guild *>
+// find_or_fetch_guild (dpp::snowflake &guild_id, bool allow_fetch = true, bool force_fetch = false)
+// {
+//     if (force_fetch)
+//         co_return co_await fetch_guild (guild_id);
+//
+//     auto *g = dpp::find_guild (guild_id);
+//     if (!g && allow_fetch)
+//         co_return co_await fetch_guild (guild_id);
+//
+//     co_return g;
+// }
 
 } // musicat

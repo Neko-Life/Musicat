@@ -410,7 +410,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     this->set_disconnecting (e_guild_id, v->channel_id);
 
-    event.from ()->disconnect_voice (e_guild_id);
+    disconnect_voice (event.from (), e_guild_id);
 
     if (has_listener (&a.second))
         {

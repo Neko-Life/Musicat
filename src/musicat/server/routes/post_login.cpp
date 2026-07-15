@@ -12,8 +12,7 @@ namespace musicat::server::routes
 {
 
 void
-handle_post_login_creds (response::end_t &endres, const std::string &redirect,
-                         const std::string &creds)
+handle_post_login_creds (response::end_t &endres, const std::string &redirect, const std::string &creds)
 {
     services::curlpp_response_t resp = services::discord_post_creds (creds);
 
@@ -31,16 +30,13 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
           "guild": Guild object
         }
      */
-    nlohmann::json udata = middlewares::process_curlpp_response_t (
-        resp, "server::routes::handle_post_login_creds");
+    nlohmann::json udata = middlewares::process_curlpp_response_t (resp, "server::routes::handle_post_login_creds");
 
     if (resp.status != 200L)
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
             endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   std::string ("POST /oauth2/token: ")
-                                       + std::to_string (resp.status))
+                = response::error (response::ERROR_CODE_NOTHING, std::string ("POST /oauth2/token: ") + std::to_string (resp.status))
                       .dump ();
 
             return;
@@ -49,10 +45,7 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
     if (!udata.is_object ())
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-            endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   "POST /oauth2/token: Unknown response")
-                      .dump ();
+            endres.response = response::error (response::ERROR_CODE_NOTHING, "POST /oauth2/token: Unknown response").dump ();
 
             return;
         }
@@ -74,17 +67,13 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
 
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
             endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   std::string ("POST /oauth2/token: ")
-                                       + "Unknown response")
-                      .dump ();
+                = response::error (response::ERROR_CODE_NOTHING, std::string ("POST /oauth2/token: ") + "Unknown response").dump ();
 
             return;
         }
 
     // get @me
-    services::curlpp_response_t resp_me
-        = services::discord_get_me (token_type, tkn);
+    services::curlpp_response_t resp_me = services::discord_get_me (token_type, tkn);
 
     /*
         {
@@ -138,16 +127,13 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
           }
         }
      */
-    nlohmann::json ume = middlewares::process_curlpp_response_t (
-        resp_me, "server::routes::handle_post_login_creds");
+    nlohmann::json ume = middlewares::process_curlpp_response_t (resp_me, "server::routes::handle_post_login_creds");
 
     if (resp_me.status != 200L)
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
             endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   std::string ("GET /oauth2/@me: ")
-                                       + std::to_string (resp_me.status))
+                = response::error (response::ERROR_CODE_NOTHING, std::string ("GET /oauth2/@me: ") + std::to_string (resp_me.status))
                       .dump ();
 
             return;
@@ -156,10 +142,7 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
     if (!ume.is_object ())
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-            endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   "GET /oauth2/@me: Unknown response")
-                      .dump ();
+            endres.response = response::error (response::ERROR_CODE_NOTHING, "GET /oauth2/@me: Unknown response").dump ();
 
             return;
         }
@@ -177,10 +160,7 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
 
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
             endres.response
-                = response::error (response::ERROR_CODE_NOTHING,
-                                   std::string ("GET /oauth2/@me: ")
-                                       + "Unknown response")
-                      .dump ();
+                = response::error (response::ERROR_CODE_NOTHING, std::string ("GET /oauth2/@me: ") + "Unknown response").dump ();
 
             return;
         }
@@ -224,159 +204,148 @@ handle_post_login_creds (response::end_t &endres, const std::string &redirect,
                      uid.c_str ());
 
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-            endres.response = response::error (response::ERROR_CODE_NOTHING,
-                                               "Failed generating token")
-                                  .dump ();
+            endres.response = response::error (response::ERROR_CODE_NOTHING, "Failed generating token").dump ();
 
             return;
         }
 
-    endres.add_header ("Set-Cookie", std::string ("token=") + token + max_age
-                                         + "; HttpOnly");
+    endres.add_header ("Set-Cookie", std::string ("token=") + token + max_age + "; HttpOnly");
 
-    endres.response = response::payload ({ { "redirect", redirect },
-                                           { "user", ume["user"] } })
-                          .dump ();
+    endres.response = response::payload ({ { "redirect", redirect }, { "user", ume["user"] } }).dump ();
 }
 
 void
 handle_post_login_body (const states::recv_body_t &recv)
 {
-    std::thread t ([recv] () {
-        thread_manager::DoneSetter tmds;
+    APIResponse *res = recv.res;
+    APIRequest *req = recv.req;
+    const std::string &body = recv.body;
+    const auto &cors_headers = recv.cors_headers;
 
-        APIResponse *res = recv.res;
-        APIRequest *req = recv.req;
-        const std::string &body = recv.body;
-        const auto &cors_headers = recv.cors_headers;
+    response::end_t endres (res);
 
-        response::end_t endres (res);
-        response::defer_end_t defer_endres (endres);
+    endres.status = http_status_t.BAD_REQUEST_400;
+    endres.headers = cors_headers;
+    endres.response = "body";
 
-        endres.status = http_status_t.BAD_REQUEST_400;
-        endres.headers = cors_headers;
-        endres.response = "body";
+    // request might been aborted? or they actually sent empty body??
+    // the former should never happen when it reaches here, so just reply
+    // with bad request
+    if (body.empty ())
+        {
+            return;
+        }
 
-        // request might been aborted? or they actually sent empty body??
-        // the former should never happen when it reaches here, so just reply
-        // with bad request
-        if (body.empty ())
+    /*
+       {
+            "code": string,
+            "state": string,
+            "redirect_uri": string
+       }
+     */
+    nlohmann::json json_body;
+
+    try
+        {
+            json_body = nlohmann::json::parse (body);
+        }
+    catch (const nlohmann::json::exception &e)
+        {
+            fprintf (stderr, "[server::routes::handle_post_login_body ERROR] %s\n", e.what ());
+
+            fprintf (stderr, "================================================\n");
+            std::cerr << body << '\n';
+            fprintf (stderr, "================================================\n");
+
+            // let fall through so handled by below if
+        }
+
+    if (!json_body.is_object ())
+        {
+            return;
+        }
+
+    // the actual post handler starts here...
+
+    auto i_state = json_body["state"];
+
+    std::string state = !i_state.is_string () ? "" : i_state.get<std::string> ();
+
+    if (state.empty ())
+        {
+            endres.response = "state";
+            return;
+        }
+
+    // check if state valid and get previously saved redirect URL
+    std::string redirect;
+    int status = states::remove_oauth_state (state, &redirect);
+
+    if (status)
+        {
+            // invalid state
+            endres.status = http_status_t.FORBIDDEN_403;
+            endres.response = "";
+            return;
+        }
+
+    auto i_code = json_body["code"];
+
+    std::string code = !i_code.is_string () ? "" : i_code.get<std::string> ();
+
+    if (code.empty ())
+        {
+            endres.response = "code";
+            return;
+        }
+
+    auto i_redirect_uri = json_body["redirect_uri"];
+
+    std::string redirect_uri = !i_redirect_uri.is_string () ? "" : i_redirect_uri.get<std::string> ();
+
+    if (redirect_uri.empty ())
+        {
+            endres.response = "redirect_uri";
+            return;
+        }
+
+    // we have the stuff here, proceed
+
+    // spawn thread to verify to discord
+
+    std::string secret = get_sha_secret ();
+
+    if (secret.empty ())
+        {
+            // 😭😭😭
+            fprintf (stderr, "[server::routes::post_login ERROR] No secret provided "
+                             "in configuration file, can't process user login\n");
+
+            endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
+            endres.response = "config";
+
+            return;
+        }
+
+    const std::string creds = "code=" + code + "&client_id=" + std::to_string (get_sha_id ()) + "&client_secret=" + secret
+                              + "&grant_type=" + "authorization_code" + "&redirect_uri=" + redirect_uri;
+
+    header_v_t lheaders = endres.headers;
+    endres.res = nullptr;
+
+    std::thread t (
+        [recv, res, lheaders, redirect, creds] ()
             {
-                return;
-            }
+                thread_manager::DoneSetter tmds;
 
-        /*
-           {
-                "code": string,
-                "state": string,
-                "redirect_uri": string
-           }
-         */
-        nlohmann::json json_body;
+                response::end_t endres (res);
+                endres.headers = lheaders;
+                endres.set_content_type_json ();
 
-        try
-            {
-                json_body = nlohmann::json::parse (body);
-            }
-        catch (const nlohmann::json::exception &e)
-            {
-                fprintf (stderr,
-                         "[server::routes::handle_post_login_body ERROR] %s\n",
-                         e.what ());
+                response::defer_end_t defer_endres (endres);
 
-                fprintf (stderr,
-                         "================================================\n");
-                std::cerr << body << '\n';
-                fprintf (stderr,
-                         "================================================\n");
-
-                // let fall through so handled by below if
-            }
-
-        if (!json_body.is_object ())
-            {
-                return;
-            }
-
-        // the actual post handler starts here...
-
-        auto i_state = json_body["state"];
-
-        std::string state
-            = !i_state.is_string () ? "" : i_state.get<std::string> ();
-
-        if (state.empty ())
-            {
-                endres.response = "state";
-                return;
-            }
-
-        // check if state valid and get previously saved redirect URL
-        std::string redirect;
-        int status = states::remove_oauth_state (state, &redirect);
-
-        if (status)
-            {
-                // invalid state
-                endres.status = http_status_t.FORBIDDEN_403;
-                endres.response = "";
-                return;
-            }
-
-        auto i_code = json_body["code"];
-
-        std::string code
-            = !i_code.is_string () ? "" : i_code.get<std::string> ();
-
-        if (code.empty ())
-            {
-                endres.response = "code";
-                return;
-            }
-
-        auto i_redirect_uri = json_body["redirect_uri"];
-
-        std::string redirect_uri = !i_redirect_uri.is_string ()
-                                       ? ""
-                                       : i_redirect_uri.get<std::string> ();
-
-        if (redirect_uri.empty ())
-            {
-                endres.response = "redirect_uri";
-                return;
-            }
-
-        // we have the stuff here, proceed
-
-        // verify to discord
-
-        std::string secret = get_sha_secret ();
-
-        if (secret.empty ())
-            {
-                // 😭😭😭
-                fprintf (
-                    stderr,
-                    "[server::routes::post_login ERROR] No secret provided "
-                    "in configuration file, can't process user login\n");
-
-                endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-                endres.response = "config";
-
-                return;
-            }
-
-        const std::string creds
-            = "code=" + code + "&client_id=" + std::to_string (get_sha_id ())
-              + "&client_secret=" + secret + "&grant_type="
-              + "authorization_code" + "&redirect_uri=" + redirect_uri;
-
-        endres.status = http_status_t.OK_200;
-        endres.set_content_type_json ();
-        endres.response = "";
-
-        handle_post_login_creds (endres, redirect, creds);
-    });
+                handle_post_login_creds (endres, redirect, creds);
+            });
 
     thread_manager::dispatch (t);
 }
@@ -390,85 +359,13 @@ post_login (APIResponse *res, APIRequest *req)
 
     /* middlewares::print_headers (req); */
 
-    states::recv_body_t struct_body = states::create_recv_body_t (
-        "post_login", std::string (res->getRemoteAddressAsText ()), res, req,
-        cors_headers);
+    states::recv_body_t struct_body
+        = states::create_recv_body_t ("post_login", std::string (res->getRemoteAddressAsText ()), res, req, cors_headers);
 
-    {
-        std::lock_guard lk (states::recv_body_cache_m);
-        int status = states::store_recv_body_cache (struct_body);
+    res->onData ([struct_body] (std::string_view chunk, bool is_last)
+                     { states::default_recv_on_data (struct_body, chunk, is_last, handle_post_login_body); });
 
-        if (status)
-            {
-                // this should never happen, there's smt wrong with your code
-                fprintf (
-                    stderr,
-                    "[server::routes::post_login FATAL] Duplicate request "
-                    "found, terminating\n");
-
-                std::terminate ();
-            }
-    }
-
-    res->onData (
-        [cors_headers, struct_body] (std::string_view chunk, bool is_last) {
-            std::lock_guard lk (states::recv_body_cache_m);
-            std::vector<states::recv_body_t>::iterator cache
-                = get_recv_body_cache (struct_body);
-
-            if (is_recv_body_cache_end_iterator (cache))
-                {
-                    // request aborted, returns now
-                    return;
-                }
-
-            cache->body.append (chunk);
-
-            if (is_last)
-                {
-                    handle_post_login_body (*cache);
-
-                    delete_recv_body_cache (cache);
-
-                    return;
-                }
-        });
-
-    res->onAborted ([struct_body] () {
-        std::lock_guard lk (states::recv_body_cache_m);
-        std::vector<states::recv_body_t>::iterator cache
-            = get_recv_body_cache (struct_body);
-
-        if (is_recv_body_cache_end_iterator (cache))
-            {
-                // well nothing to clean up, what else to do?
-                return;
-            }
-
-        delete_recv_body_cache (cache);
-    });
-
-    /*
-        auto redirect_uri_prop = d["redirect_uri"];
-    remove_oauth_state
-        if (!state_prop.is_string () || !redirect_uri_prop.is_string ()
-            || code.empty ())
-            {
-                _set_resd_error (resd, "Invalid operation");
-                break;
-            }*/
-
-    /*
-    const std::string state = state_prop.get<std::string> ();
-
-    if (_remove_oauth_state (state) < 0)
-        {
-            _set_resd_error (resd, "Unauthorized");
-            break;
-        }
-
-
-    */
+    res->onAborted ([struct_body] () { states::default_recv_on_aborted (struct_body); });
 }
 
 } // musicat::server::routes

@@ -36,19 +36,16 @@ extern std::mutex oauth_timers_m; // EXTERN_VARIABLE
 
 std::string generate_oauth_state (const std::string &redirect = "");
 
-int remove_oauth_state (const std::string &state,
-                        std::string *redirect = NULL);
+int remove_oauth_state (const std::string &state, std::string *redirect = NULL);
 
-recv_body_t create_recv_body_t (const char *endpoint, const std::string &id,
-                                APIResponse *res, APIRequest *req,
+recv_body_t create_recv_body_t (const char *endpoint, const std::string &id, APIResponse *res, APIRequest *req,
                                 const header_v_t &cors_headers);
 
 /**
  * @brief Should acquire recv_body_cache_m lock before calling
  * keep holding the lock until done with the returned iterator
  */
-std::vector<recv_body_t>::iterator
-get_recv_body_cache (const recv_body_t &struct_body);
+std::vector<recv_body_t>::iterator get_recv_body_cache (const recv_body_t &struct_body);
 
 bool is_recv_body_cache_end_iterator (std::vector<recv_body_t>::iterator i);
 
@@ -57,6 +54,13 @@ int store_recv_body_cache (const recv_body_t &struct_body);
 void delete_recv_body_cache (std::vector<recv_body_t>::iterator i);
 
 void reserve_recv_body_cache (size_t siz);
+
+void default_recv_on_data (const recv_body_t &struct_body, std::string_view chunk, bool is_last,
+                           std::function<void (const recv_body_t &state)> handler);
+
+void default_recv_on_aborted (const recv_body_t &struct_body);
+
+////////////////////////////////////////////////////////////////////////////////
 
 int init ();
 

@@ -521,6 +521,9 @@ class Manager
      */
     dpp::discord_client *get_client (uint32_t shard_id);
 
+    // shutdown Manager
+    void shutdown ();
+
     // waits for disconnect then request to connect and waits for connected event
     void reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id);
     // waits for disconnect then request to connect and waits for connected event
@@ -560,6 +563,9 @@ class Manager
     bool is_disconnecting (const dpp::snowflake &guild_id);
 
     void set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
+
+    // overrides dpp::discord_client::disconnect_voice()
+    void disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id);
 
     void clear_disconnecting (const dpp::snowflake &guild_id);
 
@@ -767,10 +773,8 @@ class Manager
 
     /**
      * @brief Prepare for reconnect by setting necessary state,
-     *        must call dpp::discord_client::disconnect_voice (dpp::snowflake
-     * guild_id) after calling this method, and then create a thread to call
-     *        player_manager::reconnect (dpp::discord_client *from,
-     * dpp::snowflake guild_id) for the reconnect to succeed
+     *        must call disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id) after calling this method, and then
+     * create a thread to call player_manager::reconnect (dpp::discord_client *from, dpp::snowflake guild_id) for the reconnect to succeed
      *
      * @return int 0 if success, -1 guild_id is 0, 1 connect_channel_id is 0
      */

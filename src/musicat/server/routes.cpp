@@ -7,6 +7,7 @@
 #include "musicat/server/routes/get_root.h"
 #include "musicat/server/routes/get_stream.h"
 #include "musicat/server/routes/post_login.h"
+#include "musicat/server/routes/post_logout.h"
 
 // !TODO: maybe move this to smt like server_config.h
 // a day
@@ -32,11 +33,10 @@ any_any (APIResponse *res, APIRequest *req)
 void
 options_cors (APIResponse *res, APIRequest *req)
 {
-    auto cors_headers
-        = middlewares::cors (res, req,
-                             {
-                                 { "Access-Control-Max-Age", CORS_VALID_FOR },
-                             });
+    auto cors_headers = middlewares::cors (res, req,
+                                           {
+                                               { "Access-Control-Max-Age", CORS_VALID_FOR },
+                                           });
 
     if (cors_headers.empty ())
         return;
@@ -54,14 +54,12 @@ int
 one_second_304 (APIResponse *res, APIRequest *req)
 {
     auto addr = res->getRemoteAddressAsText ();
-    time_t cur_ts = time (NULL);
-
     if (addr.empty ())
         return -1;
 
-    const std::string rid = std::string (addr) + ";"
-                            + std::string (req->getMethod ()) + ";"
-                            + std::string (req->getUrl ());
+    time_t cur_ts = time (NULL);
+
+    const std::string rid = std::string (addr) + ";" + std::string (req->getMethod ()) + ";" + std::string (req->getUrl ());
 
     /* const std::string rid2 = std::string (addr) + ";" */
     /*                          + std::string (req->getMethod ()) + ";" */
@@ -92,41 +90,45 @@ one_second_304 (APIResponse *res, APIRequest *req)
     return -1;
 }
 
-inline constexpr const route_handler_t route_handlers[]
-    = { { "/*", ROUTE_METHOD_ANY, any_any },
-        { "/*", ROUTE_METHOD_OPTIONS, options_cors },
-        { "/*", ROUTE_METHOD_HEAD, options_cors },
+// only for GET and HEAD req
+std::function<void (APIResponse *, APIRequest *)>
+with_one_second_304 (const route_handler_t *rh)
+{
+    return [rh] (APIResponse *res, APIRequest *req)
+        {
+            if (one_second_304 (res, req) == 0)
+                return;
 
-        { "/", ROUTE_METHOD_GET, get_root },
-        { "/login", ROUTE_METHOD_GET, get_login },
-        { "/login", ROUTE_METHOD_POST, post_login },
-        { "/guilds", ROUTE_METHOD_GET, get_guilds },
-        { "/invite", ROUTE_METHOD_GET, get_invite },
-        { "/stream/:server_id", ROUTE_METHOD_GET, get_stream },
-        { NULL, ROUTE_METHOD_NULL, NULL } };
+            rh->handler (res, req);
+        };
+}
+
+inline constexpr const route_handler_t route_handlers[] = { { "/*", ROUTE_METHOD_ANY, any_any },
+                                                            { "/*", ROUTE_METHOD_OPTIONS, options_cors },
+                                                            { "/*", ROUTE_METHOD_HEAD, options_cors },
+
+                                                            { "/", ROUTE_METHOD_GET, get_root },
+                                                            { "/login", ROUTE_METHOD_GET, get_login },
+                                                            { "/login", ROUTE_METHOD_POST, post_login },
+                                                            { "/logout", ROUTE_METHOD_POST, post_logout },
+                                                            { "/guilds", ROUTE_METHOD_GET, get_guilds },
+                                                            { "/invite", ROUTE_METHOD_GET, get_invite },
+                                                            { "/stream/:server_id", ROUTE_METHOD_GET, get_stream },
+                                                            { NULL, ROUTE_METHOD_NULL, NULL } };
 
 void
 define_routes (APIApp *app)
 {
-    for (size_t i = 0;
-         i < (sizeof (route_handlers) / sizeof (*route_handlers)); i++)
+    for (size_t i = 0; i < (sizeof (route_handlers) / sizeof (*route_handlers)); i++)
         {
             const route_handler_t *rh = &route_handlers[i];
             if (rh->method == ROUTE_METHOD_NULL)
                 break;
 
-            // only for GET and HEAD req
-            auto h = [rh] (APIResponse *res, APIRequest *req) {
-                if (one_second_304 (res, req) == 0)
-                    return;
-
-                rh->handler (res, req);
-            };
-
             switch (rh->method)
                 {
                 case ROUTE_METHOD_GET:
-                    app->get (rh->path, h);
+                    app->get (rh->path, with_one_second_304 (rh));
                     break;
 
                 case ROUTE_METHOD_POST:
@@ -138,7 +140,7 @@ define_routes (APIApp *app)
                     break;
 
                 case ROUTE_METHOD_HEAD:
-                    app->options (rh->path, h);
+                    app->options (rh->path, with_one_second_304 (rh));
                     break;
 
                 case ROUTE_METHOD_ANY:

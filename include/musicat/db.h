@@ -68,8 +68,7 @@ ConnStatusType get_conn_status ();
  * @return ConnStatusType Return CONNECTION_OK on success or not needing to
  * reconnect
  */
-ConnStatusType reconnect (bool force = false,
-                          const std::string &_conninfo = "");
+ConnStatusType reconnect (bool force = false, const std::string &_conninfo = "");
 
 /**
  * @brief Get current connect param
@@ -85,8 +84,7 @@ const std::string get_connect_param () noexcept (true);
  * @param status
  * @return ExecStatusType
  */
-ExecStatusType finish_res (PGresult *res,
-                           ExecStatusType status = PGRES_COMMAND_OK);
+ExecStatusType finish_res (PGresult *res, ExecStatusType status = PGRES_COMMAND_OK);
 
 /**
  * @brief Validate str for db playlist name, a check is a must to minimize SQL
@@ -104,8 +102,7 @@ bool valid_name (const std::string &str);
  * @param playlist Playlist to convert to json
  * @return nlohmann::json An array of track from the playlist
  */
-nlohmann::json
-convert_playlist_to_json (const std::deque<player::MCTrack> &playlist);
+nlohmann::json convert_playlist_to_json (const std::deque<player::MCTrack> &playlist);
 
 // -----------------------------------------------------------------------
 // TABLE MANIPULATION
@@ -120,9 +117,7 @@ convert_playlist_to_json (const std::deque<player::MCTrack> &playlist);
  * @return std::pair<PGresult*, ExecStatusType> Return code -1 if user_id is 0,
  * -2 if invalid type
  */
-std::pair<PGresult *, ExecStatusType>
-get_all_user_playlist (const dpp::snowflake &user_id,
-                       const get_user_playlist_type type = gup_all);
+std::pair<PGresult *, ExecStatusType> get_all_user_playlist (const dpp::snowflake &user_id, const get_user_playlist_type type = gup_all);
 
 /**
  * @brief Get one user playlist with id `name`, PGresult pointer must be freed
@@ -134,9 +129,8 @@ get_all_user_playlist (const dpp::snowflake &user_id,
  * @return std::pair<PGresult*, ExecStatusType> Return code -1 if user_id is 0,
  * -2 if invalid type, -3 if invalid name format
  */
-std::pair<PGresult *, ExecStatusType>
-get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
-                   const get_user_playlist_type type = gup_raw_only);
+std::pair<PGresult *, ExecStatusType> get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
+                                                         const get_user_playlist_type type = gup_raw_only);
 
 /**
  * @brief Construct std::deque containing tracks from PGresult object,
@@ -147,8 +141,7 @@ get_user_playlist (const dpp::snowflake &user_id, const std::string &name,
  * @return std::pair<std::deque<player::MCTrack>, int> code -1 if json is null,
  * -2 if no row found in the table else 0
  */
-std::pair<std::deque<player::MCTrack>, int>
-get_playlist_from_PGresult (PGresult *res);
+std::pair<std::deque<player::MCTrack>, int> get_playlist_from_PGresult (PGresult *res);
 
 /**
  * @brief Update user playlist with id `name`, can be insertion or an update
@@ -158,9 +151,7 @@ get_playlist_from_PGresult (PGresult *res);
  * @param playlist
  * @return ExecStatusType -1 if user_id is 0 else PGRES_COMMAND_OK
  */
-ExecStatusType
-update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
-                      const std::deque<player::MCTrack> &playlist);
+ExecStatusType update_user_playlist (const dpp::snowflake &user_id, const std::string &name, const std::deque<player::MCTrack> &playlist);
 
 /**
  * @brief Delete user playlist with id `name`
@@ -170,8 +161,7 @@ update_user_playlist (const dpp::snowflake &user_id, const std::string &name,
  * @return ExecStatusType PGRES_FATAL_ERROR if row not found in table or table
  * not found, -1 if user_id is 0 else PGRES_TUPLES_OK
  */
-ExecStatusType delete_user_playlist (const dpp::snowflake &user_id,
-                                     const std::string &name);
+ExecStatusType delete_user_playlist (const dpp::snowflake &user_id, const std::string &name);
 
 /**
  * @brief Update guild current queue in table
@@ -182,9 +172,7 @@ ExecStatusType delete_user_playlist (const dpp::snowflake &user_id,
  * 			-3 if failed to create new table, PGRES_COMMAND_OK on
  * success
  */
-ExecStatusType
-update_guild_current_queue (const dpp::snowflake &guild_id,
-                            const std::deque<player::MCTrack> &playlist);
+ExecStatusType update_guild_current_queue (const dpp::snowflake &guild_id, const std::deque<player::MCTrack> &playlist);
 
 /**
  * @brief Get saved guild playback, PGresult pointer must be freed using
@@ -194,8 +182,7 @@ update_guild_current_queue (const dpp::snowflake &guild_id,
  * @return std::pair<PGresult*, ExecStatusType> code -1 if guild_id is 0, else
  * PGRES_TUPLES_OK
  */
-std::pair<PGresult *, ExecStatusType>
-get_guild_current_queue (const dpp::snowflake &guild_id);
+std::pair<PGresult *, ExecStatusType> get_guild_current_queue (const dpp::snowflake &guild_id);
 
 /**
  * @brief Delete guild current queue row from table
@@ -217,10 +204,8 @@ ExecStatusType delete_guild_current_queue (const dpp::snowflake &guild_id);
  * @return ExecStatusType -1 if guild_id is 0, -2 if all the three last param
  * is null, -3 if failed to create new table, PGRES_COMMAND_OK on success
  */
-ExecStatusType update_guild_player_config (
-    const dpp::snowflake &guild_id, const bool *autoplay_state,
-    const int *autoplay_threshold, const player::loop_mode_t *loop_mode,
-    const nlohmann::json &fx_states = nullptr);
+ExecStatusType update_guild_player_config (const dpp::snowflake &guild_id, const bool *autoplay_state, const int *autoplay_threshold,
+                                           const player::loop_mode_t *loop_mode, const nlohmann::json &fx_states = nullptr);
 
 /**
  * @brief Get guild player config, PGresult pointer must be freed using
@@ -230,8 +215,7 @@ ExecStatusType update_guild_player_config (
  * @return std::pair<PGresult*, ExecStatusType> status PGRES_FATAL_ERROR on
  * failure, else PGRES_COMMAND_OK
  */
-std::pair<PGresult *, ExecStatusType>
-get_guild_player_config (const dpp::snowflake &guild_id);
+std::pair<PGresult *, ExecStatusType> get_guild_player_config (const dpp::snowflake &guild_id);
 
 /**
  * @brief Parse player config contained in PGresult, this function does not
@@ -241,26 +225,20 @@ get_guild_player_config (const dpp::snowflake &guild_id);
  * @return std::pair<player_config, int> code 0 if non-default value returned,
  * else 1
  */
-std::pair<player_config, int>
-parse_guild_player_config_PGresult (PGresult *res);
+std::pair<player_config, int> parse_guild_player_config_PGresult (PGresult *res);
 
-ExecStatusType update_user_auth (const dpp::snowflake &user_id,
-                                 const nlohmann::json &data);
+ExecStatusType update_user_auth (const dpp::snowflake &user_id, const nlohmann::json &data);
+ExecStatusType delete_user_auth (const dpp::snowflake &user_id);
 
-std::pair<nlohmann::json, int>
-get_user_auth_json_from_PGresult (PGresult *res);
+std::pair<nlohmann::json, int> get_user_auth_json_from_PGresult (PGresult *res);
 
-std::pair<PGresult *, ExecStatusType>
-get_user_auth (const dpp::snowflake &user_id);
+std::pair<PGresult *, ExecStatusType> get_user_auth (const dpp::snowflake &user_id);
 
 std::pair<PGresult *, ExecStatusType> get_all_equalizer_preset_name ();
 
-std::pair<std::pair<std::string, std::string>, ExecStatusType>
-get_equalizer_preset (const std::string &name);
+std::pair<std::pair<std::string, std::string>, ExecStatusType> get_equalizer_preset (const std::string &name);
 
-ExecStatusType create_equalizer_preset (const std::string &name,
-                                        const std::string &value,
-                                        const dpp::snowflake &user_id);
+ExecStatusType create_equalizer_preset (const std::string &name, const std::string &value, const dpp::snowflake &user_id);
 } // database
 } // nusicat
 

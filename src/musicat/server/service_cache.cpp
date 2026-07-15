@@ -61,13 +61,10 @@ remove (const std::string &key)
 void
 create_invalidate_timer (const std::string &key, int second_max_age)
 {
-    remove_invalidate_timer(key);
+    remove_invalidate_timer (key);
     std::lock_guard lk (_timers_m);
 
-    _timers.push_back ({ std::chrono::high_resolution_clock::now ()
-                             .time_since_epoch ()
-                             .count (),
-                         second_max_age, key });
+    _timers.push_back ({ std::chrono::high_resolution_clock::now ().time_since_epoch ().count (), second_max_age, key });
 }
 
 void
@@ -78,9 +75,7 @@ check_timers ()
     auto i = _timers.begin ();
     while (i != _timers.end ())
         {
-            long long current_ts = std::chrono::high_resolution_clock::now ()
-                                       .time_since_epoch ()
-                                       .count ();
+            long long current_ts = std::chrono::high_resolution_clock::now ().time_since_epoch ().count ();
 
             long long passed = (current_ts - i->ts);
             long long max = ((long long)i->second_max_age * 1000000000LL);
@@ -129,6 +124,13 @@ set_cached_user_auth (const std::string &user_id, const nlohmann::json &data)
 
     // 5 minutes
     create_invalidate_timer (key, 300);
+}
+
+void
+remove_cached_user_auth (const std::string &user_id)
+{
+    std::string key = user_id + "/auth";
+    remove (key);
 }
 
 nlohmann::json
