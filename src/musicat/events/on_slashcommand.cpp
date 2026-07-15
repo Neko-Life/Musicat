@@ -11,12 +11,14 @@ void
 on_slashcommand (dpp::cluster *client)
 {
     client->on_slashcommand (
-        [] (const dpp::slashcommand_t &event) -> dpp::task<void>
+        [] (const dpp::slashcommand_t &event) // -> dpp::task<void>
             {
-                if (!event.command.guild_id)
-                    co_return;
+                auto *c = get_client_ptr ();
 
-                co_await find_or_fetch_guild (event.command.guild_id);
+                if (!c || !event.command.guild_id)
+                    return;
+
+                // co_await c->co_guild_get_member (event.command.guild_id, get_sha_id ());
 
                 const std::string cmd = event.command.get_command_name ();
 

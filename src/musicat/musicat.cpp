@@ -165,6 +165,10 @@ has_permissions (dpp::guild *guild, dpp::user *user, dpp::channel *channel, cons
     if (!guild || !user || !channel)
         return false;
 
+    // bypass this check if Muscat member isn't cached yet
+    if (user->id == get_sha_id () && !guild->members.contains (user->id))
+        return true;
+
     uint64_t p = guild->permission_overwrites (guild->base_permissions (user), user, channel);
     for (uint64_t i : permissions)
         if (!(p & i))
