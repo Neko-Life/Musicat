@@ -2,44 +2,49 @@
 #define MUSICAT_STREAM_CODEC_H
 
 #include "ogg/ogg.h"
-#include <string>
 #include <vector>
-#include "opusenc.h"
 
 namespace musicat::stream_codec
 {
 
+enum ogg_stream_mode_e : uint8_t
+{
+    // reading non encapsulated, raw opus packets
+    OGG_STREAM_READ_OPUS_PACKET,
+    // reading ogg encapsulated packets
+    OGG_STREAM_READ_OGG_PAGE,
+    // submit non encapsulated, raw opus packets buffers
+    OGG_STREAM_SUBMIT_OPUS_PACKET,
+};
+
 class ogg_stream_t
 {
+    using mode_e = ogg_stream_mode_e;
     ogg_stream_state os;
 
     ogg_sync_state oy;
 
-    FILE *inf;
+    ogg_int64_t granulepos;
 
-    std::vector<ogg_page> header_pages;
-
-    int seek_header_sent;
-
+    mode_e mode;
     bool stream_initialized;
     bool sync_initialized;
-    bool need_seek_header;
+    bool got_eos;
 
   public:
-    bool has_headers_for_seeking;
+    // fd to read ogg page/opus packets
+    int fd;
 
-    // file path to ogg/opus file
-    std::string fpath;
+    // found opus headers in the current stream
+    std::vector<ogg_page> header_pages;
 
-    // max seek byte of inf, only valid when fpath is opened
-    long max_seek_byte;
-
-    ogg_stream_t (const std::string &_fpath);
+    ogg_stream_t (int fd, mode_e mode = mode_e::OGG_STREAM_READ_OPUS_PACKET);
+    ogg_stream_t (mode_e mode = mode_e::OGG_STREAM_SUBMIT_OPUS_PACKET);
     ~ogg_stream_t ();
 
     ogg_stream_t &init ();
     ogg_stream_t &reset ();
-    ogg_stream_t &open (const std::string &_fpath);
+    ogg_stream_t &open (int fd, mode_e mode = mode_e::OGG_STREAM_READ_OPUS_PACKET);
 
     ogg_stream_t &init_sync_state ();
     ogg_stream_t &clear_sync_state ();
@@ -47,21 +52,19 @@ class ogg_stream_t
     ogg_stream_t &init_stream_state (int serialno);
     ogg_stream_t &clear_stream_state ();
 
-    int open_infile ();
-    ogg_stream_t &close_infile ();
-
-    // get next page from ogg_stream_state
-    // return 0 on success
-    // int get_next_page(ogg_page &o);
+    int get_next_page_submit_opus (ogg_page &o, char *buf, size_t buf_len);
+    int get_next_page_opus (ogg_page &o);
+    int get_next_page_ogg (ogg_page &o);
 
     // get next page from ogg_sync_state
     // return 0 on success
     // return 1 on EOF
-    int get_next_sync_page (ogg_page &o);
+    int get_next_page (ogg_page &o);
 
+    // only valid for OGG_STREAM_READ_OGG_PAGE mode
     // return 0 on success
     // return 1 on EOF
-    int get_next_packet (ogg_packet &o);
+    int get_next_packet_ogg (ogg_packet &o);
 
     int seek_to (long byte);
 

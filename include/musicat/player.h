@@ -1,7 +1,14 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
+#include "musicat/audio_config.h"
+
+#ifdef USING_LIBOPUSENC
 #include "opusenc.h"
+#else
+#include "opus/opus.h"
+#endif // USING_LIBOPUSENC
+
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
 #include <cstdint>
@@ -285,8 +292,12 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
+#ifdef USING_LIBOPUSENC
     OggOpusEnc *opus_encoder;
     OggOpusComments *opus_encoder_comments;
+#else
+    OpusEncoder *opus_encoder;
+#endif
 
     /**
      * @brief Should set equalizer?
@@ -916,11 +927,23 @@ void add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, i
  */
 void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, const bool &continued);
 
+#ifdef USING_LIBOPUSENC
+
 // this should be called inside the streaming thread
 // returns 1 if vclient terminating or null
 // 0 on success
 int send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait = false,
                         OggOpusEnc *opus_encoder = NULL);
+
+#else
+
+// this should be called inside the streaming thread
+// returns 1 if vclient terminating or null
+// 0 on success
+int send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait = false,
+                        OpusEncoder *opus_encoder = NULL);
+
+#endif
 
 // main loop routine
 void check_embed_op_queue ();
