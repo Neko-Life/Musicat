@@ -1,5 +1,4 @@
 #include "musicat/db.h"
-#include "musicat/events.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
@@ -618,7 +617,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                     track_info_m
                         = embed_perms ? '`' + mctrack::get_title (track) + "` (added by <@" + std::to_string (track.user_id) + ">)" : "";
-                    is_downloading = this->waiting_file_download.find (fname) != this->waiting_file_download.end ();
+                    is_downloading = is_waiting_file_download (fname);
 
                     const int failed_playback = get_track_failed_playback_count (track.filename);
                     const bool dont_retry = failed_playback >= 3;
@@ -693,7 +692,6 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                     if (!is_downloading && !dont_retry)
                         {
                             // try redownload
-                            this->waiting_file_download[fname] = guild_id;
                             this->download (fname, mctrack::get_url (track), guild_id);
 
                             std::thread dlt (

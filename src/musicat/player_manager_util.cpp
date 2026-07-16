@@ -511,7 +511,7 @@ track_exist (const std::string &fname, const std::string &url, player::player_ma
             if (from_interaction)
                 status = 1;
 
-            if (!no_download && player_manager->waiting_file_download.find (fname) == player_manager->waiting_file_download.end ())
+            if (!no_download && !player_manager->is_waiting_file_download (fname))
                 {
                     player_manager->download (fname, url, guild_id);
                 }

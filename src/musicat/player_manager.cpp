@@ -1,6 +1,5 @@
 #include "musicat/child/command.h"
 #include "musicat/child/dl_music.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
@@ -300,7 +299,6 @@ struct download_thread_params_t
 {
     std::string fname;
     std::string url;
-    dpp::snowflake guild_id;
 };
 
 static std::queue<download_thread_params_t> download_q;
@@ -309,8 +307,13 @@ static std::mutex download_q_m;
 void
 Manager::download (const string &fname, const string &url, const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (download_q_m);
-    download_q.push ({ fname, url, guild_id });
+    {
+        std::lock_guard lk (dl_m);
+        waiting_file_download[fname] = guild_id;
+    }
+
+    std::lock_guard lk2 (download_q_m);
+    download_q.push ({ fname, url });
 }
 
 void
@@ -432,7 +435,6 @@ check_download_queue ()
 
                 const std::string &fname = params.fname;
                 const std::string &url = params.url;
-                const dpp::snowflake &guild_id = params.guild_id;
 
                 auto *manager = get_player_manager_ptr ();
                 if (!manager)
@@ -446,10 +448,6 @@ check_download_queue ()
                 bool did_download = false;
                 if (!util::fs::file_exists (filepath))
                     {
-                        {
-                            std::lock_guard lk (manager->dl_m);
-                            manager->waiting_file_download[fname] = guild_id;
-                        }
                         do_download (fname, url, filepath);
                         did_download = true;
                     }

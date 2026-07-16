@@ -130,8 +130,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
                     co_await thinking;
                     event.edit_response (prepend_name + util::response::reply_downloading_track (mctrack::get_title (result)));
 
-                    if (player_manager
-                        && player_manager->waiting_file_download.find (fname) == player_manager->waiting_file_download.end ())
+                    if (player_manager && !player_manager->is_waiting_file_download (fname))
                         {
                             auto url = mctrack::get_url (result);
                             player_manager->download (fname, url, guild_id);
@@ -144,7 +143,8 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
                     event.edit_response (edit_response);
                 }
 
-            if (player_manager) join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
+            if (player_manager)
+                join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
             std::thread dlt (
                 [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()
@@ -163,24 +163,26 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
 }
 
 void
-print_components(const std::vector<dpp::component> &comps) {
-    fprintf(stderr, "\nvvvvv comps size: %ld vvvvv\n", comps.size());
+print_components (const std::vector<dpp::component> &comps)
+{
+    fprintf (stderr, "\nvvvvv comps size: %ld vvvvv\n", comps.size ());
 
     int idx = 0;
-    for (const auto &c : comps) {
-        fprintf(stderr, "===== index %d =====\n", idx++);
+    for (const auto &c : comps)
+        {
+            fprintf (stderr, "===== index %d =====\n", idx++);
 
-        fprintf(stderr, "type: %d\n", c.type);
-        fprintf(stderr, "label: %s\n", c.label.c_str());
-        fprintf(stderr, "custom_id: %s\n", c.custom_id.c_str());
-        fprintf(stderr, "placeholder: %s\n", c.placeholder.c_str());
-        fprintf(stderr, "content: %s\n", c.content.c_str());
-        fprintf(stderr, "description: %s\n", c.description.c_str());
+            fprintf (stderr, "type: %d\n", c.type);
+            fprintf (stderr, "label: %s\n", c.label.c_str ());
+            fprintf (stderr, "custom_id: %s\n", c.custom_id.c_str ());
+            fprintf (stderr, "placeholder: %s\n", c.placeholder.c_str ());
+            fprintf (stderr, "content: %s\n", c.content.c_str ());
+            fprintf (stderr, "description: %s\n", c.description.c_str ());
 
-        fprintf(stderr, "===== end index %d =====\n", idx++);
-    }
+            fprintf (stderr, "===== end index %d =====\n", idx++);
+        }
 
-    fprintf(stderr, "^^^^^ end print comps ^^^^^\n");
+    fprintf (stderr, "^^^^^ end print comps ^^^^^\n");
 }
 
 dpp::task<void>
@@ -193,8 +195,9 @@ _handle_form_modal_p (const dpp::form_submit_t &event)
             co_return;
         }
 
-    const bool debug = get_debug_state();
-    if (debug) print_components(event.components);
+    const bool debug = get_debug_state ();
+    if (debug)
+        print_components (event.components);
 
     auto comp = event.components.at (0);
     bool second_input = event.components.size () > 1;
