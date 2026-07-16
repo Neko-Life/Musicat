@@ -24,6 +24,15 @@ get_behavior ()
     return b;
 }
 
+void
+publish_player_info (const dpp::snowflake &guild_id)
+{
+    nlohmann::json data = util::get_playback_info_json (guild_id);
+
+    nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAYBACK_INFO }, { "d", data } });
+    server::publish ("player/" + guild_id.str (), d.dump ());
+}
+
 /*
    event payload:
    {

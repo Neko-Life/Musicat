@@ -1,26 +1,17 @@
 #include "musicat/musicat.h"
+#include "musicat/player.h"
 #include "musicat/server/ws/player.h"
 #include <uWebSockets/src/App.h>
 
 namespace musicat::server::ws::player::events
 {
-
-nlohmann::json
-get_bot_info_payload (dpp::cluster *bot)
+static void
+send_player_info (uws_ws_t *ws, SocketData *sdata)
 {
-    bool debug = get_debug_state ();
+    nlohmann::json data = util::get_playback_info_json (sdata->server_id);
 
-    nlohmann::json d
-        = { { "avatarUrl",
-              bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp) },
-            { "username", bot->me.username },
-            { "description", get_bot_description () } };
-
-    if (debug)
-        fprintf (stderr, "[server get_bot_info_payload]:\n%s\n",
-                 d.dump (2).c_str ());
-
-    return d;
+    nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAYBACK_INFO }, { "d", data } });
+    ws->send (d.dump ());
 }
 
 void
@@ -33,19 +24,13 @@ open (uws_ws_t *ws)
             fprintf (stderr, "[server OPEN] %lu\n", (uintptr_t)ws);
         }
 
-    ws->subscribe ("bot_info_update");
+    // subscribe to topics: global, player/guild_id
+    auto *sdata = ws->getUserData ();
+    ws->subscribe ("global");
+    ws->subscribe ("player/" + sdata->server_id.str ());
 
-    auto bot = get_client_ptr ();
-
-    if (!bot)
-        {
-            return;
-        }
-
-    nlohmann::json payload_bot_info = get_bot_info_payload (bot);
-    ws->send (payload_bot_info.dump ());
-
-    // send any random active player info
+    ws->send ("meow~");
+    send_player_info (ws, sdata);
 }
 
 } // musicat::server::ws::player::events

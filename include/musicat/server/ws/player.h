@@ -26,12 +26,17 @@ namespace musicat::server::ws::player
 struct SocketData
 {
     dpp::snowflake server_id;
+    bool waved;
+
+    SocketData () : waved (false) {}
+    SocketData (const dpp::snowflake &_server_id) : server_id (_server_id), waved (false) {}
 };
 
 enum socket_event_e
 {
     SOCKET_EVENT_ERROR,
     SOCKET_EVENT_PAUSE,
+    SOCKET_EVENT_PLAYBACK_INFO,
 };
 
 struct socket_event_handler_t
@@ -43,6 +48,8 @@ struct socket_event_handler_t
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
 
 APIApp::WebSocketBehavior<SocketData> get_behavior ();
+
+void publish_player_info (const dpp::snowflake &guild_id);
 
 /*
 nlohmann::json create_error_data (const socket_err_code_e code,

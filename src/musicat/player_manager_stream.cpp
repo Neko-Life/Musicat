@@ -8,6 +8,7 @@
 #include "musicat/player.h"
 #include "musicat/server/routes/get_stream.h"
 #include "musicat/server/stream.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/util.h"
 #include "musicat/util/fs.h"
 // #include "musicat/stream_codec.h"
@@ -803,6 +804,7 @@ Manager::stream (const dpp::snowflake &guild_id)
 
     // I LOVE C++!!!
     bool running_state, is_stopping;
+    server::ws::player::publish_player_info (guild_id);
 
     // using raw pcm need to change ffmpeg output format to s16le!
     ssize_t read_size = 0;

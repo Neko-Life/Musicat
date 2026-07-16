@@ -50,6 +50,13 @@ message (uws_ws_t *ws, std::string_view msg, uWS::OpCode code)
     if (msg.empty ())
         return;
 
+    if (msg == "meow!")
+        {
+            ws->getUserData ()->waved = true;
+            ws->send ("(^v^)");
+            return;
+        }
+
     if (msg == "0")
         {
             ws->send ("0");

@@ -973,6 +973,8 @@ bool player_has_current_track (std::shared_ptr<player::Player> guild_player);
  */
 player::track_progress get_track_progress (const player::MCTrack &track);
 
+nlohmann::json get_playback_info_json (const dpp::snowflake &guild_id);
+
 } // util
 } // musicat
 

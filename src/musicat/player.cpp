@@ -4,6 +4,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/server/stream.h"
+#include "musicat/util.h"
 #include <cstddef>
 #include <memory>
 
@@ -1001,6 +1002,152 @@ get_track_progress (const player::MCTrack &track)
     int64_t current_ms = track.current_byte ? (float)track.current_byte / player::opus_byte_per_ms : 0;
 
     return { current_ms, duration, 0 };
+}
+
+nlohmann::json
+get_playback_info_json (const dpp::snowflake &guild_id)
+{
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return nullptr;
+
+    auto guild_player = player_manager->get_player (guild_id);
+    if (!guild_player || !guild_player->processing_audio)
+        return nullptr;
+
+    player::MCTrack &track = guild_player->current_track;
+
+    try
+        {
+
+            // one char variable name for 100x performance improvement!!!!!
+            dpp::guild_member u;
+            bool member_found = false;
+            try
+                {
+                    u = dpp::find_guild_member (guild_id, track.user_id);
+                    member_found = true;
+                }
+            catch (...)
+                {
+                }
+
+            dpp::user *uc = dpp::find_user (track.user_id);
+            auto h_r = get_user_highest_role (guild_id, get_sha_id ());
+            uint32_t color = h_r ? h_r->colour : 0;
+
+            std::string track_username;
+            if (member_found)
+                {
+                    std::string nick = u.get_nickname ();
+                    if (!nick.empty ())
+                        track_username = nick;
+                }
+
+            if (track_username.empty ())
+                {
+                    if (uc)
+                        track_username = uc->username;
+                    else
+                        track_username = "";
+                }
+
+            std::string track_user_avatar = member_found ? u.get_avatar_url (4096) : "";
+            if (track_user_avatar.empty () && uc)
+                track_user_avatar = uc->get_avatar_url (4096);
+
+            player::track_progress prog = get_track_progress (track);
+
+            auto data = nlohmann::json::object ({ {
+                                                      "username",
+                                                      track_username,
+                                                  },
+                                                  {
+                                                      "avatar",
+                                                      track_user_avatar,
+                                                  },
+                                                  {
+                                                      "thumbnail",
+                                                      mctrack::get_thumbnail (track),
+                                                  },
+                                                  {
+                                                      "desc",
+                                                      mctrack::get_description (track),
+                                                  },
+                                                  {
+                                                      "title",
+                                                      mctrack::get_title (track),
+                                                  },
+                                                  {
+                                                      "url",
+                                                      mctrack::get_url (track),
+                                                  },
+                                                  {
+                                                      "progress",
+                                                      prog.current_ms,
+                                                  },
+                                                  {
+                                                      "duration",
+                                                      prog.duration,
+                                                  },
+                                                  {
+                                                      "loop_mode",
+                                                      guild_player->loop_mode,
+                                                  },
+                                                  {
+                                                      "auto_play",
+                                                      guild_player->auto_play,
+                                                  },
+                                                  {
+                                                      "repeat",
+                                                      guild_player->current_track.repeat,
+                                                  },
+                                                  {
+                                                      "active_fx",
+                                                      guild_player->fx_get_active_count (),
+                                                  },
+                                                  {
+                                                      "color_hint",
+                                                      color,
+                                                  } });
+
+            bool playing_set = false;
+            auto *pc = guild_player->get_client ();
+            if (pc)
+                {
+                    auto con = pc->get_voice (guild_id);
+                    if (con && con->voiceclient)
+                        {
+                            data["paused"] = con->voiceclient->is_paused ();
+                            data["playing"] = true;
+                            playing_set = true;
+                        }
+                }
+
+            if (!playing_set)
+                {
+                    data["paused"] = false;
+                    data["playing"] = false;
+                }
+
+            // !TODO: remove this when fully using ytdlp to support non-yt
+            // tracks
+            bool tinfo = !track.info.raw.is_null ();
+            if (tinfo)
+                data["average_bitrate"] = track.info.average_bitrate ();
+
+            return data;
+        }
+    catch (const dpp::exception &e)
+        {
+            fprintf (stderr, "[util::get_playback_info_json dpp::exception]: %s\n", e.what ());
+        }
+    catch (const std::logic_error &e)
+        {
+            fprintf (stderr, "[util::get_playback_info_json std::logic_error]: %s\n", e.what ());
+        }
+
+    return nullptr;
 }
 
 } // util

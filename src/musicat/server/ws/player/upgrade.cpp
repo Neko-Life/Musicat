@@ -36,10 +36,8 @@ upgrade (APIResponse *res, APIRequest *req, struct us_socket_context_t *ctx)
             return;
         }
 
-    res->template upgrade<SocketData> (
-        { server_id }, req->getHeader ("sec-websocket-key"),
-        req->getHeader ("sec-websocket-protocol"),
-        req->getHeader ("sec-websocket-extensions"), ctx);
+    res->template upgrade<SocketData> ({ server_id }, req->getHeader ("sec-websocket-key"), req->getHeader ("sec-websocket-protocol"),
+                                       req->getHeader ("sec-websocket-extensions"), ctx);
 }
 
 } // musicat::server::ws::player::events
