@@ -71,8 +71,12 @@ unsubscribe (const dpp::snowflake &guild_id)
                     guild_stream_state_t &state = get_guild_stream_state (guild_id);
 
                     std::lock_guard lk (state.streams_m);
-                    for (auto &s : state.streams)
-                        s.res->end ();
+                    auto i = state.streams.begin ();
+                    while (i != state.streams.end ())
+                        {
+                            i->res->end ();
+                            i = state.streams.erase (i);
+                        }
                 }
             });
 }
