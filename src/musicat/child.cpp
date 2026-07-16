@@ -180,7 +180,7 @@ reset_local_dir ()
         return;
 
     // local_dir folder exists, clear it
-    unlink (get_local_dir ().c_str ());
+    std::filesystem::remove_all (get_local_dir ());
     ensure_local_dir ();
 }
 
