@@ -8,6 +8,8 @@
 #include "musicat/player.h"
 #include "musicat/server/routes/get_stream.h"
 #include "musicat/server/stream.h"
+#include "musicat/util.h"
+#include "musicat/util/fs.h"
 // #include "musicat/stream_codec.h"
 
 #include <cstdint>
@@ -522,7 +524,7 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
             if (!opus_encoder)
                 return 2;
 
-            std::vector<uint16_t> pcmbuf (send_buffer, send_buffer + (*send_buffer_length / sizeof(uint16_t)));
+            std::vector<uint16_t> pcmbuf (send_buffer, send_buffer + (*send_buffer_length / sizeof (uint16_t)));
             while (!pcmbuf.empty ())
                 {
                     const auto pbufsiz = pcmbuf.size ();
@@ -672,17 +674,15 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
     const std::string file_path = music_folder_path + fname;
 
     // check if we actually have the file
+    util::fs::ensure_dir (music_folder_path);
     FILE *ofile = fopen (file_path.c_str (), "r");
     if (!ofile)
-        {
-            std::filesystem::create_directory (music_folder_path);
-            throw 2;
-        }
+        throw 2;
     fclose (ofile);
     ofile = NULL;
 
     const std::string server_id_str = std::to_string (guild_id);
-    const std::string slave_id = "processor-" + server_id_str + "." + std::to_string (time (NULL));
+    const std::string slave_id = "processor-" + server_id_str + "." + std::to_string (util::get_current_ts ());
 
     std::string cmd = cc::command_options_keys_t.id + '=' + slave_id + ';' + cc::command_options_keys_t.guild_id + '=' + server_id_str + ';'
                       + cc::command_options_keys_t.command + '=' + cc::command_execute_commands_t.create_audio_processor + ';';

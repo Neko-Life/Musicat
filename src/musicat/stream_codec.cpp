@@ -1,10 +1,7 @@
 #include "musicat/stream_codec.h"
 #include "musicat/audio_config.h"
-#include <cstddef>
 #include <cstdio>
 #include <unistd.h>
-
-#include <iostream>
 
 namespace musicat::stream_codec
 {
@@ -159,7 +156,6 @@ ogg_stream_t::get_next_page_ogg (ogg_page &o)
     while (ogg_sync_pageout (&oy, &o) != 1)
         {
             char *sync_buf = ogg_sync_buffer (&oy, BUFSIZ);
-            // size_t siz = fread (sync_buf, 1, BUFSIZ, fd);
             size_t siz = read (fd, sync_buf, BUFSIZ);
 
             ogg_sync_wrote (&oy, siz);

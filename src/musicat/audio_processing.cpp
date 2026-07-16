@@ -36,10 +36,8 @@ int write_fifo = -1,
 // through its stdout
 bool notified = false;
 
-inline constexpr const char audio_cmd_str[]
-    = "[audio_processing::read_command ";
-inline constexpr const size_t audio_cmd_str_size
-    = (sizeof (audio_cmd_str) / sizeof (*audio_cmd_str));
+inline constexpr const char audio_cmd_str[] = "[audio_processing::read_command ";
+inline constexpr const size_t audio_cmd_str_size = (sizeof (audio_cmd_str) / sizeof (*audio_cmd_str));
 
 inline constexpr const char *audio_cmd_str2 = "%s] Processor command: %s\n";
 
@@ -49,8 +47,7 @@ init_fifos (const child::command::command_options_t &process_options)
 {
     run_processor_error_t init_error = SUCCESS;
 
-    write_fifo
-        = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY);
+    write_fifo = open (process_options.audio_stream_fifo_path.c_str (), O_WRONLY);
 
     if (write_fifo < 0)
         {
@@ -59,8 +56,7 @@ init_fifos (const child::command::command_options_t &process_options)
             goto err_sfifo1;
         }
 
-    stdin_fifo
-        = open (process_options.audio_stream_stdin_path.c_str (), O_RDONLY);
+    stdin_fifo = open (process_options.audio_stream_stdin_path.c_str (), O_RDONLY);
 
     if (stdin_fifo < 0)
         {
@@ -78,8 +74,7 @@ init_fifos (const child::command::command_options_t &process_options)
             goto err_sfifo3;
         }
 
-    stdout_fifo
-        = open (process_options.audio_stream_stdout_path.c_str (), O_WRONLY);
+    stdout_fifo = open (process_options.audio_stream_stdout_path.c_str (), O_WRONLY);
 
     if (stdout_fifo < 0)
         {
@@ -111,8 +106,7 @@ err_sfifo1:
 }
 
 static int
-run_standalone (const processor_options_t &options,
-                const processor_states_t &p_info, sem_t *sem)
+run_standalone (const processor_options_t &options, const processor_states_t &p_info, sem_t *sem)
 {
     // request kernel to kill little self when parent dies
     if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
@@ -175,8 +169,7 @@ run_standalone (const processor_options_t &options,
             args[args_idx++] = (char *)options.seek_to.c_str ();
         }
 
-    const std::string vol_arg
-        = "volume=" + std::to_string ((float)options.volume / (float)100);
+    const std::string vol_arg = "volume=" + std::to_string ((float)options.volume / (float)100);
 
 #ifdef AUDIO_INPUT_USE_EXCITER
     const std::string fargs = "aexciter," + vol_arg;
@@ -207,8 +200,7 @@ run_standalone (const processor_options_t &options,
                           OUT_CMD,
                           (char *)NULL };
 
-    for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0]));
-         i++)
+    for (unsigned long i = 0; i < (sizeof (rest_args) / sizeof (rest_args[0])); i++)
         args[args_idx++] = rest_args[i];
 
     if (debug)
@@ -246,8 +238,7 @@ handle_helper_fork ()
 }
 
 int
-init_standalone (processor_states_t &p_info,
-                 const processor_options_t &options)
+init_standalone (processor_states_t &p_info, const processor_options_t &options)
 {
     run_processor_error_t init_error = SUCCESS;
 
@@ -331,8 +322,7 @@ read_command (processor_options_t &options)
     bool read_cmd = (has_cmd > 0) && (cmdrfds[0].revents & POLLIN);
 
     // one command at a time, no while loop
-    if (read_cmd
-        && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
+    if (read_cmd && ((read_cmd_size = read (cmdrfds[0].fd, cmd_buf, CMD_BUFSIZE)) > 0))
         {
             status = 0;
             cmd_buf[read_cmd_size] = '\0';
@@ -343,8 +333,7 @@ read_command (processor_options_t &options)
                 {
                     write (STDERR_FILENO, audio_cmd_str, audio_cmd_str_size);
 
-                    fprintf (stderr, audio_cmd_str2, options.guild_id.c_str (),
-                             cmd_buf);
+                    fprintf (stderr, audio_cmd_str2, options.guild_id.c_str (), cmd_buf);
                 }
 
             const std::string cmd (cmd_buf);
@@ -359,13 +348,11 @@ read_command (processor_options_t &options)
                         options.seek_to = command_options.seek;
                     }
 
-                else if (command_options.command
-                         == command_options_keys_t.volume)
+                else if (command_options.command == command_options_keys_t.volume)
                     {
                         options.volume = command_options.volume;
                     }
-                else if (command_options.command
-                         == command_options_keys_t.helper_chain)
+                else if (command_options.command == command_options_keys_t.helper_chain)
                     {
                         parse_helper_chain_option (command_options, options);
                     }
@@ -375,10 +362,8 @@ read_command (processor_options_t &options)
     return status;
 }
 
-inline constexpr const char *idfmt
-    = "[audio_processing::write_stdout] size, will go to chain: %ld %d\n";
-inline constexpr const char *necdfmt
-    = "[audio_processing::write_stdout] size after chain: %ld\n";
+inline constexpr const char *idfmt = "[audio_processing::write_stdout] size, will go to chain: %ld %d\n";
+inline constexpr const char *necdfmt = "[audio_processing::write_stdout] size after chain: %ld\n";
 
 ssize_t
 write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
@@ -391,8 +376,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 
     if (!no_effect_chain)
         {
-            ssize_t status
-                = helper_processor::run_through_chain (buffer, size);
+            ssize_t status = helper_processor::run_through_chain (buffer, size);
 
             if (status == -1)
                 return -1;
@@ -406,8 +390,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 
     if (!notified)
         {
-            child::command::write_command ("0", STDOUT_FILENO,
-                                           "audio_processing::write_stdout");
+            child::command::write_command ("0", STDOUT_FILENO, "audio_processing::write_stdout");
 
             notified = true;
         }
@@ -424,16 +407,11 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
     bool hup = has_event != 0
                // check for both HUP and ERR since both means fd is bad
                // and shouldnt be used for writing anymore
-               && ((pwr[0].revents & POLLHUP) == POLLHUP
-                   || (pwr[0].revents & POLLERR) == POLLERR);
+               && ((pwr[0].revents & POLLHUP) == POLLHUP || (pwr[0].revents & POLLERR) == POLLERR);
 
     ssize_t written = 0;
     ssize_t current_written = 0;
-    while (!hup
-           && (((current_written
-                 = write (write_fifo, buffer + written, *size - written))
-                > 0)
-               || (written < *size)))
+    while (!hup && (((current_written = write (write_fifo, buffer + written, *size - written)) > 0) || (written < *size)))
         {
             if (current_written < 0)
                 {
@@ -444,9 +422,7 @@ write_stdout (uint8_t *buffer, ssize_t *size, bool no_effect_chain)
 
             has_event = poll (pwr, 1, 0);
 
-            hup = has_event != 0
-                  && ((pwr[0].revents & POLLHUP) == POLLHUP
-                      || (pwr[0].revents & POLLERR) == POLLERR);
+            hup = has_event != 0 && ((pwr[0].revents & POLLHUP) == POLLHUP || (pwr[0].revents & POLLERR) == POLLERR);
         }
 
     if (hup)
@@ -540,17 +516,13 @@ run_processor (child::command::command_options_t &process_options)
         {
             // poll ffmpeg stdout
             read_has_event = poll (prfds, 1, 10);
-            read_ready = (read_has_event > 0)
-                         && (prfds[0].revents & POLLIN) == POLLIN;
+            read_ready = (read_has_event > 0) && (prfds[0].revents & POLLIN) == POLLIN;
 
-            if ((prfds[0].revents & POLLERR) == POLLERR
-                || (prfds[0].revents & POLLHUP) == POLLHUP)
+            if ((prfds[0].revents & POLLERR) == POLLERR || (prfds[0].revents & POLLHUP) == POLLHUP)
                 // ffmpeg done reading, lets break
                 break;
 
-            while (read_ready
-                   && ((current_read = read (preadfd, out_buffer, BUFFER_SIZE))
-                       > 0))
+            while (read_ready && ((current_read = read (preadfd, out_buffer, BUFFER_SIZE)) > 0))
                 {
                     if (write_stdout (out_buffer, &current_read) == -1)
                         {
@@ -563,8 +535,7 @@ run_processor (child::command::command_options_t &process_options)
                         break;
 
                     read_has_event = poll (prfds, 1, 0);
-                    read_ready = (read_has_event > 0)
-                                 && (prfds[0].revents & POLLIN) == POLLIN;
+                    read_ready = (read_has_event > 0) && (prfds[0].revents & POLLIN) == POLLIN;
                 }
 
             if (write_stdout_err)
@@ -601,8 +572,7 @@ run_processor (child::command::command_options_t &process_options)
 
                     cstatus = child::worker::call_waitpid (p_info.cpid);
                     if (debug)
-                        fprintf (stderr, "processor child status: %d\n",
-                                 cstatus);
+                        fprintf (stderr, "processor child status: %d\n", cstatus);
 
                     cstatus = 0;
 
@@ -636,10 +606,7 @@ run_processor (child::command::command_options_t &process_options)
             // runtime effects here
             if (options.volume != current_options.volume)
                 {
-                    const std::string str_buf
-                        = "call -1 volume "
-                          + std::to_string ((float)options.volume / (float)100)
-                          + '\n';
+                    const std::string str_buf = "call -1 volume " + std::to_string ((float)options.volume / (float)100) + '\n';
                     const char *buf = str_buf.c_str ();
 
                     // !TODO: poll pwfds?
@@ -683,7 +650,7 @@ init_err:
 std::string
 get_audio_stream_fifo_path (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".audio_stream";
+    return child::get_local_dir_ensure () + id + ".audio_stream";
 }
 
 mode_t
@@ -695,13 +662,13 @@ get_audio_stream_fifo_mode_t ()
 std::string
 get_audio_stream_stdin_path (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".stdin";
+    return child::get_local_dir_ensure () + id + ".stdin";
 }
 
 std::string
 get_audio_stream_stdout_path (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".stdout";
+    return child::get_local_dir_ensure () + id + ".stdout";
 }
 
 } // musicat::audio_processing

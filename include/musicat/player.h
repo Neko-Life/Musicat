@@ -948,6 +948,9 @@ int send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffe
 // main loop routine
 void check_embed_op_queue ();
 
+// main loop routine
+void check_download_queue ();
+
 // ================================================================================
 
 namespace playing_info_utils

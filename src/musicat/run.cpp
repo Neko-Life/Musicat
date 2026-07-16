@@ -16,6 +16,7 @@
 #include "musicat/thread_manager.h"
 #include <cstdint>
 #include <exception>
+#include <mutex>
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
@@ -138,7 +139,6 @@ set_cached_nekos_best_endpoints (const nekos_best::endpoint_map &em)
 nekos_best::endpoint_map
 get_cached_nekos_best_endpoints ()
 {
-    std::lock_guard lk (main_mutex);
     return _nekos_best_endpoints;
 }
 
@@ -271,7 +271,6 @@ set_running_state (const bool state)
 bool
 get_debug_state ()
 {
-    std::lock_guard lk (main_mutex);
     return debug;
 }
 
@@ -289,8 +288,6 @@ set_debug_state (const bool state)
 std::string
 get_music_folder_path ()
 {
-    std::lock_guard lk (main_mutex);
-
     const bool is_empty = music_folder_path.empty ();
 
     if (!is_empty && music_folder_path == "0")
@@ -300,6 +297,7 @@ get_music_folder_path ()
 
     if (is_empty)
         {
+            std::lock_guard lk (main_mutex);
             music_folder_path = get_config_value<std::string> ("MUSIC_FOLDER", "");
 
             if (music_folder_path.empty ())
@@ -426,10 +424,23 @@ get_server_port ()
     return get_config_value<int> ("SERVER_PORT", 80);
 }
 
+static std::string ytdlp_exe;
+
 std::string
 get_ytdlp_exe ()
 {
-    return get_config_value<std::string> ("YTDLP_EXE", "");
+    if (!ytdlp_exe.empty ())
+        return ytdlp_exe;
+
+    std::lock_guard lk (main_mutex);
+    ytdlp_exe = get_config_value<std::string> ("YTDLP_EXE", "");
+    if (ytdlp_exe.empty ())
+        {
+            fprintf (stderr, "[get_ytdlp_exe FATAL] yt-dlp executable isn't configured, unable to download any track!\n");
+            std::terminate ();
+        }
+
+    return ytdlp_exe;
 }
 
 std::string
@@ -453,8 +464,6 @@ get_cors_enabled_origins ()
 void
 load_config_cors_enabled_origin ()
 {
-    std::lock_guard lk (main_mutex);
-
     auto i_a = sha_cfg.find ("CORS_ENABLED_ORIGINS");
 
     if (i_a == sha_cfg.end () || !i_a->is_array () || !i_a->size ())
@@ -462,6 +471,7 @@ load_config_cors_enabled_origin ()
 
     size_t i_a_siz = i_a->size ();
 
+    std::lock_guard lk (main_mutex);
     cors_enabled_origin.reserve (i_a_siz);
 
     for (size_t i = 0; i < i_a_siz; i++)
@@ -484,8 +494,6 @@ get_jwt_secret ()
 float
 get_stream_buffer_size ()
 {
-    std::lock_guard lk (main_mutex);
-
     if (_stream_buffer_size < 0.1f)
         {
             float set_v = get_config_value<float> ("STREAM_BUFFER_SIZE", 0.0f);
@@ -493,6 +501,7 @@ get_stream_buffer_size ()
             if (set_v < 0.1f)
                 set_v = 0.3f;
 
+            std::lock_guard lk (main_mutex);
             _stream_buffer_size = set_v;
         }
 
@@ -502,8 +511,6 @@ get_stream_buffer_size ()
 int64_t
 get_stream_sleep_on_buffer_threshold_ms ()
 {
-    std::lock_guard lk (main_mutex);
-
     if (_stream_sleep_on_buffer_threshold_ms < 1)
         {
             int64_t set_v = get_config_value<int64_t> ("STREAM_SLEEP_ON_BUFFER_THRESHOLD_MS", 0);
@@ -511,6 +518,7 @@ get_stream_sleep_on_buffer_threshold_ms ()
             if (set_v < 1)
                 set_v = 1;
 
+            std::lock_guard lk (main_mutex);
             _stream_sleep_on_buffer_threshold_ms = set_v;
         }
 
@@ -558,9 +566,7 @@ load_config_admins ()
     std::lock_guard lk (main_mutex);
 
     for (const auto &a : *i_a)
-        {
-            musicat_admins.push_back (a.get<uint64_t> ());
-        }
+        musicat_admins.push_back (a.get<uint64_t> ());
 }
 
 void
@@ -572,16 +578,34 @@ set_should_check_music_cache (bool v)
 size_t
 get_max_music_cache_size ()
 {
-    std::lock_guard lk (main_mutex);
-
     if (max_music_cache_size == (size_t)-1)
         {
             size_t set_v = get_config_value<size_t> ("MAX_MUSIC_CACHE_SIZE", (size_t)0);
 
+            std::lock_guard lk (main_mutex);
             max_music_cache_size = set_v;
         }
 
     return max_music_cache_size;
+}
+
+static int max_concurrent_download = 0;
+
+int
+get_max_concurrent_download ()
+{
+    if (max_concurrent_download == 0)
+        {
+            int set_v = get_config_value<int> ("MAX_CONCURRENT_DOWNLOAD", (int)0);
+
+            if (set_v == 0)
+                set_v = 3;
+
+            std::lock_guard lk (main_mutex);
+            max_concurrent_download = set_v;
+        }
+
+    return max_concurrent_download;
 }
 
 // ================================================================================
@@ -877,6 +901,7 @@ run (int argc, const char *argv[])
             player::timer::check_resume_timers ();
             player::timer::check_failed_playback_reset_timers ();
             player::check_embed_op_queue ();
+            player::check_download_queue ();
 
             server::main_loop_routine ();
 
@@ -900,7 +925,7 @@ run (int argc, const char *argv[])
 
     server::shutdown ();
 
-    player_manager.shutdown();
+    player_manager.shutdown ();
     client.shutdown ();
 
     player_manager_ptr = nullptr;

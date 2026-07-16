@@ -6,6 +6,7 @@
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
+#include "musicat/util/fs.h"
 #include <dirent.h>
 #include <memory>
 #include <mutex>
@@ -295,123 +296,176 @@ read_notif_fifo (int notif_fifo, const std::string &filepath, const std::string 
     return has_progress ? 0 : 1;
 }
 
+struct download_thread_params_t
+{
+    std::string fname;
+    std::string url;
+    dpp::snowflake guild_id;
+};
+
+static std::queue<download_thread_params_t> download_q;
+static std::mutex download_q_m;
+
 void
 Manager::download (const string &fname, const string &url, const dpp::snowflake &guild_id)
 {
+    std::lock_guard lk (download_q_m);
+    download_q.push ({ fname, url, guild_id });
+}
+
+void
+do_download (const std::string &fname, const std::string &url, const std::string &filepath)
+{
+    const bool debug = get_debug_state ();
     const string yt_dlp = get_ytdlp_exe ();
-    if (yt_dlp.empty ())
+
+    // always log these to "easily" spot problem in prod
+    fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n", fname.c_str (), url.c_str ());
+
+    const std::string qid = util::max_len (util::base64::encode (fname), 32);
+
+    namespace cc = child::command;
+    const std::string child_cmd = cc::create_arg_sanitize_value (cc::command_options_keys_t.id, qid)
+                                  + cc::create_arg (cc::command_options_keys_t.command, cc::command_execute_commands_t.dl_music)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.file_path, filepath)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_query, url)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_util_exe, yt_dlp)
+                                  + cc::create_arg (cc::command_options_keys_t.debug, debug ? "1" : "0");
+
+    const std::string exit_cmd = cc::get_exit_command (qid);
+
+    // send download command then wait until it exits
+    cc::send_command (child_cmd);
+    int status = child::command::wait_slave_ready (qid, 10);
+    if (status != 0)
         {
             fprintf (stderr,
-                     "[ERROR Manager::download] yt-dlp executable isn't "
-                     "configured, unable to download track '%s'\n",
-                     fname.c_str ());
+                     "[Manager::download ERROR] Error downloading '%s' "
+                     "to '%s' with code %d\n",
+                     url.c_str (), filepath.c_str (), status);
+        }
+    else
+        {
+            const std::string notif_fifo_path = child::dl_music::get_download_music_fifo_path (qid);
 
-            return;
+            int notif_fifo = open (notif_fifo_path.c_str (), O_RDONLY);
+
+            if (notif_fifo < 0)
+                fprintf (stderr,
+                         "[Manager::download ERROR] "
+                         "Failed to open notif_fifo: '%s'\n",
+                         notif_fifo_path.c_str ());
+            else
+                {
+                    status = read_notif_fifo (notif_fifo, filepath, url);
+                    close (notif_fifo);
+                    notif_fifo = -1;
+                }
+
+            cc::send_command (exit_cmd);
+        }
+}
+
+// updates file access time without opening it
+void
+update_file_access_time (const std::string &filepath)
+{
+    // update newly downloaded file access time
+    bool utimeerr = false;
+    struct stat downloaded_stat;
+    struct utimbuf new_times;
+
+    if (stat (filepath.c_str (), &downloaded_stat) == 0)
+        {
+            new_times.actime = time (NULL);               /* set atime to current time */
+            new_times.modtime = downloaded_stat.st_mtime; /* keep mtime unchanged */
+            if (utime (filepath.c_str (), &new_times) < 0)
+                {
+                    perror (filepath.c_str ());
+                    utimeerr = true;
+                }
+        }
+    else
+        {
+            perror (filepath.c_str ());
+            utimeerr = true;
         }
 
+    // if above access time update success
+    if (!utimeerr)
+        // tells main loop to control music cache
+        set_should_check_music_cache (true);
+}
+
+static int running_download = 0;
+static std::mutex running_download_m;
+
+struct running_download_dec_t
+{
+    ~running_download_dec_t ()
+    {
+        std::lock_guard lk (running_download_m);
+        running_download--;
+    }
+};
+
+void
+check_download_queue ()
+{
+    std::lock_guard lk (running_download_m);
+    if (running_download >= get_max_concurrent_download ())
+        return;
+
+    std::lock_guard lk2 (download_q_m);
+    if (download_q.empty ())
+        return;
+
+    running_download++;
+    download_thread_params_t params = download_q.front ();
+    download_q.pop ();
+
     std::thread tj (
-        [this, yt_dlp] (string fname, string url, dpp::snowflake guild_id)
+        [params] ()
             {
                 thread_manager::DoneSetter tmds;
-                {
-                    std::lock_guard lk (this->dl_m);
-                    this->waiting_file_download[fname] = guild_id;
-                }
+                running_download_dec_t rdd;
+
+                const std::string &fname = params.fname;
+                const std::string &url = params.url;
+                const dpp::snowflake &guild_id = params.guild_id;
+
+                auto *manager = get_player_manager_ptr ();
+                if (!manager)
+                    return;
 
                 const string music_folder_path = get_music_folder_path ();
-
-                {
-                    struct stat buf;
-                    if (stat (music_folder_path.c_str (), &buf) != 0)
-                        std::filesystem::create_directory (music_folder_path);
-                }
+                util::fs::ensure_dir (music_folder_path);
 
                 const string filepath = music_folder_path + fname;
-                const bool debug = get_debug_state ();
 
-                // always log these to "easily" spot problem in prod
-                fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n", fname.c_str (), url.c_str ());
-
-                namespace cc = child::command;
-
-                const std::string qid = util::max_len (util::base64::encode (fname), 32);
-
-                const std::string child_cmd = cc::create_arg_sanitize_value (cc::command_options_keys_t.id, qid)
-                                              + cc::create_arg (cc::command_options_keys_t.command, cc::command_execute_commands_t.dl_music)
-                                              + cc::create_arg_sanitize_value (cc::command_options_keys_t.file_path, filepath)
-                                              + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_query, url)
-                                              + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_util_exe, yt_dlp)
-                                              + cc::create_arg (cc::command_options_keys_t.debug, debug ? "1" : "0");
-
-                const std::string exit_cmd = cc::get_exit_command (qid);
-
-                // send download command then wait until it exits
-                cc::send_command (child_cmd);
-                int status = child::command::wait_slave_ready (qid, 10);
-                if (status != 0)
+                bool did_download = false;
+                if (!util::fs::file_exists (filepath))
                     {
-                        fprintf (stderr,
-                                 "[Manager::download ERROR] Error downloading '%s' "
-                                 "to '%s' with code %d\n",
-                                 url.c_str (), filepath.c_str (), status);
-                    }
-                else
-                    {
-                        const std::string notif_fifo_path = child::dl_music::get_download_music_fifo_path (qid);
-
-                        int notif_fifo = open (notif_fifo_path.c_str (), O_RDONLY);
-
-                        if (notif_fifo < 0)
-                            fprintf (stderr,
-                                     "[Manager::download ERROR] "
-                                     "Failed to open notif_fifo: '%s'\n",
-                                     notif_fifo_path.c_str ());
-                        else
-                            {
-                                status = read_notif_fifo (notif_fifo, filepath, url);
-                                close (notif_fifo);
-                                notif_fifo = -1;
-                            }
-
-                        cc::send_command (exit_cmd);
+                        {
+                            std::lock_guard lk (manager->dl_m);
+                            manager->waiting_file_download[fname] = guild_id;
+                        }
+                        do_download (fname, url, filepath);
+                        did_download = true;
                     }
 
                 {
-                    std::lock_guard lk (this->dl_m);
-                    this->waiting_file_download.erase (fname);
+                    std::lock_guard lk (manager->dl_m);
+                    manager->waiting_file_download.erase (fname);
 
-                    // update newly downloaded file access time
-                    bool utimeerr = false;
-                    struct stat downloaded_stat;
-                    struct utimbuf new_times;
-
-                    if (stat (filepath.c_str (), &downloaded_stat) == 0)
-                        {
-                            new_times.actime = time (NULL);               /* set atime to current time */
-                            new_times.modtime = downloaded_stat.st_mtime; /* keep mtime unchanged */
-                            if (utime (filepath.c_str (), &new_times) < 0)
-                                {
-                                    perror (filepath.c_str ());
-                                    utimeerr = true;
-                                }
-                        }
-                    else
-                        {
-                            perror (filepath.c_str ());
-                            utimeerr = true;
-                        }
-
-                    // if above access time update success
-                    if (!utimeerr)
-                        // tells main loop to control music cache
-                        set_should_check_music_cache (true);
+                    if (did_download)
+                        update_file_access_time (filepath);
                 }
 
-                this->dl_cv.notify_all ();
+                manager->dl_cv.notify_all ();
 
                 // TODO: set status somewhere when needed?
-            },
-        fname, url, guild_id);
+            });
 
     thread_manager::dispatch (tj);
 }
@@ -420,13 +474,14 @@ int
 Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp::snowflake &channel_id)
 {
     std::thread tj (
-        [this, &track, guild_id] (dpp::snowflake channel_id)
+        [&track, guild_id] (dpp::snowflake channel_id)
             {
                 thread_manager::DoneSetter tmds;
+                auto *manager = get_player_manager_ptr ();
 
                 bool debug = get_debug_state ();
 
-                auto guild_player = this->get_player (guild_id);
+                auto guild_player = manager->get_player (guild_id);
                 if (!guild_player)
                     {
                         std::cerr << "[Manager::play ERROR] Guild player missing: " << guild_id << "\n";
@@ -457,7 +512,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                             std::cerr << "[Manager::play thread] track(" << mctrack::get_title (track) << ") current_byte("
                                       << track.current_byte << ")\n";
 
-                        this->stream (guild_player->guild_id, track);
+                        manager->stream (guild_player->guild_id, track);
                     }
                 catch (int e)
                     {
@@ -470,7 +525,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                                  e);
 
                         const bool has_send_msg_perm = guild_id && voice_channel_id
-                                                       && has_permissions_from_ids (guild_id, this->cluster->me.id, channel_id,
+                                                       && has_permissions_from_ids (guild_id, manager->cluster->me.id, channel_id,
                                                                                     { dpp::p_view_channel, dpp::p_send_messages });
 
                         if (!has_send_msg_perm)
@@ -490,7 +545,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                             {
                                 const dpp::message m (channel_id, msg);
 
-                                this->cluster->message_create (m);
+                                manager->cluster->message_create (m);
                             }
                     }
 
@@ -514,14 +569,10 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                 auto vcc = get_voice_from_gid (guild_id, get_sha_id ());
 
                 if (vcc.first)
-                    {
-                        return;
-                    }
+                    return;
 
                 if (guild_id && voice_channel_id)
-                    {
-                        this->set_connecting (guild_id, voice_channel_id);
-                    }
+                    manager->set_connecting (guild_id, voice_channel_id);
             },
         channel_id);
 

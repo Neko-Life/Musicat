@@ -1,6 +1,8 @@
 #include "musicat/child/ytdlp.h"
+#include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/child/worker.h"
+#include "musicat/util/fs.h"
 #include <linux/prctl.h>
 #include <sys/prctl.h>
 #include <sys/stat.h>
@@ -12,13 +14,13 @@ namespace musicat::child::ytdlp
 std::string
 get_ytdout_fifo_path (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".ytdout";
+    return get_local_dir_ensure () + id + ".ytdout";
 }
 
 std::string
 get_ytdout_json_out_filename (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".ytdres.json";
+    return get_local_dir_ensure () + id + ".ytdres.json";
 }
 
 int
@@ -41,8 +43,7 @@ has_python ()
 }
 
 int
-run (const command::command_options_t &options, sem_t *sem,
-     const std::string &sem_full_key)
+run (const command::command_options_t &options, sem_t *sem, const std::string &sem_full_key)
 {
     signal (SIGPIPE, SIG_IGN);
 
@@ -60,9 +61,6 @@ run (const command::command_options_t &options, sem_t *sem,
     // notification fifo path
     std::string as_fp = get_ytdout_fifo_path (options.id);
 
-    // check if outname already exists
-    struct stat filestat;
-
     write_fifo = open (as_fp.c_str (), O_WRONLY);
     if (write_fifo < 0)
         {
@@ -71,8 +69,7 @@ run (const command::command_options_t &options, sem_t *sem,
             goto exit_failure;
         }
 
-    if (stat (outfname.c_str (), &filestat) == 0
-        && (filestat.st_mode & S_IFREG))
+    if (util::fs::file_exists (outfname))
         {
             jsonout_status = 0;
             goto write_res;
@@ -130,11 +127,8 @@ run (const command::command_options_t &options, sem_t *sem,
             bool has_lib_path = !options.ytdlp_lib_path.empty ();
             bool has_max_entries = options.ytdlp_max_entries > 0;
 
-            const char *lib_path
-                = has_lib_path ? options.ytdlp_lib_path.c_str () : "";
-            std::string me_str
-                = has_max_entries ? std::to_string (options.ytdlp_max_entries)
-                                  : "";
+            const char *lib_path = has_lib_path ? options.ytdlp_lib_path.c_str () : "";
+            std::string me_str = has_max_entries ? std::to_string (options.ytdlp_max_entries) : "";
             const char *max_entries = me_str.c_str ();
 
             char *args[32] = {
@@ -195,18 +189,12 @@ run (const command::command_options_t &options, sem_t *sem,
 
 write_res:
     // write output fp to write_fifo
-    resopt
-        += command::command_options_keys_t.id + '='
-           + command::sanitize_command_value (options.id) + ';'
-           + command::command_options_keys_t.command + '='
-           + command::command_execute_commands_t.call_ytdlp + ';'
-           + command::command_options_keys_t.file_path + '='
-           + (jsonout_status == 0 ? command::sanitize_command_value (outfname)
-                                  : "")
-           + ';';
+    resopt += command::command_options_keys_t.id + '=' + command::sanitize_command_value (options.id) + ';'
+              + command::command_options_keys_t.command + '=' + command::command_execute_commands_t.call_ytdlp + ';'
+              + command::command_options_keys_t.file_path + '=' + (jsonout_status == 0 ? command::sanitize_command_value (outfname) : "")
+              + ';';
 
-    command::write_command (resopt, write_fifo,
-                            "worker_command::call_ytdlp resopt");
+    command::write_command (resopt, write_fifo, "worker_command::call_ytdlp resopt");
 
     close (write_fifo);
     write_fifo = -1;

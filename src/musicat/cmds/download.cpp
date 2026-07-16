@@ -26,7 +26,7 @@ fileHasError (const dpp::interaction_create_t &event,
             return true;
         }
 
-    if (!(filestat.st_mode & S_IFREG))
+    if ((filestat.st_mode & S_IFMT) != S_IFREG)
         {
             fprintf (stderr,
                      "[download::slash_run ERROR] Invalid file "

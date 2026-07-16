@@ -11,13 +11,13 @@ namespace musicat::child::system
 std::string
 get_system_fifo_path (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".sys";
+    return get_local_dir_ensure () + id + ".sys";
 }
 
 std::string
 get_system_json_filename (const std::string &id)
 {
-    return std::string ("/tmp/musicat.") + id + ".sys.out";
+    return get_local_dir_ensure () + id + ".sys.out";
 }
 
 bool
@@ -56,8 +56,7 @@ manage_pollfds_stack (pollfd *pfds, std::vector<char> &fd_tracker)
                         }
 
                     close (pfds[i].fd);
-                    fd_tracker.erase (fd_tracker.begin ()
-                                      + (long)(i - mv_back));
+                    fd_tracker.erase (fd_tracker.begin () + (long)(i - mv_back));
                     is_removed = true;
 
                     removed_fds.erase (ri);
@@ -86,8 +85,7 @@ cmp_available (size_t want, size_t avail)
 }
 
 int
-process_outfile (const command::command_options_t &options, int read_fd,
-                 int *readerr_fd)
+process_outfile (const command::command_options_t &options, int read_fd, int *readerr_fd)
 {
     bool out_stderr = !options.sys_no_stderr;
     bool mark_stderr = options.sys_w_stderr_mark;
@@ -147,16 +145,14 @@ process_outfile (const command::command_options_t &options, int read_fd,
                                               "==========================="
                                               "=============\n";
 
-            constexpr const char err_mark_end[]
-                = "\n==========================="
-                  "============= ^ STDERR ^ "
-                  "==========================="
-                  "=============\n";
+            constexpr const char err_mark_end[] = "\n==========================="
+                                                  "============= ^ STDERR ^ "
+                                                  "==========================="
+                                                  "=============\n";
 
             constexpr size_t len_mark = sizeof (err_mark) / sizeof (*err_mark);
 
-            constexpr size_t len_mark_end
-                = sizeof (err_mark_end) / sizeof (*err_mark_end);
+            constexpr size_t len_mark_end = sizeof (err_mark_end) / sizeof (*err_mark_end);
 
             for (nfds_t i = 0; i < prfds_size; i++)
                 {
@@ -166,14 +162,10 @@ process_outfile (const command::command_options_t &options, int read_fd,
 
                     size_t max_out_len = options.sys_max_out_len;
                     size_t max_outsiz = 0;
-                    while (
-                        read_ready
-                        && ((read_size = read (prfds[i].fd, buf, bsize)) > 0))
+                    while (read_ready && ((read_size = read (prfds[i].fd, buf, bsize)) > 0))
                         {
                             size_t sub = 0;
-                            size_t this_iter_outsiz
-                                = bsize
-                                  + (!is_out ? (len_mark + len_mark_end) : 0);
+                            size_t this_iter_outsiz = bsize + (!is_out ? (len_mark + len_mark_end) : 0);
 
                             if (max_out_len > 0)
                                 {
@@ -185,13 +177,9 @@ process_outfile (const command::command_options_t &options, int read_fd,
 
                             max_outsiz = this_iter_outsiz - sub;
 
-                            if (!is_out && !wrote_stderr && mark_stderr
-                                && max_outsiz > 0)
+                            if (!is_out && !wrote_stderr && mark_stderr && max_outsiz > 0)
                                 {
-                                    size_t c_w = fwrite (
-                                        err_mark, sizeof (*err_mark),
-                                        cmp_available (len_mark, max_outsiz),
-                                        outfile);
+                                    size_t c_w = fwrite (err_mark, sizeof (*err_mark), cmp_available (len_mark, max_outsiz), outfile);
 
                                     out_siz += c_w;
                                     max_outsiz -= c_w;
@@ -201,10 +189,7 @@ process_outfile (const command::command_options_t &options, int read_fd,
 
                             if (max_outsiz > 0)
                                 {
-                                    size_t c_w = fwrite (
-                                        buf, 1,
-                                        cmp_available (read_size, max_outsiz),
-                                        outfile);
+                                    size_t c_w = fwrite (buf, 1, cmp_available (read_size, max_outsiz), outfile);
 
                                     out_siz += c_w;
                                     max_outsiz -= c_w;
@@ -218,18 +203,13 @@ process_outfile (const command::command_options_t &options, int read_fd,
                             if (has_event == -1)
                                 break;
 
-                            read_ready = has_event > 0
-                                         && (pfd[0].revents & POLLIN)
-                                         && !revents_has_err (pfd[0].revents);
+                            read_ready = has_event > 0 && (pfd[0].revents & POLLIN) && !revents_has_err (pfd[0].revents);
                         }
 
-                    if (is_out || !wrote_stderr || !mark_stderr
-                        || max_outsiz == 0)
+                    if (is_out || !wrote_stderr || !mark_stderr || max_outsiz == 0)
                         continue;
 
-                    out_siz += fwrite (
-                        err_mark_end, sizeof (*err_mark_end),
-                        cmp_available (len_mark_end, max_outsiz), outfile);
+                    out_siz += fwrite (err_mark_end, sizeof (*err_mark_end), cmp_available (len_mark_end, max_outsiz), outfile);
                 }
         }
 
@@ -253,8 +233,7 @@ process_outfile (const command::command_options_t &options, int read_fd,
  * exited
  */
 int
-run (const command::command_options_t &options, sem_t *sem,
-     const std::string &sem_full_key)
+run (const command::command_options_t &options, sem_t *sem, const std::string &sem_full_key)
 {
     int write_fifo = -1;
     int status = -1;
@@ -374,17 +353,11 @@ run (const command::command_options_t &options, sem_t *sem,
     outfile_status = process_outfile (options, read_fd, &readerr_fd);
 
     // write output fp to write_fifo
-    resopt += command::create_arg_sanitize_value (
-                  command::command_options_keys_t.id, options.id)
-              + command::create_arg (
-                  command::command_options_keys_t.command,
-                  command::command_execute_commands_t.call_system)
-              + command::create_arg_sanitize_value (
-                  command::command_options_keys_t.file_path,
-                  (outfile_status == 0 ? outfname : ""));
+    resopt += command::create_arg_sanitize_value (command::command_options_keys_t.id, options.id)
+              + command::create_arg (command::command_options_keys_t.command, command::command_execute_commands_t.call_system)
+              + command::create_arg_sanitize_value (command::command_options_keys_t.file_path, (outfile_status == 0 ? outfname : ""));
 
-    command::write_command (resopt, write_fifo,
-                            "worker_command::system::run resopt");
+    command::write_command (resopt, write_fifo, "worker_command::system::run resopt");
 
     close (write_fifo);
     write_fifo = -1;

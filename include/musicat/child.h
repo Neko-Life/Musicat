@@ -38,6 +38,21 @@ int clear_sem (sem_t *sem, const std::string &full_key);
 // should be called by parent process
 int do_sem_wait (sem_t *sem, const std::string &full_key);
 
+// terminates if unable to ensure local_dir directory
+bool ensure_local_dir ();
+
+std::string get_local_dir_ensure ();
+
+inline constexpr std::string
+get_local_dir ()
+{
+    // must have trailing slash!
+    return ".musicat/";
+}
+
+// clean local_dir for use
+void reset_local_dir ();
+
 } // child
 } // musicat
 

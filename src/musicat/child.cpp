@@ -3,6 +3,7 @@
 #include "musicat/child/worker.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
+#include "musicat/util/fs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -32,14 +33,17 @@ get_parent_read_fd ()
 int
 init ()
 {
-    fprintf (stderr, "[child] Initializing...\n");
+    fprintf (stderr, "[child::init] Initializing...\n");
+    // clean local_dir for use in this new boot session
+    reset_local_dir ();
+
     thread_manager::print_total_thread ();
     int pipe_fds[4];
 
     if ((pipe (&pipe_fds[0])) == -1)
         {
-            fprintf (stderr, "[child ERROR] Can't create pipe\n");
-            perror ("child pipe");
+            fprintf (stderr, "[child::init ERROR] Can't create pipe\n");
+            perror ("child::init pipe");
             return ERR_CPIPE;
         }
     pm_write_fd = pipe_fds[1];
@@ -47,8 +51,8 @@ init ()
 
     if ((pipe (&pipe_fds[2])) == -1)
         {
-            fprintf (stderr, "[child ERROR] Can't create pipe\n");
-            perror ("child pipe");
+            fprintf (stderr, "[child::init ERROR] Can't create pipe\n");
+            perror ("child::init pipe");
             return ERR_CPIPE;
         }
     int cm_write_fd = pipe_fds[3];
@@ -57,8 +61,8 @@ init ()
     cm_pid = child::worker::call_fork ();
     if (cm_pid < 0)
         {
-            fprintf (stderr, "[child ERROR] Can't fork\n");
-            perror ("child fork");
+            fprintf (stderr, "[child::init ERROR] Can't fork\n");
+            perror ("child::init fork");
             return ERR_CWORKER;
         }
 
@@ -66,7 +70,7 @@ init ()
         {
             if (prctl (PR_SET_PDEATHSIG, SIGTERM) == -1)
                 {
-                    perror ("child prctl");
+                    perror ("child::init prctl");
                     _exit (EXIT_FAILURE);
                 }
 
@@ -93,14 +97,14 @@ init ()
 void
 shutdown ()
 {
-    fprintf (stderr, "[child] Shutting down...\n");
+    fprintf (stderr, "[child::shutdown] Shutting down...\n");
 
     command::wake ();
 
     close (pm_write_fd);
 
     int cm_status = child::worker::call_waitpid (cm_pid);
-    fprintf (stderr, "[child] Status: %d\n", cm_status);
+    fprintf (stderr, "[child::shutdown] Status: %d\n", cm_status);
 
     close (pm_read_fd);
 }
@@ -108,8 +112,7 @@ shutdown ()
 std::string
 get_sem_key (const std::string &key)
 {
-    return std::string ("musicat.") + key + '.'
-           + std::to_string (util::get_current_ts ());
+    return std::string ("musicat.") + key + '.' + std::to_string (util::get_current_ts ());
 }
 
 sem_t *
@@ -152,6 +155,33 @@ do_sem_wait (sem_t *sem, const std::string &full_key)
     clear_sem (sem, full_key);
 
     return status;
+}
+
+bool
+ensure_local_dir ()
+{
+    return util::fs::ensure_dir (get_local_dir ());
+}
+
+std::string
+get_local_dir_ensure ()
+{
+    ensure_local_dir ();
+    return get_local_dir ();
+}
+
+// clean local_dir for use
+void
+reset_local_dir ()
+{
+    fprintf (stderr, "[child::reset_local_dir] Resetting `%s` directory\n", get_local_dir ().c_str ());
+    if (ensure_local_dir ())
+        // local_dir folder didn't exists and it got created
+        return;
+
+    // local_dir folder exists, clear it
+    unlink (get_local_dir ().c_str ());
+    ensure_local_dir ();
 }
 
 } // musicat::child

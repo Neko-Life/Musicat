@@ -353,6 +353,7 @@ bool is_musicat_admin (const dpp::snowflake &id);
 void set_should_check_music_cache (bool v);
 
 size_t get_max_music_cache_size ();
+int get_max_concurrent_download ();
 
 } // musicat
 
