@@ -544,8 +544,8 @@ handle_packet (void *guild_player, const unsigned char *packet_ptr, opus_int32 p
     vclient->send_audio_opus (packet_ptr, packet_len, FRAME_DURATION);
 }
 
-int
-Player::init_for_stream ()
+static int
+setup_encoder (Player *p)
 {
     int status = 0;
 
@@ -560,97 +560,108 @@ Player::init_for_stream ()
 
     cbs.close = [] (void *) { return 0; };
 
-    opus_encoder_comments = ope_comments_create ();
-    if (!opus_encoder_comments)
+    p->opus_encoder_comments = ope_comments_create ();
+    if (!p->opus_encoder_comments)
         {
-            std::cerr << "[Manager::play ERROR] "
+            std::cerr << "[player::setup_encoder ERROR] "
                          "ope_comments_create() failure\n";
 
-            opus_encoder_comments = NULL;
+            p->opus_encoder_comments = NULL;
             return -1;
         }
 
-    opus_encoder = ope_encoder_create_callbacks (&cbs, this, opus_encoder_comments, 48000, 2, 0, &status);
+    p->opus_encoder = ope_encoder_create_callbacks (&cbs, p, p->opus_encoder_comments, 48000, 2, 0, &status);
 
-    if (!opus_encoder)
+    if (!p->opus_encoder)
         {
-            std::cerr << "[Manager::play ERROR] "
+            std::cerr << "[player::setup_encoder ERROR] "
                          "ope_encoder_create_callbacks() failure: "
                       << status << "\n";
 
-            opus_encoder = NULL;
+            p->opus_encoder = NULL;
 
-            if (opus_encoder_comments)
+            if (p->opus_encoder_comments)
                 {
-                    ope_comments_destroy (opus_encoder_comments);
-                    opus_encoder_comments = NULL;
+                    ope_comments_destroy (p->opus_encoder_comments);
+                    p->opus_encoder_comments = NULL;
                 }
 
             return status;
         }
 
-    ope_encoder_ctl (opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, this));
-
-    reset_first_track_current_byte ();
-    processing_audio = true;
+    ope_encoder_ctl (p->opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, p));
 
     return status;
 }
 
-Player &
-Player::done_streaming ()
+static void
+destroy_encoder (Player *p)
 {
-    if (opus_encoder)
+    if (p->opus_encoder)
         {
-            ope_encoder_destroy (opus_encoder);
-            opus_encoder = NULL;
+            ope_encoder_destroy (p->opus_encoder);
+            p->opus_encoder = NULL;
         }
 
-    if (opus_encoder_comments)
+    if (p->opus_encoder_comments)
         {
-            ope_comments_destroy (opus_encoder_comments);
-            opus_encoder_comments = NULL;
+            ope_comments_destroy (p->opus_encoder_comments);
+            p->opus_encoder_comments = NULL;
         }
-
-    stopping = false;
-    processing_audio = false;
-    current_track.current_byte = 0;
-
-    return *this;
 }
 
 #else // USING_LIBOPUSENC
 
-int
-Player::init_for_stream ()
+static int
+setup_encoder (Player *p)
 {
     int status = 0;
 
-    opus_encoder = opus_encoder_create (48000, 2, OPUS_APPLICATION_AUDIO, &status);
+    p->opus_encoder = opus_encoder_create (48000, 2, OPUS_APPLICATION_AUDIO, &status);
 
     if (status != OPUS_OK)
         {
-            std::cerr << "[Manager::play ERROR] "
+            std::cerr << "[player::setup_encoder ERROR] "
                          "opus_encoder_create() failure: "
                       << status << "\n";
 
-            opus_encoder = NULL;
+            p->opus_encoder = NULL;
 
             return status;
         }
 
-    if ((status = opus_encoder_ctl (opus_encoder, OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC))) != OPUS_OK)
+    if ((status = opus_encoder_ctl (p->opus_encoder, OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC))) != OPUS_OK)
         {
 
-            std::cerr << "[Manager::play ERROR] "
+            std::cerr << "[player::setup_encoder ERROR] "
                          "opus_encoder_ctl() failure: "
                       << status << "\n";
 
-            opus_encoder_destroy (opus_encoder);
-            opus_encoder = NULL;
+            opus_encoder_destroy (p->opus_encoder);
+            p->opus_encoder = NULL;
 
             return status;
         }
+
+    return status;
+}
+
+static void
+destroy_encoder (Player *p)
+{
+    if (p->opus_encoder)
+        {
+            opus_encoder_destroy (p->opus_encoder);
+            p->opus_encoder = NULL;
+        }
+}
+
+#endif // USING_LIBOPUSENC
+
+int
+Player::init_for_stream ()
+{
+    int status = setup_encoder (this);
 
     reset_first_track_current_byte ();
     processing_audio = true;
@@ -661,20 +672,16 @@ Player::init_for_stream ()
 Player &
 Player::done_streaming ()
 {
-    if (opus_encoder)
-        {
-            opus_encoder_destroy (opus_encoder);
-            opus_encoder = NULL;
-        }
+    destroy_encoder (this);
 
     stopping = false;
     processing_audio = false;
     current_track.current_byte = 0;
 
+    server::stream::unsubscribe (guild_id);
+
     return *this;
 }
-
-#endif // USING_LIBOPUSENC
 
 // ============================== FILTERS =============================
 
