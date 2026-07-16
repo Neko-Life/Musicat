@@ -471,10 +471,10 @@ check_download_queue ()
 }
 
 int
-Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp::snowflake &channel_id)
+Manager::play (const dpp::snowflake &guild_id)
 {
     std::thread tj (
-        [&track, guild_id] (dpp::snowflake channel_id)
+        [guild_id] ()
             {
                 thread_manager::DoneSetter tmds;
                 auto *manager = get_player_manager_ptr ();
@@ -497,7 +497,9 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                         return;
                     }
 
-                auto voice_channel_id = vclient->channel_id;
+                // text channel to send now playing embed
+                dpp::snowflake channel_id = guild_player->channel_id;
+                dpp::snowflake voice_channel_id = vclient->channel_id;
 
                 if (debug)
                     std::cerr << "[Manager::play] Attempt to stream: " << guild_id << ' ' << voice_channel_id << '\n';
@@ -508,11 +510,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
                         if (guild_player->init_for_stream () != 0)
                             return;
 
-                        if (debug)
-                            std::cerr << "[Manager::play thread] track(" << mctrack::get_title (track) << ") current_byte("
-                                      << track.current_byte << ")\n";
-
-                        manager->stream (guild_player->guild_id, track);
+                        manager->stream (guild_player->guild_id);
                     }
                 catch (int e)
                     {
@@ -573,8 +571,7 @@ Manager::play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp
 
                 if (guild_id && voice_channel_id)
                     manager->set_connecting (guild_id, voice_channel_id);
-            },
-        channel_id);
+            });
 
     thread_manager::dispatch (tj);
 

@@ -649,7 +649,7 @@ constexpr const char *fbsefmt = "[Manager::stream] Final buffer `%s`: %ld %ld\n"
 constexpr const char *dssefmt = "[Manager::stream] Done streaming `%s` for %lld milliseconds\n";
 
 void
-Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
+Manager::stream (const dpp::snowflake &guild_id)
 {
     auto guild_player = guild_id ? this->get_player (guild_id) : nullptr;
     if (!guild_player)
@@ -666,6 +666,7 @@ Manager::stream (const dpp::snowflake &guild_id, player::MCTrack &track)
     guild_player->tried_continuing = false;
 
     bool debug = get_debug_state ();
+    MCTrack &track = guild_player->current_track;
     std::chrono::high_resolution_clock::time_point start_time;
     const std::string ttitle = mctrack::get_title (track);
 

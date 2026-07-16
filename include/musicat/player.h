@@ -655,18 +655,16 @@ class Manager
 
     bool is_waiting_file_download (const std::string &file_name);
 
-    void stream (const dpp::snowflake &guild_id, player::MCTrack &track);
+    void stream (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
     /**
-     * @brief Start streaming thread, plays `track` on `v`
+     * @brief Start streaming thread
      * @param guild_id guild Id to start stream on
-     * @param track track to play
-     * @param channel_id text channel for sending nowplaying embed
      * @return int 0 on success, 1 on fail
      */
-    int play (const dpp::snowflake &guild_id, player::MCTrack &track, const dpp::snowflake &channel_id = 0);
+    int play (const dpp::snowflake &guild_id);
 
     /**
      * @brief Try to send currently playing song info to player channel

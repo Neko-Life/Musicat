@@ -568,7 +568,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                 std::lock_guard lk (guild_player->t_mutex);
                 MCTrack &track = guild_player->current_track;
 
-                // text channel to send embed
+                // text channel to send now playing embed
                 dpp::snowflake channel_id = guild_player->channel_id;
 
                 this->wait_for_vc_ready (guild_id);
@@ -744,7 +744,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                 try
                     {
-                        int pstatus = this->play (guild_id, track, channel_id);
+                        int pstatus = this->play (guild_id);
 
                         guild_player = this->get_player (guild_id);
                         if (!guild_player->notification)
