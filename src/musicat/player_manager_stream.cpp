@@ -107,6 +107,9 @@ wait_for_ready_event (const dpp::snowflake &guild_id)
                     // check stage channel routine
                     player_manager->prepare_play_stage_channel_routine (vc, dpp::find_guild (guild_id));
                 }
+
+            // republish playback info as we got moved to different vc session
+            server::ws::player::publish_playback_info (guild_id);
         }
 
     return 0;
