@@ -49,7 +49,7 @@ using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
 
 APIApp::WebSocketBehavior<SocketData> get_behavior ();
 
-void publish_player_info (const dpp::snowflake &guild_id);
+void publish_playback_info (const dpp::snowflake &guild_id);
 
 /*
 nlohmann::json create_error_data (const socket_err_code_e code,

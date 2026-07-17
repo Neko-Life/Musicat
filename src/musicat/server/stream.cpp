@@ -16,6 +16,7 @@ struct guild_stream_state_t
     std::mutex streams_m;
 
     std::vector<std::string> headers_cache;
+    std::vector<std::string> packets_cache;
 };
 
 static std::map<dpp::snowflake, guild_stream_state_t> subs;
@@ -117,6 +118,7 @@ check_for_headers (guild_stream_state_t &state, const std::string &p)
     if (!memcmp ("OpusHead", payload, 8))
         {
             state.headers_cache.clear ();
+            state.packets_cache.clear ();
             state.headers_cache.push_back (p);
         }
     else if (!memcmp ("OpusTags", payload, 8))
@@ -125,6 +127,20 @@ check_for_headers (guild_stream_state_t &state, const std::string &p)
         }
     else
         return -1;
+
+    return 0;
+}
+
+// cache the last few packets so browsers won't need to wait for too long before playing smoothly
+static int
+cache_packets (guild_stream_state_t &state, const std::string &p)
+{
+    state.packets_cache.push_back (p);
+    if (state.packets_cache.size () >= 128)
+        {
+            state.packets_cache.erase (state.packets_cache.begin ());
+            return 1;
+        }
 
     return 0;
 }
@@ -146,6 +162,10 @@ broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t p
                                 {
                                     for (const std::string &h : state.headers_cache)
                                         s.res->write (h);
+
+                                    for (const std::string &h : state.packets_cache)
+                                        s.res->write (h);
+
                                     s.headers_sent = true;
                                 }
 
@@ -153,7 +173,9 @@ broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t p
                         }
                 }
 
-                check_for_headers (state, p);
+                int is_header = check_for_headers (state, p);
+                if (!is_header)
+                    cache_packets (state, p);
             });
 }
 

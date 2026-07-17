@@ -804,7 +804,7 @@ Manager::stream (const dpp::snowflake &guild_id)
 
     // I LOVE C++!!!
     bool running_state, is_stopping;
-    server::ws::player::publish_player_info (guild_id);
+    server::ws::player::publish_playback_info (guild_id);
 
     // using raw pcm need to change ffmpeg output format to s16le!
     ssize_t read_size = 0;

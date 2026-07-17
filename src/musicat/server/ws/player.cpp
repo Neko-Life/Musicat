@@ -25,7 +25,7 @@ get_behavior ()
 }
 
 void
-publish_player_info (const dpp::snowflake &guild_id)
+publish_playback_info (const dpp::snowflake &guild_id)
 {
     nlohmann::json data = util::get_playback_info_json (guild_id);
 
