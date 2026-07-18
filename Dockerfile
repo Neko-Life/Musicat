@@ -20,10 +20,10 @@ RUN pacman -Syu --needed --noconfirm base-devel libc++ git cmake libsodium opus 
 RUN mkdir -p build && cd build && \
       export CC=clang && \
       export CXX=clang++ && \
-      export LDFLAGS='-flto -stdlib=libc++ -lc++' && \
-      export CFLAGS='-flto' && \
-      export CXXFLAGS='-flto -stdlib=libc++' && \
-      cmake .. -DDPP_BUILD_TEST=OFF -DRUN_LDCONFIG=OFF -DDPP_NO_VCPKG=ON -DDPP_USE_EXTERNAL_JSON=ON && make all -j12
+      export LDFLAGS='-Oz -flto -stdlib=libc++ -lc++abi' && \
+      export CFLAGS='-Oz -flto' && \
+      export CXXFLAGS='-Oz -flto -stdlib=libc++' && \
+      cmake .. -DDPP_BUILD_TEST=OFF -DRUN_LDCONFIG=OFF -DDPP_NO_VCPKG=ON && make all -j12
       # cmake -DCOMPILE_GNUPLOT=ON .. && make all -j12
 
 FROM init as deploy

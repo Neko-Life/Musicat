@@ -7,13 +7,12 @@ project(Musicat
 	DESCRIPTION "Discord Music Bot written in C++")
 
 option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" ON)
-option(MUSICAT_DEBUG_SYMBOL "Build Musicat with debug symbol" ON)
 option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
+option(COMPILE_VERBOSE "Show compile warnings verbosely" OFF)
 
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(DPP_USE_EXTERNAL_JSON ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
 set(WITH_COMPILE_GNUPLOT 0)
 
@@ -25,7 +24,7 @@ if (COMPILE_GNUPLOT)
 endif()
 
 set(RM_NLOHMANN_JSON_INCLUDE_CMD "rm" "-rf" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/nlohmann")
-message(${RM_NLOHMANN_JSON_INCLUDE_CMD})
+message("-- Executing '${RM_NLOHMANN_JSON_INCLUDE_CMD}'")
 execute_process(COMMAND ${RM_NLOHMANN_JSON_INCLUDE_CMD})
 
 # globally include nlohmann
@@ -69,11 +68,13 @@ set(USOCKETS_OBJECT_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/context.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/epoll_kqueue.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/gcd.o
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/io_context.o
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/io_loop.o
+	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/io_socket.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/libuv.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/loop.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/openssl.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/quic.o
-	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/sni_tree.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/socket.o
 	${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets/udp.o)
 
@@ -86,19 +87,22 @@ file(GLOB_RECURSE UWEBSOCKETS_HEADER_FILES
 add_custom_target(uWebSockets
 	DEPENDS ${USOCKETS_OBJECT_FILES})
 
+set(WITH_LTO 0)
+
+if($ENV{LDFLAGS} MATCHES "-flto")
+	set(WITH_LTO 1)
+endif()
+
 add_custom_command(OUTPUT ${USOCKETS_OBJECT_FILES}
-	COMMAND WITH_OPENSSL=1 WITH_ZLIB=1 make
+	COMMAND WITH_LTO=${WITH_LTO} make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/uSockets
 	DEPENDS ${USOCKETS_SOURCE_FILES} ${UWEBSOCKETS_HEADER_FILES})
 
-add_custom_target(deps
-	DEPENDS ShashaDeps)
-
-add_custom_command(OUTPUT ShashaDeps
-	COMMAND COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
+add_custom_target(libs
+	COMMAND WITH_LTO=${WITH_LTO} COMPILE_GNUPLOT=${WITH_COMPILE_GNUPLOT} GNUPLOT_VERSION=${GNUPLOT_VERSION} make
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
-add_dependencies(Shasha deps uWebSockets)
+add_dependencies(Shasha libs uWebSockets)
 
 add_custom_target(archlinux-dist-folder
 	COMMAND mkdir -p archlinux-dist
@@ -106,11 +110,11 @@ add_custom_target(archlinux-dist-folder
 
 add_custom_target(archlinux-dist
 
-	COMMAND cp build/Shasha
-		build/libs/DPP/library/libdpp.so*
+	COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/Shasha
+		${CMAKE_CURRENT_BINARY_DIR}/libs/DPP/library/libdpp.so*
 		libs/curlpp/build/libcurlpp.so*
 		libs/icu/usr/local/lib/lib*
-		build/libs/ogg/libogg.so*
+		${CMAKE_CURRENT_BINARY_DIR}/libs/ogg/libogg.so*
 		libs/libopusenc/build/lib/libopusenc.so*
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
@@ -145,10 +149,10 @@ if (MUSICAT_WITH_CORO)
 	set(MUSICAT_CXX_STANDARD 20)
 endif()
 
-if (MUSICAT_DEBUG_SYMBOL)
-	message("-- INFO: Will build Musicat with debug symbol")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-	# set(CMAKE_BUILD_TYPE "Debug")
+if (COMPILE_VERBOSE)
+	message("-- INFO: Compiling Musicat with verbose warnings")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
 # Linking libraries
@@ -206,6 +210,8 @@ set_target_properties(Shasha PROPERTIES
 	CXX_STANDARD_REQUIRED ON
 	EXPORT_COMPILE_COMMANDS ON
 	)
+
+
 
 # Add DPP as dependency
 add_subdirectory(libs/DPP)

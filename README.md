@@ -13,11 +13,10 @@ Need to install:
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libopus - Library
 * libcurl - Library
-* libsodium - Library
 * openssl - Library
-* opus - Library
 
-Included:
+
+Included under `libs/`:
 
 * [DPP](https://github.com/brainboxdotcc/DPP) - Library (included as submodule)
 * [yt-dlp](https://github.com/yt-dlp/yt-dlp) - CLI App (included as submodule)
@@ -98,7 +97,7 @@ apt install build-essential pkg-config cmake make zlib1g-dev autoconf automake l
 
 ## Compiling
 
-* Make sure to have `pkg-config` installed as cmake need it to be able to detect libsodium and libopus
+* Make sure to have `pkg-config` installed as cmake need it to be able to detect libopus
 
 * Clone the repo and cd into it
 
@@ -143,14 +142,19 @@ mkdir build
 cd build
 
 # remember to always export these variable whenever you recompile in a new shell
+# these will compile Musicat using clang and linking with mold
 export CC=clang
 export CXX=clang++
-export LDFLAGS='-flto -stdlib=libc++ -lc++'
-export CFLAGS='-flto'
-export CXXFLAGS='-flto -stdlib=libc++'
+export LDFLAGS='-Oz -flto -fuse-ld=mold -stdlib=libc++ -lc++abi'
+export CFLAGS='-Oz -flto -fuse-ld=mold'
+export CXXFLAGS='-Oz -flto -stdlib=libc++ -fuse-ld=mold'
 
 cmake ..
 
 # configure the `-j` flag according to your available RAM as needed
 make all -j$(nproc)
 ```
+
+* Example provided env in `clang-env-*.sh`
+
+* You should always run `./clean.sh` everytime you changed env and start over the build steps to recompile cleanly
