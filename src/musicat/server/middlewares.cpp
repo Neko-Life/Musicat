@@ -99,9 +99,7 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
 
     bool has_host = !host.empty ();
 
-    bool allow = has_origin
-                     ? has_host ? (host.find (origin) == 0) : origin == "*"
-                     : true;
+    bool allow = has_origin ? has_host ? (host.find (origin) == 0) : origin == "*" : true;
 
     if (!allow)
         {
@@ -125,15 +123,12 @@ cors (APIResponse *res, APIRequest *req, const header_v_t &additional_headers)
     header_v_t headers = {};
     if (has_origin)
         {
-            headers.push_back (
-                { "Access-Control-Allow-Origin", std::string (origin) });
+            headers.push_back ({ "Access-Control-Allow-Origin", std::string (origin) });
         }
 
-    std::string_view req_allow_headers
-        = req->getHeader ("access-control-request-headers");
+    std::string_view req_allow_headers = req->getHeader ("access-control-request-headers");
 
-    for (const std::pair<std::string, std::string> &s :
-         get_cors_headers (req_allow_headers))
+    for (const std::pair<std::string, std::string> &s : get_cors_headers (req_allow_headers))
         {
             headers.push_back (s);
         }
@@ -173,18 +168,19 @@ print_headers (APIRequest *req)
 }
 
 inline constexpr const char token_cookie_name[] = "token=";
-inline constexpr const size_t token_cookie_name_size
-    = (sizeof (token_cookie_name) / sizeof (*token_cookie_name)) - 1;
+inline constexpr const size_t token_cookie_name_size = (sizeof (token_cookie_name) / sizeof (*token_cookie_name)) - 1;
 
 std::string
-validate_token (APIResponse *res, APIRequest *req,
-                const header_v_t &cors_headers)
+validate_token (APIResponse *res, APIRequest *req, const header_v_t &cors_headers)
 {
     response::end_t endres (res);
     endres.status = http_status_t.UNAUTHORIZED_401;
     endres.headers = cors_headers;
 
     std::string_view cookie = req->getHeader ("cookie");
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[server::middlewares::validate_token] Cookie: `" << cookie << "`\n";
 
     size_t i = cookie.find (token_cookie_name);
 
@@ -194,8 +190,12 @@ validate_token (APIResponse *res, APIRequest *req,
         }
 
     size_t t_start = i + token_cookie_name_size;
-    std::string_view token
-        = cookie.substr (t_start, cookie.find (" ", t_start));
+    size_t t_end = cookie.find (";", t_start);
+    if (t_end != cookie.npos)
+        t_end -= token_cookie_name_size;
+    std::string_view token = cookie.substr (t_start, t_end);
+    if (debug)
+        std::cerr << "[server::middlewares::validate_token] Token: `" << token << "` t_start(" << t_start << ") t_end(" << t_end << ")\n";
 
     if (token.empty ())
         {
@@ -214,23 +214,19 @@ validate_token (APIResponse *res, APIRequest *req,
 }
 
 nlohmann::json
-process_curlpp_response_t (const services::curlpp_response_t &resp,
-                           const char *callee)
+process_curlpp_response_t (const services::curlpp_response_t &resp, const char *callee)
 {
     if (resp.status != 200L)
         {
-            fprintf (stderr,
-                     "================================================\n");
+            fprintf (stderr, "================================================\n");
 
             fprintf (stderr, "[%s ERROR] Status: %ld\n", callee, resp.status);
 
-            fprintf (stderr,
-                     "================================================\n");
+            fprintf (stderr, "================================================\n");
 
             fprintf (stderr, "%s\n", resp.response.c_str ());
 
-            fprintf (stderr,
-                     "================================================\n");
+            fprintf (stderr, "================================================\n");
 
             return nullptr;
         }
@@ -247,13 +243,11 @@ process_curlpp_response_t (const services::curlpp_response_t &resp,
         {
             fprintf (stderr, "[%s ERROR] %s\n", callee, e.what ());
 
-            fprintf (stderr,
-                     "================================================\n");
+            fprintf (stderr, "================================================\n");
 
             fprintf (stderr, "%s\n", str_udata.c_str ());
 
-            fprintf (stderr,
-                     "================================================\n");
+            fprintf (stderr, "================================================\n");
         }
 
     return udata;
