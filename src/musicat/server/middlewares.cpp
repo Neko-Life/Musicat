@@ -266,14 +266,18 @@ set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild)
     std::string guild_id = gid.get<std::string> ();
 
     dpp::guild *g = dpp::find_guild (guild_id);
-    if (!g)
-        {
-            guild["is_mutual"] = false;
-            return;
-        }
+    bool is_mutual = g != nullptr;
+    guild["is_mutual"] = is_mutual;
 
-    auto i_member = g->members.find (user_id);
-    guild["is_mutual"] = i_member != g->members.end ();
+    if (!is_mutual)
+        return;
+
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return;
+
+    auto player = player_manager->get_player (guild_id);
+    guild["has_active_voice_session"] = player ? player->processing_audio : false;
 }
 
 } // musicat::server::middlewares
