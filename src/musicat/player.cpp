@@ -1015,6 +1015,34 @@ set_guild_player_data (nlohmann::json &data, const dpp::snowflake &guild_id)
     if (!guild_player)
         return;
 
+    data["loop_mode"] = guild_player->loop_mode;
+    data["auto_play"] = guild_player->auto_play;
+    data["repeat"] = guild_player->current_track.repeat;
+    data["active_fx"] = guild_player->fx_get_active_count ();
+
+    bool playing_set = false;
+    auto *pc = guild_player->get_client ();
+    if (pc)
+        {
+            auto con = pc->get_voice (guild_id);
+            if (con && con->voiceclient)
+                {
+                    data["paused"] = con->voiceclient->is_paused ();
+                    data["playing"] = true;
+                    playing_set = true;
+                }
+        }
+
+    if (!playing_set)
+        {
+            data["paused"] = false;
+            data["playing"] = false;
+        }
+
+    // current_track only valid when processing_audio
+    if (!guild_player->processing_audio)
+        return;
+
     player::MCTrack &track = guild_player->current_track;
 
     // one char variable name for 100x performance improvement!!!!!
@@ -1060,29 +1088,6 @@ set_guild_player_data (nlohmann::json &data, const dpp::snowflake &guild_id)
     data["url"] = mctrack::get_url (track);
     data["progress"] = prog.current_ms;
     data["duration"] = prog.duration;
-    data["loop_mode"] = guild_player->loop_mode;
-    data["auto_play"] = guild_player->auto_play;
-    data["repeat"] = guild_player->current_track.repeat;
-    data["active_fx"] = guild_player->fx_get_active_count ();
-
-    bool playing_set = false;
-    auto *pc = guild_player->get_client ();
-    if (pc)
-        {
-            auto con = pc->get_voice (guild_id);
-            if (con && con->voiceclient)
-                {
-                    data["paused"] = con->voiceclient->is_paused ();
-                    data["playing"] = true;
-                    playing_set = true;
-                }
-        }
-
-    if (!playing_set)
-        {
-            data["paused"] = false;
-            data["playing"] = false;
-        }
 
     // !TODO: remove this when fully using ytdlp to support non-yt
     // tracks
