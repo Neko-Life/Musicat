@@ -140,7 +140,7 @@ define_routes (APIApp *app)
                     break;
 
                 case ROUTE_METHOD_HEAD:
-                    app->options (rh->path, with_one_second_304 (rh));
+                    app->head (rh->path, with_one_second_304 (rh));
                     break;
 
                 case ROUTE_METHOD_ANY:
