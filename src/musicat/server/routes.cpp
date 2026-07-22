@@ -128,6 +128,11 @@ define_routes (APIApp *app)
             switch (rh->method)
                 {
                 case ROUTE_METHOD_GET:
+                    if (!memcmp ("/stream/:server_id", rh->path, 19))
+                        {
+                            app->get (rh->path, rh->handler);
+                            break;
+                        }
                     app->get (rh->path, with_one_second_304 (rh));
                     break;
 
