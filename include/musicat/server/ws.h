@@ -2,7 +2,6 @@
 #define MUSICAT_SERVER_WS_H
 
 #include "musicat/server.h"
-#include "musicat/server/ws/player.h"
 
 namespace musicat::server::ws
 {

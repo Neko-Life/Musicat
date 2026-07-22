@@ -4,6 +4,7 @@
 #include "musicat/player.h"
 #include "musicat/player_manager_timer.h"
 #include "musicat/server/stream.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
 #include <memory>
@@ -120,6 +121,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                     case loop_mode_t::l_none:
                         {
                             guild_player->queue_pop_front ();
+
+                            server::ws::player::publish_queue (event.voice_client->server_id);
                             break;
                         }
 
@@ -128,6 +131,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                             auto l = guild_player->queue.front ();
                             guild_player->queue_pop_front ();
                             guild_player->queue_add (l);
+
+                            server::ws::player::publish_queue (event.voice_client->server_id);
                             break;
                         }
 
@@ -140,6 +145,8 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             const string removed_title = debug ? mctrack::get_title (guild_player->queue.front ()) : "";
 
             guild_player->queue_pop_front ();
+
+            server::ws::player::publish_queue (event.voice_client->server_id);
 
             if (debug)
                 {
@@ -674,6 +681,8 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                             // skip current track
                             guild_player->skip_queue (1, true, true);
 
+                            server::ws::player::publish_queue (guild_id);
+
                             // stop playing next song if failed trying 3 times
                             if (!dont_retry)
                                 {
@@ -708,6 +717,8 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                                         {
                                             std::lock_guard lk (guild_player->t_mutex);
                                             guild_player->add_track (result, true, guild_id, true);
+
+                                            server::ws::player::publish_queue (guild_id);
 
                                             // decide whether to trigger track marker after
                                             // dowload

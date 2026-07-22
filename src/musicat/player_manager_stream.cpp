@@ -420,6 +420,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         return;
 
     // update fx_states in db
+    // !TODO: this probably introduces latency here, need to offload it to other thread!
     database::update_guild_player_config (states.guild_player->guild_id, NULL, NULL, NULL, states.guild_player->fx_states_to_json ());
 
     // check for existed non queried and add it to cmd
@@ -482,6 +483,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
         }
 
     cc::write_command (helper_chain_cmd + dbg_str_arg, states.command_fd, "Manager::stream");
+    server::ws::player::publish_fx (states.guild_player->guild_id);
 }
 
 #ifdef USING_LIBOPUSENC
@@ -686,6 +688,10 @@ Manager::stream (const dpp::snowflake &guild_id)
     fclose (ofile);
     ofile = NULL;
 
+    // precondition done, spawn processor and play
+    server::ws::player::publish_playback_info (guild_id);
+    server::ws::player::publish_fx (guild_id);
+
     const std::string server_id_str = std::to_string (guild_id);
     const std::string slave_id = "processor-" + server_id_str + "." + std::to_string (util::get_current_ts ());
 
@@ -739,6 +745,7 @@ Manager::stream (const dpp::snowflake &guild_id)
             cmd += cc::command_options_keys_t.seek + '=' + cc::sanitize_command_value (track.seek_to) + ';';
 
             track.seek_to = "";
+            server::ws::player::publish_seek (guild_id, track.current_byte / opus_byte_per_ms);
             guild_player->reset_first_track_current_byte ();
         }
 
@@ -807,7 +814,7 @@ Manager::stream (const dpp::snowflake &guild_id)
 
     // I LOVE C++!!!
     bool running_state, is_stopping;
-    server::ws::player::publish_playback_info (guild_id);
+    server::ws::player::publish_play (guild_id);
 
     // using raw pcm need to change ffmpeg output format to s16le!
     ssize_t read_size = 0;
@@ -876,6 +883,8 @@ Manager::stream (const dpp::snowflake &guild_id)
             // clear voice client buffer
             if (vclient)
                 vclient->stop_audio ();
+
+            server::ws::player::publish_stop (guild_id);
         }
     else if (!vclient && !guild_player->queue.empty ())
         {

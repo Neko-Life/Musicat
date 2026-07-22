@@ -1,7 +1,7 @@
 #include "musicat/cmds/seek.h"
 #include "musicat/cmds.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/server/ws/player.h"
 #include <cstdint>
 
 #define SECOND_SEEK_STEP 15
@@ -15,19 +15,17 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("seek", "Seek [currently playing] track", sha_id)
-        .add_option (dpp::command_option (
-                         dpp::co_string, "to",
-                         "Timestamp [to seek to]. Format: Absolute "
-                         "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
-                         true)
+        .add_option (dpp::command_option (dpp::co_string, "to",
+                                          "Timestamp [to seek to]. Format: Absolute "
+                                          "`<[[hour:]minute:]second[.ms]>`. Example: 4:20.69",
+                                          true)
                          .set_max_length (14));
 }
 
 bool
 is_valid_char (char c)
 {
-    for (size_t i = 0;
-         i < ((sizeof (valid_tokens) / sizeof (valid_tokens[0])) - 1); i++)
+    for (size_t i = 0; i < ((sizeof (valid_tokens) / sizeof (valid_tokens[0])) - 1); i++)
         {
             if (c == valid_tokens[i])
                 return true;
@@ -65,8 +63,7 @@ parse_arg_to (const std::string &str)
         {
             std::string temp = "";
 
-            for (auto j = (str.begin () + last_idx); j != str.end ();
-                 j++, last_idx++)
+            for (auto j = (str.begin () + last_idx); j != str.end (); j++, last_idx++)
                 {
                     if (!is_valid_char (*j))
                         {
@@ -152,16 +149,14 @@ parse_arg_to (const std::string &str)
             fprintf (stderr,
                      "[seek::parse_arg_to] Parsed hour minute second ms "
                      "valid: %ld %ld %ld %ld %d\n",
-                     result.hour, result.minute, result.second, result.ms,
-                     result.valid);
+                     result.hour, result.minute, result.second, result.ms, result.valid);
         }
 
     return result;
 }
 
 int
-run (const dpp::snowflake &guild_id, const std::string &arg_to,
-     std::string &out)
+run (const dpp::snowflake &guild_id, const std::string &arg_to, std::string &out)
 {
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
@@ -202,12 +197,9 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to,
     constexpr uint64_t minute_ms = second_ms * 60;
     constexpr uint64_t hour_ms = 60 * minute_ms;
 
-    const uint64_t total_ms = (parsed.hour * hour_ms)
-                              + (parsed.minute * minute_ms)
-                              + (parsed.second * second_ms) + parsed.ms;
+    const uint64_t total_ms = (parsed.hour * hour_ms) + (parsed.minute * minute_ms) + (parsed.second * second_ms) + parsed.ms;
     if (debug)
-        fprintf (stderr, "[seek::slash_run] [total_ms]: %ld\n",
-                 total_ms);
+        fprintf (stderr, "[seek::slash_run] [total_ms]: %ld\n", total_ms);
 
     // skip instead of error
     // if (total_ms > duration)
@@ -216,13 +208,12 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to,
     //         duration"); return;
     //     }
 
+    server::ws::player::publish_seek (guild_id, total_ms);
     track.current_byte = (int64_t)(player::opus_byte_per_ms * total_ms);
 
     if (debug)
         {
-            fprintf (stderr,
-                     "[seek::slash_run] [seek_byte]: %ld\n",
-                     track.current_byte);
+            fprintf (stderr, "[seek::slash_run] [seek_byte]: %ld\n", track.current_byte);
         }
 
     track.seek_to = arg_to;
@@ -245,12 +236,9 @@ slash_run (const dpp::slashcommand_t &event)
 }
 
 int
-button_run (const dpp::button_click_t &event,
-            int (*get_to_ms) (std::string &to_ms,
-                              player::track_progress &progress))
+button_run (const dpp::button_click_t &event, int (*get_to_ms) (std::string &to_ms, player::track_progress &progress))
 {
-    auto pm_res = command::cmd_pre_get_player_manager_ready_werr (
-        event.command.guild_id);
+    auto pm_res = command::cmd_pre_get_player_manager_ready_werr (event.command.guild_id);
 
     if (pm_res.second != 0)
         return pm_res.second;
@@ -259,13 +247,11 @@ button_run (const dpp::button_click_t &event,
     auto guild_player = player_manager->get_player (event.command.guild_id);
     if (!guild_player || !guild_player->processing_audio)
         {
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+            player_manager->update_info_embed (event.command.guild_id, false, &event);
             return -2;
         }
 
-    player::track_progress prog
-        = util::get_track_progress (guild_player->current_track);
+    player::track_progress prog = util::get_track_progress (guild_player->current_track);
 
     if (prog.status == 0)
         {
@@ -292,14 +278,11 @@ get_to_ms_rewind (std::string &to_ms, player::track_progress &progress)
         to_ms = "0";
     else
         {
-            to_ms = format_duration ((uint64_t)progress.current_ms
-                                     - second_seek_step);
+            to_ms = format_duration ((uint64_t)progress.current_ms - second_seek_step);
 
             if (debug)
                 {
-                    fprintf (stderr,
-                             "[command::seek::get_to_ms_rewind] to_ms(%s)\n",
-                             to_ms.c_str ());
+                    fprintf (stderr, "[command::seek::get_to_ms_rewind] to_ms(%s)\n", to_ms.c_str ());
                 }
         }
 
@@ -307,8 +290,7 @@ get_to_ms_rewind (std::string &to_ms, player::track_progress &progress)
 }
 
 int
-get_to_ms_zero_less_seek_step_err (std::string &to_ms,
-                                   player::track_progress &progress)
+get_to_ms_zero_less_seek_step_err (std::string &to_ms, player::track_progress &progress)
 {
     if (progress.current_ms < second_seek_step)
         return 128;
@@ -326,8 +308,7 @@ get_to_ms_forward (std::string &to_ms, player::track_progress &progress)
     to_ms = format_duration ((uint64_t)progress.current_ms + second_seek_step);
 
     if (debug)
-        fprintf (stderr, "[command::seek::get_to_ms_forward] to_ms(%s)\n",
-                 to_ms.c_str ());
+        fprintf (stderr, "[command::seek::get_to_ms_forward] to_ms(%s)\n", to_ms.c_str ());
 
     return 0;
 }

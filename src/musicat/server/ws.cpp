@@ -1,4 +1,5 @@
 #include "musicat/server/ws.h"
+#include "musicat/server/ws/player.h"
 
 namespace musicat::server::ws
 {
@@ -8,8 +9,7 @@ namespace musicat::server::ws
 void
 define_ws_routes (APIApp *app)
 {
-    app->ws<player::SocketData> ("/ws/player/:server_id",
-                                 ws::player::get_behavior ());
+    app->ws<player::SocketData> ("/ws/player/:server_id", ws::player::get_behavior ());
 }
 
 } // musicat::server::ws

@@ -1,18 +1,16 @@
 #include "musicat/cmds/move.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/server/ws/player.h"
 
 namespace musicat::command::move
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("move", "Move [track position] around the queue",
-                              sha_id)
-        .add_option (dpp::command_option (dpp::co_integer, "track",
-                                          "Move [this] track", true))
-        .add_option (dpp::command_option (dpp::co_integer, "to",
-                                          "Move [to this] position", true));
+    return dpp::slashcommand ("move", "Move [track position] around the queue", sha_id)
+        .add_option (dpp::command_option (dpp::co_integer, "track", "Move [this] track", true))
+        .add_option (dpp::command_option (dpp::co_integer, "to", "Move [to this] position", true));
 }
 
 void
@@ -69,21 +67,20 @@ slash_run (const dpp::slashcommand_t &event)
 
                 guild_player->queue_erase (fr);
                 guild_player->queue_insert (track, to);
+
+                server::ws::player::publish_queue (event.command.guild_id);
             }
 
-            if (a != mctrack::get_title (guild_player->queue.at (1))
-                || b != mctrack::get_title (guild_player->queue.back ()))
+            if (a != mctrack::get_title (guild_player->queue.at (1)) || b != mctrack::get_title (guild_player->queue.back ()))
                 try
                     {
-                        player_manager->update_info_embed (
-                            event.command.guild_id);
+                        player_manager->update_info_embed (event.command.guild_id);
                     }
                 catch (...)
                     {
                     }
         }
 
-    event.reply (std::string ("Moved ") + mctrack::get_title (track)
-                 + " to position " + std::to_string (to));
+    event.reply (std::string ("Moved ") + mctrack::get_title (track) + " to position " + std::to_string (to));
 }
 } // musicat::command::move

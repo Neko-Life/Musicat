@@ -1,10 +1,10 @@
-#include "dispatcher.h"
 #include "musicat/YTDLPTrack.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/player_manager_timer.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
@@ -559,6 +559,8 @@ run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, cons
             t.user_id = user_id;
 
             guild_player->add_track (t, arg_top, guild_id, from_interaction || dling, arg_slip);
+
+            server::ws::player::publish_queue (guild_id);
 
             from = player_manager->get_client (shard_id);
             decide_play (from, guild_id, continued);
@@ -1237,6 +1239,9 @@ Manager::load_guild_current_queue (const dpp::snowflake &guild_id, const dpp::sn
             player->add_track (t);
         }
 
+    if (queue.first.size ())
+        server::ws::player::publish_queue (guild_id);
+
     return queue.second;
 }
 
@@ -1383,6 +1388,7 @@ Manager::set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool 
 
 exec_pause_audio:
     v->voiceclient->pause_audio (true);
+    server::ws::player::publish_pause (guild_id);
     this->update_info_embed (guild_id);
     return 0;
 }

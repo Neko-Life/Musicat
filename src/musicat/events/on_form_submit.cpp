@@ -2,6 +2,7 @@
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/storage.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util_response.h"
@@ -40,6 +41,8 @@ _run_download_thread (const bool dling, const std::string &fname, const dpp::sno
             t.user_id = user_id;
 
             guild_player->add_track (t, top, guild_id, dling, arg_slip);
+
+            server::ws::player::publish_queue (event.command.guild_id);
 
             from = event.from ();
             if (from)

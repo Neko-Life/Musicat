@@ -2,6 +2,7 @@
 #include "musicat/cmds.h"
 #include "musicat/cmds/seek.h"
 #include "musicat/musicat.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 
@@ -11,16 +12,13 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("skip", "Skip [currently playing] song", sha_id)
-        .add_option (dpp::command_option (dpp::co_integer, "amount",
-                                          "How many [song] to skip"))
-        .add_option (
-            create_yes_no_option ("remove", "Remove [song] while skipping"));
+        .add_option (dpp::command_option (dpp::co_integer, "amount", "How many [song] to skip"))
+        .add_option (create_yes_no_option ("remove", "Remove [song] while skipping"));
 }
 
 int
-run (dpp::discord_client *from, const dpp::snowflake &user_id,
-     const dpp::snowflake &guild_id, std::string &out,
-     int64_t param_amount = 1, int64_t param_remove = 0)
+run (dpp::discord_client *from, const dpp::snowflake &user_id, const dpp::snowflake &guild_id, std::string &out, int64_t param_amount = 1,
+     int64_t param_remove = 0)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
     if (pm_res.second == 1)
@@ -40,19 +38,19 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id,
             int64_t am = param_amount;
             int64_t rm = param_remove;
 
-            auto res = player_manager->skip (v, guild_id, user_id, am,
-                                             rm ? true : false);
+            auto res = player_manager->skip (v, guild_id, user_id, am, rm ? true : false);
             switch (res.second)
                 {
                 case 0:
                     out = util::response::reply_skipped_track (res.first);
+
+                    server::ws::player::publish_queue (guild_id);
                     break;
                 case -1:
                     out = "I'm not playing anything";
                     break;
                 default:
-                    out = std::to_string (res.second)
-                          + util::join (res.second != 1, " member", "s")
+                    out = std::to_string (res.second) + util::join (res.second != 1, " member", "s")
                           + " voted to skip, add more vote to skip "
                             "current track";
                 }
@@ -76,8 +74,7 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "remove", &rm);
 
     std::string out;
-    int status = run (event.from(), event.command.usr.id, event.command.guild_id,
-                      out, am, rm);
+    int status = run (event.from (), event.command.usr.id, event.command.guild_id, out, am, rm);
     if (status == 1)
         {
             event.reply (out);
@@ -111,7 +108,9 @@ button_run_prev (const dpp::button_click_t &event)
             guild_player->queue_add_front (guild_player->queue.back ());
             guild_player->queue_pop ();
 
-            dpp::voiceconn *v = event.from()->get_voice (guild_id);
+            server::ws::player::publish_queue (event.command.guild_id);
+
+            dpp::voiceconn *v = event.from ()->get_voice (guild_id);
 
             bool stopping = false;
             // stop it! it will be resumed by auto marker at the ends of every
@@ -127,10 +126,7 @@ button_run_prev (const dpp::button_click_t &event)
                 }
         }
     else
-        fprintf (
-            stderr,
-            "[command::skip::button_run_prev WARN] Track queue is empty: %s\n",
-            event.command.guild_id.str ().c_str ());
+        fprintf (stderr, "[command::skip::button_run_prev WARN] Track queue is empty: %s\n", event.command.guild_id.str ().c_str ());
 
     player_manager->update_info_embed (event.command.guild_id, false, &event);
 }
@@ -143,7 +139,7 @@ button_run_next (const dpp::button_click_t &event)
         return;
 
     std::string out;
-    run (event.from(), event.command.usr.id, event.command.guild_id, out);
+    run (event.from (), event.command.usr.id, event.command.guild_id, out);
 
     player_manager->update_info_embed (event.command.guild_id, false, &event);
 }

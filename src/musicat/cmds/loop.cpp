@@ -2,6 +2,7 @@
 #include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
@@ -16,47 +17,35 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("loop", "Configure [repeat] mode", sha_id)
-        .add_option (dpp::command_option (dpp::co_integer, "mode",
-                                          "Set [to this] mode", true)
-                         .add_choice (dpp::command_option_choice (
-                             "One", player::loop_mode_t::l_song))
-                         .add_choice (dpp::command_option_choice (
-                             "Queue", player::loop_mode_t::l_queue))
-                         .add_choice (dpp::command_option_choice (
-                             "One/Queue", player::loop_mode_t::l_song_queue))
-                         .add_choice (dpp::command_option_choice (
-                             "Off", player::loop_mode_t::l_none)))
-        .add_option (
-            dpp::command_option (dpp::co_integer, "loop-amount",
-                                 "Only[ valid] for `One`, "
-                                 "loop this track only for [number] of times")
-                .set_min_value (MIN_VAL)
-            /*.set_max_value (MAX_VAL)*/);
+        .add_option (dpp::command_option (dpp::co_integer, "mode", "Set [to this] mode", true)
+                         .add_choice (dpp::command_option_choice ("One", player::loop_mode_t::l_song))
+                         .add_choice (dpp::command_option_choice ("Queue", player::loop_mode_t::l_queue))
+                         .add_choice (dpp::command_option_choice ("One/Queue", player::loop_mode_t::l_song_queue))
+                         .add_choice (dpp::command_option_choice ("Off", player::loop_mode_t::l_none)))
+        .add_option (dpp::command_option (dpp::co_integer, "loop-amount",
+                                          "Only[ valid] for `One`, "
+                                          "loop this track only for [number] of times")
+                         .set_min_value (MIN_VAL)
+                     /*.set_max_value (MAX_VAL)*/);
 }
 
 template <typename T>
 auto
 get_mode_param_getter (const T &event)
 {
-    return [event] (int64_t &a_l, int64_t &) {
-        get_inter_param (event, "mode", &a_l);
-    };
+    return [event] (int64_t &a_l, int64_t &) { get_inter_param (event, "mode", &a_l); };
 }
 
 template <typename T>
 auto
 get_loop_amount_param_getter (const T &event)
 {
-    return [event] (int64_t &l_amount) {
-        get_inter_param (event, "loop-amount", &l_amount);
-    };
+    return [event] (int64_t &l_amount) { get_inter_param (event, "loop-amount", &l_amount); };
 }
 
 int
-run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
-     dpp::discord_client *from,
-     std::function<void (int64_t &, int64_t &)> get_mode_param,
-     std::function<void (int64_t &)> get_loop_amount_param,
+run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, dpp::discord_client *from,
+     std::function<void (int64_t &, int64_t &)> get_mode_param, std::function<void (int64_t &)> get_loop_amount_param,
      std::string &out_reply, bool update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
@@ -119,9 +108,7 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
     // make sure nothing messing with track order
     guild_player->reset_shifted ();
 
-    const bool set_loop_amount = !guild_player->current_track.is_empty ()
-                                 && l_amount >= MIN_VAL
-                                 && (a_l == player::loop_mode_t::l_song);
+    const bool set_loop_amount = !guild_player->current_track.is_empty () && l_amount >= MIN_VAL && (a_l == player::loop_mode_t::l_song);
 
     int status = 0;
 
@@ -137,23 +124,24 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
             if (guild_player->queue.size () > 0)
                 guild_player->queue.front ().repeat = l_amount;
             else
-                guild_player->queue_add (guild_player->current_track);
+                {
+                    // how could this happen?
+                    fprintf (stderr, "[command::loop::run WARN] Empty queue with active track `%s` in guild(%s)\n",
+                             mctrack::get_title (guild_player->current_track).c_str (), guild_id.str ().c_str ());
+                    guild_player->queue_add (guild_player->current_track);
+                    guild_player->queue.front ().repeat = l_amount;
+
+                    server::ws::player::publish_queue (guild_id);
+                }
 
             const bool set_to_no_repeat = l_amount == 0;
 
-            const std::string pre
-                = std::string (set_to_no_repeat ? "Won't" : "Will");
+            const std::string pre = std::string (set_to_no_repeat ? "Won't" : "Will");
 
             const std::string suf
-                = (set_to_no_repeat
-                       ? "anymore"
-                       : "for " + std::to_string (l_amount)
-                             + util::join (l_amount != 1, " more time", "s"));
+                = (set_to_no_repeat ? "anymore" : "for " + std::to_string (l_amount) + util::join (l_amount != 1, " more time", "s"));
 
-            const std::string rep
-                = pre + " repeat `"
-                  + mctrack::get_title (guild_player->current_track) + "` "
-                  + suf;
+            const std::string rep = pre + " repeat `" + mctrack::get_title (guild_player->current_track) + "` " + suf;
 
             out_reply = rep;
             status = 1;
@@ -168,10 +156,8 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
 
             guild_player->set_loop_mode (a_l);
 
-            constexpr const char *loop_message[]
-                = { "Turned off repeat mode", "Set to repeat a song",
-                    "Set to repeat queue",
-                    "Set to repeat a song and not to remove skipped song" };
+            constexpr const char *loop_message[] = { "Turned off repeat mode", "Set to repeat a song", "Set to repeat queue",
+                                                     "Set to repeat a song and not to remove skipped song" };
 
             out_reply = loop_message[a_l];
             status = 1;
@@ -193,19 +179,20 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id,
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::thread t ([event] () {
-        thread_manager::DoneSetter tmds;
-
-        std::string out_reply;
-        int status = run (event.command.guild_id, event.command.usr.id,
-                          event.from (), get_mode_param_getter (event),
-                          get_loop_amount_param_getter (event), out_reply);
-
-        if (status == 1 && !out_reply.empty ())
+    std::thread t (
+        [event] ()
             {
-                event.reply (out_reply);
-            }
-    });
+                thread_manager::DoneSetter tmds;
+
+                std::string out_reply;
+                int status = run (event.command.guild_id, event.command.usr.id, event.from (), get_mode_param_getter (event),
+                                  get_loop_amount_param_getter (event), out_reply);
+
+                if (status == 1 && !out_reply.empty ())
+                    {
+                        event.reply (out_reply);
+                    }
+            });
 
     thread_manager::dispatch (t);
 }
@@ -224,16 +211,13 @@ button_modal_dialog (const dpp::button_click_t &event)
         // sadge
         .add_select_option (dpp::select_option ("One", "1", "Loop track"))
         .add_select_option (dpp::select_option ("Queue", "2", "Loop queue"))
-        .add_select_option (dpp::select_option (
-            "One/Queue", "3", "Loop track and don't remove skipped track"))
+        .add_select_option (dpp::select_option ("One/Queue", "3", "Loop track and don't remove skipped track"))
         .add_select_option (dpp::select_option ("Off", "0", "Disable loop"));
 
-    dpp::component amount_inp = util::response::create_short_text_input (
-        "Loop amount (only for One):", "amount");
+    dpp::component amount_inp = util::response::create_short_text_input ("Loop amount (only for One):", "amount");
 
     dpp::interaction_modal_response modal ("loop_mode", "Loop mode");
-    modal.add_component (dpp::component ().add_component (mode_inp))
-        .add_component (dpp::component ().add_component (amount_inp));
+    modal.add_component (dpp::component ().add_component (mode_inp)).add_component (dpp::component ().add_component (amount_inp));
 
     event.dialog (modal);
 }
@@ -241,29 +225,31 @@ button_modal_dialog (const dpp::button_click_t &event)
 void
 handle_button_modal_dialog (const dpp::button_click_t &event)
 {
-    std::thread t ([event] () {
-        thread_manager::DoneSetter tmds;
+    std::thread t (
+        [event] ()
+            {
+                thread_manager::DoneSetter tmds;
 
-        auto player_manager = get_player_manager_ptr ();
-        if (!player_manager)
-            return;
+                auto player_manager = get_player_manager_ptr ();
+                if (!player_manager)
+                    return;
 
-        std::string out_reply;
-        // int status =
+                std::string out_reply;
+                // int status =
 
-        run (
-            event.command.guild_id, event.command.usr.id, event.from (),
-            [event] (int64_t &a_l, int64_t &current_val) {
-                if (current_val >= 3)
-                    a_l = 0;
-                else
-                    a_l = current_val + 1;
-            },
-            [event] (int64_t &) {}, out_reply, false);
+                run (
+                    event.command.guild_id, event.command.usr.id, event.from (),
+                    [event] (int64_t &a_l, int64_t &current_val)
+                        {
+                            if (current_val >= 3)
+                                a_l = 0;
+                            else
+                                a_l = current_val + 1;
+                        },
+                    [event] (int64_t &) {}, out_reply, false);
 
-        player_manager->update_info_embed (event.command.guild_id, false,
-                                           &event);
-    });
+                player_manager->update_info_embed (event.command.guild_id, false, &event);
+            });
 
     thread_manager::dispatch (t);
 }

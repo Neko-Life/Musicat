@@ -10,17 +10,15 @@
 #include "musicat/cmds/skip.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 
 namespace musicat::events
 {
-using generic_handler_vec
-    = std::pair<const char *, void (*) (const dpp::button_click_t &)>;
+using generic_handler_vec = std::pair<const char *, void (*) (const dpp::button_click_t &)>;
 
 int
-handle_generic_cmd (const dpp::button_click_t &event,
-                    const std::string &command_name,
-                    const generic_handler_vec *handlers)
+handle_generic_cmd (const dpp::button_click_t &event, const std::string &command_name, const generic_handler_vec *handlers)
 {
     if (!handlers)
         return -1;
@@ -47,15 +45,13 @@ handle_generic_cmd (const dpp::button_click_t &event,
 }
 
 void
-page_queue (const dpp::button_click_t &event,
-            const command::button_command_t &cmd)
+page_queue (const dpp::button_click_t &event, const command::button_command_t &cmd)
 {
     paginate::update_page (event.command.msg.id, cmd.param, event);
 }
 
 void
-modal_p (const dpp::button_click_t &event,
-         const command::button_command_t &cmd)
+modal_p (const dpp::button_click_t &event, const command::button_command_t &cmd)
 {
     const std::string param = cmd.param;
 
@@ -64,33 +60,27 @@ modal_p (const dpp::button_click_t &event,
 
     if (param.find ("que_s_track") != std::string::npos)
         {
-            event.dialog (
-                param.find ("top") != std::string::npos
-                    ? command::search::modal_enqueue_searched_track_top ()
-                : param.find ("slip") != std::string::npos
-                    ? command::search::modal_enqueue_searched_track_slip ()
-                    : command::search::modal_enqueue_searched_track (),
-                [] (const dpp::confirmation_callback_t &res) {
-                    if (res.is_error ())
-                        {
-                            fprintf (stderr, "%s\n",
-                                     res.http_info.body.c_str ());
-                        }
-                });
+            event.dialog (param.find ("top") != std::string::npos    ? command::search::modal_enqueue_searched_track_top ()
+                          : param.find ("slip") != std::string::npos ? command::search::modal_enqueue_searched_track_slip ()
+                                                                     : command::search::modal_enqueue_searched_track (),
+                          [] (const dpp::confirmation_callback_t &res)
+                              {
+                                  if (res.is_error ())
+                                      {
+                                          fprintf (stderr, "%s\n", res.http_info.body.c_str ());
+                                      }
+                              });
         }
     else
         {
-            fprintf (stderr, "[WARN] modal_p param isn't handled: \"%s\"\n",
-                     param.c_str ());
+            fprintf (stderr, "[WARN] modal_p param isn't handled: \"%s\"\n", param.c_str ());
         }
 }
 
-inline constexpr const generic_handler_vec progress_commands[]
-    = { { "u", command::progress::update_progress }, { NULL, NULL } };
+inline constexpr const generic_handler_vec progress_commands[] = { { "u", command::progress::update_progress }, { NULL, NULL } };
 
 void
-progress (const dpp::button_click_t &event,
-          const command::button_command_t &cmd)
+progress (const dpp::button_click_t &event, const command::button_command_t &cmd)
 {
     const std::string param = cmd.param;
 
@@ -99,8 +89,7 @@ progress (const dpp::button_click_t &event,
 
     if (handle_generic_cmd (event, param, progress_commands) != 0)
         {
-            fprintf (stderr, "[WARN] progress param isn't handled: \"%s\"\n",
-                     param.c_str ());
+            fprintf (stderr, "[WARN] progress param isn't handled: \"%s\"\n", param.c_str ());
         }
 }
 
@@ -113,14 +102,11 @@ u_playnow (const dpp::button_click_t &event)
 
     try
         {
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+            player_manager->update_info_embed (event.command.guild_id, false, &event);
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -145,19 +131,14 @@ s_playnow (const dpp::button_click_t &event)
 
     try
         {
-            dpp::voiceconn *v
-                = event.from ()->get_voice (event.command.guild_id);
-            auto vcuser = get_voice_from_gid (event.command.guild_id,
-                                              event.command.usr.id);
+            dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
+            auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
 
             auto p = player_manager->create_player (event.command.guild_id);
             p->set_shard (event.from ());
 
             if (p && vcuser.first && v && v->voiceclient && v->channel_id == vcuser.first->id
-                && player_manager->voice_ready (event.command.guild_id,
-                                                event.from ()->shard_id,
-                                                event.command.usr.id)
-                && !p->stopped)
+                && player_manager->voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id) && !p->stopped)
                 {
                     player_manager->stop_stream (event.command.guild_id);
 
@@ -165,18 +146,14 @@ s_playnow (const dpp::button_click_t &event)
                     p->stopped = true;
                     v->voiceclient->pause_audio (true);
 
-                    player_manager->set_manually_paused (
-                        event.command.guild_id);
+                    player_manager->set_manually_paused (event.command.guild_id);
                 }
 
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+            player_manager->update_info_embed (event.command.guild_id, false, &event);
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -189,25 +166,19 @@ h_playnow (const dpp::button_click_t &event)
 
     try
         {
-            dpp::voiceconn *v
-                = event.from ()->get_voice (event.command.guild_id);
-            auto vcuser = get_voice_from_gid (event.command.guild_id,
-                                              event.command.usr.id);
+            dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
+            auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
 
-            if (vcuser.first && v && v->channel_id == vcuser.first->id)
+            if (vcuser.first && v && v->channel_id == vcuser.first->id && player_manager->shuffle_queue (event.command.guild_id, false))
                 {
-                    player_manager->shuffle_queue (event.command.guild_id,
-                                                   false);
-                }
+                    server::ws::player::publish_queue (event.command.guild_id);
 
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+                    player_manager->update_info_embed (event.command.guild_id, false, &event);
+                }
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -224,9 +195,7 @@ e_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -243,9 +212,7 @@ x_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -262,14 +229,11 @@ d_playnow (const dpp::button_click_t &event)
             p->set_shard (event.from ());
             p->notification = false;
 
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+            player_manager->update_info_embed (event.command.guild_id, false, &event);
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -286,14 +250,11 @@ b_playnow (const dpp::button_click_t &event)
             p->set_shard (event.from ());
             p->notification = true;
 
-            player_manager->update_info_embed (event.command.guild_id, false,
-                                               &event);
+            player_manager->update_info_embed (event.command.guild_id, false, &event);
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
@@ -310,40 +271,36 @@ l_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@")
-                         + std::to_string (event.command.usr.id)
-                         + ">: " + e.what ());
+            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
         }
 }
 
 void
 a_playnow (const dpp::button_click_t &event)
 {
-    std::thread t ([event] () {
-        thread_manager::DoneSetter tmds;
-
-        auto player_manager = get_player_manager_ptr ();
-        if (!player_manager)
-            return;
-
-        try
+    std::thread t (
+        [event] ()
             {
-                auto guild_player
-                    = player_manager->create_player (event.command.guild_id);
-                guild_player->set_shard (event.from ());
+                thread_manager::DoneSetter tmds;
 
-                guild_player->set_auto_play (!guild_player->auto_play);
+                auto player_manager = get_player_manager_ptr ();
+                if (!player_manager)
+                    return;
 
-                player_manager->update_info_embed (event.command.guild_id,
-                                                   false, &event);
-            }
-        catch (const exception &e)
-            {
-                event.reply (std::string ("<@")
-                             + std::to_string (event.command.usr.id)
-                             + ">: " + e.what ());
-            }
-    });
+                try
+                    {
+                        auto guild_player = player_manager->create_player (event.command.guild_id);
+                        guild_player->set_shard (event.from ());
+
+                        guild_player->set_auto_play (!guild_player->auto_play);
+
+                        player_manager->update_info_embed (event.command.guild_id, false, &event);
+                    }
+                catch (const exception &e)
+                    {
+                        event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+                    }
+            });
 
     thread_manager::dispatch (t);
 }
@@ -373,16 +330,12 @@ n_playnow (const dpp::button_click_t &event)
 }
 
 inline constexpr const generic_handler_vec playnow_commands[]
-    = { { "u", u_playnow }, { "p", p_playnow }, { "r", r_playnow },
-        { "s", s_playnow }, { "h", h_playnow }, { "e", e_playnow },
-        { "x", x_playnow }, { "d", d_playnow }, { "b", b_playnow },
-        { "l", l_playnow }, { "a", a_playnow }, { "w", w_playnow },
-        { "f", f_playnow }, { "v", v_playnow }, { "n", n_playnow },
-        { NULL, NULL } };
+    = { { "u", u_playnow }, { "p", p_playnow }, { "r", r_playnow }, { "s", s_playnow }, { "h", h_playnow }, { "e", e_playnow },
+        { "x", x_playnow }, { "d", d_playnow }, { "b", b_playnow }, { "l", l_playnow }, { "a", a_playnow }, { "w", w_playnow },
+        { "f", f_playnow }, { "v", v_playnow }, { "n", n_playnow }, { NULL, NULL } };
 
 void
-playnow (const dpp::button_click_t &event,
-         const command::button_command_t &cmd)
+playnow (const dpp::button_click_t &event, const command::button_command_t &cmd)
 {
     const std::string param = cmd.param;
 
@@ -391,14 +344,12 @@ playnow (const dpp::button_click_t &event,
 
     if (handle_generic_cmd (event, param, playnow_commands) != 0)
         {
-            fprintf (stderr, "[WARN] playnow param isn't handled: \"%s\"\n",
-                     param.c_str ());
+            fprintf (stderr, "[WARN] playnow param isn't handled: \"%s\"\n", param.c_str ());
         }
 }
 
 void
-message (const dpp::button_click_t &event,
-         const command::button_command_t &cmd)
+message (const dpp::button_click_t &event, const command::button_command_t &cmd)
 {
     const std::string param = cmd.param;
 
@@ -407,26 +358,21 @@ message (const dpp::button_click_t &event,
 
     if (param == "d")
         {
-            event.from ()->creator->message_delete (
-                event.command.msg.id, event.command.msg.channel_id);
+            event.from ()->creator->message_delete (event.command.msg.id, event.command.msg.channel_id);
         }
     else
         {
-            fprintf (stderr, "[WARN] message param isn't handled: \"%s\"\n",
-                     param.c_str ());
+            fprintf (stderr, "[WARN] message param isn't handled: \"%s\"\n", param.c_str ());
         }
 }
 
 inline constexpr const command::button_handlers_map_t button_handlers
-    = { { "page_queue", page_queue }, { "modal_p", modal_p },
-        { "progress", progress },     { "playnow", playnow },
-        { "message", message },       { NULL, NULL } };
+    = { { "page_queue", page_queue }, { "modal_p", modal_p }, { "progress", progress },
+        { "playnow", playnow },       { "message", message }, { NULL, NULL } };
 
 void
 on_button_click (dpp::cluster *client)
 {
-    client->on_button_click ([] (const dpp::button_click_t &event) {
-        command::handle_button ({ button_handlers, event });
-    });
+    client->on_button_click ([] (const dpp::button_click_t &event) { command::handle_button ({ button_handlers, event }); });
 }
 } // musicat::events

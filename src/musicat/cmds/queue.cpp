@@ -1,16 +1,15 @@
 #include "musicat/cmds/queue.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/server/ws/player.h"
 
 namespace musicat::command::queue
 {
 // =================== PRIVATE ===================
 
 void
-handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
-               player::player_manager_ptr_t player_manager,
-               std::deque<player::MCTrack> &queue,
-               const dpp::snowflake &sha_id)
+handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::player_manager_ptr_t player_manager,
+               std::deque<player::MCTrack> &queue, const dpp::snowflake &sha_id)
 {
     auto guild_player = player_manager->get_player (event.command.guild_id);
 
@@ -24,9 +23,8 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 auto siz = queue.size ();
                 if (siz < 2)
                     {
-                        event.edit_response (
-                            "No track to clear, skip the current "
-                            "track to clear the queue completely");
+                        event.edit_response ("No track to clear, skip the current "
+                                             "track to clear the queue completely");
                         break;
                     }
 
@@ -34,6 +32,8 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                     player::MCTrack t = guild_player->queue.at (0);
                     guild_player->queue_clear ();
                     guild_player->queue_add (t);
+
+                    server::ws::player::publish_queue (event.command.guild_id);
                 }
 
                 player_manager->update_info_embed (event.command.guild_id);
@@ -46,14 +46,14 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
             {
                 if (player_manager->shuffle_queue (event.command.guild_id))
                     {
-                        event.edit_response (
-                            "Shuffled"
-                            + std::string (queue.size () < 5
-                                               ? ", I suggest the `/move` "
-                                                 "command if you do think my "
-                                                 "shuffling skill isn't very "
-                                                 "much satisfying"
-                                               : ""));
+                        server::ws::player::publish_queue (event.command.guild_id);
+
+                        event.edit_response ("Shuffled"
+                                             + std::string (queue.size () < 5 ? ", I suggest the `/move` "
+                                                                                "command if you do think my "
+                                                                                "shuffling skill isn't very "
+                                                                                "much satisfying"
+                                                                              : ""));
                         break;
                     }
                 else
@@ -79,8 +79,10 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                         n_queue.push_back (guild_player->queue.at (i));
 
                     guild_player->queue_clear ();
-                    guild_player->set_queue(std::move (n_queue));
+                    guild_player->set_queue (std::move (n_queue));
                     guild_player->queue_add_front (t);
+
+                    server::ws::player::publish_queue (event.command.guild_id);
                 }
                 player_manager->update_info_embed (event.command.guild_id);
 
@@ -94,12 +96,9 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 // vc currently no check for user who invoked the command (it's
                 // rather a feature where user who left the vc can clear their
                 // tracks to keep their friend happy)
-                if (!player_manager->voice_ready (event.command.guild_id,
-                                                  event.from()->shard_id,
-                                                  event.command.usr.id))
+                if (!player_manager->voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id))
                     {
-                        event.edit_response (
-                            "Establishing connection. Please wait...");
+                        event.edit_response ("Establishing connection. Please wait...");
                         break;
                     }
 
@@ -112,8 +111,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 
                 if (!vc.first)
                     {
-                        event.edit_response (
-                            "`[ERROR]` Can't get current voice connection");
+                        event.edit_response ("`[ERROR]` Can't get current voice connection");
 
                         break;
                     }
@@ -121,13 +119,11 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                 // users in the vc that have been checked
                 std::vector<dpp::snowflake> all_user = {};
                 // check each track for missing owner
-                for (auto i = guild_player->queue.begin ();
-                     i != guild_player->queue.end (); i++)
+                for (auto i = guild_player->queue.begin (); i != guild_player->queue.end (); i++)
                     {
                         // whether the user of this track already
                         // checked
-                        if (vector_find (&all_user, i->user_id)
-                            != all_user.end ())
+                        if (vector_find (&all_user, i->user_id) != all_user.end ())
                             continue;
 
                         // save as checked user
@@ -164,24 +160,24 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
                         break;
                     }
 
+                if (rmed)
+                    server::ws::player::publish_queue (event.command.guild_id);
+
                 player_manager->update_info_embed (event.command.guild_id);
 
-                event.edit_response (std::to_string (usiz) + " user"
-                                     + std::string (usiz > 1 ? "s" : "")
-                                     + " left this session. Removed "
-                                     + std::to_string (rmed) + " track"
-                                     + std::string (rmed > 1 ? "s" : ""));
+                event.edit_response (std::to_string (usiz) + " user" + std::string (usiz != 1 ? "s" : "") + " left this session. Removed "
+                                     + std::to_string (rmed) + " track" + std::string (rmed != 1 ? "s" : ""));
 
                 break;
             }
         case queue_modify_t::m_clear_musicat:
             {
-                const size_t rmed
-                    = guild_player->remove_track_by_user (sha_id);
+                const size_t rmed = guild_player->remove_track_by_user (sha_id);
+                if (rmed)
+                    server::ws::player::publish_queue (event.command.guild_id);
 
-                event.edit_response (
-                    std::string ("Removed ") + std::to_string (rmed) + " track"
-                    + std::string (rmed > 1 ? "s" : "") + " from queue");
+                event.edit_response (std::string ("Removed ") + std::to_string (rmed) + " track" + std::string (rmed != 1 ? "s" : "")
+                                     + " from queue");
 
                 break;
             }
@@ -196,21 +192,13 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event,
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("queue", "Show or modify [tracks in the] queue",
-                              sha_id)
-        .add_option (
-            dpp::command_option (dpp::co_integer, "action",
-                                 "Modify [tracks in the] queue")
-                .add_choice (dpp::command_option_choice (
-                    "Shuffle", queue_modify_t::m_shuffle))
-                .add_choice (dpp::command_option_choice (
-                    "Reverse", queue_modify_t::m_reverse))
-                .add_choice (dpp::command_option_choice (
-                    "Clear Left", queue_modify_t::m_clear_left))
-                .add_choice (dpp::command_option_choice (
-                    "Clear All", queue_modify_t::m_clear))
-                .add_choice (dpp::command_option_choice (
-                    "Clear Musicat", queue_modify_t::m_clear_musicat)));
+    return dpp::slashcommand ("queue", "Show or modify [tracks in the] queue", sha_id)
+        .add_option (dpp::command_option (dpp::co_integer, "action", "Modify [tracks in the] queue")
+                         .add_choice (dpp::command_option_choice ("Shuffle", queue_modify_t::m_shuffle))
+                         .add_choice (dpp::command_option_choice ("Reverse", queue_modify_t::m_reverse))
+                         .add_choice (dpp::command_option_choice ("Clear Left", queue_modify_t::m_clear_left))
+                         .add_choice (dpp::command_option_choice ("Clear All", queue_modify_t::m_clear))
+                         .add_choice (dpp::command_option_choice ("Clear Musicat", queue_modify_t::m_clear_musicat)));
 }
 
 void
@@ -222,14 +210,13 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    const dpp::snowflake sha_id = event.from()->creator->me.id;
+    const dpp::snowflake sha_id = event.from ()->creator->me.id;
 
     // avoid getting timed out when loading large queue
     event.thinking ();
     player_manager->load_guild_current_queue (event.command.guild_id, &sha_id);
 
-    std::deque<player::MCTrack> queue
-        = player_manager->get_queue (event.command.guild_id);
+    std::deque<player::MCTrack> queue = player_manager->get_queue (event.command.guild_id);
 
     if (queue.empty ())
         {

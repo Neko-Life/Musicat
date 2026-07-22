@@ -152,9 +152,9 @@ using player_manager_ptr_t = Manager *;
 
 class Player
 {
+  public:
     using track_queue = std::deque<MCTrack>;
 
-  public:
     static const uint32_t INVALID_SHARD_ID = 0xFFFFFFFF;
 
     /**
@@ -459,6 +459,7 @@ class Player
 
     Player &queue_insert (const MCTrack &t, size_t pos);
     Player &queue_erase (size_t pos);
+    track_queue::iterator queue_erase_i (track_queue::iterator i);
 
     Player &set_queue (const track_queue &q);
     Player &queue_clear ();
@@ -973,6 +974,7 @@ bool player_has_current_track (std::shared_ptr<player::Player> guild_player);
  */
 player::track_progress get_track_progress (const player::MCTrack &track);
 
+void set_playback_info_track_data (nlohmann::json &data, const dpp::snowflake &guild_id, /* const */ player::MCTrack &track);
 nlohmann::json get_playback_info_json (const dpp::snowflake &guild_id);
 
 } // util

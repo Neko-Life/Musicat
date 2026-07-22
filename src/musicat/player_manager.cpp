@@ -2,6 +2,7 @@
 #include "musicat/child/dl_music.h"
 #include "musicat/musicat.h"
 #include "musicat/player.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
@@ -169,6 +170,7 @@ Manager::unpause (dpp::discord_voice_client *voiceclient, const dpp::snowflake &
     if (voiceclient)
         {
             voiceclient->pause_audio (false);
+            server::ws::player::publish_play (guild_id);
         }
 
     if (update_info_embed)

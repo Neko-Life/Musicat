@@ -246,7 +246,6 @@ slash_run (const dpp::slashcommand_t &event)
 
     std::string out;
     int status = run (user_id, guild_id, event, out,
-
                       arg_query, arg_top, arg_slip);
 
     if (status == 1)

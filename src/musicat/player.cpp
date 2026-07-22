@@ -1,8 +1,9 @@
-#include "musicat/player.h"
+#include "musicat/server/ws/player.h"
 #include "musicat/audio_config.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/player.h"
 #include "musicat/server/stream.h"
 #include "musicat/util.h"
 #include <cstddef>
@@ -65,7 +66,7 @@ MCTrack::check_for_seek_to ()
     if (current_byte < 1)
         return;
 
-    seek_to = std::to_string ((float)current_byte / opus_byte_per_ms / 1000);
+    seek_to = std::to_string (current_byte / opus_byte_per_ms / 1000);
 
     if (debug)
         {
@@ -336,7 +337,7 @@ Player::reset_shifted ()
         {
             auto i = this->queue.begin () + this->shifted_track;
             auto s = std::move (*i);
-            this->queue.erase (i);
+            this->queue_erase_i (i);
             this->queue_add_front (s);
             this->shifted_track = 0;
             return true;
@@ -407,7 +408,7 @@ Player::remove_track (const size_t &pos, size_t amount, const size_t &to)
             if (a == amount)
                 break;
 
-            b = this->queue.erase (b);
+            b = this->queue_erase_i (b);
             a++;
         }
 
@@ -426,7 +427,7 @@ Player::remove_track_by_user (const dpp::snowflake &user_id)
         {
             if (i->user_id == user_id && i != this->queue.begin ())
                 {
-                    this->queue.erase (i);
+                    i = this->queue_erase_i (i);
                     ret++;
                     continue;
                 }
@@ -455,6 +456,7 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
 
             v->voiceclient->pause_audio (true);
             // Paused
+            server::ws::player::publish_pause (guild_id);
             return true;
         }
 
@@ -478,7 +480,7 @@ Player::shuffle (bool update_info_embed)
     auto b = shuffle_indexes (siz - 1);
     {
         MCTrack os = this->queue.at (0);
-        this->queue.erase (this->queue.begin ());
+        this->queue_pop_front ();
 
         for (auto i : b)
             n_queue.push_back (this->queue.at (i));
@@ -927,7 +929,7 @@ Player::queue_pop_front ()
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_pop_front] " << guild_id << "\n";
+        std::cerr << "[Player::queue_pop_front] " << guild_id << ": `" << mctrack::get_title (queue.front ()) << "\n";
 
     queue.pop_front ();
     return *this;
@@ -949,10 +951,21 @@ Player::queue_erase (size_t pos)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_erase] " << guild_id << ": pos(" << pos << ")\n";
+        std::cerr << "[Player::queue_erase] " << guild_id << ": `" << mctrack::get_title (*(queue.begin () + pos)) << "` pos(" << pos
+                  << ")\n";
 
     queue.erase (queue.begin () + pos);
     return *this;
+}
+
+Player::track_queue::iterator
+Player::queue_erase_i (track_queue::iterator i)
+{
+    const bool debug = get_debug_state ();
+    if (debug)
+        std::cerr << "[Player::queue_erase_i] " << guild_id << ": `" << mctrack::get_title (*i) << "`\n";
+
+    return queue.erase (i);
 }
 
 Player &
@@ -1004,6 +1017,61 @@ get_track_progress (const player::MCTrack &track)
     return { current_ms, duration, 0 };
 }
 
+void
+set_playback_info_track_data (nlohmann::json &data, const dpp::snowflake &guild_id, /* const */ player::MCTrack &track)
+{
+    // one char variable name for 100x performance improvement!!!!!
+    dpp::guild_member u;
+    bool member_found = false;
+    try
+        {
+            u = dpp::find_guild_member (guild_id, track.user_id);
+            member_found = true;
+        }
+    catch (...)
+        {
+        }
+
+    dpp::user *uc = dpp::find_user (track.user_id);
+    std::string track_username;
+    if (member_found)
+        {
+            std::string nick = u.get_nickname ();
+            if (!nick.empty ())
+                track_username = nick;
+        }
+
+    if (track_username.empty ())
+        {
+            if (uc)
+                track_username = uc->username;
+            else
+                track_username = "";
+        }
+
+    std::string track_user_avatar = member_found ? u.get_avatar_url (4096) : "";
+    if (track_user_avatar.empty () && uc)
+        track_user_avatar = uc->get_avatar_url (4096);
+
+    player::track_progress prog = get_track_progress (track);
+
+    data["username"] = track_username;
+    data["avatar"] = track_user_avatar;
+    // !TODO: this call should const able!
+    data["thumbnail"] = mctrack::get_thumbnail (track);
+    data["desc"] = mctrack::get_description (track);
+    data["title"] = mctrack::get_title (track);
+    data["url"] = mctrack::get_url (track);
+    data["progress"] = prog.current_ms;
+    data["duration"] = prog.duration;
+
+    // !TODO: remove this when fully using ytdlp to support non-yt
+    // tracks
+    bool tinfo = !track.info.raw.is_null ();
+    if (tinfo)
+        data["average_bitrate"] = track.info.average_bitrate ();
+}
+
 static void
 set_guild_player_data (nlohmann::json &data, const dpp::snowflake &guild_id)
 {
@@ -1044,56 +1112,7 @@ set_guild_player_data (nlohmann::json &data, const dpp::snowflake &guild_id)
         return;
 
     player::MCTrack &track = guild_player->current_track;
-
-    // one char variable name for 100x performance improvement!!!!!
-    dpp::guild_member u;
-    bool member_found = false;
-    try
-        {
-            u = dpp::find_guild_member (guild_id, track.user_id);
-            member_found = true;
-        }
-    catch (...)
-        {
-        }
-
-    dpp::user *uc = dpp::find_user (track.user_id);
-    std::string track_username;
-    if (member_found)
-        {
-            std::string nick = u.get_nickname ();
-            if (!nick.empty ())
-                track_username = nick;
-        }
-
-    if (track_username.empty ())
-        {
-            if (uc)
-                track_username = uc->username;
-            else
-                track_username = "";
-        }
-
-    std::string track_user_avatar = member_found ? u.get_avatar_url (4096) : "";
-    if (track_user_avatar.empty () && uc)
-        track_user_avatar = uc->get_avatar_url (4096);
-
-    player::track_progress prog = get_track_progress (track);
-
-    data["username"] = track_username;
-    data["avatar"] = track_user_avatar;
-    data["thumbnail"] = mctrack::get_thumbnail (track);
-    data["desc"] = mctrack::get_description (track);
-    data["title"] = mctrack::get_title (track);
-    data["url"] = mctrack::get_url (track);
-    data["progress"] = prog.current_ms;
-    data["duration"] = prog.duration;
-
-    // !TODO: remove this when fully using ytdlp to support non-yt
-    // tracks
-    bool tinfo = !track.info.raw.is_null ();
-    if (tinfo)
-        data["average_bitrate"] = track.info.average_bitrate ();
+    set_playback_info_track_data (data, guild_id, track);
 }
 
 nlohmann::json
