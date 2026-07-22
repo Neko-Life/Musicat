@@ -1,6 +1,8 @@
 #include "musicat/server/stream.h"
 #include <map>
 
+// #define WITH_PACKETS_CACHE
+
 namespace musicat::server::stream
 {
 
@@ -16,7 +18,9 @@ struct guild_stream_state_t
     std::mutex streams_m;
 
     std::vector<std::string> headers_cache;
+#ifdef WITH_PACKETS_CACHE
     std::vector<std::string> packets_cache;
+#endif // WITH_PACKETS_CACHE
 };
 
 static std::map<dpp::snowflake, guild_stream_state_t> subs;
@@ -118,7 +122,9 @@ check_for_headers (guild_stream_state_t &state, const std::string &p)
     if (!memcmp ("OpusHead", payload, 8))
         {
             state.headers_cache.clear ();
+#ifdef WITH_PACKETS_CACHE
             state.packets_cache.clear ();
+#endif // WITH_PACKETS_CACHE
             state.headers_cache.push_back (p);
         }
     else if (!memcmp ("OpusTags", payload, 8))
@@ -131,6 +137,7 @@ check_for_headers (guild_stream_state_t &state, const std::string &p)
     return 0;
 }
 
+#ifdef WITH_PACKETS_CACHE
 // cache the last few packets so browsers won't need to wait for too long before playing smoothly
 static int
 cache_packets (guild_stream_state_t &state, const std::string &p)
@@ -144,6 +151,7 @@ cache_packets (guild_stream_state_t &state, const std::string &p)
 
     return 0;
 }
+#endif // WITH_PACKETS_CACHE
 
 void
 broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t packet_len)
@@ -163,8 +171,10 @@ broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t p
                                     for (const std::string &h : state.headers_cache)
                                         s.res->write (h);
 
+#ifdef WITH_PACKETS_CACHE
                                     for (const std::string &h : state.packets_cache)
                                         s.res->write (h);
+#endif // WITH_PACKETS_CACHE
 
                                     s.headers_sent = true;
                                 }
@@ -174,8 +184,10 @@ broadcast (const dpp::snowflake &guild_id, const unsigned char *packet, size_t p
                 }
 
                 int is_header = check_for_headers (state, p);
+#ifdef WITH_PACKETS_CACHE
                 if (!is_header)
                     cache_packets (state, p);
+#endif
             });
 }
 
