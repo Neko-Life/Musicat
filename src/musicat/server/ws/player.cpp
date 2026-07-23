@@ -18,6 +18,27 @@ SocketData::get_player_topic () const
     return ::musicat::server::ws::player::get_player_topic (server_id);
 }
 
+static std::map<uws_ws_t *, dpp::snowflake> umap;
+
+int
+register_ws_user (uws_ws_t *ws, const dpp::snowflake &user_id)
+{
+    umap[ws] = user_id;
+    ws->getUserData ()->user_id = user_id;
+    return 0;
+}
+
+int
+unregister_ws_user (uws_ws_t *ws)
+{
+    auto i = umap.find (ws);
+    if (i == umap.end ())
+        return -1;
+
+    umap.erase (i);
+    return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string

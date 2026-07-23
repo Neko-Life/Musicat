@@ -5,12 +5,44 @@
 namespace musicat::server::ws::player::events
 {
 
-inline constexpr const socket_event_handler_t socket_event_handlers[] = { { SOCKET_EVENT_ERROR, NULL } };
-
-void
-handle_message (const socket_event_e e, const nlohmann::json &payload)
+static int
+_stub (const nlohmann::json &data, uws_ws_t *ws)
 {
-    void (*handler) (const nlohmann::json &data) = NULL;
+    fprintf (stderr, "[server::ws::player::events::_stub] %ld:\n%s\n\n", ws, data.dump ().c_str ());
+    return 0;
+}
+
+static int
+handle_register (const nlohmann::json &data, uws_ws_t *ws)
+{
+    // let it be object in case we wanna add other stuff later on
+    if (!data.is_object ())
+        return 1;
+    auto i_uid = data.find ("uid");
+    if (i_uid == data.end () || !i_uid->is_string ())
+        return 1;
+
+    register_ws_user (ws, i_uid->get<std::string> ());
+
+    return 0;
+}
+
+inline constexpr const socket_event_handler_t socket_event_handlers[] = {
+
+    { SOCKET_EVENT_PAUSE, _stub },
+    { SOCKET_EVENT_PLAY, _stub },
+    { SOCKET_EVENT_SEEK, _stub },
+    { SOCKET_EVENT_STOP, _stub },
+    { SOCKET_EVENT_FX, _stub },
+    { SOCKET_EVENT_QUEUE, _stub },
+    { SOCKET_EVENT_REGISTER, handle_register },
+    { SOCKET_EVENT_ERROR, NULL }
+};
+
+int
+handle_message (const socket_event_e e, const nlohmann::json &payload, uws_ws_t *ws)
+{
+    int (*handler) (const nlohmann::json &, uws_ws_t *) = NULL;
 
     for (size_t i = 0; i < (sizeof (socket_event_handlers) / sizeof (*socket_event_handlers)); i++)
         {
@@ -27,14 +59,14 @@ handle_message (const socket_event_e e, const nlohmann::json &payload)
         }
 
     if (!handler)
-        return;
+        return 0;
 
     nlohmann::json data;
     auto i_d = payload.find ("d");
     if (i_d != payload.end ())
         data = *i_d;
 
-    handler (data);
+    return handler (data, ws);
 }
 
 void
@@ -76,7 +108,14 @@ message (uws_ws_t *ws, std::string_view msg, uWS::OpCode code)
                     return;
                 }
 
-            handle_message ((socket_event_e)i_e->get<int64_t> (), json_payload);
+            int status = handle_message ((socket_event_e)i_e->get<int64_t> (), json_payload, ws);
+            if (status)
+                {
+                    ws->close ();
+
+                    fprintf (stderr, "[server::ws::player::events::message ERROR] payload:\n%s\n\nstatus: %d\n",
+                             json_payload.dump ().c_str (), status);
+                }
         }
     catch (const nlohmann::json::exception &e)
         {

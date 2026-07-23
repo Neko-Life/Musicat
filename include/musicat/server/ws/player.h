@@ -26,6 +26,7 @@ namespace musicat::server::ws::player
 struct SocketData
 {
     dpp::snowflake server_id;
+    dpp::snowflake user_id;
     bool waved;
 
     SocketData ();
@@ -44,15 +45,19 @@ enum socket_event_e
     SOCKET_EVENT_STOP,
     SOCKET_EVENT_FX,
     SOCKET_EVENT_QUEUE,
+    SOCKET_EVENT_REGISTER,
 };
+
+using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
 
 struct socket_event_handler_t
 {
     const socket_event_e event;
-    void (*const handler) (const nlohmann::json &data);
+    int (*const handler) (const nlohmann::json &data, uws_ws_t *ws);
 };
 
-using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
+int register_ws_user (uws_ws_t *ws, const dpp::snowflake &user_id);
+int unregister_ws_user (uws_ws_t *ws);
 
 ////////////////////////////////////////////////////////////////////////////////
 
