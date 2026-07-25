@@ -495,12 +495,12 @@ run_stream_thread ()
             ctx = nullptr;
             {
                 std::unique_lock lk (stream_ctxs_m);
-                for (auto &c : stream_ctxs)
+                for (auto i = stream_ctxs.begin (); i != stream_ctxs.end (); i++)
                     {
-                        if (c.handled || !c.need_handler ())
+                        if (i->handled || !i->need_handler ())
                             continue;
-                        c.handled = true;
-                        ctx = &c;
+                        i->handled = true;
+                        ctx = &(*i);
                         break;
                     }
 
