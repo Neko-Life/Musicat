@@ -861,6 +861,7 @@ Manager::stream (const dpp::snowflake &guild_id)
     //         fprintf (stderr, dssefmt, ttitle.c_str (), done.count ());
 }
 
+// !TODO: use dedicated stream thread pool instead
 void
 Manager::stream_noslave (const dpp::snowflake &guild_id)
 {
