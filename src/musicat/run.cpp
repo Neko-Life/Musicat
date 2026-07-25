@@ -55,7 +55,6 @@ std::string music_folder_path = "";
 
 // in second
 float _stream_buffer_size = 0.0f;
-int64_t _stream_sleep_on_buffer_threshold_ms = 0;
 
 int python_v = -1;
 
@@ -506,23 +505,6 @@ get_stream_buffer_size ()
         }
 
     return _stream_buffer_size;
-}
-
-int64_t
-get_stream_sleep_on_buffer_threshold_ms ()
-{
-    if (_stream_sleep_on_buffer_threshold_ms < 1)
-        {
-            int64_t set_v = get_config_value<int64_t> ("STREAM_SLEEP_ON_BUFFER_THRESHOLD_MS", 0);
-
-            if (set_v < 1)
-                set_v = 1;
-
-            std::lock_guard lk (main_mutex);
-            _stream_sleep_on_buffer_threshold_ms = set_v;
-        }
-
-    return _stream_sleep_on_buffer_threshold_ms;
 }
 
 const char *

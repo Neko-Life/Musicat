@@ -662,8 +662,11 @@ Player::init_for_stream ()
 {
     int status = setup_encoder (this);
 
-    reset_first_track_current_byte ();
-    processing_audio = true;
+    if (status == 0)
+        {
+            reset_first_track_current_byte ();
+            processing_audio = true;
+        }
 
     return status;
 }
