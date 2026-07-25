@@ -407,6 +407,9 @@ decoder_t::seek (int64_t timestamp)
             return 0;
         }
 
+    const auto time_base = fmt_ctx->streams[audio_stream_index]->time_base;
+    timestamp = timestamp * time_base.num * time_base.den / 1000;
+
     int ret;
     int64_t seek_timestamp = timestamp;
     if (fmt_ctx->start_time != AV_NOPTS_VALUE)
