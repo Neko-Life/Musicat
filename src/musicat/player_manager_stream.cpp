@@ -447,7 +447,7 @@ class stream_ctx
     }
 };
 
-static std::vector<stream_ctx> stream_ctxs;
+static std::vector<stream_ctx *> stream_ctxs;
 static std::mutex stream_ctxs_m;
 static std::condition_variable stream_ctxs_cv;
 
@@ -469,8 +469,9 @@ erase_ctx_unlocked (const dpp::snowflake &guild_id)
     auto i = stream_ctxs.begin ();
     while (i != stream_ctxs.end ())
         {
-            if (i->guild_id == guild_id)
+            if ((*i)->guild_id == guild_id)
                 {
+                    delete (*i);
                     stream_ctxs.erase (i);
                     break;
                 }
@@ -495,12 +496,12 @@ run_stream_thread ()
             ctx = nullptr;
             {
                 std::unique_lock lk (stream_ctxs_m);
-                for (auto i = stream_ctxs.begin (); i != stream_ctxs.end (); i++)
+                for (auto *i : stream_ctxs)
                     {
                         if (i->handled || !i->need_handler ())
                             continue;
                         i->handled = true;
-                        ctx = &(*i);
+                        ctx = i;
                         break;
                     }
 
@@ -564,9 +565,9 @@ check_stream_contexts ()
 {
     std::unique_lock lk (stream_ctxs_m);
     int notified = 0;
-    for (auto &c : stream_ctxs)
+    for (auto *c : stream_ctxs)
         {
-            if (c.handled || !c.need_handler ())
+            if (c->handled || !c->need_handler ())
                 continue;
 
             stream_ctxs_cv.notify_one ();
@@ -584,19 +585,19 @@ Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
         auto i = stream_ctxs.begin ();
         while (i != stream_ctxs.end ())
             {
-                if (i->guild_id == guild_id)
+                if ((*i)->guild_id == guild_id)
                     throw 3;
 
                 i++;
             }
-        auto &nctx = stream_ctxs.emplace_back (guild_id);
+        auto &nctx = stream_ctxs.emplace_back (new stream_ctx{ guild_id });
         try
             {
-                nctx.init ();
+                nctx->init ();
             }
         catch (int e)
             {
-                erase_ctx_unlocked (nctx.guild_id);
+                erase_ctx_unlocked (nctx->guild_id);
                 throw e;
             }
     }
