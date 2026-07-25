@@ -510,7 +510,7 @@ Manager::play (const dpp::snowflake &guild_id)
                         if (guild_player->init_for_stream () != 0)
                             return;
 
-                        manager->stream_noslave (guild_player->guild_id);
+                        manager->submit_stream_ctx (guild_player->guild_id);
                     }
                 catch (int e)
                     {
@@ -548,29 +548,7 @@ Manager::play (const dpp::snowflake &guild_id)
                     }
 
             skip_send_msg:
-                guild_player->done_streaming ();
-
-                // update voice client pointer after long stream session
-                vclient = guild_player->get_voice_client ();
-
-                const bool err_processor = err == 3;
-                // do not insert marker when error coming from duplicate processor
-                if (!err_processor && vclient && !vclient->terminating)
-                    {
-                        vclient->insert_marker ("e");
-                        return;
-                    }
-
-                if (err_processor)
-                    return;
-
-                auto vcc = get_voice_from_gid (guild_id, get_sha_id ());
-
-                if (vcc.first)
-                    return;
-
-                if (guild_id && voice_channel_id)
-                    manager->set_connecting (guild_id, voice_channel_id);
+                return;
             });
 
     thread_manager::dispatch (tj);

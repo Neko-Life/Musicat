@@ -130,19 +130,18 @@ shutdown_cmd (const cmd_args_t &args)
 static int
 list_effect_states (const cmd_args_t &args)
 {
-    std::lock_guard lk (player::effect_states_list_m);
-
-    auto efs = player::get_effect_states_list ();
-
-    for (auto ef : *efs)
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return 0;
+    for (auto &[s, guild_player] : player_manager->players)
         {
-            auto gid = ef->guild_player->guild_id;
+            auto gid = guild_player->guild_id;
 
             auto g = dpp::find_guild (gid);
             std::string gstr = g ? g->name : "[not_found]";
 
-            std::cerr << gstr << " (" << gid << "):\nTrack: " << mctrack::get_title (ef->track) << '\n'
-                      << "FX: " << ef->guild_player->get_filter_descr () << "\n==========\n";
+            std::cerr << gstr << " (" << gid << "):\nTrack: " << mctrack::get_title (guild_player->current_track) << '\n'
+                      << "FX: " << guild_player->get_filter_descr () << "\n==========\n";
         }
 
     return 0;

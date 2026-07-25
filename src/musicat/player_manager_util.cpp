@@ -975,6 +975,8 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
     if (i != this->waiting_vc_ready.end ())
         {
             this->waiting_vc_ready.erase (i);
+
+            on_clear_wait_vc_ready ();
             this->dl_cv.notify_all ();
             return 2;
         }

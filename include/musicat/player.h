@@ -661,6 +661,7 @@ class Manager
 
     void stream (const dpp::snowflake &guild_id);
     void stream_noslave (const dpp::snowflake &guild_id);
+    void submit_stream_ctx (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
@@ -824,21 +825,12 @@ struct handle_effect_chain_change_states_t
     decoder_t &dec;
 };
 
-using effect_states_list_t = std::vector<handle_effect_chain_change_states_t *>;
+void on_clear_wait_vc_ready ();
 
-extern std::mutex effect_states_list_m; // EXTERN_VARIABLE
+void check_stream_contexts ();
 
-/**
- * @brief Get guild effect states.
- * Must lock `effect_states_list_m` until done using the returned ptr
- */
-handle_effect_chain_change_states_t *get_effect_states (const dpp::snowflake &guild_id);
-
-/**
- * @brief Get effect states list.
- * Must lock `effect_states_list_m` until done using the returned ptr
- */
-effect_states_list_t *get_effect_states_list ();
+void spawn_stream_thread (int count);
+void shutdown ();
 
 // ================================================================================
 
@@ -932,7 +924,7 @@ void decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, con
 // this should be called inside the streaming thread
 // returns 1 if vclient terminating or null
 // 0 on success
-int send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait = false,
+int send_audio_routine (Player *vclient, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait = false,
                         OggOpusEnc *opus_encoder = NULL);
 
 #else

@@ -755,6 +755,8 @@ run (int argc, const char *argv[])
                          cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
 
     player::Manager player_manager (&client);
+    auto stream_thread_count = std::thread::hardware_concurrency () / 2;
+    player::spawn_stream_thread (stream_thread_count == 0 ? 1 : stream_thread_count);
 
     client_ptr = &client;
     player_manager_ptr = &player_manager;
@@ -843,6 +845,7 @@ run (int argc, const char *argv[])
     while ((r_s = get_running_state ()))
         {
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
+            player::check_stream_contexts ();
 
             bool debug = get_debug_state ();
             time_t cur_time = time (NULL);
@@ -926,6 +929,7 @@ run (int argc, const char *argv[])
     server::shutdown ();
 
     player_manager.shutdown ();
+    player::shutdown ();
     client.shutdown ();
 
     player_manager_ptr = nullptr;
