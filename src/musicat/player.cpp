@@ -1117,12 +1117,7 @@ player::track_progress
 get_track_progress (const player::MCTrack &track)
 {
     int64_t duration = mctrack::get_duration (track);
-
-    if (!duration)
-        return { 0, 0, 1 };
-
     int64_t current_ms = track.current_byte ? (float)track.current_byte / player::opus_byte_per_ms : 0;
-
     return { current_ms, duration, 0 };
 }
 
