@@ -159,7 +159,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t &states)
 
     if (seek_queried)
         {
-            states.dec.seek (states.track.current_byte / opus_byte_per_ms);
+            states.dec.seek (util::get_track_progress (states.track).current_ms);
             states.track.seek_to = "";
             states.guild_player->reset_first_track_current_byte ();
         }
@@ -913,7 +913,7 @@ Manager::stream_noslave (const dpp::snowflake &guild_id)
     track.check_for_seek_to ();
     if (!track.seek_to.empty ())
         {
-            const auto ms = track.current_byte / opus_byte_per_ms;
+            const auto ms = util::get_track_progress (track).current_ms;
             dec.seek (ms);
             track.seek_to = "";
             server::ws::player::publish_seek (guild_id, ms);

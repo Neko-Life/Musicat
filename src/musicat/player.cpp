@@ -834,7 +834,7 @@ Player::fx_states_to_json ()
 }
 
 static std::string
-get_ffmpeg_pitch_args (int pitch)
+get_ffmpeg_pitch_args (int pitch, int64_t rel_sampling_rate, double rel_tempo)
 {
     if (pitch == 0)
         return "";
@@ -842,8 +842,18 @@ get_ffmpeg_pitch_args (int pitch)
     constexpr int64_t samp_per_percent = 24000 / 100;
     constexpr double tempo_per_percent = 0.5 / 100;
 
-    int64_t sample = 48000 + (pitch * (-samp_per_percent));
-    double tempo = 1.0 + ((double)pitch * (-tempo_per_percent));
+    int64_t sample = (rel_sampling_rate == -1 ? 48000 : rel_sampling_rate) + (pitch * (-samp_per_percent));
+    double tempo = (rel_tempo == -1 ? 1.0 : rel_tempo) + ((double)pitch * (-tempo_per_percent));
+
+    if (sample < 6000)
+        sample = 6000;
+    if (sample > 192000)
+        sample = 192000;
+
+    if (tempo < 0.5)
+        tempo = 0.5;
+    if (tempo > 3)
+        tempo = 3.0;
 
     /*
         100=24000,0.5=-24000,-0.5=48000+(100*(-(24000/100))),1.0+(100*(-(0.5/100)))
@@ -906,17 +916,17 @@ Player::get_filter_descr ()
 {
     std::string descr = "volume=" + std::to_string ((double)volume / 100);
 
+    if (fx_is_sampling_rate_active ())
+        descr += ",aresample=" + std::to_string (sampling_rate);
+
     if (fx_is_tempo_active ())
         descr += ",atempo=" + std::to_string (tempo);
 
     if (fx_is_pitch_active ())
-        descr += "," + get_ffmpeg_pitch_args (pitch);
+        descr += "," + get_ffmpeg_pitch_args (pitch, sampling_rate, tempo);
 
     if (fx_is_equalizer_active ())
         descr += ",superequalizer=" + equalizer;
-
-    if (fx_is_sampling_rate_active ())
-        descr += ",aresample=" + std::to_string (sampling_rate);
 
     if (fx_is_vibrato_active ())
         {
