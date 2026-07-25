@@ -59,19 +59,15 @@ MCTrack::check_for_seek_to ()
     seek_to = "";
 
     if (debug)
-        {
-            fprintf (stderr, "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n", tit.c_str (), current_byte);
-        }
+        fprintf (stderr, "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n", tit.c_str (), current_byte);
 
     if (current_byte < 1)
         return;
 
-    seek_to = std::to_string (current_byte / opus_byte_per_ms / 1000);
+    seek_to = "y";
 
     if (debug)
-        {
-            fprintf (stderr, "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n", tit.c_str (), seek_to.c_str ());
-        }
+        fprintf (stderr, "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n", tit.c_str (), seek_to.c_str ());
 }
 
 void
@@ -835,6 +831,109 @@ Player::fx_states_to_json ()
         { "tremolo_f", this->tremolo_f }, { "tremolo_d", this->tremolo_d },
         { "earwax", this->earwax },
     };
+}
+
+static std::string
+get_ffmpeg_pitch_args (int pitch)
+{
+    if (pitch == 0)
+        return "";
+
+    constexpr int64_t samp_per_percent = 24000 / 100;
+    constexpr double tempo_per_percent = 0.5 / 100;
+
+    int64_t sample = 48000 + (pitch * (-samp_per_percent));
+    double tempo = 1.0 + ((double)pitch * (-tempo_per_percent));
+
+    /*
+        100=24000,0.5=-24000,-0.5=48000+(100*(-(24000/100))),1.0+(100*(-(0.5/100)))
+        0=48000,1.0
+        -100=72000,1.5=+24000,+0.5=48000+(-100*(-(24000/100))),1.0+(-100*(-(0.5/100)))
+        -200=96000,2.0=+48000,+1.0=48000+(-200*(-(24000/100))),1.0+(-200*(-(0.5/100)))
+        -300=120000,2.5=+72000,+1.5
+        -400=144000,3.0=+96000,+2.0
+    */
+
+    return "aresample=" + std::to_string (sample) + ",atempo=" + std::to_string (tempo);
+}
+
+static std::string
+get_ffmpeg_vibrato_args (bool has_f, bool has_d, Player *guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->vibrato_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->vibrato_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
+
+static std::string
+get_ffmpeg_tremolo_args (bool has_f, bool has_d, Player *guild_player)
+{
+    std::string v_args;
+
+    if (has_f)
+        {
+            v_args += "f=" + std::to_string (guild_player->tremolo_f);
+        }
+
+    if (has_d)
+        {
+            if (has_f)
+                v_args += ':';
+
+            int64_t nd = guild_player->tremolo_d;
+            v_args += "d=" + std::to_string (nd > 0 ? (float)nd / 100 : nd);
+        }
+
+    return v_args;
+}
+
+std::string
+Player::get_filter_descr ()
+{
+    std::string descr = "volume=" + std::to_string ((double)volume / 100);
+
+    if (fx_is_tempo_active ())
+        descr += ",atempo=" + std::to_string (tempo);
+
+    if (fx_is_pitch_active ())
+        descr += "," + get_ffmpeg_pitch_args (pitch);
+
+    if (fx_is_equalizer_active ())
+        descr += ",superequalizer=" + equalizer;
+
+    if (fx_is_sampling_rate_active ())
+        descr += ",aresample=" + std::to_string (sampling_rate);
+
+    if (fx_is_vibrato_active ())
+        {
+            std::string v_args = get_ffmpeg_vibrato_args (fx_has_vibrato_f (), fx_has_vibrato_d (), this);
+            descr += ",vibrato=" + v_args;
+        }
+
+    if (fx_is_tremolo_active ())
+        {
+            std::string v_args = get_ffmpeg_tremolo_args (fx_has_tremolo_f (), fx_has_tremolo_d (), this);
+            descr += ",tremolo=" + v_args;
+        }
+
+    if (fx_is_earwax_active ())
+        descr += ",earwax";
+
+    return descr;
 }
 
 // ====================================================================

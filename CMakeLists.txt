@@ -161,6 +161,10 @@ target_link_libraries(Shasha
 	opusenc
 	# oggz
 	ogg
+	avformat
+	avfilter
+	avcodec
+	avutil
 	pq
 	curlpp
 	curl

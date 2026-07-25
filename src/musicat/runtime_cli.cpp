@@ -54,8 +54,7 @@ help_cmd (const cmd_args_t &args)
     std::lock_guard lk (ns_mutex);
     if (!commands_ptr)
         {
-            fprintf (stderr,
-                     "[runtime_cli::help_cmd ERROR] Commands ptr null\n");
+            fprintf (stderr, "[runtime_cli::help_cmd ERROR] Commands ptr null\n");
 
             return 1;
         }
@@ -98,8 +97,7 @@ help_cmd (const cmd_args_t &args)
             _print_pad ((size_t)ceil ((double)pad_a / (double)2.0));
 
             if (cmd.description)
-                fprintf (stderr, "%s %s\n",
-                         (name_len || alias_len) ? ":" : " ", cmd.description);
+                fprintf (stderr, "%s %s\n", (name_len || alias_len) ? ":" : " ", cmd.description);
         }
 
     fprintf (stderr, "\n");
@@ -143,10 +141,8 @@ list_effect_states (const cmd_args_t &args)
             auto g = dpp::find_guild (gid);
             std::string gstr = g ? g->name : "[not_found]";
 
-            std::cerr << gstr << " (" << gid
-                      << "):\nTrack: " << mctrack::get_title (ef->track)
-                      << '\n'
-                      << "Command fd: " << ef->command_fd << "\n==========\n";
+            std::cerr << gstr << " (" << gid << "):\nTrack: " << mctrack::get_title (ef->track) << '\n'
+                      << "FX: " << ef->guild_player->get_filter_descr () << "\n==========\n";
         }
 
     return 0;
@@ -179,8 +175,7 @@ inline constexpr const command_entry_t commands[] = {
     { NULL, NULL, "Debug mode prints everything for debugging purpose", NULL },
     { "clear", "-c", "Clear console", clear_cmd },
     { "shutdown", NULL, "Shutdown Musicat", shutdown_cmd },
-    { "list effect states", "-ls es", "List currently active effect states",
-      list_effect_states },
+    { "list effect states", "-ls es", "List currently active effect states", list_effect_states },
     { NULL, NULL, NULL, NULL },
 };
 
@@ -315,8 +310,7 @@ handle_command (const std::string &cmd_str)
             if (!match)
                 continue;
 
-            std::string args_str = cmd_str.substr (
-                is_alias ? strlen (command.alias) : strlen (command.name));
+            std::string args_str = cmd_str.substr (is_alias ? strlen (command.alias) : strlen (command.name));
 
             int status = command.handler (parse_args_str (args_str));
 
@@ -378,62 +372,61 @@ attach_listener ()
 
     fprintf (stderr, "[INFO] Enter `-d` to toggle debug mode\n");
 
-    std::thread stdin_listener ([] () {
-        thread_manager::DoneSetter tmds;
-        AttachedReset ar;
-
-        struct pollfd stdinpfds[1];
-        stdinpfds[0].events = POLLIN;
-        stdinpfds[0].fd = STDIN_FILENO;
-
-        while (get_running_state ())
+    std::thread stdin_listener (
+        [] ()
             {
-                std::string cmd_str;
+                thread_manager::DoneSetter tmds;
+                AttachedReset ar;
 
-                // poll for 2 seconds every iteration
-                const int read_has_event = poll (stdinpfds, 1, 2000);
+                struct pollfd stdinpfds[1];
+                stdinpfds[0].events = POLLIN;
+                stdinpfds[0].fd = STDIN_FILENO;
 
-                std::string codes = "";
-                if (stdinpfds[0].revents & POLLERR)
+                while (get_running_state ())
                     {
-                        codes += "POLLERR";
+                        std::string cmd_str;
+
+                        // poll for 2 seconds every iteration
+                        const int read_has_event = poll (stdinpfds, 1, 2000);
+
+                        std::string codes = "";
+                        if (stdinpfds[0].revents & POLLERR)
+                            {
+                                codes += "POLLERR";
+                            }
+
+                        if (stdinpfds[0].revents & POLLHUP)
+                            {
+                                codes += " POLLHUP";
+                            }
+
+                        if (stdinpfds[0].revents & POLLNVAL)
+                            {
+                                codes += " POLLNVAL";
+                            }
+
+                        if (!codes.empty ())
+                            {
+                                fprintf (stderr, "[runtime_cli::stdin_listener ERROR] %s ", codes.c_str ());
+
+                                perror ("");
+                                fprintf (stderr, "Aborting thread...\n");
+                                break;
+                            }
+
+                        bool read_ready = (read_has_event > 0) && (stdinpfds[0].revents & POLLIN);
+
+                        if (read_ready)
+                            std::getline (std::cin, cmd_str);
+                        else
+                            continue;
+
+                        if (cmd_str.empty ())
+                            continue;
+
+                        handle_command (cmd_str);
                     }
-
-                if (stdinpfds[0].revents & POLLHUP)
-                    {
-                        codes += " POLLHUP";
-                    }
-
-                if (stdinpfds[0].revents & POLLNVAL)
-                    {
-                        codes += " POLLNVAL";
-                    }
-
-                if (!codes.empty ())
-                    {
-                        fprintf (stderr,
-                                 "[runtime_cli::stdin_listener ERROR] %s ",
-                                 codes.c_str ());
-
-                        perror ("");
-                        fprintf (stderr, "Aborting thread...\n");
-                        break;
-                    }
-
-                bool read_ready
-                    = (read_has_event > 0) && (stdinpfds[0].revents & POLLIN);
-
-                if (read_ready)
-                    std::getline (std::cin, cmd_str);
-                else
-                    continue;
-
-                if (cmd_str.empty ())
-                    continue;
-
-                handle_command (cmd_str);
-            }
-    });
+            });
 
     thread_manager::dispatch (stdin_listener);
 

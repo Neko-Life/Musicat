@@ -1,6 +1,7 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
+#include "decoder.h"
 #include "musicat/audio_config.h"
 
 #ifdef USING_LIBOPUSENC
@@ -444,6 +445,8 @@ class Player
 
     nlohmann::json fx_states_to_json ();
 
+    std::string get_filter_descr ();
+
     // ====================================================================
 
     void check_for_to_seek ();
@@ -657,6 +660,7 @@ class Manager
     bool is_waiting_file_download (const std::string &file_name);
 
     void stream (const dpp::snowflake &guild_id);
+    void stream_noslave (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild);
 
@@ -817,10 +821,7 @@ struct handle_effect_chain_change_states_t
 {
     std::shared_ptr<Player> &guild_player;
     player::MCTrack &track;
-    int &command_fd;
-    int &read_fd;
-    void /*OGGZ*/ *track_og;
-    int notification_fd;
+    decoder_t &dec;
 };
 
 using effect_states_list_t = std::vector<handle_effect_chain_change_states_t *>;

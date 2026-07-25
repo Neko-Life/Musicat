@@ -510,7 +510,7 @@ Manager::play (const dpp::snowflake &guild_id)
                         if (guild_player->init_for_stream () != 0)
                             return;
 
-                        manager->stream (guild_player->guild_id);
+                        manager->stream_noslave (guild_player->guild_id);
                     }
                 catch (int e)
                     {
