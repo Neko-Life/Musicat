@@ -962,13 +962,17 @@ Manager::stream_noslave (const dpp::snowflake &guild_id)
             if (send_audio_routine (vclient, (uint16_t *)buffer, &read_size, false, guild_player->opus_encoder))
                 break;
 
+            if (debug)
+                fprintf (stderr, "[Manager::stream] current_ms(%ld) frame_ts(%ld)\n",
+                         util::get_track_progress (guild_player->current_track).current_ms, dec.out_frame->best_effort_timestamp);
+
             handle_effect_chain_change (effect_states);
             auto encode_end = std::chrono::high_resolution_clock::now ();
 
             float outbuf_duration;
             auto decode_latency = (decode_end - decode_ts).count ();
             auto encode_latency = (encode_end - encode_ts).count ();
-            float total_latency_second = ((float)decode_latency / 1000'000'000) + ((float)encode_latency / 1000'000'000);
+            float total_latency_second = ((float)decode_latency / 1000000000) + ((float)encode_latency / 1000000000);
             if (debug)
                 fprintf (stderr, "[Manager::stream] decode_latency(%lldns) encode_latency(%lldns) total_latency_second(%f)\n",
                          decode_latency, encode_latency, total_latency_second);
