@@ -9,7 +9,7 @@ Discord Music Bot written in C++
 
 Need to install:
 
-* [FFmpeg](https://github.com/FFmpeg/FFmpeg) - Should be installed on your machine
+* [FFmpeg](https://github.com/FFmpeg/FFmpeg) (libavformat, libavfilter, libavcodec, libavutil) - Should be installed on your machine
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq) - Library
 * libopus - Library
 * libcurl - Library
