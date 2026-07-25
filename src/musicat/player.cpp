@@ -1,5 +1,6 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/audio_config.h"
+#include "musicat/cmds/filters.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
@@ -801,7 +802,12 @@ Player::load_fx_states (const nlohmann::json &fx_states)
         this->pitch = i_pitch->get<int> ();
 
     if (i_equalizer != fx_states.end ())
-        this->equalizer = i_equalizer->get<string> ();
+        {
+            std::string eq = i_equalizer->get<string> ();
+            auto arg = command::filters::af_args_to_equalizer_fx_t (eq);
+            this->volume = arg.volume;
+            this->equalizer = command::filters::equalizer_fx_t_to_af_args (arg, false);
+        }
 
     if (i_sampling_rate != fx_states.end ())
         this->sampling_rate = i_sampling_rate->get<int64_t> ();
@@ -929,7 +935,11 @@ Player::get_filter_descr ()
         descr += "," + get_ffmpeg_pitch_args (pitch, sampling_rate, tempo);
 
     if (fx_is_equalizer_active ())
-        descr += ",superequalizer=" + equalizer;
+        {
+            if (equalizer.find ("volume") != equalizer.npos)
+                fprintf (stderr, "[Player::get_filter_descr WARN] equalizer contains volume query!\n");
+            descr += ",superequalizer=" + equalizer;
+        }
 
     if (fx_is_vibrato_active ())
         {
