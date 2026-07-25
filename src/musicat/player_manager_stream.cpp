@@ -962,10 +962,6 @@ Manager::stream_noslave (const dpp::snowflake &guild_id)
             if (send_audio_routine (vclient, (uint16_t *)buffer, &read_size, false, guild_player->opus_encoder))
                 break;
 
-            if (debug)
-                fprintf (stderr, "[Manager::stream] current_ms(%ld) frame_ts(%ld)\n",
-                         util::get_track_progress (guild_player->current_track).current_ms, dec.out_frame->best_effort_timestamp);
-
             handle_effect_chain_change (effect_states);
             auto encode_end = std::chrono::high_resolution_clock::now ();
 
