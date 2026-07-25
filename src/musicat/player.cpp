@@ -88,29 +88,14 @@ Player::init ()
     this->saved_config_loaded = false;
 
     this->volume = 100;
-    this->set_volume = -1;
-
     this->earwax = false;
-    this->set_earwax = false;
-
-    this->set_vibrato = false;
     this->vibrato_d = -1;
     this->vibrato_f = -1;
-
-    this->set_tremolo = false;
     this->tremolo_d = -1;
     this->tremolo_f = -1;
-
-    this->set_sampling_rate = false;
     this->sampling_rate = -1;
-
     this->tempo = 1.0;
-    this->set_tempo = false;
-
     this->pitch = 0;
-    this->set_pitch = false;
-
-    this->set_equalizer = false;
 
     this->tried_continuing = false;
 

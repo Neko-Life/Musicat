@@ -55,7 +55,6 @@ slash_run (const dpp::slashcommand_t &event)
         rate = MAX_VAL;
 
     ftp.guild_player->pitch = rate;
-    ftp.guild_player->set_pitch = true;
 
     if (rate == 0)
         {

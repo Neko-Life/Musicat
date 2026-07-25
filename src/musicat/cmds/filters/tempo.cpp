@@ -60,7 +60,6 @@ slash_run (const dpp::slashcommand_t &event)
         rate = MAX_VAL;
 
     ftp.guild_player->tempo = rate;
-    ftp.guild_player->set_tempo = true;
 
     if (rate == 1.0)
         {

@@ -14,11 +14,8 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("volume", "Set [playback] volume", sha_id)
-        .add_option (dpp::command_option (
-                         dpp::co_integer, "percentage",
-                         "Volume percentage [to set]. <" MIN_PERCENTAGE_STR
-                         "-" MAX_PERCENTAGE_STR ">",
-                         true)
+        .add_option (dpp::command_option (dpp::co_integer, "percentage",
+                                          "Volume percentage [to set]. <" MIN_PERCENTAGE_STR "-" MAX_PERCENTAGE_STR ">", true)
                          .set_min_value (MIN_PERCENTAGE)
                          .set_max_value (MAX_PERCENTAGE));
 }
@@ -50,10 +47,9 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    player->set_volume = v_arg;
+    player->volume = v_arg;
 
-    event.reply (std::string ("Setting volume to ") + std::to_string (v_arg)
-                 + "%");
+    event.reply (std::string ("Setting volume to ") + std::to_string (v_arg) + "%");
 }
 
 } // musicat::command::volume

@@ -62,7 +62,6 @@ slash_run (const dpp::slashcommand_t &event)
     int64_t new_rate = no_rate ? -1 : rate;
 
     ftp.guild_player->sampling_rate = new_rate;
-    ftp.guild_player->set_sampling_rate = true;
 
     if (new_rate == -1)
         {

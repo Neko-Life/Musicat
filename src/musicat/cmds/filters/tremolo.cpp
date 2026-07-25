@@ -22,14 +22,12 @@ static void
 set_f (const filters_perquisite_t &ftp, double v)
 {
     ftp.guild_player->tremolo_f = v;
-    ftp.guild_player->set_tremolo = true;
 }
 
 static void
 set_d (const filters_perquisite_t &ftp, int v)
 {
     ftp.guild_player->tremolo_d = v;
-    ftp.guild_player->set_tremolo = true;
 }
 
 void

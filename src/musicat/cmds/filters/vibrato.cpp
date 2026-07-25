@@ -22,14 +22,12 @@ static void
 set_f (const filters_perquisite_t &ftp, double v)
 {
     ftp.guild_player->vibrato_f = v;
-    ftp.guild_player->set_vibrato = true;
 }
 
 static void
 set_d (const filters_perquisite_t &ftp, int v)
 {
     ftp.guild_player->vibrato_d = v;
-    ftp.guild_player->set_vibrato = true;
 }
 
 void

@@ -188,28 +188,6 @@ class Player
     loop_mode_t loop_mode;
 
     /**
-     * @brief Whether auto play is enabled for this player
-     *
-     */
-    bool auto_play;
-
-    /**
-     * @brief Whether this player already tried to load saved queue after boot.
-     */
-    bool saved_queue_loaded;
-
-    /**
-     * @brief Whether this player already tried to load saved config after
-     * boot.
-     */
-    bool saved_config_loaded;
-
-    /**
-     * @brief Resample raw ffmpeg opt
-     */
-    bool set_sampling_rate;
-
-    /**
      * @brief History size limiter
      *
      */
@@ -228,7 +206,6 @@ class Player
     size_t shifted_track;
 
     dpp::cluster *cluster;
-    uint32_t shard_id;
     Manager *manager;
 
     /**
@@ -243,11 +220,10 @@ class Player
      */
     MCTrack current_track;
 
+    uint32_t shard_id;
+
     // default 100
     int volume;
-    // default -1
-    // !TODO: should be bool type
-    int set_volume;
 
     /**
      * @brief Equalizer raw ffmpeg opt
@@ -259,15 +235,25 @@ class Player
      */
     int64_t sampling_rate;
 
+    /**
+     * @brief Whether auto play is enabled for this player
+     *
+     */
+    bool auto_play;
+
+    /**
+     * @brief Whether this player already tried to load saved queue after boot.
+     */
+    bool saved_queue_loaded;
+
+    /**
+     * @brief Whether this player already tried to load saved config after
+     * boot.
+     */
+    bool saved_config_loaded;
+
     bool stopped;
     bool earwax;
-    bool set_earwax;
-
-    bool set_vibrato;
-    bool set_tremolo;
-
-    bool set_tempo;
-    bool set_pitch;
 
     bool tried_continuing;
 
@@ -299,11 +285,6 @@ class Player
 #else
     OpusEncoder *opus_encoder;
 #endif
-
-    /**
-     * @brief Should set equalizer?
-     */
-    bool set_equalizer;
 
     /**
      * @brief Is processing audio?

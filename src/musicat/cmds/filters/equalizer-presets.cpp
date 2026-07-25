@@ -167,7 +167,6 @@ load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
                 std::string set_str = equalizer_fx_t_to_af_args (arg, false);
                 guild_player->volume = arg.volume;
                 guild_player->equalizer = set_str;
-                guild_player->set_equalizer = true;
 
                 event.edit_response ("Setting preset:```md\n" + equalizer_fx_t_to_slash_args (arg) + "```");
             });
