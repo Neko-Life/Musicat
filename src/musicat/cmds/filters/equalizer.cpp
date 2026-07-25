@@ -155,7 +155,6 @@ set (const dpp::slashcommand_t &event)
     equalizer_fx_t arg
         = ftp.guild_player->equalizer.empty () ? create_equalizer_fx_t () : af_args_to_equalizer_fx_t (ftp.guild_player->equalizer);
     arg.volume = -1;
-
     get_inter_param (event, "volume", &arg.volume);
 
     for (int i = 0; i < 18; i++)
@@ -163,7 +162,7 @@ set (const dpp::slashcommand_t &event)
             get_inter_param (event, "band-" + std::to_string (i + 1), (arg.bands + i));
         }
 
-    std::string set_str = equalizer_fx_t_to_af_args (arg);
+    std::string set_str = equalizer_fx_t_to_af_args (arg, false);
 
     if (arg.volume != -1)
         ftp.guild_player->volume = arg.volume;

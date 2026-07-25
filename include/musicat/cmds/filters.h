@@ -31,7 +31,7 @@ std::string vol_to_str (float v);
 
 std::string band_vol_to_str_value (int64_t v);
 
-std::string equalizer_fx_t_to_af_args (const equalizer_fx_t &eq);
+std::string equalizer_fx_t_to_af_args (const equalizer_fx_t &eq, bool with_volume = false);
 
 std::string equalizer_fx_t_to_slash_args (const equalizer_fx_t &eq);
 
@@ -125,7 +125,8 @@ void slash_run (const dpp::slashcommand_t &event);
 
 } // equalizer_presets
 
-namespace reverb {
+namespace reverb
+{
 
 void setup_subcommand (dpp::slashcommand &slash);
 
