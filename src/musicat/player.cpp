@@ -212,46 +212,55 @@ Player::set_max_history_size (const size_t &siz)
 std::pair<std::deque<MCTrack>, int>
 Player::skip (dpp::voiceconn *v)
 {
-    if (v && v->voiceclient)
+    if (!v || !v->voiceclient)
+        return { {}, -1 };
+
+    return skip (v->voiceclient.get ());
+}
+
+std::pair<std::deque<MCTrack>, int>
+Player::skip (dpp::discord_voice_client *voiceclient)
+{
+    if (!voiceclient)
+        return { {}, -1 };
+
+    /* const bool debug = get_debug_state (); */
+
+    std::deque<MCTrack> removed_tracks = {};
+    bool skipped = false;
+    if (voiceclient->get_secs_remaining () > 0.05f)
         {
-            /* const bool debug = get_debug_state (); */
+            // if (this->queue.size()) {
+            //     removed_tracks.push_back (MCTrack
+            //     (this->queue.front())); if (get_debug_state ())
+            //         fprintf (stderr, "PUSHED FROM PLAYER SKIP:
+            //         '%s'\n",
+            //                 this->queue.front().title ().c_str ());
+            // }
 
-            std::deque<MCTrack> removed_tracks = {};
-            bool skipped = false;
-            if (v->voiceclient->get_secs_remaining () > 0.05f)
-                {
-                    // if (this->queue.size()) {
-                    //     removed_tracks.push_back (MCTrack
-                    //     (this->queue.front())); if (get_debug_state ())
-                    //         fprintf (stderr, "PUSHED FROM PLAYER SKIP:
-                    //         '%s'\n",
-                    //                 this->queue.front().title ().c_str ());
-                    // }
+            voiceclient->pause_audio (false);
+            voiceclient->skip_to_next_marker ();
 
-                    v->voiceclient->pause_audio (false);
-                    v->voiceclient->skip_to_next_marker ();
+            skipped = true;
+        }
 
-                    skipped = true;
-                }
+    if (get_debug_state ())
+        {
+            std::cerr << "stopped(" << stopped << ") "
+                      << "processing_audio(" << processing_audio << ") "
+                      << "stopping(" << stopping << ")\n";
+        }
 
-            if (get_debug_state ())
-                {
-                    std::cerr << "stopped(" << stopped << ") "
-                              << "processing_audio(" << processing_audio << ") "
-                              << "stopping(" << stopping << ")\n";
-                }
+    if (stopped)
+        {
+            voiceclient->skip_to_next_marker ();
+            removed_tracks = this->skip_queue (1, false, true);
+            skipped = true;
+        }
 
-            if (stopped)
-                {
-                    v->voiceclient->skip_to_next_marker ();
-                    removed_tracks = this->skip_queue (1, false, true);
-                    skipped = true;
-                }
-
-            if (skipped)
-                {
-                    return { removed_tracks, 0 };
-                }
+    if (skipped)
+        {
+            return { removed_tracks, 0 };
         }
 
     return { {}, -1 };

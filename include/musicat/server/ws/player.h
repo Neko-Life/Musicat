@@ -46,6 +46,8 @@ enum socket_event_e
     SOCKET_EVENT_FX,
     SOCKET_EVENT_QUEUE,
     SOCKET_EVENT_REGISTER,
+    SOCKET_EVENT_NEXT,
+    SOCKET_EVENT_PREV
 };
 
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;

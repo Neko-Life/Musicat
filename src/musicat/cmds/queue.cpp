@@ -215,6 +215,7 @@ slash_run (const dpp::slashcommand_t &event)
     // avoid getting timed out when loading large queue
     event.thinking ();
     player_manager->load_guild_current_queue (event.command.guild_id, &sha_id);
+    // !TODO: make sure guild_player has shard_id here
 
     std::deque<player::MCTrack> queue = player_manager->get_queue (event.command.guild_id);
 
