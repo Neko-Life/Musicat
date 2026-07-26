@@ -7,6 +7,7 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util/fs.h"
+#include "opus_types.h"
 
 #include <condition_variable>
 #include <cstdint>
@@ -79,7 +80,7 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
             if (!opus_encoder)
                 return 2;
 
-            if (ope_encoder_write (opus_encoder, (opus_int16 *)send_buffer, (*send_buffer_length) / 4) != OPE_OK)
+            if (ope_encoder_write (opus_encoder, (opus_int16 *)send_buffer, (*send_buffer_length) / sizeof (opus_int16) / 2) != OPE_OK)
                 return 3;
         }
     catch (const dpp::voice_exception &e)

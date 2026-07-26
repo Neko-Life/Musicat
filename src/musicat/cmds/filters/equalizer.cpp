@@ -202,7 +202,7 @@ reset (const dpp::slashcommand_t &event)
     if (perquisite (event, &ftp))
         return;
 
-    ftp.guild_player->equalizer = "0"; // new_equalizer;
+    ftp.guild_player->equalizer.clear ();
 
     event.reply ("Resetting...");
 }

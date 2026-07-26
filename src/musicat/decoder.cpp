@@ -1,4 +1,5 @@
 #include "musicat/decoder.h"
+#include "musicat/config.h"
 
 namespace musicat
 {
@@ -366,7 +367,14 @@ int
 decoder_t::init_filters ()
 {
     reset_filters ();
-    int ret = init_filters (filter_descr.c_str ());
+
+    std::string fdescr =
+#ifdef AUDIO_INPUT_USE_EXCITER
+        "aexciter," +
+#endif // AUDIO_INPUT_USE_EXCITER
+        filter_descr;
+
+    int ret = init_filters (fdescr.c_str ());
 
     if (ret < 0 && ret != AVERROR_EOF)
         {
