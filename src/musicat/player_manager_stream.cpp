@@ -552,9 +552,10 @@ spawn_stream_thread (int count)
     for (int i = 0; i < count; i++)
         {
             std::thread t (
-                [] ()
+                [i] ()
                     {
                         thread_manager::DoneSetter tmds;
+                        dpp::utility::set_thread_name ("mc/stream/" + std::to_string (i));
                         run_stream_thread ();
                     });
             thread_manager::dispatch (t);

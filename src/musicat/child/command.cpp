@@ -97,6 +97,7 @@ run_command_thread ()
 {
     std::thread command_thread ([] () {
         thread_manager::DoneSetter tmds;
+        dpp::utility::set_thread_name ("mc/worker_writer");
 
         while (get_running_state ())
             {
@@ -107,6 +108,7 @@ run_command_thread ()
 
     std::thread notify_thread ([] () {
         thread_manager::DoneSetter tmds;
+        dpp::utility::set_thread_name ("mc/worker_reader");
 
         char read_buf[CMD_BUFSIZE + 1];
         size_t read_size = 0;

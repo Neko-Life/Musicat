@@ -79,6 +79,7 @@ init ()
             pm_read_fd = -1;
             pm_write_fd = -1;
 
+            dpp::utility::set_thread_name ("mc/child_worker");
             worker::set_fds (cm_read_fd, cm_write_fd);
             worker::run ();
         }

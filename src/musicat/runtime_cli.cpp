@@ -375,6 +375,7 @@ attach_listener ()
         [] ()
             {
                 thread_manager::DoneSetter tmds;
+                dpp::utility::set_thread_name ("mc/runtime_cli");
                 AttachedReset ar;
 
                 struct pollfd stdinpfds[1];

@@ -3,7 +3,9 @@
 
 #include <deque>
 #include <mutex>
+#include <sstream>
 #include <stdio.h>
+#include <string>
 #include <thread>
 
 namespace musicat
@@ -113,8 +115,7 @@ join_done ()
     if (done && get_debug_state ())
         {
             fprintf (stderr, "[INFO] Total thread done: %ld\n", done);
-            fprintf (stderr, "[INFO] Total thread done and joined: %ld\n",
-                     joined);
+            fprintf (stderr, "[INFO] Total thread done and joined: %ld\n", joined);
 
             print_total_thread ();
         }
@@ -132,8 +133,7 @@ join_all ()
 
     if (debug)
         {
-            fprintf (stderr, "[INFO] Joining %ld threads...\n",
-                     _threads.size ());
+            fprintf (stderr, "[INFO] Joining %ld threads...\n", _threads.size ());
         }
 
     size_t joined = 0;
@@ -164,7 +164,12 @@ join_all ()
     _ns_mutex.unlock ();
 }
 
-DoneSetter::DoneSetter () {}
+DoneSetter::DoneSetter ()
+{
+    std::ostringstream os;
+    os << std::this_thread::get_id ();
+    dpp::utility::set_thread_name ("mc/" + os.str ());
+}
 DoneSetter::~DoneSetter () { set_done (); }
 
 } // thread_manager

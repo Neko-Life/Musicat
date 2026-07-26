@@ -631,6 +631,7 @@ run (int argc, const char *argv[])
 {
     signal (SIGINT, on_sigint);
     set_running_state (true);
+    dpp::utility::set_thread_name ("mc/main");
 
     // load config file
     int config_status = load_config ();
@@ -806,6 +807,7 @@ run (int argc, const char *argv[])
         [] ()
             {
                 thread_manager::DoneSetter tmds;
+                dpp::utility::set_thread_name ("mc/server");
 
                 server::run ();
             });
