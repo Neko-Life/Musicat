@@ -86,6 +86,12 @@ superequalizer=
     for (const char *search : searches)
         {
             auto i = str.find (search);
+            if (i == str.npos)
+                {
+                    fprintf (stderr, "[command::filters::af_args_to_equalizer_fx_t WARN] Missing parameter `%s`\n", search);
+                    continue;
+                }
+
             auto e = str.find (":", i + 1);
 
             auto t = i + strlen (search);

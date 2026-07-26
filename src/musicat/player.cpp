@@ -819,10 +819,14 @@ nlohmann::json
 Player::fx_states_to_json ()
 {
     return {
-        { "tempo", this->tempo },         { "pitch", this->pitch },
-        { "equalizer", this->equalizer }, { "sampling_rate", this->sampling_rate },
-        { "vibrato_f", this->vibrato_f }, { "vibrato_d", this->vibrato_d },
-        { "tremolo_f", this->tremolo_f }, { "tremolo_d", this->tremolo_d },
+        { "tempo", this->tempo },
+        { "pitch", this->pitch },
+        { "equalizer", this->equalizer + ",volume=" + std::to_string ((float)this->volume / 100) },
+        { "sampling_rate", this->sampling_rate },
+        { "vibrato_f", this->vibrato_f },
+        { "vibrato_d", this->vibrato_d },
+        { "tremolo_f", this->tremolo_f },
+        { "tremolo_d", this->tremolo_d },
         { "earwax", this->earwax },
     };
 }
