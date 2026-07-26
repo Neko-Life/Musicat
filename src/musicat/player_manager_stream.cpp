@@ -449,20 +449,8 @@ class stream_ctx
 };
 
 static std::vector<stream_ctx *> stream_ctxs;
+// protects ctx->handled and stream_ctxs
 static std::mutex stream_ctxs_m;
-static std::condition_variable stream_ctxs_cv;
-
-void
-on_clear_wait_vc_ready ()
-{
-    stream_ctxs_cv.notify_one ();
-}
-
-void
-shutdown ()
-{
-    stream_ctxs_cv.notify_all ();
-}
 
 static void
 erase_ctx_unlocked (const dpp::snowflake &guild_id)
@@ -488,58 +476,79 @@ erase_ctx (const dpp::snowflake &guild_id)
     erase_ctx_unlocked (guild_id);
 }
 
-static void
-run_stream_thread ()
+struct stream_thread_t
 {
-    stream_ctx *ctx = nullptr;
-    while (get_running_state ())
-        {
-            ctx = nullptr;
+    // protects this->ctx
+    std::mutex t_m;
+    std::condition_variable t_cv;
+
+    stream_ctx *ctx;
+
+    stream_thread_t () : ctx (nullptr) {}
+
+    void
+    run ()
+    {
+        while (get_running_state ())
             {
-                std::unique_lock lk (stream_ctxs_m);
-                for (auto *i : stream_ctxs)
-                    {
-                        if (i->handled || !i->need_handler ())
+                {
+                    std::unique_lock lk (t_m);
+                    if (!ctx)
+                        {
+                            // wait for ctx
+                            t_cv.wait (lk);
                             continue;
-                        i->handled = true;
-                        ctx = i;
-                        break;
+                        }
+                }
+
+                while (ctx && ctx->need_handler ())
+                    {
+                        if (!ctx->run ())
+                            continue;
+                        ctx->end ();
+
+                        auto *player_manager = get_player_manager_ptr ();
+                        auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
+
+                        erase_ctx (ctx->guild_id);
+                        {
+                            std::lock_guard lk (t_m);
+                            ctx = nullptr;
+                        }
+
+                        auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
+                        if (vclient && !vclient->terminating)
+                            vclient->insert_marker ("e");
                     }
 
                 if (!ctx)
-                    {
-                        // wait for stream_ctxs
-                        stream_ctxs_cv.wait (lk);
-                        continue;
-                    }
-            }
+                    continue;
 
-            while (ctx && ctx->need_handler ())
                 {
-                    if (!ctx->run ())
-                        continue;
-                    ctx->end ();
-
-                    auto *player_manager = get_player_manager_ptr ();
-                    auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
-
-                    erase_ctx (ctx->guild_id);
-                    ctx = nullptr;
-
-                    auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
-                    if (vclient && !vclient->terminating)
-                        vclient->insert_marker ("e");
+                    std::lock_guard lk (stream_ctxs_m);
+                    ctx->handled = false;
                 }
+                std::lock_guard lk (t_m);
+                ctx = nullptr;
+            }
+    }
 
-            if (!ctx)
-                continue;
-
-            std::lock_guard lk (stream_ctxs_m);
-            ctx->handled = false;
-        }
-}
+    void
+    spawn (int i)
+    {
+        std::thread t (
+            [i, this] ()
+                {
+                    thread_manager::DoneSetter tmds;
+                    dpp::utility::set_thread_name ("mc/stream/" + std::to_string (i));
+                    run ();
+                });
+        thread_manager::dispatch (t);
+    }
+};
 
 static int stream_thread_count = 0;
+static std::deque<stream_thread_t> stream_threads;
 
 void
 spawn_stream_thread (int count)
@@ -550,60 +559,77 @@ spawn_stream_thread (int count)
 
     fprintf (stderr, "[player::spawn_stream_thread] Spawning %d stream thread\n", count);
     for (int i = 0; i < count; i++)
+        stream_threads.emplace_back ().spawn (i);
+}
+
+static void
+notify_work (stream_ctx *ctx)
+{
+    for (auto &t : stream_threads)
         {
-            std::thread t (
-                [i] ()
-                    {
-                        thread_manager::DoneSetter tmds;
-                        dpp::utility::set_thread_name ("mc/stream/" + std::to_string (i));
-                        run_stream_thread ();
-                    });
-            thread_manager::dispatch (t);
+            {
+                std::lock_guard lk (t.t_m);
+                if (t.ctx)
+                    continue;
+                t.ctx = ctx;
+            }
+            t.t_cv.notify_one ();
+
+            ctx->handled = true;
+            break;
         }
+
+    if (!ctx->handled)
+        fprintf (stderr, "[player::notify_work WARN] !!! All stream thread occupied, cannot handle stream context: %s !!!\n",
+                 ctx->guild_id.str ().c_str ());
+}
+
+void
+shutdown ()
+{
+    for (auto &t : stream_threads)
+        t.t_cv.notify_all ();
 }
 
 void
 check_stream_contexts ()
 {
-    std::unique_lock lk (stream_ctxs_m);
+    std::lock_guard lk (stream_ctxs_m);
     int notified = 0;
     for (auto *c : stream_ctxs)
         {
             if (c->handled || !c->need_handler ())
                 continue;
 
-            stream_ctxs_cv.notify_one ();
-            notified++;
-            if (notified >= stream_thread_count)
-                break;
+            notify_work (c);
         }
 }
 
 void
 Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
 {
-    {
-        std::lock_guard lk (stream_ctxs_m);
-        auto i = stream_ctxs.begin ();
-        while (i != stream_ctxs.end ())
-            {
-                if ((*i)->guild_id == guild_id)
-                    throw 3;
+    std::lock_guard lk (stream_ctxs_m);
+    auto i = stream_ctxs.begin ();
+    while (i != stream_ctxs.end ())
+        {
+            if ((*i)->guild_id == guild_id)
+                throw 3;
 
-                i++;
-            }
-        auto &nctx = stream_ctxs.emplace_back (new stream_ctx{ guild_id });
-        try
-            {
-                nctx->init ();
-            }
-        catch (int e)
-            {
-                erase_ctx_unlocked (nctx->guild_id);
-                throw e;
-            }
-    }
-    stream_ctxs_cv.notify_one ();
+            i++;
+        }
+
+    auto *ctx = new stream_ctx{ guild_id };
+    try
+        {
+            ctx->init ();
+        }
+    catch (int e)
+        {
+            delete ctx;
+            throw e;
+        }
+
+    stream_ctxs.push_back (ctx);
 }
 
 void

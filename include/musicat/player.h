@@ -806,8 +806,6 @@ struct handle_effect_chain_change_states_t
     decoder_t &dec;
 };
 
-void on_clear_wait_vc_ready ();
-
 void check_stream_contexts ();
 
 void spawn_stream_thread (int count);
