@@ -11,7 +11,7 @@
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 
 namespace musicat::events
 {
@@ -278,11 +278,9 @@ l_playnow (const dpp::button_click_t &event)
 void
 a_playnow (const dpp::button_click_t &event)
 {
-    std::thread t (
+    task::run (
         [event] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     return;
@@ -301,8 +299,6 @@ a_playnow (const dpp::button_click_t &event)
                         event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
                     }
             });
-
-    thread_manager::dispatch (t);
 }
 
 void

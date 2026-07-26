@@ -1,7 +1,6 @@
 #include "musicat/events/on_voice_track_marker.h"
 #include "musicat/musicat.h"
 #include "musicat/player_manager_timer.h"
-#include "musicat/thread_manager.h"
 
 namespace musicat::events
 {

@@ -5,7 +5,7 @@
 #include "musicat/player.h"
 #include "musicat/player_manager_timer.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 #include <cstdint>
@@ -656,11 +656,9 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
             fprintf (stderr, "[player::add_track WARN] Unhandled track_exist return status: %d\n", download_result.second);
         }
 
-    std::thread pjt (
+    task::run (
         [guild_id, shard_id] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto *player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     return;
@@ -668,17 +666,12 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
                 player_manager->reconnect (player_manager->get_client (shard_id), guild_id);
             });
 
-    thread_manager::dispatch (pjt);
-
-    std::thread dlt (
+    task::run (
         [shard_id, sha_id, dling, fname, arg_top, from_interaction, guild_id, continued, arg_slip, event, result] ()
             {
-                thread_manager::DoneSetter tmds;
                 run_download_thread (shard_id, sha_id, dling, fname, arg_top, from_interaction, guild_id, continued, arg_slip, event,
                                      result, util::response::reply_added_track (mctrack::get_title (result), arg_top ? arg_top : arg_slip));
             });
-
-    thread_manager::dispatch (dlt);
 }
 
 void
@@ -686,16 +679,13 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, int64_
            const dpp::snowflake channel_id, const dpp::snowflake sha_id, bool from_interaction, const uint32_t shard_id,
            const dpp::interaction_create_t event, bool continued, int64_t arg_slip, const std::string &cache_id)
 {
-    std::thread rt (
+    task::run (
         [shard_id, arg_query, playlist, guild_id, cache_id, event, from_interaction, vcclient_cont, channel_id, v, arg_top, arg_slip,
          sha_id, continued] ()
             {
-                thread_manager::DoneSetter tmds;
                 run_add_track_thread (shard_id, arg_query, playlist, guild_id, cache_id, event, from_interaction, vcclient_cont, channel_id,
                                       v, arg_top, arg_slip, sha_id, continued);
             });
-
-    thread_manager::dispatch (rt);
 }
 
 void
@@ -869,10 +859,9 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
     if (add_timer (guild_id, timer))
         return;
 
-    std::thread t (
+    task::run (
         [this, guild_id] ()
             {
-                thread_manager::DoneSetter tmds;
                 unsigned long timer = 0;
                 unsigned long elapsed = 0;
 
@@ -940,8 +929,6 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
 
                 this->cluster->message_create (m);
             });
-
-    thread_manager::dispatch (t);
 }
 
 int
@@ -1047,11 +1034,9 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
     if (!re || shard_id == Player::INVALID_SHARD_ID)
         return false;
 
-    std::thread t (
+    task::run (
         [shard_id, user_id, guild_id] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto *player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     return;
@@ -1117,8 +1102,6 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
             reconnect:
                 player_manager->reconnect (from, guild_id);
             });
-
-    thread_manager::dispatch (t);
 
     return true;
 }
@@ -1317,19 +1300,15 @@ Manager::full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_
     disconnect_voice (from, guild_id);
     uint32_t shard_id = from->shard_id;
 
-    std::thread pjt (
+    task::run (
         [shard_id, guild_id] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto *player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     return;
 
                 player_manager->reconnect (shard_id, guild_id);
             });
-
-    thread_manager::dispatch (pjt);
 
     return status;
 }

@@ -4,7 +4,7 @@
 #include "musicat/player.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/storage.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include "musicat/util_response.h"
 #include <cstdio>
 #include <exception>
@@ -149,15 +149,12 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
             if (player_manager)
                 join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
-            std::thread dlt (
+            task::run (
                 [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()
                     {
-                        thread_manager::DoneSetter tmds;
                         player::run_download_thread (event.from ()->shard_id, get_sha_id (), dling, fname, top, true, guild_id, false,
                                                      arg_slip, event, result, edit_response);
                     });
-
-            thread_manager::dispatch (dlt);
         }
     catch (const std::exception &e)
         {

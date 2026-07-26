@@ -2,15 +2,14 @@
 #include "musicat/cmds/play.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include <sys/stat.h>
 
 namespace musicat::command::download
 {
 // ============ PRIVATE ============
 bool
-fileHasError (const dpp::interaction_create_t &event,
-              const std::string &fullpath)
+fileHasError (const dpp::interaction_create_t &event, const std::string &fullpath)
 {
     struct stat filestat;
 
@@ -70,136 +69,122 @@ dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
     return dpp::slashcommand ("download", "Download [a track]", sha_id)
-        .add_option (dpp::command_option (dpp::co_string, "track",
-                                          "Track [to download]")
-                         .set_auto_complete (true));
+        .add_option (dpp::command_option (dpp::co_string, "track", "Track [to download]").set_auto_complete (true));
 }
 
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::thread rt ([event] () {
-        thread_manager::DoneSetter tmds;
-
-        auto player_manager = get_player_manager_ptr ();
-        if (!player_manager)
+    task::run (
+        [event] ()
             {
-                return;
-            }
-
-        std::string filename = "";
-        get_inter_param (event, "track", &filename);
-        auto guild_id = event.command.guild_id;
-
-        // filename
-        std::string fname = "";
-        // path to file
-        std::string fullpath = "";
-
-        if (!filename.empty ())
-            {
-                event.thinking ();
-                auto find_result = player::find_track (
-                    false, filename, player_manager, guild_id, true);
-
-                switch (find_result.second)
+                auto player_manager = get_player_manager_ptr ();
+                if (!player_manager)
                     {
-                    case -1:
-                    case 1:
-                        event.edit_response ("Can't find anything");
                         return;
-                    case 0:
-                        break;
-                    default:
-                        fprintf (
-                            stderr,
-                            "[download::slash_run WARN] Unhandled find_track "
-                            "return status: %d\n",
-                            find_result.second);
                     }
 
-                auto result = find_result.first;
+                std::string filename = "";
+                get_inter_param (event, "track", &filename);
+                auto guild_id = event.command.guild_id;
 
-                fname = player::get_filename_from_result (result);
+                // filename
+                std::string fname = "";
+                // path to file
+                std::string fullpath = "";
 
-                auto download_result
-                    = player::track_exist (fname, mctrack::get_url (result),
-                                         player_manager, true, guild_id, true);
-
-                bool dling = download_result.first;
-
-                fullpath = get_music_folder_path () + fname;
-
-                switch (download_result.second)
+                if (!filename.empty ())
                     {
-                    case 2:
-                        event.edit_response ("`[ERROR]` Unable to find track");
+                        event.thinking ();
+                        auto find_result = player::find_track (false, filename, player_manager, guild_id, true);
 
-                        return;
-                    case 1:
-                        if (dling)
+                        switch (find_result.second)
                             {
-                                event.edit_response (
-                                    "Can't find anything, maybe "
-                                    "play the song first?");
+                            case -1:
+                            case 1:
+                                event.edit_response ("Can't find anything");
+                                return;
+                            case 0:
+                                break;
+                            default:
+                                fprintf (stderr,
+                                         "[download::slash_run WARN] Unhandled find_track "
+                                         "return status: %d\n",
+                                         find_result.second);
+                            }
+
+                        auto result = find_result.first;
+
+                        fname = player::get_filename_from_result (result);
+
+                        auto download_result = player::track_exist (fname, mctrack::get_url (result), player_manager, true, guild_id, true);
+
+                        bool dling = download_result.first;
+
+                        fullpath = get_music_folder_path () + fname;
+
+                        switch (download_result.second)
+                            {
+                            case 2:
+                                event.edit_response ("`[ERROR]` Unable to find track");
 
                                 return;
-                            }
-                        else
-                            {
-                                if (fileHasError (event, fullpath))
-                                    return;
+                            case 1:
+                                if (dling)
+                                    {
+                                        event.edit_response ("Can't find anything, maybe "
+                                                             "play the song first?");
 
-                                // proceed upload
-                                event.edit_response (
-                                    std::string ("Uploading: ")
-                                    + mctrack::get_title (result));
+                                        return;
+                                    }
+                                else
+                                    {
+                                        if (fileHasError (event, fullpath))
+                                            return;
+
+                                        // proceed upload
+                                        event.edit_response (std::string ("Uploading: ") + mctrack::get_title (result));
+                                    }
+                            case 0:
+                                break;
+                            default:
+                                fprintf (stderr,
+                                         "[download::slash_run WARN] Unhandled "
+                                         "track_exist return "
+                                         "status: %d\n",
+                                         download_result.second);
                             }
-                    case 0:
-                        break;
-                    default:
-                        fprintf (stderr,
-                                 "[download::slash_run WARN] Unhandled "
-                                 "track_exist return "
-                                 "status: %d\n",
-                                 download_result.second);
                     }
-            }
-        else // no track argument specified, lets download current playing song
-             // if any
-            {
-                auto guild_player = player_manager->get_player (guild_id);
-                if (!guild_player)
-                    return e_re_no_track (event);
-
-                auto conn = event.from()->get_voice (guild_id);
-
-                std::lock_guard lk (guild_player->t_mutex);
-
-                if (!guild_player->queue.size ()
-                    || guild_player->current_track.raw.is_null () || !conn
-                    || !conn->voiceclient
-                    || !conn->voiceclient
-                            ->is_playing ()) // if there's no currently playing
-                                             // track
+                else // no track argument specified, lets download current playing song
+                     // if any
                     {
+                        auto guild_player = player_manager->get_player (guild_id);
+                        if (!guild_player)
+                            return e_re_no_track (event);
 
-                        return e_re_no_track (event);
+                        auto conn = event.from ()->get_voice (guild_id);
+
+                        std::lock_guard lk (guild_player->t_mutex);
+
+                        if (!guild_player->queue.size () || guild_player->current_track.raw.is_null () || !conn || !conn->voiceclient
+                            || !conn->voiceclient->is_playing ()) // if there's no currently playing
+                                                                  // track
+                            {
+
+                                return e_re_no_track (event);
+                            }
+
+                        auto &track = guild_player->current_track;
+                        fname = player::get_filename_from_result (track);
+                        fullpath = get_music_folder_path () + fname;
+                        event.thinking ();
                     }
 
-                auto &track = guild_player->current_track;
-                fname = player::get_filename_from_result (track);
-                fullpath = get_music_folder_path () + fname;
-                event.thinking ();
-            }
+                // by the time it got here, fname and fullpath mustn't be empty
 
-        // by the time it got here, fname and fullpath mustn't be empty
-
-        dpp::message msg (event.command.channel_id, "");
-        msg.add_file (fname, dpp::utility::read_file (fullpath));
-        event.edit_response (msg);
-    });
-
-    thread_manager::dispatch (rt);
+                dpp::message msg (event.command.channel_id, "");
+                msg.add_file (fname, dpp::utility::read_file (fullpath));
+                event.edit_response (msg);
+            });
 }
 } // musicat::command::download

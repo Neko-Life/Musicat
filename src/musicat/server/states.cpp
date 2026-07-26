@@ -1,9 +1,6 @@
 #include "musicat/server/states.h"
-#include "musicat/musicat.h"
 #include "musicat/server/auth.h"
-#include "musicat/thread_manager.h"
 #include "musicat/util.h"
-#include <deque>
 #include <string>
 
 // in seconds

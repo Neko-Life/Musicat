@@ -2,7 +2,7 @@
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/service_cache.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 
 namespace musicat::server::routes
 {
@@ -53,9 +53,11 @@ get_guilds (APIResponse *res, APIRequest *req)
         }
 
     // required to be able to end req in another thread
-    res->onAborted ([] () {
-        // what to do on abort?
-    });
+    res->onAborted (
+        [] ()
+            {
+                // what to do on abort?
+            });
 
     endres.res = NULL;
 
@@ -63,83 +65,74 @@ get_guilds (APIResponse *res, APIRequest *req)
     header_v_t lheaders = endres.headers;
     std::string lresponse = endres.response;
 
-    std::thread t ([user_id, res, lstatus, lheaders, lresponse] () {
-        thread_manager::DoneSetter tmds;
-
-        response::end_t endres (res);
-        endres.status = lstatus;
-        endres.headers = lheaders;
-        endres.response = lresponse;
-        response::defer_end_t dendt (endres);
-
-        nlohmann::json auth = service_cache::get_cached_user_auth (user_id);
-
-        if (auth.is_null ())
+    task::run (
+        [user_id, res, lstatus, lheaders, lresponse] ()
             {
-                auto db_auth = database::get_user_auth (user_id);
-                auto auth_p = database::get_user_auth_json_from_PGresult (
-                    db_auth.first);
+                response::end_t endres (res);
+                endres.status = lstatus;
+                endres.headers = lheaders;
+                endres.response = lresponse;
+                response::defer_end_t dendt (endres);
 
-                auth = auth_p.first;
+                nlohmann::json auth = service_cache::get_cached_user_auth (user_id);
 
-                service_cache::set_cached_user_auth (user_id, auth);
+                if (auth.is_null ())
+                    {
+                        auto db_auth = database::get_user_auth (user_id);
+                        auto auth_p = database::get_user_auth_json_from_PGresult (db_auth.first);
 
-                database::finish_res (db_auth.first);
-                db_auth.first = nullptr;
-            }
+                        auth = auth_p.first;
 
-        if (!auth.is_object ())
-            {
-                endres.status = http_status_t.UNAUTHORIZED_401;
-                endres.response = "Missing Auth";
-                return;
-            }
+                        service_cache::set_cached_user_auth (user_id, auth);
 
-        auto type = auth["token_type"];
-        auto tkn = auth["access_token"];
+                        database::finish_res (db_auth.first);
+                        db_auth.first = nullptr;
+                    }
 
-        std::string token_type
-            = type.is_string () ? type.get<std::string> () : "";
-        std::string access_token
-            = tkn.is_string () ? tkn.get<std::string> () : "";
+                if (!auth.is_object ())
+                    {
+                        endres.status = http_status_t.UNAUTHORIZED_401;
+                        endres.response = "Missing Auth";
+                        return;
+                    }
 
-        if (token_type.empty () || access_token.empty ())
-            {
-                endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
-                endres.response = "Invalid Credentials";
+                auto type = auth["token_type"];
+                auto tkn = auth["access_token"];
 
-                return;
-            }
+                std::string token_type = type.is_string () ? type.get<std::string> () : "";
+                std::string access_token = tkn.is_string () ? tkn.get<std::string> () : "";
 
-        services::curlpp_response_t resp
-            = services::discord_get_user_guilds (token_type, access_token);
+                if (token_type.empty () || access_token.empty ())
+                    {
+                        endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
+                        endres.response = "Invalid Credentials";
 
-        // array of guild
-        nlohmann::json r = middlewares::process_curlpp_response_t (
-            resp, "server::routes::get_guilds");
+                        return;
+                    }
 
-        if (resp.status != 200L)
-            {
-                endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
+                services::curlpp_response_t resp = services::discord_get_user_guilds (token_type, access_token);
+
+                // array of guild
+                nlohmann::json r = middlewares::process_curlpp_response_t (resp, "server::routes::get_guilds");
+
+                if (resp.status != 200L)
+                    {
+                        endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
+                        endres.set_content_type_json ();
+                        endres.response = response::error (response::ERROR_CODE_NOTHING,
+                                                           std::string ("GET /users/@me/guilds: ") + std::to_string (resp.status))
+                                              .dump ();
+
+                        return;
+                    }
+
+                service_cache::set_cached_user_guilds (user_id, r);
+
+                set_guilds_is_mutual (user_id, r);
+
                 endres.set_content_type_json ();
-                endres.response
-                    = response::error (response::ERROR_CODE_NOTHING,
-                                       std::string ("GET /users/@me/guilds: ")
-                                           + std::to_string (resp.status))
-                          .dump ();
-
-                return;
-            }
-
-        service_cache::set_cached_user_guilds (user_id, r);
-
-        set_guilds_is_mutual (user_id, r);
-
-        endres.set_content_type_json ();
-        endres.response = response::payload (r).dump ();
-    });
-
-    thread_manager::dispatch (t);
+                endres.response = response::payload (r).dump ();
+            });
 }
 
 } // musicat::server::routes

@@ -6,7 +6,7 @@
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include "musicat/util_response.h"
 #include <libpq-fe.h>
 #include <memory>
@@ -144,11 +144,9 @@ get_option_obj ()
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::thread rt (
+    task::run (
         [event] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     {
@@ -322,8 +320,6 @@ slash_run (const dpp::slashcommand_t &event)
                         // }
                     }
             });
-
-    thread_manager::dispatch (rt);
 }
 } // load
 

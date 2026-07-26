@@ -3,7 +3,7 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
 #include "musicat/util/fs.h"
@@ -429,10 +429,9 @@ check_download_queue ()
     download_thread_params_t params = download_q.front ();
     download_q.pop ();
 
-    std::thread tj (
+    task::run (
         [params] ()
             {
-                thread_manager::DoneSetter tmds;
                 running_download_dec_t rdd;
 
                 const std::string &fname = params.fname;
@@ -466,17 +465,14 @@ check_download_queue ()
 
                 // TODO: set status somewhere when needed?
             });
-
-    thread_manager::dispatch (tj);
 }
 
 int
 Manager::play (const dpp::snowflake &guild_id)
 {
-    std::thread tj (
+    task::run (
         [guild_id] ()
             {
-                thread_manager::DoneSetter tmds;
                 auto *manager = get_player_manager_ptr ();
 
                 bool debug = get_debug_state ();
@@ -550,8 +546,6 @@ Manager::play (const dpp::snowflake &guild_id)
             skip_send_msg:
                 return;
             });
-
-    thread_manager::dispatch (tj);
 
     return 0;
 }

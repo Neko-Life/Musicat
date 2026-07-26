@@ -4,7 +4,7 @@
 #include "musicat/cmds/filters.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include <libpq-fe.h>
 
 namespace musicat::command::filters::equalizer_presets
@@ -64,10 +64,9 @@ setup_subcommand (dpp::slashcommand &slash)
 void
 save (const dpp::slashcommand_t &event)
 {
-    std::thread rt (
+    task::run (
         [event] ()
             {
-                thread_manager::DoneSetter tmds;
                 auto *player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     {
@@ -109,17 +108,14 @@ save (const dpp::slashcommand_t &event)
                                                     "exist! Try pick another name");
                     }
             });
-
-    thread_manager::dispatch (rt);
 }
 
 void
 load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
 {
-    std::thread rt (
+    task::run (
         [event, is_view] ()
             {
-                thread_manager::DoneSetter tmds;
                 auto *player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     {
@@ -170,8 +166,6 @@ load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
 
                 event.edit_response ("Setting preset:```md\n" + equalizer_fx_t_to_slash_args (arg) + "```");
             });
-
-    thread_manager::dispatch (rt);
 }
 
 void

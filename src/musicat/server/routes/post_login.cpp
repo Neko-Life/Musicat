@@ -6,7 +6,7 @@
 #include "musicat/server/response.h"
 #include "musicat/server/service_cache.h"
 #include "musicat/server/states.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 
 namespace musicat::server::routes
 {
@@ -311,7 +311,7 @@ handle_post_login_body (const states::recv_body_t &recv)
 
     // we have the stuff here, proceed
 
-    // spawn thread to verify to discord
+    // verify to discord
 
     std::string secret = get_sha_secret ();
 
@@ -333,11 +333,9 @@ handle_post_login_body (const states::recv_body_t &recv)
     header_v_t lheaders = endres.headers;
     endres.res = nullptr;
 
-    std::thread t (
+    task::run (
         [recv, res, lheaders, redirect, creds] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 response::end_t endres (res);
                 endres.headers = lheaders;
                 endres.set_content_type_json ();
@@ -346,8 +344,6 @@ handle_post_login_body (const states::recv_body_t &recv)
 
                 handle_post_login_creds (endres, redirect, creds);
             });
-
-    thread_manager::dispatch (t);
 }
 
 void

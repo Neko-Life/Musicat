@@ -5,7 +5,7 @@
 #include "musicat/player_manager_timer.h"
 #include "musicat/server/stream.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include <cstdint>
 #include <memory>
 
@@ -358,7 +358,6 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     // declare vars here for clean code standard!!!!
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > a = { nullptr, {} };
-    std::thread tj;
 
     if (!v)
         // no conn, skip everything
@@ -424,17 +423,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
             this->set_waiting_vc_ready (e_guild_id);
         }
 
-    tj = std::thread (
-        [this, e_guild_id, shard_id] ()
-            {
-                thread_manager::DoneSetter tmds;
-
-                std::this_thread::sleep_for (std::chrono::seconds (1));
-
-                this->voice_ready (e_guild_id, shard_id);
-            });
-
-    thread_manager::dispatch (tj);
+    task::run_once ([this, e_guild_id, shard_id] () { this->voice_ready (e_guild_id, shard_id); }, 2);
     // reconnecting, shouldn't check for autopause, skip it
     goto end;
 skip_reconnect:
@@ -545,11 +534,9 @@ Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_cl
 void
 Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event)
 {
-    std::thread tj = std::thread (
-        [this] (dpp::discord_voice_client *v, const string meta)
+    task::run (
+        [this, v = event.voice_client, meta = event.track_meta] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 if (!v || v->terminating)
                     {
                         std::cerr << "[Manager::handle_on_track_marker::tj ERROR] "
@@ -703,11 +690,10 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                             // try redownload
                             this->download (fname, mctrack::get_url (track), guild_id);
 
-                            std::thread dlt (
-                                [this, guild_id, fname, v] (player::MCTrack result)
+                            task::run (
+                                [this, guild_id, fname, v, track] ()
                                     {
-                                        thread_manager::DoneSetter tmds;
-
+                                        player::MCTrack result = track;
                                         this->wait_for_download (fname);
 
                                         auto guild_player = this->get_player (guild_id);
@@ -728,10 +714,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                                         if (decide_play)
                                             player::decide_play (pc, guild_id, false);
-                                    },
-                                track);
-
-                            thread_manager::dispatch (dlt);
+                                    });
                         }
 
                     // no audio file
@@ -806,10 +789,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                         this->cluster->message_create (m);
                     }
-            },
-        event.voice_client, event.track_meta);
-
-    thread_manager::dispatch (tj);
+            });
 }
 
 } // player

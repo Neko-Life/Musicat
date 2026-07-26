@@ -3,7 +3,7 @@
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
-#include "musicat/thread_manager.h"
+#include "musicat/task.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 
@@ -179,11 +179,9 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, dpp::discord
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    std::thread t (
+    task::run (
         [event] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 std::string out_reply;
                 int status = run (event.command.guild_id, event.command.usr.id, event.from (), get_mode_param_getter (event),
                                   get_loop_amount_param_getter (event), out_reply);
@@ -193,8 +191,6 @@ slash_run (const dpp::slashcommand_t &event)
                         event.reply (out_reply);
                     }
             });
-
-    thread_manager::dispatch (t);
 }
 
 void
@@ -225,11 +221,9 @@ button_modal_dialog (const dpp::button_click_t &event)
 void
 handle_button_modal_dialog (const dpp::button_click_t &event)
 {
-    std::thread t (
+    task::run (
         [event] ()
             {
-                thread_manager::DoneSetter tmds;
-
                 auto player_manager = get_player_manager_ptr ();
                 if (!player_manager)
                     return;
@@ -250,8 +244,6 @@ handle_button_modal_dialog (const dpp::button_click_t &event)
 
                 player_manager->update_info_embed (event.command.guild_id, false, &event);
             });
-
-    thread_manager::dispatch (t);
 }
 
 } // musicat::command::loop
