@@ -1,6 +1,8 @@
 #ifndef MUSICAT_COMMAND_SEEK_H
 #define MUSICAT_COMMAND_SEEK_H
 
+#define SECOND_SEEK_STEP 15
+
 #include <dpp/dpp.h>
 
 namespace musicat::command::seek

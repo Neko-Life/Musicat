@@ -269,7 +269,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id, const dpp::sno
                 removed_tracks.push_back (e);
         }
 
-    if (remove && !guild_player->stopped && v && v->voiceclient)
+    if (remove && !guild_player->queue.empty () && !guild_player->stopped && v && v->voiceclient)
         {
             removed_tracks.push_back (guild_player->queue.front ());
             guild_player->queue_pop_front ();

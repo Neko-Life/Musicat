@@ -111,19 +111,8 @@ button_run_prev (const dpp::button_click_t &event)
             server::ws::player::publish_queue (event.command.guild_id);
 
             dpp::voiceconn *v = event.from ()->get_voice (guild_id);
-
-            bool stopping = false;
-            // stop it! it will be resumed by auto marker at the ends of every
-            // stream
-            if (v && v->voiceclient)
-                {
-                    if (v->voiceclient->get_secs_remaining () > 0.05f)
-                        stopping = player_manager->stop_stream (guild_id) == 0;
-
-                    // we havent had any playback session?
-                    if (!stopping)
-                        v->voiceclient->insert_marker ("e");
-                }
+            guild_player->stop ();
+            guild_player->skip (v);
         }
     else
         fprintf (stderr, "[command::skip::button_run_prev WARN] Track queue is empty: %s\n", event.command.guild_id.str ().c_str ());

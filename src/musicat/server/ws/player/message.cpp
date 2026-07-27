@@ -1,3 +1,4 @@
+#include "musicat/cmds/seek.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
 #include <cstdint>
@@ -99,6 +100,17 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
             nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAY }, { "d", nullptr } });
             ws->send (d.dump ());
         }
+    else
+        {
+            try
+                {
+                    player_manager->update_info_embed (sdata->server_id, false);
+                }
+            catch (...)
+                {
+                    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                }
+        }
 
     return 0;
 }
@@ -135,6 +147,15 @@ handle_seek (const nlohmann::json &data, uws_ws_t *ws)
     guild_player->current_track.seek_to = "y";
     publish_seek (sdata->server_id, total_ms);
 
+    try
+        {
+            player_manager->update_info_embed (sdata->server_id, false);
+        }
+    catch (...)
+        {
+            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        }
+
     return 0;
 }
 
@@ -159,10 +180,11 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
         }
 
     // !TODO: check if user actually in the same vc session
-    player_manager->stop_stream (sdata->server_id);
+    guild_player->stop ();
     guild_player->skip (voiceclient);
     guild_player->stopped = true;
     voiceclient->pause_audio (true);
+
     player_manager->set_manually_paused (sdata->server_id);
 
     publish_stop (sdata->server_id);
@@ -182,25 +204,99 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_next (const nlohmann::json &data, uws_ws_t *ws)
 {
-    // !TODO
-    auto *sdata = ws->getUserData ();
-    nlohmann::json ata = util::get_playback_info_json (sdata->server_id);
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
 
-    nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAYBACK_INFO }, { "d", ata } });
-    ws->send (d.dump ());
+    auto *sdata = ws->getUserData ();
+    auto guild_player = player_manager->get_player (sdata->server_id);
+    if (!guild_player)
+        return -1;
+
+    auto *voiceclient = guild_player->get_voice_client ();
+
+    guild_player->skip_queue (1, false);
+    bool stopping = false;
+    if (voiceclient && voiceclient->get_secs_remaining () > 0.05f)
+        stopping = player_manager->stop_stream (sdata->server_id) == 0;
+
+    auto [_, status] = guild_player->skip (voiceclient);
+
+    if (status == 0 && !stopping)
+        voiceclient->insert_marker ("e");
+
+    try
+        {
+            player_manager->update_info_embed (sdata->server_id, false);
+        }
+    catch (...)
+        {
+            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        }
 
     return 0;
 }
 
+inline constexpr const int64_t second_seek_step = SECOND_SEEK_STEP * 1000;
+
 static int
 handle_prev (const nlohmann::json &data, uws_ws_t *ws)
 {
-    // !TODO
-    auto *sdata = ws->getUserData ();
-    nlohmann::json ata = util::get_playback_info_json (sdata->server_id);
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
 
-    nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAYBACK_INFO }, { "d", ata } });
-    ws->send (d.dump ());
+    auto *sdata = ws->getUserData ();
+    auto guild_player = player_manager->get_player (sdata->server_id);
+    if (!guild_player)
+        return -1;
+    auto *voiceclient = guild_player->get_voice_client ();
+    if (!voiceclient)
+        return 0;
+
+    ::musicat::player::track_progress prog = util::get_track_progress (guild_player->current_track);
+    if (prog.current_ms >= second_seek_step)
+        {
+            nlohmann::json d = nlohmann::json::number_unsigned_t (0);
+            return handle_seek (d, ws);
+        }
+
+    std::lock_guard lk (guild_player->t_mutex);
+    guild_player->reset_shifted ();
+
+    if (!guild_player->current_track.is_empty ())
+        guild_player->current_track.repeat = 0;
+
+    if (!guild_player->queue.empty ())
+        {
+            guild_player->queue.front ().repeat = 0;
+
+            // move the back of the queue to front
+            guild_player->queue_add_front (guild_player->queue.back ());
+            guild_player->queue_pop ();
+
+            server::ws::player::publish_queue (sdata->server_id);
+
+            guild_player->stop ();
+            guild_player->skip (voiceclient);
+        }
+    else
+        {
+            fprintf (stderr, "[server::ws::player::events::handle_prev WARN] Track queue is empty: %s\n", sdata->server_id.str ().c_str ());
+
+            const nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAY }, { "d", nullptr } });
+            ws->send (d.dump ());
+        }
+
+    try
+        {
+            player_manager->update_info_embed (sdata->server_id, false);
+        }
+    catch (...)
+        {
+            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        }
+
     return 0;
 }
 

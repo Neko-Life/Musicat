@@ -230,14 +230,6 @@ Player::skip (dpp::discord_voice_client *voiceclient)
     bool skipped = false;
     if (voiceclient->get_secs_remaining () > 0.05f)
         {
-            // if (this->queue.size()) {
-            //     removed_tracks.push_back (MCTrack
-            //     (this->queue.front())); if (get_debug_state ())
-            //         fprintf (stderr, "PUSHED FROM PLAYER SKIP:
-            //         '%s'\n",
-            //                 this->queue.front().title ().c_str ());
-            // }
-
             voiceclient->pause_audio (false);
             voiceclient->skip_to_next_marker ();
 
@@ -254,7 +246,7 @@ Player::skip (dpp::discord_voice_client *voiceclient)
     if (stopped)
         {
             voiceclient->skip_to_next_marker ();
-            removed_tracks = this->skip_queue (1, false, true);
+            removed_tracks = this->skip_queue (1);
             skipped = true;
         }
 
@@ -498,6 +490,10 @@ Player &
 Player::stop ()
 {
     if (!processing_audio)
+        return *this;
+
+    auto vs = get_voice_from_gid (guild_id, get_sha_id ());
+    if (!vs.first)
         return *this;
 
     stopping = true;

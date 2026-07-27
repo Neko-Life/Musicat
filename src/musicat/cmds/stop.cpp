@@ -37,8 +37,7 @@ slash_run (const dpp::slashcommand_t &event)
     if (vcu.first->id != v->channel_id)
         return event.reply ("You're not in my voice channel!");
 
-    player_manager->stop_stream (event.command.guild_id);
-
+    p->stop();
     p->skip (v);
     p->stopped = true;
     v->voiceclient->pause_audio (true);

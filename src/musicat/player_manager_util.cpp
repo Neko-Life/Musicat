@@ -1110,13 +1110,8 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
 int
 Manager::stop_stream (const dpp::snowflake &guild_id)
 {
-    auto vs = get_voice_from_gid (guild_id, get_sha_id ());
-    if (!vs.first)
-        return -1;
-
     auto guild_player = this->get_player (guild_id);
-
-    if (!guild_player || !guild_player->processing_audio)
+    if (!guild_player)
         return -1;
 
     guild_player->stop ();

@@ -4,8 +4,6 @@
 #include "musicat/server/ws/player.h"
 #include <cstdint>
 
-#define SECOND_SEEK_STEP 15
-
 namespace musicat::command::seek
 {
 
