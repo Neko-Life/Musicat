@@ -257,26 +257,7 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id, const dpp::sno
     // }
 
     auto removed_tracks = guild_player->skip_queue (amount, remove);
-
-    bool stopping = false;
-    if (v && v->voiceclient && v->voiceclient->get_secs_remaining () > 0.05f)
-        stopping = this->stop_stream (guild_id) == 0;
-
-    auto [removed_ts, status] = guild_player->skip (v);
-    if (removed_ts.size ())
-        {
-            for (const auto &e : removed_ts)
-                removed_tracks.push_back (e);
-        }
-
-    if (remove && !guild_player->queue.empty () && !guild_player->stopped && v && v->voiceclient)
-        {
-            removed_tracks.push_back (guild_player->queue.front ());
-            guild_player->queue_pop_front ();
-        }
-
-    if (status == 0 && !stopping)
-        v->voiceclient->insert_marker ("e");
+    auto [_, status] = guild_player->skip_playback (v);
 
     return { removed_tracks, status };
 }

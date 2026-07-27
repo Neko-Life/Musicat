@@ -333,8 +333,8 @@ class Player
      *                                             success, > 0 on vote, -1 on
      *                                             failure
      */
-    std::pair<std::deque<MCTrack>, int> skip (dpp::voiceconn *v);
-    std::pair<std::deque<MCTrack>, int> skip (dpp::discord_voice_client *voiceclient);
+    std::pair<std::deque<MCTrack>, int> skip_playback (dpp::voiceconn *v);
+    std::pair<std::deque<MCTrack>, int> skip_playback (dpp::discord_voice_client *voiceclient);
 
     /**
      * @brief Skip track entries in the queue

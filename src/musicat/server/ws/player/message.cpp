@@ -180,8 +180,7 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
         }
 
     // !TODO: check if user actually in the same vc session
-    guild_player->stop ();
-    guild_player->skip (voiceclient);
+    guild_player->skip_playback (voiceclient);
     guild_player->stopped = true;
     voiceclient->pause_audio (true);
 
@@ -215,15 +214,10 @@ handle_next (const nlohmann::json &data, uws_ws_t *ws)
 
     auto *voiceclient = guild_player->get_voice_client ();
 
-    guild_player->skip_queue (1, false);
-    bool stopping = false;
-    if (voiceclient && voiceclient->get_secs_remaining () > 0.05f)
-        stopping = player_manager->stop_stream (sdata->server_id) == 0;
+    guild_player->skip_queue (1);
+    server::ws::player::publish_queue (sdata->server_id);
 
-    auto [_, status] = guild_player->skip (voiceclient);
-
-    if (status == 0 && !stopping)
-        voiceclient->insert_marker ("e");
+    guild_player->skip_playback (voiceclient);
 
     try
         {
@@ -277,8 +271,7 @@ handle_prev (const nlohmann::json &data, uws_ws_t *ws)
 
             server::ws::player::publish_queue (sdata->server_id);
 
-            guild_player->stop ();
-            guild_player->skip (voiceclient);
+            guild_player->skip_playback (voiceclient);
         }
     else
         {

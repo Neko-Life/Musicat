@@ -141,8 +141,7 @@ s_playnow (const dpp::button_click_t &event)
             if (p && vcuser.first && v && v->voiceclient && v->channel_id == vcuser.first->id
                 && player_manager->voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id) && !p->stopped)
                 {
-                    p->stop ();
-                    p->skip (v);
+                    p->skip_playback (v);
                     p->stopped = true;
                     v->voiceclient->pause_audio (true);
 

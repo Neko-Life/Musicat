@@ -210,31 +210,26 @@ Player::set_max_history_size (const size_t &siz)
 }
 
 std::pair<std::deque<MCTrack>, int>
-Player::skip (dpp::voiceconn *v)
+Player::skip_playback (dpp::voiceconn *v)
 {
     if (!v || !v->voiceclient)
         return { {}, -1 };
 
-    return skip (v->voiceclient.get ());
+    return skip_playback (v->voiceclient.get ());
 }
 
 std::pair<std::deque<MCTrack>, int>
-Player::skip (dpp::discord_voice_client *voiceclient)
+Player::skip_playback (dpp::discord_voice_client *voiceclient)
 {
     if (!voiceclient)
         return { {}, -1 };
 
     /* const bool debug = get_debug_state (); */
 
-    std::deque<MCTrack> removed_tracks = {};
-    bool skipped = false;
-    if (voiceclient->get_secs_remaining () > 0.05f)
-        {
-            voiceclient->pause_audio (false);
-            voiceclient->skip_to_next_marker ();
-
-            skipped = true;
-        }
+    auto ct = current_track;
+    stop();
+    voiceclient->pause_audio (false);
+    voiceclient->skip_to_next_marker ();
 
     if (get_debug_state ())
         {
@@ -243,17 +238,7 @@ Player::skip (dpp::discord_voice_client *voiceclient)
                       << "stopping(" << stopping << ")\n";
         }
 
-    if (stopped)
-        {
-            voiceclient->skip_to_next_marker ();
-            removed_tracks = this->skip_queue (1);
-            skipped = true;
-        }
-
-    if (skipped)
-        {
-            return { removed_tracks, 0 };
-        }
+    return { { ct }, 0 };
 
     return { {}, -1 };
 }
