@@ -5,6 +5,10 @@ Discord Music Bot written in C++
 - Just install dependencies, compile and fill out `exe/sha_cfg.json`, config file should be in one directory as the binary.
 - Musicat is fully slash command and need to register the commands to discord, run `./Shasha reg g` or `./Shasha reg <guild_id>` to register slash commands.
 
+## Dashboard
+
+* Checkout the dashboard [here](https://github.com/Neko-Life/musicat-dashboard-svelte)
+
 ## Dependencies
 
 Need to install:
