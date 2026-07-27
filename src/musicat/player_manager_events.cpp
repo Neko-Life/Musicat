@@ -16,10 +16,6 @@ namespace player
 // this section can't be anymore horrible than this....
 using string = std::string;
 
-// !!TODO: remove shared_manager and use get_player_manager_ptr() instead!!!
-// do that for everything requires player_manager!!!!!!!!
-//
-// btw shared_manager can be simply `this` smfh
 bool
 Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 {
@@ -37,10 +33,12 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     if (debug)
         std::cerr << "Handling voice marker: \"" << event.track_meta << "\" in guild " << event.voice_client->server_id << '\n';
 
-    prepare_play_stage_channel_routine (event.voice_client, dpp::find_guild (event.voice_client->server_id));
+    // guild
+    dpp::guild *g = dpp::find_guild (event.voice_client->server_id);
+
+    prepare_play_stage_channel_routine (event.voice_client, g);
 
     auto guild_player = this->get_player (event.voice_client->server_id);
-
     if (!guild_player)
         {
             if (debug)
@@ -48,6 +46,9 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             return false;
         }
+
+    // channel for sending message
+    dpp::channel *tc = dpp::find_channel (guild_player->channel_id);
 
     if (guild_player->processing_audio)
         {
@@ -140,24 +141,6 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                         break;
                     }
         }
-    else if (event.track_meta == "rm")
-        {
-            const string removed_title = debug ? mctrack::get_title (guild_player->queue.front ()) : "";
-
-            guild_player->queue_pop_front ();
-
-            server::ws::player::publish_queue (event.voice_client->server_id);
-
-            if (debug)
-                {
-                    std::cerr << "[Manager::handle_on_track_marker rm] Track "
-                                 "removed "
-                                 "in guild: `"
-                              << removed_title << "` " << guild_player->guild_id << '\n';
-                }
-
-            return false;
-        }
 
     if (guild_player->queue.empty ())
         {
@@ -171,6 +154,14 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             if (!just_loaded_queue)
                 database::delete_guild_current_queue (event.voice_client->server_id);
+
+            // current_track.current_byte still has previous value here before being timpa-ed by the first track in the queue
+            if (guild_player->current_track.current_byte
+                && has_permissions (g, &this->cluster->me, tc, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links }))
+                {
+                    dpp::message m (guild_player->channel_id, "End of playback. No more track in the queue");
+                    this->cluster->message_create (m);
+                }
 
             guild_player->current_track = MCTrack ();
 
@@ -499,8 +490,7 @@ Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_cl
 
     // try not suppress if has
     // MUTE_MEMBERS permission
-    const bool stay_suppress
-        = has_permissions (guild, &voice_client->creator->me, voice_channel, { dpp::p_mute_members }) ? false : is_currently_suppressed;
+    const bool stay_suppress = !has_permissions (guild, &voice_client->creator->me, voice_channel, { dpp::p_mute_members });
 
     // set request_to_speak, if has request to speak permission
     time_t request_ts = 0;

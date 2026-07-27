@@ -270,7 +270,10 @@ Manager::skip (dpp::voiceconn *v, const dpp::snowflake &guild_id, const dpp::sno
         }
 
     if (remove && !guild_player->stopped && v && v->voiceclient)
-        v->voiceclient->insert_marker ("rm");
+        {
+            removed_tracks.push_back (guild_player->queue.front ());
+            guild_player->queue_pop_front ();
+        }
 
     if (status == 0 && !stopping)
         v->voiceclient->insert_marker ("e");

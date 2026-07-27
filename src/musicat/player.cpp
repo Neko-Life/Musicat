@@ -673,7 +673,7 @@ Player::done_streaming ()
 
     stopping = false;
     processing_audio = false;
-    current_track.current_byte = 0;
+    // current_track.current_byte = 0;
 
     server::stream::unsubscribe (guild_id);
 
