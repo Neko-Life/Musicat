@@ -12,6 +12,7 @@
 #include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
+#include "musicat/util_response.h"
 
 namespace musicat::events
 {
@@ -106,7 +107,7 @@ u_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -153,7 +154,7 @@ s_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -178,7 +179,7 @@ h_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -195,7 +196,7 @@ e_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -212,7 +213,7 @@ x_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -233,7 +234,7 @@ d_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -254,7 +255,7 @@ b_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -271,7 +272,7 @@ l_playnow (const dpp::button_click_t &event)
         }
     catch (const exception &e)
         {
-            event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
         }
 }
 
@@ -296,7 +297,7 @@ a_playnow (const dpp::button_click_t &event)
                     }
                 catch (const exception &e)
                     {
-                        event.reply (std::string ("<@") + std::to_string (event.command.usr.id) + ">: " + e.what ());
+                        event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
                     }
             });
 }

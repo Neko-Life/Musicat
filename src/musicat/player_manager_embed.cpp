@@ -4,6 +4,7 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/util.h"
+#include "musicat/util_response.h"
 #include "snowflake.h"
 #include <mutex>
 #include <variant>
@@ -37,6 +38,30 @@ is_embed_op_duplicate (const embed_op_t &is_this, const embed_op_t &duplicate)
 static std::vector<embed_op_t> embed_q;
 static std::mutex embed_q_m;
 
+// return true if error
+static bool
+get_embed_werr (player_manager_ptr_t manager, const dpp::interaction_create_t *event, const dpp::snowflake &guild_id,
+                bool force_playing_status, bool expand_button, dpp::message &m)
+{
+    int status;
+    if ((status = manager->get_playing_info_message (m, guild_id, force_playing_status, expand_button)) < 0)
+        {
+            if (event)
+                event->reply (util::response::str_mention_user (event->command.usr.id)
+                              + "`[ERROR]` Something went wrong when getting playback info");
+            return true;
+        }
+
+    if (status > 0)
+        {
+            if (event)
+                event->reply (util::response::str_mention_user (event->command.usr.id) + "Nothing is currently playing");
+            return true;
+        }
+
+    return false;
+}
+
 static void
 run_embed_op (const embed_op_t &o)
 {
@@ -47,7 +72,7 @@ run_embed_op (const embed_op_t &o)
     if (!o.update)
         {
             dpp::message m;
-            if (manager->get_playing_info_message (m, o.guild_id, o.force_playing_status, false) != 0)
+            if (get_embed_werr (manager, o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status, false, m))
                 return;
 
             m.set_channel_id (o.channel_id);
@@ -63,8 +88,8 @@ run_embed_op (const embed_op_t &o)
         }
 
     auto pm = o.prev_message;
-    if (manager->get_playing_info_message (pm, o.guild_id, o.force_playing_status, player::playing_info_utils::is_button_expanded (pm))
-        != 0)
+    if (get_embed_werr (manager, o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status,
+                        player::playing_info_utils::is_button_expanded (pm), pm))
         return;
 
     if (!o.has_event)
@@ -311,9 +336,16 @@ Manager::reply_info_embed (const dpp::interaction_create_t &event, bool expand_b
 {
     dpp::message m;
 
-    if (this->get_playing_info_message (m, event.command.guild_id, false, expand_button) != 0)
+    int status;
+    if ((status = this->get_playing_info_message (m, event.command.guild_id, false, expand_button)) < 0)
         {
-            return event.reply ("`[ERROR]` Something went wrong when getting playback info");
+            return event.reply (util::response::str_mention_user (event.command.usr.id)
+                                + "`[ERROR]` Something went wrong when getting playback info");
+        }
+
+    if (status > 0)
+        {
+            return event.reply (util::response::str_mention_user (event.command.usr.id) + "Nothing is currently playing");
         }
 
     if (reply_update_message)

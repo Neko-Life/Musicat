@@ -75,14 +75,26 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
     if (!guild_player)
         return -1;
 
+    bool continued = false;
     auto *voiceclient = guild_player->get_voice_client ();
-    if (voiceclient && voiceclient->is_paused ())
+    if (voiceclient)
         {
-            // !TODO: check if user actually in the same vc session
-            player_manager->unpause (voiceclient, sdata->server_id, true);
-            publish_play (sdata->server_id);
+            if (voiceclient->is_paused ())
+                {
+                    // !TODO: check if user actually in the same vc session
+                    player_manager->unpause (voiceclient, sdata->server_id, true);
+                    continued = true;
+                }
+            else if (!guild_player->processing_audio && guild_player->queue.size ())
+                {
+                    voiceclient->stop_audio ();
+                    voiceclient->insert_marker ("c");
+                    publish_play (sdata->server_id);
+                    continued = true;
+                }
         }
-    else
+
+    if (!continued)
         {
             nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_PLAY }, { "d", nullptr } });
             ws->send (d.dump ());

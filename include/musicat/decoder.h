@@ -47,6 +47,11 @@ class decoder_t
     decoder_t ();
     ~decoder_t ();
 
+    decoder_t (const decoder_t &) = delete;
+    decoder_t &operator= (const decoder_t &) = delete;
+    decoder_t (decoder_t &&) = delete;
+    decoder_t &operator= (decoder_t &&) = delete;
+
     void init ();
     bool is_valid () const;
     int open (const char *fname);

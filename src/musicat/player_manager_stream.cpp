@@ -224,6 +224,9 @@ class stream_ctx
     uint8_t *buffer;
     std::vector<uint16_t> out;
 
+    // benchmark purpose
+    std::chrono::high_resolution_clock::time_point decode_ts, decode_end, encode_ts, encode_end;
+
     std::shared_ptr<Player>
     get_guild_player ()
     {
@@ -267,13 +270,13 @@ class stream_ctx
         if (dec.open (file_path.c_str ()) < 0)
             throw 2;
 
-        // precondition done, play
-        server::ws::player::publish_playback_info (guild_id);
-        server::ws::player::publish_fx (guild_id);
-
         dec.set_filter_descr (guild_player->get_filter_descr ());
         if (dec.init_filters () < 0)
             throw 2;
+
+        // precondition done, play
+        server::ws::player::publish_playback_info (guild_id);
+        server::ws::player::publish_fx (guild_id);
 
         track.check_for_seek_to ();
         if (!track.seek_to.empty ())
@@ -330,12 +333,9 @@ class stream_ctx
                 fprintf (stderr, "[Manager::stream] delay_between_run_second(%f)\n", delay_between_run_second);
 
                 last_run_time = cur_time;
+                decode_ts = cur_time;
             }
 
-        std::chrono::high_resolution_clock::time_point decode_ts, decode_end, encode_ts, encode_end;
-
-        if (debug)
-            decode_ts = std::chrono::high_resolution_clock::now ();
         handle_effect_chain_change ({ guild_player, guild_player->current_track, dec });
 
         int ret = dec.process_frame (out);
@@ -350,8 +350,9 @@ class stream_ctx
         if (debug)
             {
                 decode_end = std::chrono::high_resolution_clock::now ();
-                encode_ts = std::chrono::high_resolution_clock::now ();
+                encode_ts = decode_end;
             }
+
         if (send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder))
             return -1;
 
@@ -376,10 +377,6 @@ class stream_ctx
         auto *player_manager = get_player_manager_ptr ();
         auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
         if (!guild_player)
-            return -1;
-
-        running_state = get_running_state ();
-        if (!running_state)
             return -1;
 
         if (player_manager->is_waiting_vc_ready (guild_id))
