@@ -227,7 +227,7 @@ join_all (const cmd_args_t &args)
 }
 
 static std::vector<player::gat_t>
-get_play_get ()
+get_enqueue_get ()
 {
     const std::vector<player::gat_t> get = player::get_available_tracks ();
     if (get.empty ())
@@ -240,7 +240,7 @@ get_play_get ()
 }
 
 static int
-play_random_track_in_guild (dpp::guild *g, const std::vector<player::gat_t> &get = {})
+enqueue_random_track_in_guild (dpp::guild *g, const std::vector<player::gat_t> &get = {})
 {
     auto sha_id = get_sha_id ();
     auto *player_manager = get_player_manager_ptr ();
@@ -281,7 +281,7 @@ play_random_track_in_guild (dpp::guild *g, const std::vector<player::gat_t> &get
 }
 
 static int
-play_random_track_in_guild (const dpp::snowflake &guild_id, const std::vector<player::gat_t> &get = {})
+enqueue_random_track_in_guild (const dpp::snowflake &guild_id, const std::vector<player::gat_t> &get = {})
 {
     auto *g = dpp::find_guild (guild_id);
     if (!g)
@@ -290,11 +290,11 @@ play_random_track_in_guild (const dpp::snowflake &guild_id, const std::vector<pl
             return 0;
         }
 
-    return play_random_track_in_guild (g, get);
+    return enqueue_random_track_in_guild (g, get);
 }
 
 static int
-play_rand (const cmd_args_t &args)
+enqueue_rand (const cmd_args_t &args)
 {
     // for guild args[0], if already in vc AND not playing anything, find random track and play it
     if (args.empty ())
@@ -313,18 +313,18 @@ play_rand (const cmd_args_t &args)
             return 0;
         }
 
-    return play_random_track_in_guild (guild_id, get_play_get ());
+    return enqueue_random_track_in_guild (guild_id, get_enqueue_get ());
 }
 
 static int
-play_all (const cmd_args_t &args)
+enqueue_all (const cmd_args_t &args)
 {
     // for each guild, if already in vc AND not playing anything, find random track and play it
     auto player_manager = get_player_manager_ptr ();
     if (!player_manager)
         return -1;
 
-    const std::vector<player::gat_t> get = get_play_get ();
+    const std::vector<player::gat_t> get = get_enqueue_get ();
     if (get.empty ())
         return 0;
 
@@ -332,7 +332,104 @@ play_all (const cmd_args_t &args)
     std::shared_lock lk (c->get_mutex ());
     std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
     for (auto &[_id, g] : gc)
-        play_random_track_in_guild (g, get);
+        enqueue_random_track_in_guild (g, get);
+
+    return 0;
+}
+
+static int
+play_all ()
+{
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    for (auto &[s, guild_player] : player_manager->players)
+        {
+            auto *voiceclient = guild_player->get_voice_client ();
+
+            if (!voiceclient)
+                {
+                    fprintf (stderr, "Not in any voice/stage channel in guild (%ld), skipping\n", (uint64_t)guild_id);
+                    continue;
+                }
+
+            if (!voiceclient->is_ready ())
+                {
+                    fprintf (stderr, "Voice client in voice/stage channel (%ld) in guild (%ld) is not ready yet, skipping\n",
+                             (uint64_t)voiceclient->channel_id, (uint64_t)guild_id);
+                    continue;
+                }
+
+            if ((!voiceclient->is_paused () && !voiceclient->is_playing ()) || voiceclient->get_secs_remaining () < 0.05f)
+                {
+                    fprintf (stderr, "Starting voice client in voice/stage channel (%ld) in guild (%ld)...\n",
+                             (uint64_t)voiceclient->channel_id, (uint64_t)guild_id);
+
+                    voiceclient->insert_marker ("s");
+                }
+            else
+                fprintf (stderr, "Voice client in voice/stage channel (%ld) in guild (%ld) is paused or already playing, skipping\n",
+                         (uint64_t)voiceclient->channel_id, (uint64_t)guild_id);
+        }
+
+    return 0;
+}
+
+static int
+play ()
+{
+    if (args.empty ())
+        {
+            fprintf (stderr, "Provide <guild_id>\n");
+            return 0;
+        }
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    dpp::snowflake guild_id{ args.at (0) };
+    if (guild_id.empty ())
+        {
+            fprintf (stderr, "Invalid <guild_id>\n");
+            return 0;
+        }
+
+    auto *g = dpp::find_guild (guild_id);
+    if (!g)
+        {
+            fprintf (stderr, "Guild (%ld) not found\n", (uint64_t)guild_id);
+            return 0;
+        }
+
+    auto guild_player = player_manager->create_player (guild_id);
+    guild_player->set_shard (g->shard_id);
+
+    auto *voiceclient = guild_player->get_voice_client ();
+
+    if (!voiceclient)
+        {
+            fprintf (stderr, "Not in any voice/stage channel in guild (%ld), skipping\n", (uint64_t)guild_id);
+            return 0;
+        }
+
+    if (!voiceclient->is_ready ())
+        {
+            fprintf (stderr, "Voice client in voice/stage channel (%ld) in guild (%ld) is not ready yet, skipping\n",
+                     (uint64_t)voiceclient->channel_id, (uint64_t)guild_id);
+            return 0;
+        }
+
+    if ((!voiceclient->is_paused () && !voiceclient->is_playing ()) || voiceclient->get_secs_remaining () < 0.05f)
+        {
+            fprintf (stderr, "Starting voice client in voice/stage channel (%ld) in guild (%ld)...\n", (uint64_t)voiceclient->channel_id,
+                     (uint64_t)guild_id);
+
+            voiceclient->insert_marker ("s");
+        }
+    else
+        fprintf (stderr, "Voice client in voice/stage channel (%ld) in guild (%ld) is paused or already playing, skipping\n",
+                 (uint64_t)voiceclient->channel_id, (uint64_t)guild_id);
 
     return 0;
 }
@@ -402,8 +499,10 @@ inline constexpr const command_entry_t commands[] = {
     { "shutdown", NULL, "Shutdown Musicat", shutdown_cmd },
     { "list effect states", "-ls es", "List currently active effect states", list_effect_states },
     { "join all", "-ja", "Join to random vc for every guild (for testing purpose)", join_all },
-    { "play all", "-pa", "Try start to play random track for every voice session (for testing purpose)", play_all },
-    { "play rand", "-pr", "Try start to play random track in guild <guild_id> (for testing purpose)", play_rand },
+    { "enqueue all", "-ea", "Try to enqueue random track for every voice session (for testing purpose)", enqueue_all },
+    { "enqueue rand", "-er", "Try to enqueue random track in guild <guild_id> (for testing purpose)", enqueue_rand },
+    { "play all", "-pa", "Try to start playing for every voice session (for testing purpose)", play_all },
+    { "play", "-p", "Try to start playing for <guild_id> voice session (for testing purpose)", play },
     { "leave all", "-la", "Leave all vc for every guild (for testing purpose)", leave_all },
     { NULL, NULL, NULL, NULL },
 };
