@@ -338,7 +338,7 @@ enqueue_all (const cmd_args_t &args)
 }
 
 static int
-play_all ()
+play_all (const cmd_args_t &args)
 {
     auto *player_manager = get_player_manager_ptr ();
     if (!player_manager)
@@ -346,6 +346,7 @@ play_all ()
 
     for (auto &[s, guild_player] : player_manager->players)
         {
+            auto guild_id = guild_player->guild_id;
             auto *voiceclient = guild_player->get_voice_client ();
 
             if (!voiceclient)
@@ -377,7 +378,7 @@ play_all ()
 }
 
 static int
-play ()
+play (const cmd_args_t &args)
 {
     if (args.empty ())
         {
