@@ -66,13 +66,6 @@ enum loop_mode_t
     l_song_queue
 };
 
-enum processor_state_t
-{
-    PROCESSOR_NULL = 0,
-    PROCESSOR_READY = 1,
-    PROCESSOR_DEAD = (1 << 1),
-};
-
 enum track_flag_t
 {
     TRACK_MC = 0,
@@ -486,7 +479,6 @@ class Manager
     std::map<dpp::snowflake, dpp::snowflake> connecting, disconnecting;
     std::map<dpp::snowflake, std::string> waiting_vc_ready;
     std::map<std::string, dpp::snowflake> waiting_file_download;
-    std::map<std::string, processor_state_t> processor_states;
     std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
     std::vector<dpp::snowflake> ignore_marker;
@@ -554,50 +546,32 @@ class Manager
      * @throw musicat::exception
      */
     bool pause (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool update_info_embed = true);
-
     void unpause (dpp::discord_voice_client *voiceclient, const dpp::snowflake &guild_id, bool update_info_embed = true);
 
     bool is_disconnecting (const dpp::snowflake &guild_id);
-
     void set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
 
     // overrides dpp::discord_client::disconnect_voice()
     void disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id);
-
     void clear_disconnecting (const dpp::snowflake &guild_id);
 
     bool is_connecting (const dpp::snowflake &guild_id);
-
     void set_connecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
-
     int clear_connecting (const dpp::snowflake &guild_id);
 
     bool is_waiting_vc_ready (const dpp::snowflake &guild_id);
-
     void set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string &second = "0");
-
-    void set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned long &timer = 10000);
+    void set_vc_ready_timeout (const dpp::snowflake &guild_id, /* in second */ const unsigned long &timer = 10);
 
     /**
      * @brief Returns 1 if doesn't need to wait, 0 otherwise
      */
     int wait_for_vc_ready (const dpp::snowflake &guild_id);
-
     int clear_wait_vc_ready (const dpp::snowflake &guild_id);
 
     bool is_manually_paused (const dpp::snowflake &guild_id);
-
     void set_manually_paused (const dpp::snowflake &guild_id);
-
     void clear_manually_paused (const dpp::snowflake &guild_id);
-
-    void set_processor_state (std::string &server_id_str, processor_state_t state);
-
-    processor_state_t get_processor_state (std::string &server_id_str);
-
-    bool is_processor_ready (std::string &server_id_str);
-
-    bool is_processor_dead (std::string &server_id_str);
 
     /**
      * @brief Check whether client is ready to stream in vc and make changes to
@@ -636,13 +610,9 @@ class Manager
                                               const int64_t &amount = 1, const bool remove = false);
 
     void download (const std::string &fname, const std::string &url, const dpp::snowflake &guild_id);
-
     void wait_for_download (const std::string &file_name);
-
     bool is_waiting_file_download (const std::string &file_name);
 
-    void stream (const dpp::snowflake &guild_id);
-    void stream_noslave (const dpp::snowflake &guild_id);
     void submit_stream_ctx (const dpp::snowflake &guild_id);
 
     void prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild);

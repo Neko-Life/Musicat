@@ -912,10 +912,10 @@ run (int argc, const char *argv[])
 
     server::shutdown ();
 
-    player_manager.shutdown ();
     player::shutdown ();
     client.shutdown ();
 
+    player_manager.shutdown ();
     player_manager_ptr = nullptr;
     client_ptr = nullptr;
 

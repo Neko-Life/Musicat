@@ -815,75 +815,18 @@ Manager::set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string
     this->set_vc_ready_timeout (guild_id);
 }
 
-std::map<dpp::snowflake, unsigned long> timer_map;
-std::mutex timer_map_m;
-
-unsigned long
-get_timer_unlocked (const dpp::snowflake &guild_id)
-{
-    auto i = timer_map.find (guild_id);
-    if (i == timer_map.end ())
-        return 0;
-
-    return i->second;
-}
-
-unsigned long
-get_timer (const dpp::snowflake &guild_id)
-{
-    std::lock_guard lk (timer_map_m);
-    return get_timer_unlocked (guild_id);
-}
-
-// returns 1 if already has timer thread running for this guild
-int
-add_timer (const dpp::snowflake &guild_id, const unsigned long &timer)
-{
-    std::lock_guard lk (timer_map_m);
-    auto ct = get_timer_unlocked (guild_id);
-
-    timer_map.insert_or_assign (guild_id, timer + ct);
-
-    return ct > 0 ? 1 : 0;
-}
-
-void
-delete_timer (const dpp::snowflake &guild_id)
-{
-    std::lock_guard lk (timer_map_m);
-    timer_map.erase (guild_id);
-}
-
 void
 Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned long &timer)
 {
-    if (add_timer (guild_id, timer))
-        return;
-
-    task::run (
+    task::run_once (
         [this, guild_id] ()
             {
-                unsigned long timer = 0;
-                unsigned long elapsed = 0;
-
-                while (elapsed <= (timer = get_timer (guild_id)))
-                    {
-                        unsigned long sfor = elapsed > timer ? 0 : timer - elapsed;
-                        if (sfor == 0)
-                            break;
-
-                        std::this_thread::sleep_for (std::chrono::milliseconds (sfor));
-                        elapsed += sfor;
-                    }
-
-                delete_timer (guild_id);
-
                 const int status = this->clear_wait_vc_ready (guild_id);
 
                 if (status == 0)
                     return;
 
-                fprintf (stderr, "[Manager::set_vc_ready_timeout WARN] Connection timeout\n");
+                bool disconnecting = false;
 
                 auto guild_player = get_player (guild_id);
 
@@ -903,11 +846,17 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
                     goto skip_disconnecting;
 
                 set_disconnecting (guild_id, vcs.first->id);
-
                 disconnect_voice (pc, guild_id);
+
+                fprintf (stderr, "[Manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel (%ld) in guild (%ld)\n",
+                         (uint64_t)vcs.first->id, (uint64_t)guild_id);
+                disconnecting = true;
 
                 // this jump means there's no need to disconnect
             skip_disconnecting:
+                if (!disconnecting)
+                    fprintf (stderr, "[Manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel in guild (%ld)\n",
+                             (uint64_t)guild_id);
 
                 if (!channel_id)
                     {
@@ -929,7 +878,8 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
                 m.set_channel_id (channel_id);
 
                 this->cluster->message_create (m);
-            });
+            },
+        timer);
 }
 
 int

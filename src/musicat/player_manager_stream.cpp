@@ -193,14 +193,8 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
 
 #endif // USING_LIBOPUSENC
 
-constexpr const char *msprrfmt = "[Manager::stream ERROR] Processor not ready or exited: %s\n";
-constexpr const char *fbsefmt = "[Manager::stream] Final buffer `%s`: %ld %ld\n";
-constexpr const char *dssefmt = "[Manager::stream] Done streaming `%s` for %lld milliseconds\n";
-
-void
-Manager::stream (const dpp::snowflake &guild_id)
-{
-}
+constexpr const char *fbsefmt = "[stream_ctx::end] Final buffer `%s`: %ld %ld\n";
+constexpr const char *dssefmt = "[stream_ctx::end] Done streaming `%s` for %lld milliseconds\n";
 
 class stream_ctx
 {
@@ -670,45 +664,6 @@ Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
         }
 
     stream_ctxs.push_back (ctx);
-}
-
-void
-Manager::stream_noslave (const dpp::snowflake &guild_id)
-{
-}
-
-void
-Manager::set_processor_state (std::string &server_id_str, processor_state_t state)
-{
-    std::lock_guard lk (this->as_m);
-
-    this->processor_states[server_id_str] = state;
-}
-
-processor_state_t
-Manager::get_processor_state (std::string &server_id_str)
-{
-    std::lock_guard lk (this->as_m);
-    auto i = this->processor_states.find (server_id_str);
-
-    if (i == this->processor_states.end ())
-        {
-            return PROCESSOR_NULL;
-        }
-
-    return i->second;
-}
-
-bool
-Manager::is_processor_ready (std::string &server_id_str)
-{
-    return get_processor_state (server_id_str) & PROCESSOR_READY;
-}
-
-bool
-Manager::is_processor_dead (std::string &server_id_str)
-{
-    return get_processor_state (server_id_str) & PROCESSOR_DEAD;
 }
 
 } // musicat::player
