@@ -763,7 +763,12 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
     std::unique_lock lock (dc->voice_mutex);
     auto v = dc->connecting_voice_channels.find (guild_id);
     if (v != dc->connecting_voice_channels.end ())
-        dc->connecting_voice_channels.erase (v);
+        {
+            if (v->second && v->second->voiceclient)
+                v->second->voiceclient->close ();
+
+            dc->connecting_voice_channels.erase (v);
+        }
 }
 
 void
