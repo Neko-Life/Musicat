@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 
 /* #define USE_SEARCH_CACHE */
+// #define TEST_NO_AUTOPAUSE
 
 namespace musicat
 {
@@ -1327,6 +1328,7 @@ Manager::get_next_autoplay_track (const std::string &track_id, const uint32_t sh
 int
 Manager::set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool check_listening_user)
 {
+#ifndef TEST_NO_AUTOPAUSE
     if (!v || !v->voiceclient)
         return 1;
 
@@ -1366,6 +1368,9 @@ exec_pause_audio:
     server::ws::player::publish_pause (guild_id);
     this->update_info_embed (guild_id);
     return 0;
+#else  // TEST_NO_AUTOPAUSE
+    return 0;
+#endif // TEST_NO_AUTOPAUSE
 }
 
 void

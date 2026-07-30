@@ -1,6 +1,7 @@
 #include "musicat/server/states.h"
 #include "musicat/server/auth.h"
 #include "musicat/util.h"
+#include <cstdint>
 #include <string>
 
 // in seconds
@@ -65,15 +66,15 @@ generate_oauth_state (const std::string &redirect)
 
     do
         {
-            int r1 = util::get_random_number ();
-            const int len = ((r1 > 0) ? (r1 % 81) : 0) + 80;
+            uint64_t r1 = util::get_random_number ();
+            const uint64_t len = (r1 % 81) + 80;
             state = "";
             state.reserve (len);
 
             for (int i = 0; i < len; i++)
                 {
                     r1 = util::get_random_number ();
-                    state += token[(r1 > 0) ? (r1 % token_size) : 0];
+                    state += token[r1 % token_size];
                 }
         }
     while (_oauth_states.find (state) != _oauth_states.end ());

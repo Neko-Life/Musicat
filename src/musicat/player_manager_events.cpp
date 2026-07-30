@@ -239,6 +239,9 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
             if (debug)
                 fprintf (stderr, "INSERTED \"r\" MARKER\n");
         }
+
+    fprintf (stderr, "[Manager::handle_on_voice_ready INFO] READY in voice/stage channel (%ld) in guild (%ld)\n", (uint64_t)event.voice_client->channel_id,
+             (uint64_t)event.voice_client->server_id);
 }
 
 void

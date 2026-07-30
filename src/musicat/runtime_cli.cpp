@@ -3,6 +3,8 @@
 #include "musicat/musicat.h"
 #include "musicat/player.h"
 #include "musicat/thread_manager.h"
+#include "musicat/util.h"
+#include <cstdint>
 #include <sys/poll.h>
 
 using cmd_args_t = std::vector<std::string>;
@@ -55,7 +57,6 @@ help_cmd (const cmd_args_t &args)
     if (!commands_ptr)
         {
             fprintf (stderr, "[runtime_cli::help_cmd ERROR] Commands ptr null\n");
-
             return 1;
         }
 
@@ -132,7 +133,8 @@ list_effect_states (const cmd_args_t &args)
 {
     auto *player_manager = get_player_manager_ptr ();
     if (!player_manager)
-        return 0;
+        return -1;
+
     for (auto &[s, guild_player] : player_manager->players)
         {
             auto gid = guild_player->guild_id;
@@ -150,6 +152,230 @@ list_effect_states (const cmd_args_t &args)
 static int
 effect_states_send_command (const cmd_args_t &args)
 {
+
+    return 0;
+}
+
+static int
+join_all (const cmd_args_t &args)
+{
+    // for each guild, if not already in vc, find joinable vc and join
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    auto sha_id = get_sha_id ();
+    auto *sha_user = dpp::find_user (sha_id);
+    if (!sha_user)
+        {
+            fprintf (stderr, "No sha_user\n");
+            return 0;
+        }
+
+    auto *c = dpp::get_guild_cache ();
+    std::shared_lock lk (c->get_mutex ());
+    std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
+    for (auto &[_id, g] : gc)
+        {
+            auto guild_id = g->id;
+
+            {
+                // get voice state of sha_id in guild_id
+                // check if we're connected in this guild
+                auto m = get_voice_from_gid (guild_id, sha_id);
+                if (m.first)
+                    {
+                        fprintf (stderr, "Already in voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", m.first->name.c_str (),
+                                 (uint64_t)m.first->id, g->name.c_str (), (uint64_t)guild_id);
+                        continue;
+                    }
+            }
+
+            dpp::channel *join_channel = nullptr;
+            for (auto &fc : g->channels)
+                {
+                    auto *gc = dpp::find_channel (fc);
+                    if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
+                        continue;
+
+                    std::vector<uint64_t> need_perms = { dpp::p_view_channel, dpp::p_connect };
+                    if (gc->is_stage_channel ())
+                        need_perms.push_back (dpp::p_request_to_speak);
+                    else
+                        need_perms.push_back (dpp::p_speak);
+
+                    if (!has_permissions (g, sha_user, gc, need_perms))
+                        continue;
+
+                    join_channel = gc;
+                    break;
+                }
+
+            if (!join_channel)
+                {
+                    fprintf (stderr, "No joinable voice/stage channel in guild `%s` (%ld)\n", g->name.c_str (), (uint64_t)guild_id);
+                    continue;
+                }
+
+            fprintf (stderr, "Joining voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", join_channel->name.c_str (),
+                     (uint64_t)join_channel->id, g->name.c_str (), (uint64_t)guild_id);
+
+            player_manager->full_reconnect (player_manager->get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
+        }
+
+    return 0;
+}
+
+static std::vector<player::gat_t>
+get_play_get ()
+{
+    const std::vector<player::gat_t> get = player::get_available_tracks ();
+    if (get.empty ())
+        {
+            fprintf (stderr, "No playable track exists\n");
+            return {};
+        }
+    fprintf (stderr, "Track count: %ld\n", get.size ());
+    return get;
+}
+
+static int
+play_random_track_in_guild (dpp::guild *g, const std::vector<player::gat_t> &get = {})
+{
+    auto sha_id = get_sha_id ();
+    auto *player_manager = get_player_manager_ptr ();
+    auto guild_id = g->id;
+
+    auto guild_player = player_manager->create_player (guild_id);
+    guild_player->set_shard (g->shard_id);
+
+    // skip if already playing
+    if (guild_player->processing_audio)
+        {
+            fprintf (stderr, "Already playing in guild `%s` (%ld), skipping\n", g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
+
+    // get voice_client of this guild
+    // check if we're connected in this guild
+    auto *vclient = guild_player->get_voice_client ();
+    if (!vclient)
+        {
+            fprintf (stderr, "Not in any voice/stage channel in guild `%s` (%ld), skipping\n", g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
+
+    if (!vclient->is_ready ())
+        {
+            fprintf (stderr, "Voice client in voice/stage channel (%ld) in guild `%s` (%ld) is not ready yet, skipping\n",
+                     (uint64_t)vclient->channel_id, g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
+
+    // get random track and play it
+    const auto &atrack = util::rand_item (get);
+    fprintf (stderr, "Playing `%s` in guild `%s` (%ld)\n", atrack.name.c_str (), g->name.c_str (), (uint64_t)guild_id);
+    player::add_track (false, guild_id, atrack.name, 0, true, NULL, 0, sha_id, false, guild_player->shard_id);
+
+    return 0;
+}
+
+static int
+play_random_track_in_guild (const dpp::snowflake &guild_id, const std::vector<player::gat_t> &get = {})
+{
+    auto *g = dpp::find_guild (guild_id);
+    if (!g)
+        {
+            fprintf (stderr, "Guild (%ld) not found\n", (uint64_t)guild_id);
+            return 0;
+        }
+
+    return play_random_track_in_guild (g, get);
+}
+
+static int
+play_rand (const cmd_args_t &args)
+{
+    // for guild args[0], if already in vc AND not playing anything, find random track and play it
+    if (args.empty ())
+        {
+            fprintf (stderr, "Provide <guild_id>\n");
+            return 0;
+        }
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    dpp::snowflake guild_id{ args.at (0) };
+    if (guild_id.empty ())
+        {
+            fprintf (stderr, "Invalid <guild_id>\n");
+            return 0;
+        }
+
+    return play_random_track_in_guild (guild_id, get_play_get ());
+}
+
+static int
+play_all (const cmd_args_t &args)
+{
+    // for each guild, if already in vc AND not playing anything, find random track and play it
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    const std::vector<player::gat_t> get = get_play_get ();
+    if (get.empty ())
+        return 0;
+
+    auto *c = dpp::get_guild_cache ();
+    std::shared_lock lk (c->get_mutex ());
+    std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
+    for (auto &[_id, g] : gc)
+        play_random_track_in_guild (g, get);
+
+    return 0;
+}
+
+static int
+leave_all (const cmd_args_t &args)
+{
+    // for each guild, leave vc
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    auto sha_id = get_sha_id ();
+
+    auto *c = dpp::get_guild_cache ();
+    std::shared_lock lk (c->get_mutex ());
+    std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
+    for (auto &[_id, g] : gc)
+        {
+            auto guild_id = g->id;
+            auto guild_player = player_manager->get_player (guild_id);
+
+            if (!guild_player)
+                {
+                    fprintf (stderr, "Not connected to any voice/stage channel in guild `%s` (%ld), skipping\n", g->name.c_str (),
+                             (uint64_t)guild_id);
+                    continue;
+                }
+
+            // check if we're connected in this guild
+            auto *voiceconn = guild_player->get_voice_conn ();
+            if (!voiceconn)
+                {
+                    fprintf (stderr, "Not connected to any voice/stage channel in guild `%s` (%ld), skipping\n", g->name.c_str (),
+                             (uint64_t)guild_id);
+                    continue;
+                }
+
+            fprintf (stderr, "Leaving voice/stage channel (%ld) in guild `%s` (%ld)\n", (uint64_t)voiceconn->channel_id, g->name.c_str (),
+                     (uint64_t)guild_id);
+            player_manager->set_disconnecting (guild_id, 0);
+            player_manager->disconnect_voice (player_manager->get_client (g->shard_id), guild_id);
+        }
 
     return 0;
 }
@@ -175,6 +401,10 @@ inline constexpr const command_entry_t commands[] = {
     { "clear", "-c", "Clear console", clear_cmd },
     { "shutdown", NULL, "Shutdown Musicat", shutdown_cmd },
     { "list effect states", "-ls es", "List currently active effect states", list_effect_states },
+    { "join all", "-ja", "Join to random vc for every guild (for testing purpose)", join_all },
+    { "play all", "-pa", "Try start to play random track for every voice session (for testing purpose)", play_all },
+    { "play rand", "-pr", "Try start to play random track in guild <guild_id> (for testing purpose)", play_rand },
+    { "leave all", "-la", "Leave all vc for every guild (for testing purpose)", leave_all },
     { NULL, NULL, NULL, NULL },
 };
 
@@ -315,7 +545,7 @@ handle_command (const std::string &cmd_str)
 
             if (status != 0)
                 {
-                    fprintf (stderr, "[%s] %d\n", cmd_str.c_str (), status);
+                    fprintf (stderr, "[%s] Status (%d)\n", cmd_str.c_str (), status);
                 }
         }
 }

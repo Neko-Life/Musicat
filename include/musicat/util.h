@@ -30,19 +30,19 @@ std::string time_t_to_ISO8601 (time_t &timer);
 bool fuzzy_match (std::string search, std::string str,
                   const bool case_insensitive = false);
 
-int get_random_number ();
+uint64_t get_random_number ();
 
 bool is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
                             dpp::voiceconn *voiceconn);
 
-// vec size can't be larger than (RAND_MAX+1)
 template <typename T>
 T
 rand_item (const std::vector<T> &vec)
 {
-    int r = get_random_number ();
+    uint64_t r = get_random_number ();
 
-    int idx = r > 0 ? (r % vec.size ()) : 0;
+    // vec MUST NOT be empty!
+    uint64_t idx = r % vec.size ();
 
     return vec.at (idx);
 }

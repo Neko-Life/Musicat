@@ -1,6 +1,8 @@
 #include "musicat/util.h"
 #include "musicat/musicat.h"
+#include <limits>
 #include <memory>
+#include <random>
 #include <regex>
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
@@ -41,9 +43,7 @@ u8_limit_length (const char *unicode_str, std::string &out, int32_t max_length)
 }
 
 void
-print_autocomplete_results (
-    const std::vector<std::pair<std::string, std::string> > &avail,
-    const char *debug_fn)
+print_autocomplete_results (const std::vector<std::pair<std::string, std::string> > &avail, const char *debug_fn)
 {
     fprintf (stderr, "[%s] results:\n", debug_fn);
     for (size_t i = 0; i < avail.size (); i++)
@@ -78,9 +78,7 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
 
             while (i != str.end ())
                 {
-                    if (case_insensitive
-                            ? std::tolower (*i) == std::tolower (sc)
-                            : *i == sc)
+                    if (case_insensitive ? std::tolower (*i) == std::tolower (sc) : *i == sc)
                         found = true;
 
                     i++;
@@ -99,28 +97,26 @@ fuzzy_match (std::string search, std::string str, const bool case_insensitive)
     return match;
 }
 
-int
+uint64_t
 get_random_number ()
 {
-    srand (util::get_current_ts ());
+    static std::random_device rd;
+    static std::mt19937_64 gen (rd ());
+    static std::uniform_int_distribution<uint64_t> distrib (0, (uint64_t)-1);
 
-    return rand ();
+    return distrib (gen);
 }
 
 bool
-is_player_not_playing (std::shared_ptr<player::Player> &guild_player,
-                       dpp::voiceconn *voiceconn)
+is_player_not_playing (std::shared_ptr<player::Player> &guild_player, dpp::voiceconn *voiceconn)
 {
-    return !guild_player || !voiceconn || !voiceconn->voiceclient
-           || !voiceconn->voiceclient->is_ready ()
-           || (voiceconn->voiceclient->get_secs_remaining () < 0.05f
-               && guild_player
+    return !guild_player || !voiceconn || !voiceconn->voiceclient || !voiceconn->voiceclient->is_ready ()
+           || (voiceconn->voiceclient->get_secs_remaining () < 0.05f && guild_player
                && guild_player->queue.begin () == guild_player->queue.end ());
 }
 
 dpp::role *
-get_user_highest_role (const dpp::snowflake &guild_id,
-                       const dpp::snowflake &user_id, bool with_color)
+get_user_highest_role (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool with_color)
 {
     dpp::guild_member o;
     try
@@ -171,8 +167,7 @@ get_user_highest_role (const dpp::snowflake &guild_id,
 }
 
 inline constexpr const char numbers[] = "1234567890";
-inline constexpr const size_t numbers_siz
-    = ((sizeof (numbers) / sizeof (*numbers)) - 1);
+inline constexpr const size_t numbers_siz = ((sizeof (numbers) / sizeof (*numbers)) - 1);
 
 char
 valid_number (const std::string &numstr)
@@ -201,8 +196,7 @@ valid_number (const std::string &numstr)
 }
 
 void
-log_confirmation_error (const dpp::confirmation_callback_t &e,
-                        const char *callee)
+log_confirmation_error (const dpp::confirmation_callback_t &e, const char *callee)
 {
     std::cerr << callee << ':' << '\n';
 
@@ -223,14 +217,11 @@ log_confirmation_error (const dpp::confirmation_callback_t &e,
 long long
 get_current_ts ()
 {
-    return std::chrono::high_resolution_clock::now ()
-        .time_since_epoch ()
-        .count ();
+    return std::chrono::high_resolution_clock::now ().time_since_epoch ().count ();
 }
 
 find_focused_t<dpp::command_option>
-find_focused (const std::vector<dpp::command_option> &options,
-              const std::vector<std::string> &paths)
+find_focused (const std::vector<dpp::command_option> &options, const std::vector<std::string> &paths)
 {
     for (const auto &i : options)
         {
@@ -260,8 +251,7 @@ find_focused (const std::vector<dpp::command_option> &options,
 }
 
 find_focused_t<dpp::command_data_option>
-find_focused (const std::vector<dpp::command_data_option> &options,
-              const std::vector<std::string> &paths)
+find_focused (const std::vector<dpp::command_data_option> &options, const std::vector<std::string> &paths)
 {
     for (const auto &i : options)
         {

@@ -215,8 +215,6 @@ format_duration (uint64_t dur)
 std::vector<size_t>
 shuffle_indexes (size_t len)
 {
-    srand (util::get_current_ts ());
-
     std::vector<size_t> ret = {};
     ret.reserve (len);
 
@@ -229,7 +227,7 @@ shuffle_indexes (size_t len)
     auto io = ori.begin ();
     while (io != ori.end ())
         {
-            int r = rand () % ori.size ();
+            int r = util::get_random_number () % ori.size ();
             auto it = io + r;
 
             ret.push_back (*it);

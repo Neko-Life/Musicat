@@ -32,8 +32,8 @@ slash_run (const dpp::slashcommand_t &event)
 {
     if (!is_musicat_admin (event.command.usr.id))
         {
-            return event.reply (util::rand_item<std::string> (
-                { "Would love to once you become my boss",
+            return event.reply (util::rand_item (
+                std::vector<std::string> { "Would love to once you become my boss",
                   "Unfortunately, you haven't been granted the "
                   "privilege to make me do that",
                   "Sorryy buut no",

@@ -227,8 +227,8 @@ update_page (const dpp::snowflake &msg_id, const std::string &param,
 
             event.reply (
                 util::response::str_mention_user (event.command.usr.id)
-                + util::rand_item<std::string> (
-                    { "The book for this message is missing!",
+                + util::rand_item (
+                    std::vector<std::string> { "The book for this message is missing!",
                       "Unfortunately, the pages for this message has been "
                       "burned",
                       "Sorry I can't find any information about pages for "
@@ -274,8 +274,8 @@ update_page (const dpp::snowflake &msg_id, const std::string &param,
         {
             event.reply (
                 util::response::str_mention_user (event.command.usr.id)
-                + util::rand_item<std::string> (
-                    { "That isn't a number!",
+                + util::rand_item (
+                    std::vector<std::string> { "That isn't a number!",
                       "maybe some ppl never got to school, such sad :(",
                       "wrong number, guess again!", "ur father",
                       "maybe maybe maybe",
@@ -307,8 +307,8 @@ update_page (const dpp::snowflake &msg_id, const std::string &param,
         {
             event.reply (
                 util::response::str_mention_user (event.command.usr.id)
-                + util::rand_item<std::string> (
-                    { "no", "don't be ridiculous", "smfh", "NO wtf", "don't",
+                + util::rand_item (
+                    std::vector<std::string> { "no", "don't be ridiculous", "smfh", "NO wtf", "don't",
                       "you have no power here", "stop!!!", "No Way",
                       "`FATAL ERROR` You have found the "
                       "`!!!INTEGER_OVERFLOW!!!` vulnerability! "

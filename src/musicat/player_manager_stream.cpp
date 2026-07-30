@@ -11,6 +11,7 @@
 
 #include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -473,15 +474,20 @@ erase_ctx (const dpp::snowflake &guild_id)
     erase_ctx_unlocked (guild_id);
 }
 
-struct stream_thread_t
+class stream_thread_t
 {
-    // protects this->ctx
+    std::vector<stream_ctx *> processing_ctxs;
+
+  public:
+    // protects ctxs_size and ctxs
     std::mutex t_m;
     std::condition_variable t_cv;
+    std::vector<stream_ctx *> ctxs;
 
-    stream_ctx *ctx;
+    // the size of processing_ctxs being processed
+    size_t ctxs_size;
 
-    stream_thread_t () : ctx (nullptr) {}
+    stream_thread_t () : ctxs_size (0) {}
 
     void
     run ()
@@ -490,43 +496,48 @@ struct stream_thread_t
             {
                 {
                     std::unique_lock lk (t_m);
-                    if (!ctx)
+                    processing_ctxs = std::move (ctxs);
+                    ctxs_size = processing_ctxs.size ();
+                    if (!ctxs_size)
                         {
                             // wait for ctx
                             t_cv.wait (lk);
                             continue;
                         }
+                    // has ctx
                 }
 
-                while (ctx && ctx->need_handler ())
+                for (auto *ctx : processing_ctxs)
                     {
-                        if (!ctx->run ())
+                        bool erased = false;
+                        while (!erased && ctx->need_handler ())
+                            {
+                                if (!ctx->run ())
+                                    continue;
+                                ctx->end ();
+
+                                auto *player_manager = get_player_manager_ptr ();
+                                auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
+
+                                erase_ctx (ctx->guild_id);
+                                erased = true;
+
+                                auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
+                                if (vclient && !vclient->terminating)
+                                    vclient->insert_marker ("e");
+                            }
+
+                        if (erased)
                             continue;
-                        ctx->end ();
 
-                        auto *player_manager = get_player_manager_ptr ();
-                        auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
-
-                        erase_ctx (ctx->guild_id);
                         {
-                            std::lock_guard lk (t_m);
-                            ctx = nullptr;
+                            std::lock_guard lk (stream_ctxs_m);
+                            ctx->handled = false;
                         }
-
-                        auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
-                        if (vclient && !vclient->terminating)
-                            vclient->insert_marker ("e");
                     }
 
-                if (!ctx)
-                    continue;
-
-                {
-                    std::lock_guard lk (stream_ctxs_m);
-                    ctx->handled = false;
-                }
-                std::lock_guard lk (t_m);
-                ctx = nullptr;
+                // done handling
+                processing_ctxs.clear ();
             }
     }
 
@@ -562,23 +573,47 @@ spawn_stream_thread (int count)
 static void
 notify_work (stream_ctx *ctx)
 {
+    // current max and min processing size
+    // this will be used in case all thread are currently busy
+    size_t max = 0;
+    size_t min = static_cast<size_t> (0) - 1;
     for (auto &t : stream_threads)
         {
             {
                 std::lock_guard lk (t.t_m);
-                if (t.ctx)
-                    continue;
-                t.ctx = ctx;
+                if (t.ctxs_size)
+                    {
+                        // thread is processing ctxs, only check its size and continue
+                        if (max < t.ctxs_size)
+                            max = t.ctxs_size;
+                        if (min > t.ctxs_size)
+                            min = t.ctxs_size;
+
+                        continue;
+                    }
+                // thread has no ctx and is idle
+                t.ctxs.push_back (ctx);
             }
             t.t_cv.notify_one ();
-
-            ctx->handled = true;
-            break;
+            return;
         }
 
-    if (!ctx->handled)
-        fprintf (stderr, "[player::notify_work WARN] !!! All stream thread occupied, cannot handle stream context: %s !!!\n",
-                 ctx->guild_id.str ().c_str ());
+    // all thread are busy
+    // slow path enqueueing unhandled ctx
+    if (max == min)
+        max++;
+    for (auto &t : stream_threads)
+        {
+            {
+                std::lock_guard lk (t.t_m);
+                // pick thread with lower ctx size than max
+                if (t.ctxs_size == max)
+                    continue;
+                t.ctxs.push_back (ctx);
+            }
+            t.t_cv.notify_one ();
+            return;
+        }
 }
 
 void
@@ -599,6 +634,7 @@ check_stream_contexts ()
                 continue;
 
             notify_work (c);
+            c->handled = true;
         }
 }
 
@@ -624,6 +660,13 @@ Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
         {
             delete ctx;
             throw e;
+        }
+    catch (const std::exception &e)
+        {
+            delete ctx;
+
+            fprintf (stderr, "[Manager::submit_stream_ctx ERROR] %s\n", e.what ());
+            throw 2;
         }
 
     stream_ctxs.push_back (ctx);
