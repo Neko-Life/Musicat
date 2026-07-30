@@ -157,6 +157,58 @@ effect_states_send_command (const cmd_args_t &args)
 }
 
 static int
+join_guild (dpp::guild *g, dpp::user *sha_user)
+{
+    auto player_manager = get_player_manager_ptr ();
+    auto sha_id = get_sha_id ();
+    auto guild_id = g->id;
+
+    {
+        // get voice state of sha_id in guild_id
+        // check if we're connected in this guild
+        auto m = get_voice_from_gid (guild_id, sha_id);
+        if (m.first)
+            {
+                fprintf (stderr, "Already in voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", m.first->name.c_str (),
+                         (uint64_t)m.first->id, g->name.c_str (), (uint64_t)guild_id);
+                return 0;
+            }
+    }
+
+    dpp::channel *join_channel = nullptr;
+    for (auto &fc : g->channels)
+        {
+            auto *gc = dpp::find_channel (fc);
+            if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
+                continue;
+
+            std::vector<uint64_t> need_perms = { dpp::p_view_channel, dpp::p_connect };
+            if (gc->is_stage_channel ())
+                need_perms.push_back (dpp::p_request_to_speak);
+            else
+                need_perms.push_back (dpp::p_speak);
+
+            if (!has_permissions (g, sha_user, gc, need_perms))
+                continue;
+
+            join_channel = gc;
+            break;
+        }
+
+    if (!join_channel)
+        {
+            fprintf (stderr, "No joinable voice/stage channel in guild `%s` (%ld)\n", g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
+
+    fprintf (stderr, "Joining voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", join_channel->name.c_str (),
+             (uint64_t)join_channel->id, g->name.c_str (), (uint64_t)guild_id);
+
+    player_manager->full_reconnect (player_manager->get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
+    return 0;
+}
+
+static int
 join_all (const cmd_args_t &args)
 {
     // for each guild, if not already in vc, find joinable vc and join
@@ -177,53 +229,47 @@ join_all (const cmd_args_t &args)
     std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
     for (auto &[_id, g] : gc)
         {
-            auto guild_id = g->id;
-
-            {
-                // get voice state of sha_id in guild_id
-                // check if we're connected in this guild
-                auto m = get_voice_from_gid (guild_id, sha_id);
-                if (m.first)
-                    {
-                        fprintf (stderr, "Already in voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", m.first->name.c_str (),
-                                 (uint64_t)m.first->id, g->name.c_str (), (uint64_t)guild_id);
-                        continue;
-                    }
-            }
-
-            dpp::channel *join_channel = nullptr;
-            for (auto &fc : g->channels)
-                {
-                    auto *gc = dpp::find_channel (fc);
-                    if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
-                        continue;
-
-                    std::vector<uint64_t> need_perms = { dpp::p_view_channel, dpp::p_connect };
-                    if (gc->is_stage_channel ())
-                        need_perms.push_back (dpp::p_request_to_speak);
-                    else
-                        need_perms.push_back (dpp::p_speak);
-
-                    if (!has_permissions (g, sha_user, gc, need_perms))
-                        continue;
-
-                    join_channel = gc;
-                    break;
-                }
-
-            if (!join_channel)
-                {
-                    fprintf (stderr, "No joinable voice/stage channel in guild `%s` (%ld)\n", g->name.c_str (), (uint64_t)guild_id);
-                    continue;
-                }
-
-            fprintf (stderr, "Joining voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", join_channel->name.c_str (),
-                     (uint64_t)join_channel->id, g->name.c_str (), (uint64_t)guild_id);
-
-            player_manager->full_reconnect (player_manager->get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
+            join_guild (g, sha_user);
         }
 
     return 0;
+}
+
+static int
+join (const cmd_args_t &args)
+{
+    if (args.empty ())
+        {
+            fprintf (stderr, "Provide <guild_id>\n");
+            return 0;
+        }
+    auto player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return -1;
+
+    auto sha_id = get_sha_id ();
+    auto *sha_user = dpp::find_user (sha_id);
+    if (!sha_user)
+        {
+            fprintf (stderr, "No sha_user\n");
+            return 0;
+        }
+
+    dpp::snowflake guild_id{ args.at (0) };
+    if (guild_id.empty ())
+        {
+            fprintf (stderr, "Invalid <guild_id>\n");
+            return 0;
+        }
+
+    auto *g = dpp::find_guild (guild_id);
+    if (!g)
+        {
+            fprintf (stderr, "Guild (%ld) not found\n", (uint64_t)guild_id);
+            return 0;
+        }
+
+    return join_guild (g, sha_user);
 }
 
 static std::vector<player::gat_t>
@@ -478,10 +524,28 @@ leave_all (const cmd_args_t &args)
     return 0;
 }
 
+static int
+toggle_play_bypass_listener (const cmd_args_t &args)
+{
+    bool new_val = !get_play_bypass_listener ();
+    set_play_bypass_listener (new_val);
+
+    fprintf (stderr, "New value: %s\n", new_val ? "true" : "false");
+
+    return 0;
+}
+
 // !TODO: more cmd? maybe stats/utility
 
 ////////////////////////////////////////////////////////////////////////////////
 
+inline constexpr command_entry_t
+create_command_entry (const char *name, const char *alias, const char *description, int (*const handler) (const cmd_args_t &args))
+{
+    return { name, alias, description, handler };
+}
+
+// clang-format off
 /**
  * Commands list, name alias description handler
  *
@@ -490,23 +554,27 @@ leave_all (const cmd_args_t &args)
  *
  * !Always check and adjust aliases to not clash with one another, commands are
  * matched using `starts_with`
+ *
  */
 inline constexpr const command_entry_t commands[] = {
-    { "command",            "alias",  "description",                                                               NULL },
-    { "help",               "-h",     "Print this message",                                                        help_cmd },
-    { "debug",              "-d",     "Toggle debug mode",                                                         debug_cmd },
-    { NULL,                 NULL,     "Debug mode prints everything for debugging purpose",                        NULL },
-    { "clear",              "-c",     "Clear console",                                                             clear_cmd },
-    { "shutdown",           NULL,     "Shutdown Musicat",                                                          shutdown_cmd },
-    { "list effect states", "-ls es", "List currently active effect states",                                       list_effect_states },
-    { "join all",           "-ja",    "Join to random stage/voice channel for every guild (for testing purpose)",  join_all },
-    { "enqueue all rand",   "-ear",   "Try to enqueue random track for every voice session (for testing purpose)", enqueue_all },
-    { "enqueue rand",       "-er",    "Try to enqueue random track in guild <guild_id> (for testing purpose)",     enqueue_rand },
-    { "play all",           "-pa",    "Try to start playing for every voice session (for testing purpose)",        play_all },
-    { "play guild",         "-pg",    "Try to start playing for <guild_id> voice session (for testing purpose)",   play },
-    { "leave all",          "-la",    "Leave all stage/voice channel for every guild (for testing purpose)",       leave_all },
-    { NULL,                 NULL,     NULL,                                                                        NULL },
+    { "command",             "alias",  "description",                                                               NULL                        },
+    { "help",                "-h",     "Print this message",                                                        help_cmd                    },
+    { "debug",               "-d",     "Toggle debug mode",                                                         debug_cmd                   },
+    { NULL,                  NULL,     "Debug mode prints everything for debugging purpose",                        NULL                        },
+    { "clear",               "-c",     "Clear console",                                                             clear_cmd                   },
+    { "shutdown",            NULL,     "Shutdown Musicat",                                                          shutdown_cmd                },
+    { "list effect states",  "-ls es", "List currently active effect states",                                       list_effect_states          },
+    { "join all",            "-ja",    "Join to random stage/voice channel for every guild (for testing purpose)",  join_all                    },
+    { "join guild",          "-jg",    "Join to random stage/voice channel in <guild_id> (for testing purpose)",    join                        },
+    { "enqueue all rand",    "-ear",   "Try to enqueue random track for every voice session (for testing purpose)", enqueue_all                 },
+    { "enqueue rand",        "-er",    "Try to enqueue random track in guild <guild_id> (for testing purpose)",     enqueue_rand                },
+    { "play all",            "-pa",    "Try to start playing for every voice session (for testing purpose)",        play_all                    },
+    { "play guild",          "-pg",    "Try to start playing for <guild_id> voice session (for testing purpose)",   play                        },
+    { "leave all",           "-la",    "Leave all stage/voice channel for every guild (for testing purpose)",       leave_all                   },
+    { "toggle has_listener", "-la",    "Toggle play_bypass_listener (for testing purpose)",                         toggle_play_bypass_listener },
+    { NULL,                  NULL,     NULL,                                                                        NULL                        },
 };
+// clang-format on
 
 ////////////////////////////////////////////////////////////////////////////////
 

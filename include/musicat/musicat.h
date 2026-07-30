@@ -206,8 +206,10 @@ std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > get_voice_
  */
 std::string exec (std::string cmd);
 
-bool has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
+bool get_play_bypass_listener ();
+void set_play_bypass_listener (bool val);
 
+bool has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
 bool has_listener_fetch (dpp::cluster *client, std::map<dpp::snowflake, dpp::voicestate> *vstate_map);
 
 /**

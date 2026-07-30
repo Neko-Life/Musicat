@@ -590,6 +590,20 @@ get_max_concurrent_download ()
     return max_concurrent_download;
 }
 
+static bool play_bypass_listener = false;
+
+bool
+get_play_bypass_listener ()
+{
+    return play_bypass_listener;
+}
+
+void
+set_play_bypass_listener (bool val)
+{
+    play_bypass_listener = val;
+}
+
 // ================================================================================
 
 std::atomic<int> _sigint_count = 0;

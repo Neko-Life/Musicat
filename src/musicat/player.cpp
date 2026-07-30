@@ -156,6 +156,8 @@ Player::set_shard (uint32_t shard_id)
 Player &
 Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
 {
+    // lock to guard againts unknown memory corruptor
+    std::lock_guard lk(add_track_m);
     size_t siz = 0;
     {
         // !TODO: remove this when fully using ytdlp to support non-yt tracks

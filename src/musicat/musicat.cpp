@@ -81,6 +81,9 @@ get_voice_from_gid (dpp::snowflake guild_id, dpp::snowflake user_id)
 bool
 has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 {
+    if (get_play_bypass_listener ())
+        return true;
+
     if (!vstate_map || vstate_map->size () <= 1)
         return false;
 
@@ -104,6 +107,9 @@ has_listener (std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 bool
 has_listener_fetch (dpp::cluster *client, std::map<dpp::snowflake, dpp::voicestate> *vstate_map)
 {
+    if (get_play_bypass_listener ())
+        return true;
+
     if (vstate_map->size () < 2)
         return false;
 
