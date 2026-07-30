@@ -492,20 +492,20 @@ leave_all (const cmd_args_t &args)
  * matched using `starts_with`
  */
 inline constexpr const command_entry_t commands[] = {
-    { "command", "alias", "description", NULL },
-    { "help", "-h", "Print this message", help_cmd },
-    { "debug", "-d", "Toggle debug mode", debug_cmd },
-    { NULL, NULL, "Debug mode prints everything for debugging purpose", NULL },
-    { "clear", "-c", "Clear console", clear_cmd },
-    { "shutdown", NULL, "Shutdown Musicat", shutdown_cmd },
-    { "list effect states", "-ls es", "List currently active effect states", list_effect_states },
-    { "join all", "-ja", "Join to random vc for every guild (for testing purpose)", join_all },
-    { "enqueue all", "-ea", "Try to enqueue random track for every voice session (for testing purpose)", enqueue_all },
-    { "enqueue rand", "-er", "Try to enqueue random track in guild <guild_id> (for testing purpose)", enqueue_rand },
-    { "play all", "-pa", "Try to start playing for every voice session (for testing purpose)", play_all },
-    { "play", "-p", "Try to start playing for <guild_id> voice session (for testing purpose)", play },
-    { "leave all", "-la", "Leave all vc for every guild (for testing purpose)", leave_all },
-    { NULL, NULL, NULL, NULL },
+    { "command",            "alias",  "description",                                                               NULL },
+    { "help",               "-h",     "Print this message",                                                        help_cmd },
+    { "debug",              "-d",     "Toggle debug mode",                                                         debug_cmd },
+    { NULL,                 NULL,     "Debug mode prints everything for debugging purpose",                        NULL },
+    { "clear",              "-c",     "Clear console",                                                             clear_cmd },
+    { "shutdown",           NULL,     "Shutdown Musicat",                                                          shutdown_cmd },
+    { "list effect states", "-ls es", "List currently active effect states",                                       list_effect_states },
+    { "join all",           "-ja",    "Join to random stage/voice channel for every guild (for testing purpose)",  join_all },
+    { "enqueue all rand",   "-ear",   "Try to enqueue random track for every voice session (for testing purpose)", enqueue_all },
+    { "enqueue rand",       "-er",    "Try to enqueue random track in guild <guild_id> (for testing purpose)",     enqueue_rand },
+    { "play all",           "-pa",    "Try to start playing for every voice session (for testing purpose)",        play_all },
+    { "play guild",         "-pg",    "Try to start playing for <guild_id> voice session (for testing purpose)",   play },
+    { "leave all",          "-la",    "Leave all stage/voice channel for every guild (for testing purpose)",       leave_all },
+    { NULL,                 NULL,     NULL,                                                                        NULL },
 };
 
 ////////////////////////////////////////////////////////////////////////////////
