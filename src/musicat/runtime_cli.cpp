@@ -571,7 +571,7 @@ inline constexpr const command_entry_t commands[] = {
     { "play all",            "-pa",    "Try to start playing for every voice session (for testing purpose)",        play_all                    },
     { "play guild",          "-pg",    "Try to start playing for <guild_id> voice session (for testing purpose)",   play                        },
     { "leave all",           "-la",    "Leave all stage/voice channel for every guild (for testing purpose)",       leave_all                   },
-    { "toggle has_listener", "-la",    "Toggle play_bypass_listener (for testing purpose)",                         toggle_play_bypass_listener },
+    { "toggle has_listener", "-thl",   "Toggle play_bypass_listener (for testing purpose)",                         toggle_play_bypass_listener },
     { NULL,                  NULL,     NULL,                                                                        NULL                        },
 };
 // clang-format on
