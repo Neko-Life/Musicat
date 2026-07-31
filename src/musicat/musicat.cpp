@@ -190,7 +190,13 @@ has_permissions_from_ids (const dpp::snowflake &guild_id, const dpp::snowflake &
     if (!guild_id || !user_id || !channel_id)
         return false;
 
-    return has_permissions (dpp::find_guild (guild_id), dpp::find_user (user_id), dpp::find_channel (channel_id), permissions);
+    auto *user = dpp::find_user (user_id);
+
+    // bypass this check if Muscat user isn't cached yet
+    if (user_id == get_sha_id () && !user)
+        return true;
+
+    return has_permissions (dpp::find_guild (guild_id), user, dpp::find_channel (channel_id), permissions);
 }
 
 string

@@ -217,19 +217,14 @@ join_all (const cmd_args_t &args)
         return -1;
 
     auto sha_id = get_sha_id ();
-    auto *sha_user = dpp::find_user (sha_id);
-    if (!sha_user)
-        {
-            fprintf (stderr, "No sha_user\n");
-            return 0;
-        }
+    auto &sha_user = player_manager->cluster->me;
 
     auto *c = dpp::get_guild_cache ();
     std::shared_lock lk (c->get_mutex ());
     std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
     for (auto &[_id, g] : gc)
         {
-            join_guild (g, sha_user);
+            join_guild (g, &sha_user);
         }
 
     return 0;
@@ -248,12 +243,7 @@ join (const cmd_args_t &args)
         return -1;
 
     auto sha_id = get_sha_id ();
-    auto *sha_user = dpp::find_user (sha_id);
-    if (!sha_user)
-        {
-            fprintf (stderr, "No sha_user\n");
-            return 0;
-        }
+    auto &sha_user = player_manager->cluster->me;
 
     dpp::snowflake guild_id{ args.at (0) };
     if (guild_id.empty ())
@@ -269,7 +259,7 @@ join (const cmd_args_t &args)
             return 0;
         }
 
-    return join_guild (g, sha_user);
+    return join_guild (g, &sha_user);
 }
 
 static std::vector<player::gat_t>
