@@ -1,18 +1,90 @@
 #include "musicat/server/response.h"
+#include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/middlewares.h"
+#include <cstdint>
+#include <mutex>
+#include <vector>
 
 namespace musicat::server::response
 {
 
-end_t::end_t () : status (http_status_t.OK_200), res (NULL) {}
+end_t::end_t () : status (http_status_t.OK_200), res (NULL) { init (); }
 
-end_t::end_t (APIResponse *_res) : status (http_status_t.OK_200), res (_res) {}
+end_t::end_t (APIResponse *_res) : status (http_status_t.OK_200), res (_res) { init (); }
+
+static uint64_t active_end_count = 0;
+static std::mutex active_end_count_m;
+
+static std::vector<APIResponse *> aborted_res;
+static std::mutex aborted_res_m;
+
+static bool
+is_aborted (APIResponse *res)
+{
+    if (!res)
+        return true;
+
+    auto i = aborted_res.begin ();
+    while (i != aborted_res.end ())
+        {
+            if (*i == res)
+                return true;
+            i++;
+        }
+
+    return false;
+}
+
+bool
+end_t::is_aborted ()
+{
+    return ::musicat::server::response::is_aborted (res);
+}
+
+void
+end_t::mark_aborted (APIResponse *res)
+{
+    std::lock_guard lk (aborted_res_m);
+    aborted_res.push_back (res);
+}
+
+void
+end_t::init ()
+{
+    std::lock_guard lk (active_end_count_m);
+    active_end_count++;
+}
+
+static void
+clear_aborted ()
+{
+    const bool debug = get_debug_state ();
+
+    std::lock_guard lk (active_end_count_m);
+    active_end_count--;
+    if (debug)
+        {
+            std::lock_guard lk2 (aborted_res_m);
+            std::cerr << "[server::response::clear_aborted] aborted_res.size(" << aborted_res.size () << ")\n";
+        }
+    if (active_end_count)
+        return;
+
+    std::lock_guard lk2 (aborted_res_m);
+    aborted_res.clear ();
+    if (debug)
+        std::cerr << "[server::response::clear_aborted] aborted_res cleared\n";
+}
 
 end_t::~end_t ()
 {
-    if (!res || !status)
-        return;
+
+    if (is_aborted () || !status)
+        {
+            clear_aborted ();
+            return;
+        }
 
     res->writeStatus (status);
 
@@ -23,11 +95,13 @@ end_t::~end_t ()
         {
             res->end ();
             res = NULL;
+            clear_aborted ();
             return;
         }
 
     res->end (response);
     res = NULL;
+    clear_aborted ();
 }
 
 header_v_t::iterator
@@ -111,31 +185,33 @@ end_t::set_content_type_json ()
     return this;
 }
 
-defer_end_t::defer_end_t () : endres (NULL){};
+defer_end_t::defer_end_t () : endres (NULL) {};
 
-defer_end_t::defer_end_t (end_t &_endres) : endres (&_endres){};
+defer_end_t::defer_end_t (end_t &_endres) : endres (&_endres) {};
 
 defer_end_t::~defer_end_t ()
 {
     if (!endres)
         return;
 
-    APIResponse *res = endres->res;
-    if (!res)
+    if (endres->is_aborted ())
         return;
 
+    APIResponse *res = endres->res;
     endres->res = NULL;
 
     const char *rstatus = endres->status;
     const header_v_t rheaders = endres->headers;
     const std::string rresponse = endres->response;
 
-    defer ([rstatus, rheaders, rresponse, res] () {
-        response::end_t e (res);
-        e.status = rstatus;
-        e.headers = rheaders;
-        e.response = rresponse;
-    });
+    defer (
+        [rstatus, rheaders, rresponse, res] ()
+            {
+                response::end_t e (res);
+                e.status = rstatus;
+                e.headers = rheaders;
+                e.response = rresponse;
+            });
 }
 
 // ================================================================================
@@ -149,8 +225,7 @@ payload (const nlohmann::json &data)
 nlohmann::json
 error (error_code_e code, std::string_view message)
 {
-    return { { "success", false },
-             { "data", { { "code", code }, { "message", message } } } };
+    return { { "success", false }, { "data", { { "code", code }, { "message", message } } } };
 }
 
 } // musicat::server::response

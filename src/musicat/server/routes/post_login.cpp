@@ -361,7 +361,12 @@ post_login (APIResponse *res, APIRequest *req)
     res->onData ([struct_body] (std::string_view chunk, bool is_last)
                      { states::default_recv_on_data (struct_body, chunk, is_last, handle_post_login_body); });
 
-    res->onAborted ([struct_body] () { states::default_recv_on_aborted (struct_body); });
+    res->onAborted (
+        [struct_body, res] ()
+            {
+                states::default_recv_on_aborted (struct_body);
+                response::end_t::mark_aborted (res);
+            });
 }
 
 } // musicat::server::routes

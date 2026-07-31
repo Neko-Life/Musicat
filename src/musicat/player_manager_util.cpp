@@ -760,15 +760,30 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
                                                                   } } })),
                        false);
 
-    std::unique_lock lock (dc->voice_mutex);
-    auto v = dc->connecting_voice_channels.find (guild_id);
-    if (v != dc->connecting_voice_channels.end ())
+    auto v = dc->get_voice (guild_id);
+    if (v && v->voiceclient)
         {
-            if (v->second && v->second->voiceclient)
-                v->second->voiceclient->close ();
-
-            dc->connecting_voice_channels.erase (v);
+            v->voiceclient->terminating = true;
+            v->voiceclient->pause_audio (false);
+            v->voiceclient->stop_audio ();
+            v->voiceclient->close ();
         }
+
+    task::run_once (
+        [guild_id, this, shard_id = dc->shard_id] ()
+            {
+                auto *dc = get_client (shard_id);
+                if (!dc)
+                    return;
+
+                std::unique_lock lock (dc->voice_mutex);
+                auto v = dc->connecting_voice_channels.find (guild_id);
+                if (v != dc->connecting_voice_channels.end ())
+                    {
+                        dc->connecting_voice_channels.erase (v);
+                    }
+            },
+        2);
 }
 
 void

@@ -54,9 +54,10 @@ get_guilds (APIResponse *res, APIRequest *req)
 
     // required to be able to end req in another thread
     res->onAborted (
-        [] ()
+        [res] ()
             {
                 // what to do on abort?
+                response::end_t::mark_aborted (res);
             });
 
     endres.res = NULL;

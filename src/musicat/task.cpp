@@ -13,8 +13,8 @@ run (const std::function<void ()> &&fn)
     if (!cluster)
         return;
 
-    // absolute priority
-    cluster->queue_work (-69420, std::move (fn));
+    // match dpp default priority
+    cluster->queue_work (0, std::move (fn));
 }
 
 void

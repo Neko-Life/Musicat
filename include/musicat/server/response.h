@@ -26,6 +26,7 @@ struct end_t
     DELETE_COPY_MOVE_CTOR(end_t);
 
     explicit end_t   (APIResponse *_res);
+    void init();
     ~end_t           ();
 
     [[nodiscard]] header_v_t::iterator   get_header_iterator (std::string_view  _key);
@@ -38,6 +39,8 @@ struct end_t
     end_t                               *remove_content_type_header ();
     end_t                               *set_content_type_json      ();
 
+    bool        is_aborted();
+    static void mark_aborted(APIResponse *res);
 };
 
 struct defer_end_t
