@@ -224,6 +224,11 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
     auto guild_player = get_player (event.voice_client->server_id);
 
     this->clear_wait_vc_ready (event.voice_client->server_id);
+    if (is_disconnecting (event.voice_client->server_id))
+        {
+            disconnect_voice (get_client (event.voice_client->server_id), event.voice_client->server_id);
+            return;
+        }
 
     auto i = event.voice_client->get_tracks_remaining ();
     auto l = event.voice_client->get_secs_remaining ();
@@ -240,8 +245,8 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
                 fprintf (stderr, "INSERTED \"r\" MARKER\n");
         }
 
-    fprintf (stderr, "[Manager::handle_on_voice_ready INFO] READY in voice/stage channel (%ld) in guild (%ld)\n", (uint64_t)event.voice_client->channel_id,
-             (uint64_t)event.voice_client->server_id);
+    fprintf (stderr, "[Manager::handle_on_voice_ready INFO] READY in voice/stage channel (%ld) in guild (%ld)\n",
+             (uint64_t)event.voice_client->channel_id, (uint64_t)event.voice_client->server_id);
 }
 
 void

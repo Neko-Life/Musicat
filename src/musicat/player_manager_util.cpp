@@ -749,6 +749,19 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
     if (!dc)
         return;
 
+    std::unique_lock lock (dc->voice_mutex);
+    auto v = dc->connecting_voice_channels.find (guild_id);
+    // we can only disconnect ready clients to avoid race conditions
+    if (v == dc->connecting_voice_channels.end () || !v->second || !v->second->voiceclient)
+        return;
+
+    if (!v->second->voiceclient->is_ready ())
+        {
+            // queue for disconnect later when ready
+            set_disconnecting (guild_id, 0);
+            return;
+        }
+
     dc->log (dpp::ll_debug, "[Manager::disconnect_voice] Disconnecting voice, guild: " + std::to_string (guild_id));
     dc->queue_message (jsonobj_to_string (dc, nlohmann::json ({ { "op", dpp::ft_voice_state_update },
                                                                 { "d",
@@ -759,31 +772,6 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
                                                                       { "self_deaf", false },
                                                                   } } })),
                        false);
-
-    auto v = dc->get_voice (guild_id);
-    if (v && v->voiceclient)
-        {
-            v->voiceclient->terminating = true;
-            v->voiceclient->pause_audio (false);
-            v->voiceclient->stop_audio ();
-            v->voiceclient->close ();
-        }
-
-    task::run_once (
-        [guild_id, this, shard_id = dc->shard_id] ()
-            {
-                auto *dc = get_client (shard_id);
-                if (!dc)
-                    return;
-
-                std::unique_lock lock (dc->voice_mutex);
-                auto v = dc->connecting_voice_channels.find (guild_id);
-                if (v != dc->connecting_voice_channels.end ())
-                    {
-                        dc->connecting_voice_channels.erase (v);
-                    }
-            },
-        2);
 }
 
 void
@@ -929,7 +917,6 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
     std::lock_guard lk (this->wd_m);
 
     auto i = this->waiting_vc_ready.find (guild_id);
-
     if (i != this->waiting_vc_ready.end ())
         {
             this->waiting_vc_ready.erase (i);
