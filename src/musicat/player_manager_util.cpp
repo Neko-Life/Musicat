@@ -751,23 +751,6 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
     if (!dc)
         return;
 
-    auto *v = dc->get_voice (guild_id);
-    if (v && v->voiceclient)
-        {
-            v->voiceclient->terminating = true;
-            v->voiceclient->pause_audio (true);
-            v->voiceclient->stop_audio ();
-            std::this_thread::sleep_for (std::chrono::milliseconds (100));
-
-            // 100 ms window allows data race, reinit dc
-            auto *g = dpp::find_guild (guild_id);
-            if (!g)
-                return;
-            dc = get_client (g->shard_id);
-            if (!dc)
-                return;
-        }
-
     dc->log (dpp::ll_debug, "[Manager::disconnect_voice] Disconnecting voice, guild: " + std::to_string (guild_id));
     dc->queue_message (jsonobj_to_string (dc, nlohmann::json ({ { "op", dpp::ft_voice_state_update },
                                                                 { "d",
@@ -778,13 +761,6 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
                                                                       { "self_deaf", false },
                                                                   } } })),
                        false);
-
-    v = dc->get_voice (guild_id);
-    if (v && v->voiceclient)
-        {
-            v->voiceclient->close ();
-            v->voiceclient.reset ();
-        }
 
     std::unique_lock lock (dc->voice_mutex);
     auto vc = dc->connecting_voice_channels.find (guild_id);
