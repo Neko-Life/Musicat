@@ -94,6 +94,8 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
                     continued = true;
                 }
         }
+    else
+        player_manager->check_health (sdata->server_id);
 
     if (!continued)
         {
