@@ -24,7 +24,7 @@ namespace musicat::player
 // this section looks so bad
 using string = std::string;
 
-Manager::Manager (dpp::cluster *cluster) { this->cluster = cluster; }
+Manager::Manager (dpp::cluster *cluster) : shutdown_skip_close_voice_sessions (false) { this->cluster = cluster; }
 
 Manager::~Manager () = default;
 
@@ -121,6 +121,28 @@ Manager::reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
                              shard_id, guild_id.str ().c_str ());
             }
     }
+}
+
+void
+Manager::check_health (const dpp::snowflake &guild_id)
+{
+    auto *g = dpp::find_guild (guild_id);
+    if (!g)
+        return;
+    auto *client = get_client (g->shard_id);
+    if (!client)
+        return;
+    auto *v = client->get_voice (guild_id);
+    if (!v)
+        return;
+    if (v->is_active ())
+        return;
+
+    if (v->is_ready ())
+        v->connect ();
+    else
+        // connection not healthy, requires full reconnect
+        full_reconnect (client, guild_id, v->channel_id, v->channel_id);
 }
 
 bool
@@ -575,25 +597,28 @@ Manager::shutdown ()
         return;
 
     const auto &shards = cluster->get_shards ();
+    std::vector<std::pair<uint32_t, dpp::snowflake> > shard_guilds;
     for (auto &s : shards)
         {
-            std::vector<std::pair<uint32_t, dpp::snowflake> > shard_guilds;
-            {
-                std::lock_guard lk (s.second->voice_mutex);
-                for (auto &p : s.second->connecting_voice_channels)
-                    shard_guilds.push_back ({ s.first, p.second->guild_id });
-            }
+            std::lock_guard lk (s.second->voice_mutex);
+            for (auto &p : s.second->connecting_voice_channels)
+                shard_guilds.push_back ({ s.first, p.second->guild_id });
+        }
 
-            for (auto &[sid, gid] : shard_guilds)
-                {
-                    auto *s = get_client (sid);
-                    if (!s)
-                        continue;
+    for (auto &[sid, gid] : shard_guilds)
+        {
+            if (shutdown_skip_close_voice_sessions)
+                break;
 
-                    set_disconnecting (gid, 0);
-                    disconnect_voice (s, gid, true);
-                    wait_for_disconnecting (gid);
-                }
+            auto *s = get_client (sid);
+            if (!s)
+                continue;
+
+            fprintf (stderr, "[Manager::shutdown] Shard %u: Leaving voice session in guild (%ld)...\n", sid, (uint64_t)gid);
+
+            set_disconnecting (gid, 0);
+            disconnect_voice (s, gid, true);
+            wait_for_disconnecting (gid);
         }
 }
 

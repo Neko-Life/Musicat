@@ -482,6 +482,7 @@ class Manager
     std::map<dpp::snowflake, std::string> waiting_vc_ready;
     std::map<std::string, dpp::snowflake> waiting_file_download;
     std::vector<dpp::snowflake> manually_paused;
+    bool shutdown_skip_close_voice_sessions;
 
     Manager (dpp::cluster *_cluster);
     ~Manager ();
@@ -517,6 +518,9 @@ class Manager
     void reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id);
     // waits for disconnect then request to connect and waits for connected event
     void reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id);
+
+    // check connection health, auto reconnect if needed
+    void check_health (const dpp::snowflake &guild_id);
 
     /**
      * @brief Return false if guild doesn't have player in the first place

@@ -619,7 +619,18 @@ on_sigint ([[maybe_unused]] int code)
     // printf isn't signal safe, use write
     write (STDERR_FILENO, exit_msg, STR_SIZE (exit_msg));
 
-    if (_sigint_count > 1)
+    if (_sigint_count == 2)
+        {
+            if (player_manager_ptr)
+                {
+                    player_manager_ptr->shutdown_skip_close_voice_sessions = true;
+                    static const char stuck_help[] = "Skipping closing voice sessions...\n";
+
+                    write (STDERR_FILENO, stuck_help, STR_SIZE (stuck_help));
+                }
+        }
+
+    if (_sigint_count > 2)
         {
             static const char stuck_help[] = "If the program seems stuck try type something into your terminal and then press ENTER\n";
 

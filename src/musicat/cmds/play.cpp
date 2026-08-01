@@ -186,6 +186,8 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                     v->voiceclient->insert_marker ("c");
                     continued = true;
                 }
+            else
+                player_manager->check_health (guild_id);
 
             if (resumed)
                 guild_player->tried_continuing = true;
@@ -245,8 +247,7 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "slip", &arg_slip);
 
     std::string out;
-    int status = run (user_id, guild_id, event, out,
-                      arg_query, arg_top, arg_slip);
+    int status = run (user_id, guild_id, event, out, arg_query, arg_top, arg_slip);
 
     if (status == 1)
         {
