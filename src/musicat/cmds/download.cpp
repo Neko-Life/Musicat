@@ -75,8 +75,13 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    task::run (
-        [event] ()
+    std::string filename = "";
+    get_inter_param (event, "track", &filename);
+    if (!filename.empty ())
+        event.thinking ();
+
+    task::run_may_block (
+        [event, filename] ()
             {
                 auto player_manager = get_player_manager_ptr ();
                 if (!player_manager)
@@ -84,8 +89,6 @@ slash_run (const dpp::slashcommand_t &event)
                         return;
                     }
 
-                std::string filename = "";
-                get_inter_param (event, "track", &filename);
                 auto guild_id = event.command.guild_id;
 
                 // filename
@@ -95,7 +98,6 @@ slash_run (const dpp::slashcommand_t &event)
 
                 if (!filename.empty ())
                     {
-                        event.thinking ();
                         auto find_result = player::find_track (false, filename, player_manager, guild_id, true);
 
                         switch (find_result.second)
@@ -185,6 +187,12 @@ slash_run (const dpp::slashcommand_t &event)
                 dpp::message msg (event.command.channel_id, "");
                 msg.add_file (fname, dpp::utility::read_file (fullpath));
                 event.edit_response (msg);
+            },
+        [filename] ()
+            {
+                if (!filename.empty ())
+                    return player::find_track_will_block ();
+                return false;
             });
 }
 } // musicat::command::download

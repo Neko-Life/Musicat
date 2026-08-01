@@ -6,18 +6,22 @@
 namespace musicat::server::routes
 {
 
+static bool
+json_object_has (const nlohmann::json &json, const std::string &key)
+{
+    return json.is_object () && json.find (key) != json.end ();
+}
+
 void
 set_endres_response_with_musicat_data (dpp::cluster *bot, response::end_t &endres, const nlohmann::json &musicat_data)
 {
-    const bool has_detailed_data = musicat_data.is_object ();
-
     endres.response = response::payload ({
                                              { "avatar_url", bot->me.get_avatar_url (BOT_AVATAR_SIZE, dpp::i_webp) },
                                              { "username", bot->me.username },
                                              { "description", get_bot_description () },
                                              {
                                                  "banner_url",
-                                                 has_detailed_data ? musicat_data["banner_url"] : nullptr,
+                                                 json_object_has (musicat_data, "banner_url") ? musicat_data["banner_url"] : nullptr,
                                              },
                                          })
                           .dump ();

@@ -62,16 +62,17 @@ search_entry_append_track_info (const player::MCTrack &track)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    task::run (
-        [event] ()
+    std::string query = "";
+    get_inter_param (event, "query", &query);
+
+    if (query.empty ())
+        return event.reply ("No query?");
+
+    event.thinking ();
+
+    task::run_may_block (
+        [event, query] ()
             {
-                std::string query = "";
-                get_inter_param (event, "query", &query);
-
-                if (query.empty ())
-                    return event.reply ("No query?");
-
-                event.thinking ();
                 nlohmann::json res;
 
                 try
@@ -154,6 +155,8 @@ slash_run (const dpp::slashcommand_t &event)
 
                 std::any storage_data = tracks;
                 event.edit_response (m, paginate::get_inter_reply_cb (event, paginate, event.from ()->creator, embeds, storage_data));
-            });
+            },
+        mctrack::fetch_will_block);
 }
+
 } // musicat::command::search

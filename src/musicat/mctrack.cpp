@@ -186,34 +186,10 @@ is_short (const player::MCTrack &track)
     return is_url_shorts (mctrack::get_url (track));
 }
 
-#define MAX_GET_TRACK_INFO_REQ 2
+static util::throttler_t fetch_throttler;
 
-static int c = 0;
-static std::condition_variable c_cv;
-static std::mutex c_m;
-
-struct get_track_sync_t
-{
-    get_track_sync_t ()
-    {
-        std::unique_lock lk (c_m);
-        while (c >= MAX_GET_TRACK_INFO_REQ)
-            c_cv.wait (lk);
-        c++;
-    }
-
-    ~get_track_sync_t ()
-    {
-        {
-            std::lock_guard lk (c_m);
-            c--;
-        }
-        c_cv.notify_one ();
-    }
-};
-
-nlohmann::json
-fetch (const search_option_t &options)
+static nlohmann::json
+do_fetch (const search_option_t &options)
 {
     // id, ytdlp_util_exe, ytdlp_lib_path and ytdlp_query
     std::string q = options.query;
@@ -241,7 +217,7 @@ fetch (const search_option_t &options)
 
     const std::string exit_cmd = cc::get_exit_command (qid);
 
-    get_track_sync_t s;
+    auto throttle = fetch_throttler.throttle ();
     child::command::send_command (ytdlp_cmd);
 
     int status = child::command::wait_slave_ready (qid, 10);
@@ -333,6 +309,18 @@ fetch (const search_option_t &options)
     scs.close ();
 
     return json_res;
+}
+
+bool
+fetch_will_block ()
+{
+    return fetch_throttler.will_block ();
+}
+
+nlohmann::json
+fetch (const search_option_t &options)
+{
+    return do_fetch (options);
 }
 
 } // musicat::mctrack

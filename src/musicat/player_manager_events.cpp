@@ -686,7 +686,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                             // try redownload
                             this->download (fname, mctrack::get_url (track), guild_id);
 
-                            task::run (
+                            task::run_may_block (
                                 [this, guild_id, fname, v, track] ()
                                     {
                                         player::MCTrack result = track;
@@ -710,7 +710,8 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                                         if (decide_play)
                                             player::decide_play (pc, guild_id, false);
-                                    });
+                                    },
+                                [track, fname] () { return run_download_thread_will_block (track, fname); });
                         }
 
                     // no audio file

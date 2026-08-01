@@ -13,6 +13,7 @@
 #include "musicat/player_manager_timer.h"
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
+#include "musicat/task.h"
 #include "musicat/thread_manager.h"
 #include <cstdint>
 #include <exception>
@@ -902,6 +903,7 @@ run (int argc, const char *argv[])
             player::timer::check_failed_playback_reset_timers ();
             player::check_embed_op_queue ();
             player::check_download_queue ();
+            task::check_blocking_task ();
 
             server::main_loop_routine ();
 

@@ -155,31 +155,13 @@ Player::set_shard (uint32_t shard_id)
     this->shard_id = shard_id;
 }
 
-#define MAX_GET_TRACK_INFO_REQ 2
+static util::throttler_t add_track_throttler;
 
-static int c = 0;
-static std::condition_variable c_cv;
-static std::mutex c_m;
-
-struct get_track_sync_t
+bool
+Player::add_track_will_block (const MCTrack &track)
 {
-    get_track_sync_t ()
-    {
-        std::unique_lock lk (c_m);
-        while (c >= MAX_GET_TRACK_INFO_REQ)
-            c_cv.wait (lk);
-        c++;
-    }
-
-    ~get_track_sync_t ()
-    {
-        {
-            std::lock_guard lk (c_m);
-            c--;
-        }
-        c_cv.notify_one ();
-    }
-};
+    return track.info.raw.is_null () && add_track_throttler.will_block ();
+}
 
 Player &
 Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
@@ -190,7 +172,8 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, con
         if (track.info.raw.is_null ())
             try
                 {
-                    get_track_sync_t s;
+                    auto s = add_track_throttler.throttle ();
+
                     track.info.raw = yt_search::get_track_info (mctrack::get_url (track)).audio_info (251).raw;
 
                     // track.thumbnails ();

@@ -312,6 +312,9 @@ class Player
 
     void set_shard (uint32_t shard_id);
 
+    // see if adding this track will block
+    static bool add_track_will_block (const MCTrack &track);
+
     Player &add_track (MCTrack &track, bool top = false, const dpp::snowflake &guild_id = 0, const bool update_embed = true,
                        const int64_t &arg_slip = 0);
 
@@ -801,6 +804,9 @@ int set_track_failed_playback_count (const std::string &filename, int c);
 
 // ================================================================================
 
+// see if the next call to find_track() will block for a while
+bool find_track_will_block ();
+
 std::pair<player::MCTrack, int> find_track (const bool playlist, const std::string &arg_query, player::player_manager_ptr_t player_manager,
                                             const dpp::snowflake guild_id, const bool no_check_history = false,
                                             const std::string &cache_id = "");
@@ -809,6 +815,9 @@ std::string get_filename_from_result (player::MCTrack &result);
 
 std::pair<bool, int> track_exist (const std::string &fname, const std::string &url, player::player_manager_ptr_t player_manager,
                                   bool from_interaction, dpp::snowflake guild_id, bool no_download = false);
+
+// see if next call to run_download_thread() will block
+bool run_download_thread_will_block (const player::MCTrack &result, const std::string &fname);
 
 /**
  * @brief Default download thread for search and add track to guild queue, can be used for interaction and

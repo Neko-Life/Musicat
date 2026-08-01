@@ -62,6 +62,9 @@ bool is_url_shorts (const std::string_view &str);
 bool is_short (const nlohmann::json &data);
 bool is_short (const player::MCTrack &track);
 
+// see if the next call to fetch() will block for a while
+bool fetch_will_block ();
+
 /**
  * @Brief Search a query or fetch a playlist url
  *        or get the detail of a track

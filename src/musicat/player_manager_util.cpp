@@ -299,6 +299,12 @@ set_track_failed_playback_count (const std::string &filename, int c)
 
 // ================================================================================
 
+bool
+find_track_will_block ()
+{
+    return mctrack::fetch_will_block ();
+}
+
 std::pair<player::MCTrack, int>
 find_track (const bool playlist, const std::string &arg_query, player::player_manager_ptr_t player_manager, const dpp::snowflake guild_id,
             const bool no_check_history, const std::string &cache_id)
@@ -527,6 +533,20 @@ track_exist (const std::string &fname, const std::string &url, player::player_ma
     return { dling, status };
 }
 
+bool
+run_download_thread_will_block (const player::MCTrack &result, const std::string &fname)
+{
+    if (Player::add_track_will_block (result))
+        return true;
+
+    auto *player_manager = get_player_manager_ptr ();
+    if (!player_manager)
+        return false;
+
+    std::lock_guard lk (player_manager->dl_m);
+    return player_manager->is_waiting_file_download (fname);
+}
+
 void
 run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, const bool dling, const std::string &fname, const bool arg_top,
                      const bool from_interaction, const dpp::snowflake &guild_id, const bool continued, const int64_t arg_slip,
@@ -659,12 +679,13 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
 
     player_manager->reconnect (player_manager->get_client (shard_id), guild_id);
 
-    task::run (
+    task::run_may_block (
         [shard_id, sha_id, dling, fname, arg_top, from_interaction, guild_id, continued, arg_slip, event, result] ()
             {
                 run_download_thread (shard_id, sha_id, dling, fname, arg_top, from_interaction, guild_id, continued, arg_slip, event,
                                      result, util::response::reply_added_track (mctrack::get_title (result), arg_top ? arg_top : arg_slip));
-            });
+            },
+        [result, fname] () { return run_download_thread_will_block (result, fname); });
 }
 
 void
@@ -672,13 +693,14 @@ add_track (bool playlist, dpp::snowflake guild_id, std::string arg_query, int64_
            const dpp::snowflake channel_id, const dpp::snowflake sha_id, bool from_interaction, const uint32_t shard_id,
            const dpp::interaction_create_t event, bool continued, int64_t arg_slip, const std::string &cache_id)
 {
-    task::run (
+    task::run_may_block (
         [shard_id, arg_query, playlist, guild_id, cache_id, event, from_interaction, vcclient_cont, channel_id, v, arg_top, arg_slip,
          sha_id, continued] ()
             {
                 run_add_track_thread (shard_id, arg_query, playlist, guild_id, cache_id, event, from_interaction, vcclient_cont, channel_id,
                                       v, arg_top, arg_slip, sha_id, continued);
-            });
+            },
+        find_track_will_block);
 }
 
 void
