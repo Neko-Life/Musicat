@@ -7,7 +7,9 @@
 #include "musicat/player.h"
 #include "musicat/server/stream.h"
 #include "musicat/util.h"
+#include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #ifdef USING_LIBOPUSENC
@@ -153,17 +155,42 @@ Player::set_shard (uint32_t shard_id)
     this->shard_id = shard_id;
 }
 
+#define MAX_GET_TRACK_INFO_REQ 2
+
+static int c = 0;
+static std::condition_variable c_cv;
+static std::mutex c_m;
+
+struct get_track_sync_t
+{
+    get_track_sync_t ()
+    {
+        std::unique_lock lk (c_m);
+        while (c >= MAX_GET_TRACK_INFO_REQ)
+            c_cv.wait (lk);
+        c++;
+    }
+
+    ~get_track_sync_t ()
+    {
+        {
+            std::lock_guard lk (c_m);
+            c--;
+        }
+        c_cv.notify_one ();
+    }
+};
+
 Player &
 Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
 {
-    // lock to guard againts unknown memory corruptor
-    std::lock_guard lk(add_track_m);
     size_t siz = 0;
     {
         // !TODO: remove this when fully using ytdlp to support non-yt tracks
         if (track.info.raw.is_null ())
             try
                 {
+                    get_track_sync_t s;
                     track.info.raw = yt_search::get_track_info (mctrack::get_url (track)).audio_info (251).raw;
 
                     // track.thumbnails ();
@@ -229,7 +256,7 @@ Player::skip_playback (dpp::discord_voice_client *voiceclient)
     /* const bool debug = get_debug_state (); */
 
     auto ct = current_track;
-    stop();
+    stop ();
     voiceclient->pause_audio (false);
     voiceclient->skip_to_next_marker ();
 

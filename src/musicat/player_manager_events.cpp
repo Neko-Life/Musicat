@@ -660,8 +660,6 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                             fprintf (stderr, "[Manager::handle_on_track_marker tj ERROR] "
                                              "Inserting `e` marker\n");
 
-                            this->remove_ignore_marker (guild_id);
-
                             guild_player = this->get_player (guild_id);
                             // skip current track
                             guild_player->skip_queue (1, true, true);

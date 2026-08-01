@@ -23,21 +23,11 @@ struct resume_timer_t
     long long min_delay;
 };
 
-struct track_marker_rm_timer_t
-{
-    long long ts;
-    std::string meta;
-    dpp::discord_voice_client *vc;
-};
-
 struct failed_playback_reset_timer_t
 {
     long long ts;
     std::string filename;
 };
-
-int create_track_marker_rm_timer (const std::string &meta,
-                                  dpp::discord_voice_client *vc);
 
 int create_resume_timer (const dpp::snowflake &user_id,
                          const dpp::snowflake &user_voice_channel_id,
@@ -45,8 +35,6 @@ int create_resume_timer (const dpp::snowflake &user_id,
                          long long min_delay = 1500000000LL);
 
 int create_failed_playback_reset_timer (const std::string &filename);
-
-void check_track_marker_rm_timers ();
 
 void check_resume_timers ();
 

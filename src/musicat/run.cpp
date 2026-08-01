@@ -898,7 +898,6 @@ run (int argc, const char *argv[])
                     time (&last_5sec);
                 }
 
-            player::timer::check_track_marker_rm_timers ();
             player::timer::check_resume_timers ();
             player::timer::check_failed_playback_reset_timers ();
             player::check_embed_op_queue ();

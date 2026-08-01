@@ -298,7 +298,7 @@ class Player
      * @brief Thread safety mutex. Must lock this whenever doing the
      * appropriate action.
      */
-    std::mutex t_mutex, stream_m, add_track_m;
+    std::mutex t_mutex, stream_m;
 
     void init ();
 
@@ -470,7 +470,6 @@ class Manager
     // dc: disconnecting
     // ps: players
     // mp: manually_paused
-    // im: ignore_marker
     // as: audio_stream
     std::mutex dl_m, wd_m, c_m, dc_m, ps_m, mp_m, im_m, as_m;
 
@@ -479,9 +478,7 @@ class Manager
     std::map<dpp::snowflake, dpp::snowflake> connecting, disconnecting;
     std::map<dpp::snowflake, std::string> waiting_vc_ready;
     std::map<std::string, dpp::snowflake> waiting_file_download;
-    std::map<dpp::snowflake, std::vector<std::string> > waiting_marker;
     std::vector<dpp::snowflake> manually_paused;
-    std::vector<dpp::snowflake> ignore_marker;
 
     Manager (dpp::cluster *_cluster);
     ~Manager ();
@@ -552,7 +549,12 @@ class Manager
     void set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id);
 
     // overrides dpp::discord_client::disconnect_voice()
-    void disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id);
+    void disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id, bool force = false);
+
+    /**
+     * @brief Returns 1 if doesn't need to wait, 0 otherwise
+     */
+    int wait_for_disconnecting (const dpp::snowflake &guild_id);
     void clear_disconnecting (const dpp::snowflake &guild_id);
 
     bool is_connecting (const dpp::snowflake &guild_id);
@@ -714,10 +716,6 @@ class Manager
     size_t remove_track (const dpp::snowflake &guild_id, const size_t &pos, const size_t &amount = 1, const size_t &to = -1);
 
     bool shuffle_queue (const dpp::snowflake &guild_id, bool update_info_embed = true);
-
-    void set_ignore_marker (const dpp::snowflake &guild_id);
-    void remove_ignore_marker (const dpp::snowflake &guild_id);
-    bool has_ignore_marker (const dpp::snowflake &guild_id);
 
     /**
      * @brief Load guild queue saved in database, you wanna call this after the

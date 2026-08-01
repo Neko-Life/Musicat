@@ -15,27 +15,7 @@ on_voice_track_marker (dpp::cluster *client)
             if (!player_manager)
                 return;
 
-            // if (player_manager->has_ignore_marker
-            // (event.voice_client->server_id))
-            //     {
-            //         if (debug)
-            //             std::cerr << "[PLAYER_MANAGER] Meta \"" <<
-            //             event.track_meta
-            //                       << "\" is ignored in guild "
-            //                       << event.voice_client->server_id << "\n";
-
-            //         return;
-            //     }
-
             player_manager->handle_on_track_marker (event);
-
-            // if (event.track_meta != "rm")
-            //     player_manager->set_ignore_marker
-            //     (event.voice_client->server_id);
-
-            // if (!player_manager->handle_on_track_marker (event))
-            //     player_manager->delete_info_embed
-            //     (event.voice_client->server_id);
 
             // dispatch ignore marker remover
             // player::timer::create_track_marker_rm_timer (event.track_meta,

@@ -22185,6 +22185,8 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         if (JSON_HEDLEY_LIKELY(is_object()))
         {
             auto it = m_data.m_value.object->find(key);
+            if (it == m_data.m_value.object->end())
+                JSON_THROW(type_error::create(305, detail::concat("cannot use operator[] to inexistent key ", key), this));
             JSON_ASSERT(it != m_data.m_value.object->end());
             return it->second;
         }

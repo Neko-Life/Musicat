@@ -205,6 +205,7 @@ join_guild (dpp::guild *g, dpp::user *sha_user)
              (uint64_t)join_channel->id, g->name.c_str (), (uint64_t)guild_id);
 
     player_manager->full_reconnect (player_manager->get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
+    player_manager->wait_for_vc_ready (guild_id);
     return 0;
 }
 
@@ -219,10 +220,18 @@ join_all (const cmd_args_t &args)
     auto sha_id = get_sha_id ();
     auto &sha_user = player_manager->cluster->me;
 
-    auto *c = dpp::get_guild_cache ();
-    std::shared_lock lk (c->get_mutex ());
-    std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
-    for (auto &[_id, g] : gc)
+    std::vector<dpp::guild *> vgc;
+    {
+        auto *c = dpp::get_guild_cache ();
+        std::shared_lock lk (c->get_mutex ());
+        std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
+        for (auto &[_id, g] : gc)
+            {
+                vgc.push_back (g);
+            }
+    }
+
+    for (auto *g : vgc)
         {
             join_guild (g, &sha_user);
         }
@@ -481,23 +490,26 @@ leave_all (const cmd_args_t &args)
 
     auto sha_id = get_sha_id ();
 
-    auto *c = dpp::get_guild_cache ();
-    std::shared_lock lk (c->get_mutex ());
-    std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
-    for (auto &[_id, g] : gc)
+    std::vector<dpp::guild *> vgc;
+    {
+        auto *c = dpp::get_guild_cache ();
+        std::shared_lock lk (c->get_mutex ());
+        std::unordered_map<dpp::snowflake, dpp::guild *> &gc = c->get_container ();
+        for (auto &[_id, g] : gc)
+            {
+                vgc.push_back (g);
+            }
+    }
+
+    for (auto *g : vgc)
         {
             auto guild_id = g->id;
-            auto guild_player = player_manager->get_player (guild_id);
-
-            if (!guild_player)
-                {
-                    fprintf (stderr, "Not connected to any voice/stage channel in guild `%s` (%ld), skipping\n", g->name.c_str (),
-                             (uint64_t)guild_id);
-                    continue;
-                }
+            auto *client = player_manager->get_client (g->shard_id);
+            if (!client)
+                continue;
 
             // check if we're connected in this guild
-            auto *voiceconn = guild_player->get_voice_conn ();
+            auto *voiceconn = client->get_voice (guild_id);
             if (!voiceconn)
                 {
                     fprintf (stderr, "Not connected to any voice/stage channel in guild `%s` (%ld), skipping\n", g->name.c_str (),
@@ -507,8 +519,10 @@ leave_all (const cmd_args_t &args)
 
             fprintf (stderr, "Leaving voice/stage channel (%ld) in guild `%s` (%ld)\n", (uint64_t)voiceconn->channel_id, g->name.c_str (),
                      (uint64_t)guild_id);
+
             player_manager->set_disconnecting (guild_id, 0);
-            player_manager->disconnect_voice (player_manager->get_client (g->shard_id), guild_id);
+            player_manager->disconnect_voice (client, guild_id);
+            player_manager->wait_for_disconnecting (guild_id);
         }
 
     return 0;

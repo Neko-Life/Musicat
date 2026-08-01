@@ -64,8 +64,7 @@ is_YTDLPTrack (const player::MCTrack &track)
 bool
 is_YTDLPTrack (int track_flag)
 {
-    return ((track_flag & player::TRACK_YTDLP_SEARCH) != 0)
-           || ((track_flag & player::TRACK_YTDLP_DETAILED) != 0);
+    return ((track_flag & player::TRACK_YTDLP_SEARCH) != 0) || ((track_flag & player::TRACK_YTDLP_DETAILED) != 0);
 }
 
 bool
@@ -187,6 +186,32 @@ is_short (const player::MCTrack &track)
     return is_url_shorts (mctrack::get_url (track));
 }
 
+#define MAX_GET_TRACK_INFO_REQ 2
+
+static int c = 0;
+static std::condition_variable c_cv;
+static std::mutex c_m;
+
+struct get_track_sync_t
+{
+    get_track_sync_t ()
+    {
+        std::unique_lock lk (c_m);
+        while (c >= MAX_GET_TRACK_INFO_REQ)
+            c_cv.wait (lk);
+        c++;
+    }
+
+    ~get_track_sync_t ()
+    {
+        {
+            std::lock_guard lk (c_m);
+            c--;
+        }
+        c_cv.notify_one ();
+    }
+};
+
 nlohmann::json
 fetch (const search_option_t &options)
 {
@@ -207,23 +232,16 @@ fetch (const search_option_t &options)
     const bool has_max_entries = options.max_entries >= 1;
 
     const std::string ytdlp_cmd
-        = cc::create_arg (cc::command_options_keys_t.command,
-                          cc::command_execute_commands_t.call_ytdlp)
+        = cc::create_arg (cc::command_options_keys_t.command, cc::command_execute_commands_t.call_ytdlp)
           + cc::create_arg_sanitize_value (cc::command_options_keys_t.id, qid)
-          + cc::create_arg_sanitize_value (
-              cc::command_options_keys_t.ytdlp_util_exe, get_ytdlp_util_exe ())
-          + cc::create_arg_sanitize_value (
-              cc::command_options_keys_t.ytdlp_lib_path, get_ytdlp_lib_path ())
-          + cc::create_arg_sanitize_value (
-              cc::command_options_keys_t.ytdlp_query, q)
-          + (has_max_entries
-                 ? cc::create_arg (
-                       cc::command_options_keys_t.ytdlp_max_entries,
-                       std::to_string (options.max_entries))
-                 : "");
+          + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_util_exe, get_ytdlp_util_exe ())
+          + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_lib_path, get_ytdlp_lib_path ())
+          + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_query, q)
+          + (has_max_entries ? cc::create_arg (cc::command_options_keys_t.ytdlp_max_entries, std::to_string (options.max_entries)) : "");
 
     const std::string exit_cmd = cc::get_exit_command (qid);
 
+    get_track_sync_t s;
     child::command::send_command (ytdlp_cmd);
 
     int status = child::command::wait_slave_ready (qid, 10);
@@ -247,8 +265,7 @@ fetch (const search_option_t &options)
 
     if (out_fifo < 0)
         {
-            fprintf (stderr,
-                     "[mctrack::fetch ERROR] Failed to open outfifo\n");
+            fprintf (stderr, "[mctrack::fetch ERROR] Failed to open outfifo\n");
 
             cc::send_command (exit_cmd);
 
@@ -272,8 +289,7 @@ fetch (const search_option_t &options)
     cmd_buf[sizread] = '\0';
 
     if (get_debug_state ())
-        fprintf (stderr, "[mctrack::fetch] Received result: qid(%s)\n'%s'\n",
-                 qid.c_str (), cmd_buf);
+        fprintf (stderr, "[mctrack::fetch] Received result: qid(%s)\n'%s'\n", qid.c_str (), cmd_buf);
 
     cc::command_options_t opt = cc::create_command_options ();
     cc::parse_command_to_options (cmd_buf, opt);
@@ -291,8 +307,7 @@ fetch (const search_option_t &options)
     std::ifstream scs (opt.file_path);
     if (!scs.is_open ())
         {
-            fprintf (stderr,
-                     "[mctrack::fetch ERROR] Unable to open result file\n");
+            fprintf (stderr, "[mctrack::fetch ERROR] Unable to open result file\n");
 
             return nullptr;
         }

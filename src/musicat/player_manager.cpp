@@ -74,6 +74,9 @@ Manager::reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
         if (a != this->disconnecting.end ())
             {
                 from_dc = true;
+
+                task::run_once ([this, guild_id] () { this->clear_disconnecting (guild_id); }, 10);
+
                 this->dl_cv.wait (lk,
                                   [this, &guild_id] ()
                                       {
@@ -101,6 +104,8 @@ Manager::reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
                 if (from)
                     {
                         from->connect_voice (guild_id, a->second, false, SELF_DEAF, ENABLE_DAVE);
+
+                        task::run_once ([this, guild_id] () { this->clear_connecting (guild_id); }, 10);
 
                         this->dl_cv.wait (lk,
                                           [this, &guild_id] ()
@@ -585,12 +590,11 @@ Manager::shutdown ()
                     if (!s)
                         continue;
 
-                    disconnect_voice (s, gid);
+                    set_disconnecting (gid, 0);
+                    disconnect_voice (s, gid, true);
+                    wait_for_disconnecting (gid);
                 }
         }
-
-    // wait for disconnect messages to be sent
-    std::this_thread::sleep_for (std::chrono::seconds (5));
 }
 
 } // musicat::player
