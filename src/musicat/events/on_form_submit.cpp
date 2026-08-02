@@ -149,12 +149,13 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
             if (player_manager)
                 join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
-            task::run (
+            task::run_may_block (
                 [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()
                     {
                         player::run_download_thread (event.from ()->shard_id, get_sha_id (), dling, fname, top, true, guild_id, false,
                                                      arg_slip, event, result, edit_response);
-                    });
+                    },
+                [result, fname] () { return player::run_download_thread_will_block (result, fname); });
         }
     catch (const std::exception &e)
         {

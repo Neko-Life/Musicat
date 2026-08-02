@@ -21,7 +21,6 @@
 #include <sys/wait.h>
 
 #define RUN_TESTS 0
-// #define MC_EX_VC_REC
 
 #if RUN_TESTS
 #include "musicat/tests.h"
@@ -656,6 +655,9 @@ int
 run (int argc, const char *argv[])
 {
     signal (SIGINT, on_sigint);
+    signal (SIGTERM, on_sigint);
+    signal (SIGPIPE, SIG_IGN);
+
     set_running_state (true);
     dpp::utility::set_thread_name ("mc/main");
 
@@ -777,42 +779,9 @@ run (int argc, const char *argv[])
                     return;
 
                 dpp_cout_logger (event);
-                fprintf (stderr, "%s\n", event.raw_event.c_str ());
             });
 
     events::load_events (client_ptr);
-
-#ifdef MC_EX_VC_REC
-    static FILE *f_ex_vc_rec = NULL;
-    static FILE *p_ex_vc_rec = NULL;
-
-    client.on_voice_receive (
-        [] (const dpp::voice_receive_t &event)
-            {
-                std::cout << "[voice_receive]:\n"
-                             /*<< event.raw_event <<*/ "\n:[voice_receive]\n";
-
-                if (f_ex_vc_rec == NULL)
-                    f_ex_vc_rec = fopen ("out.pcm", "wb");
-                if (p_ex_vc_rec == NULL)
-                    p_ex_vc_rec = popen ("aplay -f dat -", "w");
-
-                fwrite (event.audio_data.data (), 1, event.audio_data.size (), f_ex_vc_rec);
-                fwrite (event.audio_data.data (), 1, event.audio_data.size (), p_ex_vc_rec);
-            });
-
-    // client.on_voice_receive_combined ([] (const dpp::voice_receive_t &event) {
-    //     std::cout << "[voice_receive_combined]:\n"
-    //               << event.raw_event << "\n:[voice_receive_combined]\n";
-    // });
-
-    // client.on_voice_buffer_send ([] (const dpp::voice_buffer_send_t &event) {
-    //     std::cout << "[on_voice_buffer_send]:\n"
-    //               << event.raw_event << "\n:[on_voice_buffer_send]\n"
-    //               << "buffer_size: " << event.buffer_size << "\n"
-    //               << "packets_left: " << event.packets_left << "\n";
-    // });
-#endif
 
 #ifdef MUSICAT_WS_P_ETF
     client.set_websocket_protocol (dpp::websocket_protocol_t::ws_etf);
@@ -921,27 +890,12 @@ run (int argc, const char *argv[])
             thread_manager::join_done ();
         }
 
-#ifdef MC_EX_VC_REC
-    if (f_ex_vc_rec)
-        {
-            fclose (f_ex_vc_rec);
-            f_ex_vc_rec = NULL;
-        }
-    if (p_ex_vc_rec)
-        {
-            pclose (p_ex_vc_rec);
-            p_ex_vc_rec = NULL;
-        }
-#endif // MC_EX_VC_REC
-
     child::shutdown ();
-
     server::shutdown ();
-
     player::shutdown ();
     client.shutdown ();
-
     player_manager.shutdown ();
+
     player_manager_ptr = nullptr;
     client_ptr = nullptr;
 
