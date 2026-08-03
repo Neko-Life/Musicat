@@ -1,3 +1,5 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/cmds/playlist.h"
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
@@ -8,6 +10,8 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util_response.h"
+// clang-format on
+
 #include <libpq-fe.h>
 #include <memory>
 #include <variant>

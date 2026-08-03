@@ -1,13 +1,18 @@
+// clang-format off
+#include "musicat/decoder.h"
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_stream.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/audio_config.h"
 #include "musicat/db.h"
-#include "musicat/decoder.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util/fs.h"
 #include "opus_types.h"
+// clang-format on
 
 #include <condition_variable>
 #include <cstdint>

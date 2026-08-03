@@ -1,6 +1,8 @@
+// clang-format off
 #include "musicat/server/auth.h"
 #include "musicat/musicat.h"
 #include "musicat/server/states.h"
+// clang-format on
 
 namespace musicat::server::auth
 {

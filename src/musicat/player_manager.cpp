@@ -1,17 +1,20 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/child/command.h"
 #include "musicat/child/dl_music.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
 #include "musicat/util/fs.h"
+// clang-format on
+
 #include <dirent.h>
 #include <memory>
 #include <mutex>
 #include <thread>
-
 #include <sys/stat.h>
 #include <time.h>
 #include <utime.h>

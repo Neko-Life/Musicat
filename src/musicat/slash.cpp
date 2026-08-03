@@ -1,3 +1,5 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/slash.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/autoplay.h"
@@ -25,6 +27,7 @@
 #include "musicat/cmds/skip.h"
 #include "musicat/cmds/stop.h"
 #include "musicat/cmds/volume.h"
+// clang-format on
 
 namespace musicat::command
 {

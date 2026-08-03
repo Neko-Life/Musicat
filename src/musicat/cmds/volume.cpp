@@ -1,6 +1,9 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/cmds/volume.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
+// clang-format on
 
 #define MIN_PERCENTAGE 1
 #define MIN_PERCENTAGE_STR "1"

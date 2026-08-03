@@ -1,3 +1,4 @@
+#include "musicat/player.h"
 #include "musicat/cmds/loop.h"
 #include "musicat/cmds.h"
 #include "musicat/mctrack.h"

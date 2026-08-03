@@ -1,6 +1,11 @@
-#include "musicat/musicat.h"
+// clang-format off
 #include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
+#include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+// clang-format on
+
 #include <uWebSockets/src/App.h>
 
 namespace musicat::server::ws::player::events

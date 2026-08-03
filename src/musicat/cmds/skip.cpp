@@ -1,3 +1,6 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/cmds/skip.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/seek.h"
@@ -5,6 +8,7 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
+// clang-format on
 
 namespace musicat::command::skip
 {

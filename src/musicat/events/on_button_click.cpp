@@ -1,3 +1,6 @@
+// clang-format off
+#include "musicat/pagination.h"
+#include "musicat/player_manager.h"
 #include "musicat/events/on_button_click.h"
 #include "message.h"
 #include "musicat/cmds.h"
@@ -9,10 +12,10 @@
 #include "musicat/cmds/seek.h"
 #include "musicat/cmds/skip.h"
 #include "musicat/musicat.h"
-#include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util_response.h"
+// clang-format on
 
 namespace musicat::events
 {

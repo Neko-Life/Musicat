@@ -1,3 +1,6 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/server/middlewares.h"
 #include "cache.h"
 #include "musicat/musicat.h"
@@ -6,6 +9,7 @@
 #include "musicat/server/response.h"
 #include "musicat/server/services.h"
 #include "musicat/util.h"
+// clang-format on
 
 namespace musicat::server::middlewares
 {

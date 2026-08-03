@@ -1,11 +1,16 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
 #include "message.h"
 #include "musicat/function_macros.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
 #include "snowflake.h"
+// clang-format on
+
 #include <mutex>
 #include <variant>
 

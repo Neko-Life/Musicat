@@ -1,8 +1,10 @@
+// clang-format off
+#include "musicat/cmds/filters.h"
 #include "musicat/cmds/filters/modulation.h"
 #include "musicat/cmds.h"
-#include "musicat/cmds/filters.h"
 #include "musicat/musicat.h"
-#include <dpp/dpp.h>
+// clang-format on
+
 #include <string>
 
 namespace musicat::command::filters::modulation

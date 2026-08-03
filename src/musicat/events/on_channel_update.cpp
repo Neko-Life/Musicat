@@ -1,7 +1,9 @@
-#include "musicat/events/on_channel_update.h"
-#include "musicat/events.h"
-#include "musicat/musicat.h"
+// clang-format off
 #include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/events/on_channel_update.h"
+#include "musicat/musicat.h"
+// clang-format on
 
 namespace musicat::events
 {

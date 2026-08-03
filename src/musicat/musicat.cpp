@@ -1,6 +1,10 @@
+// clang-format off
+#include "musicat/player_manager.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
-#include <dpp/discordclient.h>
+#include "discordclient.h"
+// clang-format on
+
 #include <vector>
 
 namespace musicat

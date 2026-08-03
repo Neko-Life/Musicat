@@ -1,5 +1,9 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/cmds/autoplay.h"
 #include "musicat/musicat.h"
+// clang-format on
 
 namespace musicat::command::autoplay
 {

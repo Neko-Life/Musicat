@@ -1,6 +1,8 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
+// clang-format on
 
 namespace musicat::command
 {

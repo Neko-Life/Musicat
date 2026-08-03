@@ -1,8 +1,8 @@
 #ifndef MUSICAT_COMMAND_H
 #define MUSICAT_COMMAND_H
 
-#include "musicat/player.h"
-#include <dpp/dpp.h>
+#include "musicat/player_manager.h"
+#include "snowflake.h"
 #include <string>
 
 namespace musicat::command

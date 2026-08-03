@@ -1,6 +1,9 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/util.h"
 #include "musicat/musicat.h"
-#include <limits>
+// clang-format on
+
 #include <memory>
 #include <random>
 #include <regex>

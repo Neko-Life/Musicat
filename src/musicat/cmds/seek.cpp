@@ -1,7 +1,13 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/cmds/seek.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
+// clang-format on
+
 #include <cstdint>
 
 namespace musicat::command::seek

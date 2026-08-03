@@ -2,6 +2,8 @@
 #include "musicat/cmds/play.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/task.h"
 #include <sys/stat.h>
 

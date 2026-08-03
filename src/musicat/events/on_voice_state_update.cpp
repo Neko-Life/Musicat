@@ -1,5 +1,8 @@
+// clang-format off
+#include "musicat/player_manager.h"
 #include "musicat/events/on_voice_state_update.h"
 #include "musicat/musicat.h"
+// clang-format on
 
 namespace musicat::events
 {

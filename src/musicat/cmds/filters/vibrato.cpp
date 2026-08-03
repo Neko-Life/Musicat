@@ -1,7 +1,8 @@
-#include "musicat/cmds.h"
+// clang-format off
 #include "musicat/cmds/filters.h"
+#include "musicat/cmds.h"
 #include "musicat/cmds/filters/modulation.h"
-#include <dpp/dpp.h>
+// clang-format on
 
 namespace musicat::command::filters::vibrato
 {

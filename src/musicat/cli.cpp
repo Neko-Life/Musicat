@@ -1,13 +1,15 @@
+// clang-format off
+#include "musicat/util.h"
 #include "musicat/musicat.h"
 #include "musicat/slash.h"
-#include "musicat/util.h"
+// clang-format on
+
 #include <regex>
 
 void
 print_usage_register_slash ()
 {
-    fprintf (stderr,
-             "Usage:\n\treg <guild_id|\"g\">\n\trm-reg <guild_id|\"g\">\n");
+    fprintf (stderr, "Usage:\n\treg <guild_id|\"g\">\n\trm-reg <guild_id|\"g\">\n");
 }
 
 namespace musicat
@@ -18,8 +20,7 @@ command_create_callback (const dpp::confirmation_callback_t &e)
 {
     if (e.is_error ())
         {
-            util::log_confirmation_error (
-                e, "[musicat::command_create_callback ERROR]");
+            util::log_confirmation_error (e, "[musicat::command_create_callback ERROR]");
         }
 
     set_running_state (false);
@@ -42,13 +43,11 @@ exec_delete_guild_command (dpp::cluster &client, const dpp::snowflake &gid)
 }
 
 int
-_reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
-      const char *argv[], bool rm = false)
+_reg (dpp::cluster &client, dpp::snowflake sha_id, int argc, const char *argv[], bool rm = false)
 {
     if (argc == 2)
         {
-            fprintf (stderr,
-                     "Provide guild_id or \"g\" to register globally\n");
+            fprintf (stderr, "Provide guild_id or \"g\" to register globally\n");
             set_running_state (false);
             return 0;
         }
@@ -58,8 +57,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
     if (a2 == "g")
         {
             // global commands operation
-            fprintf (stderr, "%s commands globally...\n",
-                     rm ? "Deleting" : "Registering");
+            fprintf (stderr, "%s commands globally...\n", rm ? "Deleting" : "Registering");
 
             if (rm)
                 {
@@ -75,8 +73,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
 
     // guild commands operation
 
-    if (!std::regex_match (argv[2], std::regex ("^\\d{17,20}$"),
-                           std::regex_constants::match_any))
+    if (!std::regex_match (argv[2], std::regex ("^\\d{17,20}$"), std::regex_constants::match_any))
         {
             fprintf (stderr, "Provide valid guild_id\n");
             set_running_state (false);
@@ -94,8 +91,7 @@ _reg (dpp::cluster &client, dpp::snowflake sha_id, int argc,
             return 0;
         }
 
-    std::cerr << (rm ? "Deleting" : "Registering") << " commands in " << gid
-              << '\n';
+    std::cerr << (rm ? "Deleting" : "Registering") << " commands in " << gid << '\n';
 
     if (rm)
         {

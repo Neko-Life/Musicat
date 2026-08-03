@@ -1,6 +1,10 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/cmds/stop.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
+// clang-format on
 
 namespace musicat::command::stop
 {

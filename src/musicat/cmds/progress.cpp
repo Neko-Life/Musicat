@@ -1,7 +1,12 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/cmds/progress.h"
 #include "musicat/cmds.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+// clang-format on
 
 namespace musicat::command::progress
 {

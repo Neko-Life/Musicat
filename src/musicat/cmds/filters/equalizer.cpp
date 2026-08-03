@@ -62,9 +62,11 @@ action: set balance reset
 up the volume threshold to 500
 */
 
-#include "musicat/cmds.h"
+// clang-format off
 #include "musicat/cmds/filters.h"
+#include "musicat/cmds.h"
 #include "musicat/musicat.h"
+// clang-format on
 
 namespace musicat::command::filters::equalizer
 {

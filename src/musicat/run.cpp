@@ -2,6 +2,11 @@
     Global program states goes here
 */
 
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_stream.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/child.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/db.h"
@@ -15,6 +20,8 @@
 #include "musicat/server.h"
 #include "musicat/task.h"
 #include "musicat/thread_manager.h"
+// clang-format on
+
 #include <cstdint>
 #include <exception>
 #include <mutex>

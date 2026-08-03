@@ -1,8 +1,11 @@
+// clang-format off
+#include "musicat/player_manager.h"
 #include "musicat/cmds/remove.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/util.h"
+// clang-format on
 
 namespace musicat::command::remove
 {

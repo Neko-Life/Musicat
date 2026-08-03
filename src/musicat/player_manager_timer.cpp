@@ -1,7 +1,11 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/player_manager_timer.h"
 #include "musicat/musicat.h"
-#include "musicat/player.h"
 #include "musicat/util.h"
+// clang-format on
 
 namespace musicat::player::timer
 {

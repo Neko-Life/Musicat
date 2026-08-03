@@ -1,9 +1,12 @@
+// clang-format off
 #include "musicat/child/ytdlp.h"
 #include "musicat/child/command.h"
-#include "musicat/child/worker.h"
 #include "musicat/musicat.h"
 #include "musicat/tests.h"
 #include "musicat/util/base64.h"
+// clang-format on
+
+#include <fstream>
 
 namespace musicat::tests
 {

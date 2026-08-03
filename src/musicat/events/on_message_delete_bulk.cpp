@@ -1,6 +1,9 @@
+// clang-format off
+#include "musicat/pagination.h"
+#include "musicat/player_manager.h"
 #include "musicat/events/on_message_delete_bulk.h"
 #include "musicat/musicat.h"
-#include "musicat/pagination.h"
+// clang-format on
 
 namespace musicat::events
 {

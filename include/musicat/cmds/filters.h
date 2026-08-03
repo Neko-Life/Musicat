@@ -2,6 +2,7 @@
 #define MUSICAT_COMMAND_FILTERS_H
 
 #include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include <dpp/dpp.h>
 
 namespace musicat::command::filters

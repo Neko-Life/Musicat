@@ -8,9 +8,67 @@
     in the raw field of MCTrack
 */
 
-#include "musicat/player.h"
-
 #define YDLP_DEFAULT_MAX_ENTRIES 20
+
+#include "snowflake.h"
+#include "yt-search/yt-search.h"
+#include "yt-search/yt-track-info.h"
+
+namespace musicat::player
+{
+
+enum track_flag_t
+{
+    TRACK_MC = 0,
+    TRACK_YTDLP_SEARCH = 1,
+    TRACK_YTDLP_DETAILED = (1 << 1),
+    TRACK_SHORT = (1 << 2),
+};
+
+struct MCTrack : yt_search::YTrack
+{
+    /**
+     * @brief Downloaded track file path.
+     *
+     */
+    std::string filename;
+
+    /**
+     * @brief User Id which added this track.
+     *
+     */
+    dpp::snowflake user_id;
+
+    /**
+     * @brief List of user voted for this message
+     *
+     */
+    std::deque<dpp::snowflake> skip_vote;
+
+    yt_search::audio_info_t info;
+
+    bool seekable;
+
+    int64_t repeat;
+
+    // seek query, reset to empty string after seek performed.
+    // ffmpeg -ss value
+    std::string seek_to;
+
+    // current byte position
+    int64_t current_byte;
+
+    bool is_empty () const;
+
+    void init ();
+
+    MCTrack ();
+    explicit MCTrack (const yt_search::YTrack &t);
+    ~MCTrack ();
+
+    void check_for_seek_to ();
+};
+} // musicat::player
 
 namespace musicat::mctrack
 {

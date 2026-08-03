@@ -1,5 +1,8 @@
+// clang-format off
+#include "musicat/player.h"
 #include "musicat/cmds/playing.h"
 #include "musicat/cmds.h"
+// clang-format on
 
 namespace musicat::command::playing
 {
@@ -21,8 +24,7 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (guild_player->current_track.is_empty ())
         {
-            return event.reply (
-                "Nothing is playing right now, try the `/play` command");
+            return event.reply ("Nothing is playing right now, try the `/play` command");
         }
 
     player_manager->reply_info_embed (event, false);

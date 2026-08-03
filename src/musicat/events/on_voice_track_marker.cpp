@@ -1,6 +1,9 @@
+// clang-format off
+#include "musicat/player_manager.h"
 #include "musicat/events/on_voice_track_marker.h"
 #include "musicat/musicat.h"
-#include "musicat/player_manager_timer.h"
+// #include "musicat/player_manager_timer.h"
+// clang-format on
 
 namespace musicat::events
 {

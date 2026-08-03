@@ -101,6 +101,9 @@ ogg_stream_t::clear_stream_state ()
 int
 ogg_stream_t::get_next_page_opus (ogg_page &o)
 {
+#ifdef USING_LIBOPUSENC
+    return -1;
+#else
     if (mode != OGG_STREAM_READ_OPUS_PACKET)
         return -1;
 
@@ -143,6 +146,7 @@ ogg_stream_t::get_next_page_opus (ogg_page &o)
         header_pages.push_back (o);
 
     return 0;
+#endif
 }
 
 int

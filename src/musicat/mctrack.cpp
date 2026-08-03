@@ -1,12 +1,68 @@
+// clang-format off
 #include "musicat/mctrack.h"
 #include "musicat/YTDLPTrack.h"
-#include "musicat/player.h"
-
 #include "musicat/child/command.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
+// clang-format on
+
+#include <fstream>
+
+namespace musicat::player
+{
+
+MCTrack::MCTrack () { this->init (); }
+
+MCTrack::MCTrack (const YTrack &t)
+{
+    this->init ();
+    this->raw = t.raw;
+
+    if (t.raw.find ("raw_info") != t.raw.end ())
+        this->info.raw = t.raw.value ("raw_info", nullptr);
+}
+
+MCTrack::~MCTrack () = default;
+
+void
+MCTrack::init ()
+{
+    seekable = false;
+    seek_to = "";
+    current_byte = 0;
+    repeat = 0;
+}
+
+bool
+MCTrack::is_empty () const
+{
+    return filename.empty ();
+}
+
+void
+MCTrack::check_for_seek_to ()
+{
+    // check for last position and reseek
+    const bool debug = get_debug_state ();
+    const std::string tit = mctrack::get_title (*this);
+
+    seek_to = "";
+
+    if (debug)
+        fprintf (stderr, "[MCTrack::check_for_seek_to] Checking seek_to(%s) current_byte(%ld)\n", tit.c_str (), current_byte);
+
+    if (current_byte < 1)
+        return;
+
+    seek_to = "y";
+
+    if (debug)
+        fprintf (stderr, "[MCTrack::check_for_seek_to] Seeking `%s` to: %s\n", tit.c_str (), seek_to.c_str ());
+}
+
+} // namspace musicat::player
 
 namespace musicat::mctrack
 {

@@ -9,7 +9,6 @@
 #define AUDIO_INPUT_USE_EXCITER
 
 // uWebSockets: don't send write mark
-// should be defined in CMake instead
-// #define UWS_HTTPRESPONSE_NO_WRITEMARK
+#define UWS_HTTPRESPONSE_NO_WRITEMARK
 
 #endif // MUSICAT_CONFIG_H

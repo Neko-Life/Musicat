@@ -1,9 +1,13 @@
-#include "musicat/runtime_cli.h"
-#include "musicat/mctrack.h"
-#include "musicat/musicat.h"
+// clang-format off
 #include "musicat/player.h"
+#include "musicat/player_manager.h"
+#include "musicat/player_manager_util.h"
+#include "musicat/runtime_cli.h"
+#include "musicat/musicat.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
+// clang-format on
+
 #include <cstdint>
 #include <sys/poll.h>
 

@@ -2,7 +2,9 @@
 #include "musicat/musicat.h"
 #include "musicat/task.h"
 #include "musicat/util/base64.h"
+#include <curlpp/Easy.hpp>
 #include <curlpp/Infos.hpp>
+#include <curlpp/Options.hpp>
 
 inline constexpr size_t max_avatar_upload_size = 10240 * 1000;
 #define MAX_IMG_SIZE max_avatar_upload_size

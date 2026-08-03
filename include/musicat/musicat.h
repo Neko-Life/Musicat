@@ -1,9 +1,10 @@
 #ifndef MUSICAT_H
 #define MUSICAT_H
 
-#include "musicat/player.h"
+#include "discordclient.h"
+#include "discordvoiceclient.h"
+#include "message.h"
 #include "nekos-best++.hpp"
-#include <dpp/dpp.h>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,16 @@
 
 namespace musicat
 {
+
+#ifndef SHA_PLAYER_MANAGER_H
+#warning Missing #include "musicat/player_manager.h"
+namespace player
+{
+class Manager;
+using player_manager_ptr_t = Manager *;
+}
+#endif // SHA_PLAYER_MANAGER_H
+
 extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
 struct musicat_cluster_params_t
@@ -167,15 +178,7 @@ vector_find (std::vector<T> *_vec, T _find)
     return i;
 }
 
-/**
- * @brief Destroy and reset connecting state of the guild, must be invoked when
- * failed to join or left a vc
- *
- * @param client The client
- * @param guild_id Guild Id of the vc client connecting in
- * @param delete_voiceconn Whether to delete found voiceconn, can cause
- * segfault if the underlying structure doesn't exist
- */
+// unused
 void reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id, bool delete_voiceconn = false);
 
 /**

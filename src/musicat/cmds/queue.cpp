@@ -1,7 +1,11 @@
+// clang-format off
+#include "musicat/player.h"
+#include "musicat/player_manager.h"
 #include "musicat/cmds/queue.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
+// clang-format on
 
 namespace musicat::command::queue
 {

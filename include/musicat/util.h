@@ -1,9 +1,20 @@
 #ifndef MUSICAT_UTIL_H
 #define MUSICAT_UTIL_H
 
-#include "musicat/player.h"
 #include <memory>
 #include <mutex>
+#include <vector>
+#include "role.h"
+#include "snowflake.h"
+#include "discordclient.h"
+
+#ifndef SHA_PLAYER_H
+#warning Missing #include "musicat/player.h"
+namespace musicat::player
+{
+class Player;
+}
+#endif // SHA_PLAYER_H
 
 namespace musicat::util
 {

@@ -1,10 +1,13 @@
+// clang-format off
 #include "appcommand.h"
 #include "musicat/autocomplete.h"
-#include "musicat/cmds.h"
 #include "musicat/cmds/filters.h"
+#include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/task.h"
+// clang-format on
+
 #include <libpq-fe.h>
 
 namespace musicat::command::filters::equalizer_presets
