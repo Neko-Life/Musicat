@@ -529,9 +529,23 @@ setup_encoder (Player *p)
             return status;
         }
 
-    ope_encoder_ctl (p->opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, p));
-    // set framesize to 60
-    ope_encoder_ctl (p->opus_encoder, OPUS_SET_EXPERT_FRAME_DURATION (OPUS_FRAMESIZE_60_MS));
+    int ret = ope_encoder_ctl (p->opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, p));
+    if (ret != OPE_OK)
+        fprintf (stderr, "[player::setup_encoder WARN] OPE_SET_PACKET_CALLBACK: %s\n", ope_strerror (ret));
+
+    // set frame duration to 60ms
+    ret = ope_encoder_ctl (p->opus_encoder, OPUS_SET_EXPERT_FRAME_DURATION (OPUS_FRAMESIZE_60_MS));
+    if (ret != OPE_OK)
+        fprintf (stderr, "[player::setup_encoder WARN] OPUS_SET_EXPERT_FRAME_DURATION: %s\n", ope_strerror (ret));
+
+    // set other configs used before
+    ret = ope_encoder_ctl (p->opus_encoder, OPUS_SET_APPLICATION (OPUS_APPLICATION_AUDIO));
+    if (ret != OPE_OK)
+        fprintf (stderr, "[player::setup_encoder WARN] OPUS_SET_APPLICATION: %s\n", ope_strerror (ret));
+
+    ret = ope_encoder_ctl (p->opus_encoder, OPUS_SET_SIGNAL (OPUS_SIGNAL_MUSIC));
+    if (ret != OPE_OK)
+        fprintf (stderr, "[player::setup_encoder WARN] OPUS_SET_SIGNAL: %s\n", ope_strerror (ret));
 
     return status;
 }
