@@ -16,6 +16,20 @@
 #include <mutex>
 #include <string>
 
+#define SEND_AUDIO_ROUTINE()                                                                                                               \
+    do                                                                                                                                     \
+        {                                                                                                                                  \
+            if (debug)                                                                                                                     \
+                {                                                                                                                          \
+                    decode_end = std::chrono::high_resolution_clock::now ();                                                               \
+                    encode_ts = decode_end;                                                                                                \
+                }                                                                                                                          \
+                                                                                                                                           \
+            if (send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder))                           \
+                return -1;                                                                                                                 \
+        }                                                                                                                                  \
+    while (0)
+
 namespace musicat::player
 {
 
@@ -51,6 +65,9 @@ handle_effect_chain_change (handle_effect_chain_change_states_t states)
 int
 send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OggOpusEnc *opus_encoder)
 {
+    if (!opus_encoder)
+        return 2;
+
     // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
 
@@ -78,9 +95,6 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
 
     try
         {
-            if (!opus_encoder)
-                return 2;
-
             if (ope_encoder_write (opus_encoder, (opus_int16 *)send_buffer, (*send_buffer_length) / sizeof (opus_int16) / 2) != OPE_OK)
                 return 3;
         }
@@ -99,66 +113,58 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
 // this should be called
 // inside the streaming thread
 int
-send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, ssize_t *send_buffer_length, bool no_wait,
-                    OpusEncoder *opus_encoder)
+send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OpusEncoder *opus_encoder)
 {
+    if (!opus_encoder)
+        return 2;
+
     // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
 
+    auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
+
     if (!running_state || !vclient || vclient->terminating)
-        {
-            return 1;
-        }
+        return 1;
 
     const bool debug = get_debug_state ();
 
     // calculate duration
     if ((*send_buffer_length > 0))
         {
-            auto player_manager = get_player_manager_ptr ();
-            auto guild_player = player_manager ? player_manager->get_player (vclient->server_id) : NULL;
+            int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
 
-            if (guild_player)
-                {
-                    int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
+            // take account earwax resampling
+            if (guild_player->earwax)
+                samp_calc -= 3900;
 
-                    // take account earwax resampling
-                    if (guild_player->earwax)
-                        samp_calc -= 3900;
-
-                    // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
-                    int64_t add = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms)
-                                            * guild_player->tempo);
-                    guild_player->current_track.current_byte += add;
-                }
+            // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
+            int64_t add = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms)
+                                    * guild_player->tempo);
+            guild_player->current_track.current_byte += add;
         }
 
     try
         {
-            if (!opus_encoder)
-                return 2;
-
-            std::vector<uint16_t> pcmbuf (send_buffer, send_buffer + *send_buffer_length);
-            while (!pcmbuf.empty ())
+            uint8_t pcmbuf[ENCODE_BUFFER_SIZE];
+            ssize_t encoded_len = 0;
+            while (encoded_len < *send_buffer_length)
                 {
-                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
+                    ssize_t remaining = *send_buffer_length - encoded_len;
+                    ssize_t pcmbufsiz = ENCODE_BUFFER_SIZE > remaining ? remaining : ENCODE_BUFFER_SIZE;
+                    memcpy (pcmbuf, send_buffer + encoded_len, pcmbufsiz);
+                    encoded_len += pcmbufsiz;
 
-                    const auto pbufsiz = pcmbuf.size ();
-                    if (pbufsiz < ENCODE_BUFFER_SIZE)
+                    if (pcmbufsiz < ENCODE_BUFFER_SIZE)
                         {
-                            if (debug)
-                                {
-                                    fprintf (stderr,
-                                             "[player::send_audio_"
-                                             "routine] Found last chunk of "
-                                             "PCM buffer with size: %ld\n",
-                                             pbufsiz);
-                                }
+                            ssize_t trail = (ENCODE_BUFFER_SIZE - pcmbufsiz);
+                            memset (pcmbuf + pcmbufsiz, 0, trail);
 
-                            pcmbuf.resize (ENCODE_BUFFER_SIZE);
+                            if (debug)
+                                fprintf (stderr, "[player::send_audio_routine] Found last chunk of PCM buffer with size: %ld\n", pcmbufsiz);
                         }
 
-                    int len = opus_encode (opus_encoder, (opus_int16 *)pcmbuf.data (), FRAME_SIZE, packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
+                    uint8_t packet[OPUS_MAX_ENCODE_OUTPUT_SIZE];
+                    int len = opus_encode (opus_encoder, (opus_int16 *)pcmbuf, FRAME_SIZE, packet, OPUS_MAX_ENCODE_OUTPUT_SIZE);
 
                     if (len < 0 || len > OPUS_MAX_ENCODE_OUTPUT_SIZE)
                         {
@@ -177,8 +183,6 @@ send_audio_routine (dpp::discord_voice_client *vclient, uint16_t *send_buffer, s
                             // !TODO: use ogg_stream_t (need to build OpusHead and OpusTags headers manually)
                             // stream_codec::ogg_stream_t s (fd, stream_codec::OGG_STREAM_SUBMIT_OPUS_PACKET);
                         }
-
-                    pcmbuf.erase (pcmbuf.begin (), pcmbuf.begin () + ENCODE_BUFFER_SIZE);
                 }
         }
     catch (const dpp::voice_exception &e)
@@ -206,6 +210,7 @@ class stream_ctx
   public:
     dpp::snowflake guild_id;
     bool handled;
+    bool ended;
 
   private:
     bool running_state;
@@ -230,12 +235,20 @@ class stream_ctx
     }
 
   public:
-    stream_ctx (const dpp::snowflake &_guild_id) : guild_id (_guild_id) {}
+    stream_ctx (const dpp::snowflake &_guild_id) : guild_id (_guild_id), ended (true) {}
+    ~stream_ctx () { end (); }
+
+    stream_ctx () = delete;
+    stream_ctx (const stream_ctx &) = delete;
+    stream_ctx &operator= (const stream_ctx &) = delete;
+    stream_ctx (stream_ctx &&) = delete;
+    stream_ctx &operator= (stream_ctx &&) = delete;
 
     int
     init ()
     {
         handled = false;
+
         auto guild_player = get_guild_player ();
         if (!guild_player)
             throw 2;
@@ -296,12 +309,16 @@ class stream_ctx
         buffer = nullptr;
 
         server::ws::player::publish_play (guild_id);
+        ended = false;
         return 0;
     }
 
     int
     run ()
     {
+        if (ended)
+            return -1;
+
         auto *player_manager = get_player_manager_ptr ();
         auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
         if (!guild_player)
@@ -333,6 +350,7 @@ class stream_ctx
 
         handle_effect_chain_change ({ guild_player, guild_player->current_track, dec });
 
+#ifdef USING_LIBOPUSENC
         int ret = dec.process_frame (out);
         if (ret == AVERROR_EOF || ret < 0)
             return -1;
@@ -342,14 +360,33 @@ class stream_ctx
         read_size += current_read;
         total_read += current_read;
 
-        if (debug)
-            {
-                decode_end = std::chrono::high_resolution_clock::now ();
-                encode_ts = decode_end;
-            }
+        SEND_AUDIO_ROUTINE ();
 
-        if (send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder))
+#else // USING_LIBOPUSENC
+        read_size = out.size () * sizeof (uint16_t);
+        std::vector<uint16_t> temp_out;
+        int ret = dec.process_frame (temp_out);
+        if (ret == AVERROR_EOF || ret < 0)
             return -1;
+        out.insert (out.end (), temp_out.begin (), temp_out.end ());
+        current_read = temp_out.size () * sizeof (uint16_t);
+
+        read_size += current_read;
+        total_read += current_read;
+        if (read_size < ENCODE_BUFFER_SIZE)
+            return 0;
+
+        do
+            {
+                read_size = ENCODE_BUFFER_SIZE;
+                buffer = (uint8_t *)out.data ();
+
+                SEND_AUDIO_ROUTINE ();
+
+                out.erase (out.begin (), out.begin () + (ENCODE_BUFFER_SIZE / sizeof (uint16_t)));
+            }
+        while ((read_size = out.size () * sizeof (uint16_t)) >= ENCODE_BUFFER_SIZE);
+#endif
 
         if (debug)
             {
@@ -359,7 +396,7 @@ class stream_ctx
                 auto encode_latency = (encode_end - encode_ts).count ();
                 float total_latency_second = ((float)decode_latency / 1000000000) + ((float)encode_latency / 1000000000);
 
-                fprintf (stderr, "[Manager::stream] decode_latency(%lldns) encode_latency(%lldns) total_latency_second(%f)\n",
+                fprintf (stderr, "[stream_ctx::run] decode_latency(%lldns) encode_latency(%lldns) total_latency_second(%f)\n",
                          decode_latency, encode_latency, total_latency_second);
             }
 
@@ -369,6 +406,9 @@ class stream_ctx
     int
     need_handler ()
     {
+        if (ended)
+            return -1;
+
         auto *player_manager = get_player_manager_ptr ();
         auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
         if (!guild_player)
@@ -382,6 +422,9 @@ class stream_ctx
             return -1;
 
         float outbuf_duration = vclient->get_secs_remaining ();
+        if (get_debug_state ())
+            fprintf (stderr, "[stream_ctx::need_handler] dpp_audio_buffer_length_second(%f) outbuf_duration(%f)\n",
+                     dpp_audio_buffer_length_second, outbuf_duration);
         if ((outbuf_duration > dpp_audio_buffer_length_second))
             return 0;
 
@@ -391,6 +434,10 @@ class stream_ctx
     int
     end ()
     {
+        if (ended)
+            return -1;
+        ended = true;
+
         auto guild_player = get_guild_player ();
         if (!guild_player)
             return -1;
@@ -403,6 +450,9 @@ class stream_ctx
             {
                 if (debug)
                     fprintf (stderr, fbsefmt, ttitle.c_str (), (total_read += read_size), read_size);
+
+                buffer = (uint8_t *)out.data ();
+                send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder);
             }
 
 #ifdef USING_LIBOPUSENC
@@ -424,7 +474,7 @@ class stream_ctx
                 guild_player->queue.front ().current_byte = guild_player->current_track.current_byte;
 
                 if (debug)
-                    std::cerr << "[Manager::stream] set current_byte: guild_player->queue.front("
+                    std::cerr << "[stream_ctx::end] set current_byte: guild_player->queue.front("
                               << mctrack::get_title (guild_player->queue.front ()) << ") current_byte("
                               << guild_player->current_track.current_byte << ")\n";
             }
@@ -433,9 +483,19 @@ class stream_ctx
         auto done = std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time);
 
         if (debug)
-            fprintf (stderr, dssefmt, ttitle.c_str (), done.count ());
+            {
+                fprintf (stderr, dssefmt, ttitle.c_str (), done.count ());
+
+                if (vclient)
+                    {
+                        float outbuf_duration = vclient->get_secs_remaining ();
+                        fprintf (stderr, "[stream_ctx::end] dpp_audio_buffer_length_second(%f) outbuf_duration(%f)\n",
+                                 dpp_audio_buffer_length_second, outbuf_duration);
+                    }
+            }
 
         guild_player->done_streaming ();
+
         return 0;
     }
 };
@@ -504,11 +564,10 @@ class stream_thread_t
                 for (auto *ctx : processing_ctxs)
                     {
                         bool erased = false;
-                        while (!erased && ctx->need_handler ())
+                        do
                             {
                                 if (!ctx->run ())
                                     continue;
-                                ctx->end ();
 
                                 auto *player_manager = get_player_manager_ptr ();
                                 auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
@@ -520,6 +579,7 @@ class stream_thread_t
                                 if (vclient && !vclient->terminating)
                                     vclient->insert_marker ("e");
                             }
+                        while (!erased && ctx->need_handler ());
 
                         if (erased)
                             continue;

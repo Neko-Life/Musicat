@@ -77,9 +77,6 @@ std::mutex _connected_vcs_setting_mutex;
 dpp::cluster *
 get_client_ptr ()
 {
-    if (!get_running_state ())
-        return nullptr;
-
     return client_ptr;
 }
 
@@ -121,9 +118,6 @@ get_sha_runtime_cli_opt ()
 player::player_manager_ptr_t
 get_player_manager_ptr ()
 {
-    if (!get_running_state ())
-        return nullptr;
-
     return player_manager_ptr;
 }
 
@@ -651,6 +645,87 @@ on_sigint ([[maybe_unused]] int code)
 
 auto dpp_cout_logger = dpp::utility::cout_logger ();
 
+static bool no_db;
+static std::string db_connect_param;
+
+static time_t last_gc;
+static time_t last_5sec;
+static time_t last_music_cache_check = 0;
+
+static bool r_s;
+void
+main_loop (bool (*get_r_s) ())
+{
+    while ((r_s = get_r_s ()))
+        {
+            std::this_thread::sleep_for (std::chrono::milliseconds (50));
+            player::check_stream_contexts ();
+
+            bool debug = get_debug_state ();
+            time_t cur_time = time (NULL);
+
+            // GC
+            if (!r_s || (cur_time - last_gc) > ONE_HOUR_SECOND)
+                {
+                    if (debug)
+                        fprintf (stderr, "[GC] Starting scheduled gc\n");
+
+                    auto start_time = std::chrono::high_resolution_clock::now ();
+
+                    // gc codes
+                    paginate::gc (!running);
+
+                    // reset last_gc
+                    time (&last_gc);
+
+                    auto end_time = std::chrono::high_resolution_clock::now ();
+                    auto done = std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time);
+
+                    if (debug)
+                        fprintf (stderr, "[GC] Ran for %lld ms\n", done.count ());
+                }
+
+            if (r_s && (cur_time - last_5sec) > 5)
+                {
+                    // db reconnect check
+                    if (!no_db)
+                        {
+                            ConnStatusType status = database::reconnect (false, db_connect_param);
+
+                            if (status != CONNECTION_OK && debug)
+                                fprintf (stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
+                        }
+
+                    const size_t mcs = get_max_music_cache_size ();
+                    if ((should_check_music_cache || ((cur_time - last_music_cache_check) > ONE_HOUR_SECOND)) && mcs != 0)
+                        {
+                            player::control_music_cache (mcs);
+
+                            should_check_music_cache = false;
+                            last_music_cache_check = cur_time;
+                        }
+
+                    // the only solution to reap child exited abnormally in
+                    // docker container env
+                    int wstatus;
+                    while (waitpid (-1, &wstatus, WNOHANG) > 0)
+                        ;
+
+                    time (&last_5sec);
+                }
+
+            player::timer::check_resume_timers ();
+            player::timer::check_failed_playback_reset_timers ();
+            player::check_embed_op_queue ();
+            player::check_download_queue ();
+            task::check_blocking_task ();
+
+            server::main_loop_routine ();
+
+            thread_manager::join_done ();
+        }
+}
+
 int
 run (int argc, const char *argv[])
 {
@@ -741,8 +816,8 @@ run (int argc, const char *argv[])
     if (get_sha_runtime_cli_opt ())
         runtime_cli::attach_listener ();
 
-    const bool no_db = sha_cfg["SHA_DB"].is_null ();
-    std::string db_connect_param = "";
+    no_db = sha_cfg["SHA_DB"].is_null ();
+    db_connect_param = "";
 
     if (no_db)
         {
@@ -813,91 +888,30 @@ run (int argc, const char *argv[])
     tests::test_ytdlp ();
 #endif
 
-    time_t last_gc;
-    time_t last_5sec;
-    time_t last_music_cache_check = 0;
-
     time (&last_gc);
     time (&last_5sec);
+    main_loop (get_running_state);
 
-    bool r_s;
-    while ((r_s = get_running_state ()))
-        {
-            std::this_thread::sleep_for (std::chrono::milliseconds (50));
-            player::check_stream_contexts ();
-
-            bool debug = get_debug_state ();
-            time_t cur_time = time (NULL);
-
-            // GC
-            if (!r_s || (cur_time - last_gc) > ONE_HOUR_SECOND)
-                {
-                    if (debug)
-                        fprintf (stderr, "[GC] Starting scheduled gc\n");
-
-                    auto start_time = std::chrono::high_resolution_clock::now ();
-
-                    // gc codes
-                    paginate::gc (!running);
-
-                    // reset last_gc
-                    time (&last_gc);
-
-                    auto end_time = std::chrono::high_resolution_clock::now ();
-                    auto done = std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time);
-
-                    if (debug)
-                        fprintf (stderr, "[GC] Ran for %lld ms\n", done.count ());
-                }
-
-            if (r_s && (cur_time - last_5sec) > 5)
-                {
-                    // db reconnect check
-                    if (!no_db)
-                        {
-                            ConnStatusType status = database::reconnect (false, db_connect_param);
-
-                            if (status != CONNECTION_OK && debug)
-                                fprintf (stderr, "[ERROR DB_RECONNECT] Status code: %d\n", status);
-                        }
-
-                    const size_t mcs = get_max_music_cache_size ();
-                    if ((should_check_music_cache || ((cur_time - last_music_cache_check) > ONE_HOUR_SECOND)) && mcs != 0)
-                        {
-                            player::control_music_cache (mcs);
-
-                            should_check_music_cache = false;
-                            last_music_cache_check = cur_time;
-                        }
-
-                    // the only solution to reap child exited abnormally in
-                    // docker container env
-                    int wstatus;
-                    while (waitpid (-1, &wstatus, WNOHANG) > 0)
-                        ;
-
-                    time (&last_5sec);
-                }
-
-            player::timer::check_resume_timers ();
-            player::timer::check_failed_playback_reset_timers ();
-            player::check_embed_op_queue ();
-            player::check_download_queue ();
-            task::check_blocking_task ();
-
-            server::main_loop_routine ();
-
-            thread_manager::join_done ();
-        }
+    r_s = true;
+    std::thread shutdown_thread (
+        [] ()
+            {
+                thread_manager::DoneSetter tmds;
+                dpp::utility::set_thread_name ("mc/shutdown");
+                main_loop ([] () { return r_s; });
+            });
+    thread_manager::dispatch (shutdown_thread);
 
     child::shutdown ();
     server::shutdown ();
     player::shutdown ();
-    client.shutdown ();
-    player_manager.shutdown ();
 
+    player_manager.shutdown ();
     player_manager_ptr = nullptr;
+
+    client.shutdown ();
     client_ptr = nullptr;
+    r_s = false;
 
     thread_manager::join_all ();
     database::shutdown ();

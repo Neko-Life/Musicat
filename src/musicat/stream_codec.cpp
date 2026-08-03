@@ -122,7 +122,7 @@ ogg_stream_t::get_next_page_opus (ogg_page &o)
             long eos = siz < OPUS_MAX_ENCODE_OUTPUT_SIZE ? 1 : 0;
             if (siz)
                 {
-                    granulepos += siz;
+                    granulepos += (siz / 4);
 
                     ogg_iovec_t iov;
                     iov.iov_base = buf;

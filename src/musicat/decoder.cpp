@@ -426,7 +426,7 @@ decoder_t::seek (int64_t timestamp)
     ret = avformat_seek_file (fmt_ctx, audio_stream_index, INT64_MIN, seek_timestamp, seek_timestamp, 0);
     if (ret < 0)
         {
-            av_log (NULL, AV_LOG_WARNING, "could not seek to position %0.3f\n", (double)timestamp / AV_TIME_BASE);
+            av_log (NULL, AV_LOG_WARNING, "could not seek to position %0.3f\n", (double)timestamp / 1000);
         }
 
     return ret;
