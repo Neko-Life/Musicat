@@ -1,8 +1,7 @@
 #ifndef SHA_PLAYER_MANAGER_H
 #define SHA_PLAYER_MANAGER_H
 
-#include "cluster.h"
-#include "snowflake.h"
+#include <dpp/dpp.h>
 #include <cstddef>
 #include <map>
 

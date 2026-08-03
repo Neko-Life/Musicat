@@ -1,9 +1,6 @@
 #ifndef SHA_PLAYER_H
 #define SHA_PLAYER_H
 
-#include "cluster.h"
-#include "discordclient.h"
-#include "discordvoiceclient.h"
 #include "mctrack.h"
 #include "musicat/audio_config.h"
 
@@ -13,6 +10,7 @@
 #include "opus/opus.h"
 #endif // USING_LIBOPUSENC
 
+#include <dpp/dpp.h>
 #include <cstdint>
 #include <deque>
 #include <mutex>

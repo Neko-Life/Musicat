@@ -1,10 +1,7 @@
 #ifndef SHA_PLAYER_MANAGER_UTIL_H
 #define SHA_PLAYER_MANAGER_UTIL_H
 
-#include "discordclient.h"
-#include "dispatcher.h"
-#include "message.h"
-#include "snowflake.h"
+#include <dpp/dpp.h>
 #include <memory>
 #include <vector>
 

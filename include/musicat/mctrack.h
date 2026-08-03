@@ -10,7 +10,7 @@
 
 #define YDLP_DEFAULT_MAX_ENTRIES 20
 
-#include "snowflake.h"
+#include <dpp/snowflake.h>
 #include "yt-search/yt-search.h"
 #include "yt-search/yt-track-info.h"
 

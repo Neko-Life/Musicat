@@ -9,10 +9,9 @@
 #include "musicat/storage.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
-#include "snowflake.h"
-#include "cluster.h"
 // clang-format on
 
+#include <dpp/dpp.h>
 #include <map>
 #include <memory>
 #include <stdio.h>

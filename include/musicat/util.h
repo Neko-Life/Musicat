@@ -4,9 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-#include "role.h"
-#include "snowflake.h"
-#include "discordclient.h"
+#include <dpp/dpp.h>
 
 #ifndef SHA_PLAYER_H
 #warning Missing #include "musicat/player.h"

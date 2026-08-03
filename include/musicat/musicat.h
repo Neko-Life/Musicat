@@ -1,12 +1,10 @@
 #ifndef MUSICAT_H
 #define MUSICAT_H
 
-#include "discordclient.h"
-#include "discordvoiceclient.h"
-#include "message.h"
 #include "nekos-best++.hpp"
 #include <string>
 #include <vector>
+#include <dpp/dpp.h>
 
 #define DISCORD_API_URL "https://discord.com/api/v10"
 
