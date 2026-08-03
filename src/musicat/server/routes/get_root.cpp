@@ -1,7 +1,10 @@
+// clang-format off
+#include "musicat/player_manager.h"
 #include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/service_cache.h"
+// clang-format on
 
 namespace musicat::server::routes
 {
@@ -12,7 +15,7 @@ json_object_has (const nlohmann::json &json, const std::string &key)
     return json.is_object () && json.find (key) != json.end ();
 }
 
-void
+static void
 set_endres_response_with_musicat_data (dpp::cluster *bot, response::end_t &endres, const nlohmann::json &musicat_data)
 {
     endres.response = response::payload ({

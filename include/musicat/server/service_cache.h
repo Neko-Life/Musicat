@@ -3,7 +3,6 @@
 
 #include "nlohmann/json.hpp"
 #include <dpp/dpp.h>
-#include <mutex>
 
 namespace musicat::server::service_cache
 {
