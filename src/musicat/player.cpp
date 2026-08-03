@@ -530,6 +530,8 @@ setup_encoder (Player *p)
         }
 
     ope_encoder_ctl (p->opus_encoder, OPE_SET_PACKET_CALLBACK (handle_packet, p));
+    // set framesize to 60
+    ope_encoder_ctl (p->opus_encoder, OPUS_SET_EXPERT_FRAME_DURATION (OPUS_FRAMESIZE_60_MS));
 
     return status;
 }

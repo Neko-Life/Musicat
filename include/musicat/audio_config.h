@@ -8,7 +8,7 @@
 #define USING_LIBOPUSENC
 
 #ifdef USING_LIBOPUSENC
-#define FRAME_DURATION 20
+#define FRAME_DURATION 60
 #else
 #include <cstdio>
 #include <opus/opus_types.h>
