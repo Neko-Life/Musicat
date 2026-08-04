@@ -1,4 +1,5 @@
 #include "musicat/decoder.h"
+#include "musicat/audio_config.h"
 #include "musicat/config.h"
 
 namespace musicat
@@ -226,60 +227,6 @@ end:
     return ret;
 }
 
-int
-decoder_t::process_frame ()
-{
-    if (got_eof)
-        return AVERROR_EOF;
-
-    int ret = 0;
-    av_frame_unref (out_frame);
-    do
-        {
-            if (ret == AVERROR_EOF && !got_eof)
-                {
-                    got_eof = true;
-                    /* signal EOF to the filtergraph */
-                    if ((ret = av_buffersrc_add_frame_flags (buffersrc_ctx, NULL, 0)) < 0)
-                        {
-                            av_log (NULL, AV_LOG_ERROR, "Error while closing the filtergraph\n");
-                            break;
-                        }
-                }
-
-            ret = av_buffersink_get_frame (buffersink_ctx, out_frame);
-            if (ret == AVERROR_EOF)
-                {
-                    if (!out_frame->nb_samples)
-                        break;
-                    continue;
-                }
-
-            if (ret == AVERROR (EAGAIN))
-                {
-                    // got EAGAIN, feed it
-                    ret = receive_frame ();
-                    if (ret != AVERROR_EOF && ret < 0)
-                        {
-                            print_err (ret);
-                            break;
-                        }
-                    continue;
-                }
-
-            if (ret < 0)
-                {
-                    print_err (ret);
-                }
-
-            // got frame or error
-            break;
-        }
-    while (1);
-
-    return ret;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 decoder_t::decoder_t () { init (); }
@@ -393,6 +340,63 @@ decoder_t::reset_filters ()
     filter_graph = nullptr;
     buffersink_ctx = nullptr;
     buffersrc_ctx = nullptr;
+}
+
+int
+decoder_t::process_frame (AVFrame **out)
+{
+    if (got_eof)
+        return AVERROR_EOF;
+
+    int ret = 0;
+    av_frame_unref (out_frame);
+    do
+        {
+            if (ret == AVERROR_EOF && !got_eof)
+                {
+                    got_eof = true;
+                    /* signal EOF to the filtergraph */
+                    if ((ret = av_buffersrc_add_frame_flags (buffersrc_ctx, NULL, 0)) < 0)
+                        {
+                            av_log (NULL, AV_LOG_ERROR, "Error while closing the filtergraph\n");
+                            break;
+                        }
+                }
+
+            ret = av_buffersink_get_samples (buffersink_ctx, out_frame, FRAME_SIZE);
+            if (ret == AVERROR_EOF)
+                {
+                    if (!out_frame->nb_samples)
+                        break;
+                    continue;
+                }
+
+            if (ret == AVERROR (EAGAIN))
+                {
+                    // got EAGAIN, feed it
+                    ret = receive_frame ();
+                    if (ret != AVERROR_EOF && ret < 0)
+                        {
+                            print_err (ret);
+                            break;
+                        }
+                    continue;
+                }
+
+            if (ret < 0)
+                {
+                    print_err (ret);
+                }
+
+            // got frame or error
+            break;
+        }
+    while (1);
+
+    if (out)
+        *out = out_frame;
+
+    return ret;
 }
 
 int

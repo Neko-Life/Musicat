@@ -160,11 +160,12 @@ target_link_libraries(Shasha
 	dpp
 	opusenc
 	# oggz
-	ogg
+	# ogg
 	avformat
 	avfilter
 	avcodec
 	avutil
+	swresample
 	pq
 	curlpp
 	curl
@@ -225,7 +226,7 @@ add_subdirectory(libs/cppcodec)
 set(INSTALL_DOCS OFF)
 set(INSTALL_PKG_CONFIG_MODULE OFF)
 set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
-add_subdirectory(libs/ogg)
+# add_subdirectory(libs/ogg)
 
 add_subdirectory(src/stream-codec)
 

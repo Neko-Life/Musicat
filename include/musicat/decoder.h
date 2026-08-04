@@ -41,7 +41,6 @@ class decoder_t
     int read_frame ();
     int receive_frame ();
     int init_filters (const char *filters_descr);
-    int process_frame ();
 
   public:
     decoder_t ();
@@ -59,6 +58,7 @@ class decoder_t
     void set_filter_descr (const std::string &filters);
     int init_filters ();
     void reset_filters ();
+    int process_frame (AVFrame **out = nullptr);
     int process_frame (std::vector<uint16_t> &out_vec);
     int seek (int64_t timestamp);
 
