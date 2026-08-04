@@ -5,9 +5,12 @@
 
 // !TODO: http streaming requires this for now
 // until we can implement opus headers builder
-#define USING_LIBOPUSENC
+#define USING_STREAM_CODEC
+// #define USING_LIBOPUSENC
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+#define FRAME_DURATION 60
+#elif defined(USING_LIBOPUSENC)
 #define FRAME_DURATION 60
 #else
 #include <cstdio>

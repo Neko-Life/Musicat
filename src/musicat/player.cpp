@@ -14,7 +14,8 @@
 #include <cstdint>
 #include <memory>
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+#elif defined(USING_LIBOPUSENC)
 #include "opusenc.h"
 #else
 #include "opus/opus.h"
@@ -469,7 +470,20 @@ Player::set_info_message (const dpp::message &message)
     return *this;
 }
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+
+static int
+setup_encoder (Player *p)
+{
+    return 0;
+}
+
+static void
+destroy_encoder (Player *p)
+{
+}
+
+#elif defined(USING_LIBOPUSENC)
 
 static void
 handle_packet (void *guild_player, const unsigned char *packet_ptr, opus_int32 packet_len, opus_uint32 flags)

@@ -210,14 +210,7 @@ stream_codec_t::setup_io_context (void *userdata, int (*ogg_page_callback) (void
 
     // custom IO context
     if (oc->pb)
-        {
-            auto *prev_avio_ctx = oc->pb;
-            if (prev_avio_ctx)
-                {
-                    av_freep (&prev_avio_ctx->buffer);
-                }
-            avio_context_free (&prev_avio_ctx);
-        }
+        fprintf (stderr, "WARNING: Original avio_ctx exists!!!\n");
 
     uint8_t *buffer = NULL, *avio_ctx_buffer = NULL;
     size_t buffer_size, avio_ctx_buffer_size = 4096;
@@ -426,9 +419,9 @@ stream_codec_t::destroy ()
 
     close_stream ();
 
-    if (!(fmt->flags & AVFMT_NOFILE))
-        /* Close the output file. */
-        avio_closep (&oc->pb);
+    if (oc->pb)
+        av_freep (&oc->pb->buffer);
+    avio_context_free (&oc->pb);
 
     /* free the stream */
     avformat_free_context (oc);

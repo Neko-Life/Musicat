@@ -1,5 +1,6 @@
 // clang-format off
 #include "musicat/decoder.h"
+#include "musicat/stream_codec.h"
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
 #include "musicat/player_manager_stream.h"
@@ -11,7 +12,6 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util/fs.h"
-#include "opus_types.h"
 // clang-format on
 
 #include <condition_variable>
@@ -20,6 +20,14 @@
 #include <memory>
 #include <mutex>
 #include <string>
+
+#if !defined(USING_STREAM_CODEC) && !defined(USING_LIBOPUSENC)
+#include "opus_types.h"
+#endif
+
+#ifdef USING_STREAM_CODEC
+#include "musicat/server/stream.h"
+#endif // USING_STREAM_CODEC
 
 #define SEND_AUDIO_ROUTINE()                                                                                                               \
     do                                                                                                                                     \
@@ -63,7 +71,60 @@ handle_effect_chain_change (handle_effect_chain_change_states_t states)
         }
 }
 
-#ifdef USING_LIBOPUSENC
+static void
+calculate_track_progress (Player *guild_player, ssize_t *send_buffer_length)
+{
+    int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
+
+    // take account earwax resampling
+    if (guild_player->earwax)
+        samp_calc -= 3900;
+
+    // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
+    int64_t add
+        = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms) * guild_player->tempo);
+    guild_player->current_track.current_byte += add;
+}
+
+#ifdef USING_STREAM_CODEC
+int
+send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OpusEncoder *)
+{
+    // const bool debug = get_debug_state ();
+    bool running_state = get_running_state ();
+
+    auto *vclient = guild_player ? guild_player->get_voice_client () : nullptr;
+
+    if (!running_state || !vclient || vclient->terminating)
+        return 1;
+
+    const bool debug = get_debug_state ();
+
+    try
+        {
+            vclient->send_audio_opus (send_buffer, *send_buffer_length, FRAME_DURATION);
+        }
+    catch (const dpp::voice_exception &e)
+        {
+            fprintf (stderr, "[player::send_audio_routine ERROR] %s\n", e.what ());
+        }
+
+    *send_buffer_length = 0;
+
+    return 0;
+}
+
+static int
+write_packet (void *guild_id, const uint8_t *buf, int buf_size)
+{
+    if (!buf_size)
+        return AVERROR_EOF;
+
+    server::stream::broadcast (*(dpp::snowflake *)guild_id, buf, buf_size);
+
+    return buf_size;
+}
+#elif defined(USING_LIBOPUSENC)
 
 // this should be called
 // inside the streaming thread
@@ -85,18 +146,7 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
 
     // calculate duration
     if ((*send_buffer_length > 0))
-        {
-            int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
-
-            // take account earwax resampling
-            if (guild_player->earwax)
-                samp_calc -= 3900;
-
-            // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
-            int64_t add = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms)
-                                    * guild_player->tempo);
-            guild_player->current_track.current_byte += add;
-        }
+        calculate_track_progress (guild_player, send_buffer_length);
 
     try
         {
@@ -133,20 +183,8 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
 
     const bool debug = get_debug_state ();
 
-    // calculate duration
     if ((*send_buffer_length > 0))
-        {
-            int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
-
-            // take account earwax resampling
-            if (guild_player->earwax)
-                samp_calc -= 3900;
-
-            // (buffer_size / (sampling rate * channel * (bit width(16) / bit per byte(8))) * 1 second in ms) * opus byte_per_ms
-            int64_t add = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms)
-                                    * guild_player->tempo);
-            guild_player->current_track.current_byte += add;
-        }
+        calculate_track_progress (guild_player, send_buffer_length);
 
     try
         {
@@ -211,6 +249,9 @@ class stream_ctx
     std::chrono::high_resolution_clock::time_point last_run_time;
 
     decoder_t dec;
+#ifdef USING_STREAM_CODEC
+    stream_codec::stream_codec_t streamc;
+#endif // USING_STREAM_CODEC
 
   public:
     dpp::snowflake guild_id;
@@ -287,6 +328,11 @@ class stream_ctx
         if (dec.init_filters () < 0)
             throw 2;
 
+#ifdef USING_STREAM_CODEC
+        if (streamc.init (&guild_id, &write_packet))
+            throw 2;
+#endif // USING_STREAM_CODEC
+
         // precondition done, play
         server::ws::player::publish_playback_info (guild_id);
         server::ws::player::publish_fx (guild_id);
@@ -355,7 +401,45 @@ class stream_ctx
 
         handle_effect_chain_change ({ guild_player, guild_player->current_track, dec });
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+        int ret;
+        AVFrame *frm = nullptr;
+        AVPacket *pkt = nullptr;
+        while (!pkt && ret != AVERROR_EOF && ret >= 0)
+            {
+                while ((ret = streamc.get_packet (&pkt)) == AVERROR (EAGAIN))
+                    {
+                        ret = dec.process_frame (&frm);
+                        if (ret == AVERROR_EOF || ret < 0)
+                            {
+                                // signal eof
+                                streamc.write_pcm_frame (NULL);
+                                break;
+                            }
+
+                        int n = frm->nb_samples * frm->ch_layout.nb_channels;
+                        calculate_track_progress (guild_player.get (), (ssize_t *)&n);
+
+                        if (streamc.write_pcm_frame (frm) == AVERROR_EOF)
+                            break;
+                    }
+            }
+
+        if (ret == AVERROR_EOF || ret < 0)
+            return -1;
+
+        buffer = (uint8_t *)pkt->data;
+        current_read = pkt->size;
+
+        read_size += current_read;
+        total_read += current_read;
+
+        SEND_AUDIO_ROUTINE ();
+
+        if ((ret = streamc.write_packet (pkt)) != 0)
+            fprintf (stderr, "[stream_ctx::run WARN] streamc.write_packet returned (%d)\n", ret);
+
+#elif defined(USING_LIBOPUSENC)
         int ret = dec.process_frame (out);
         if (ret == AVERROR_EOF || ret < 0)
             return -1;
@@ -460,7 +544,9 @@ class stream_ctx
                 send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder);
             }
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+        streamc.end ();
+#elif defined(USING_LIBOPUSENC)
         ope_encoder_drain (guild_player->opus_encoder);
 #endif // USING_LIBOPUSENC
 
