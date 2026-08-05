@@ -203,16 +203,25 @@ endif()
 list(JOIN PYTHON_VERSION_LIST "." PYTHON_VERSION_STR)
 
 if (PYTHON_VERSION_LIST)
-	message("-- INFO: PYTHON_CMD: ${PYTHON_CMD}")
-	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION_STR}")
+	set(HAVE_PYTHON 1)
+
 	list(GET PYTHON_VERSION_LIST 0 PYTHON_VERSION_MAJOR)
 	list(GET PYTHON_VERSION_LIST 1 PYTHON_VERSION_MINOR)
 	list(GET PYTHON_VERSION_LIST 2 PYTHON_VERSION_PATCH)
+
+	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
+
 	if (NOT PYTHON_INCLUDE)
 		set(PYTHON_INCLUDE "/usr/include/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
 	endif()
+	if (NOT PYTHON_LIB)
+		set(PYTHON_LIB "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+	endif()
+
+	message("-- INFO: PYTHON_CMD: ${PYTHON_CMD}")
+	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION_STR}")
 	message("-- INFO: PYTHON_INCLUDE: ${PYTHON_INCLUDE}")
-	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
+	message("-- INFO: PYTHON_LIB: ${PYTHON_LIB}")
 else()
 	set(PYTHON_CMD "")
 	message(WARNING "No python installation detected, ytdlp invocation will fallback using child process")
@@ -295,6 +304,9 @@ set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
 # add_subdirectory(libs/ogg)
 
 add_subdirectory(src/stream-codec)
+if (HAVE_PYTHON)
+	add_subdirectory(src/yt-dlp)
+endif()
 
 # You can also add any other libs you want to use
 
