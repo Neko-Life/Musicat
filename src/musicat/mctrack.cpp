@@ -8,6 +8,11 @@
 #include "musicat/util/base64.h"
 // clang-format on
 
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#include <cstdio>
+#endif // MUSICAT_WITH_PYTHON
+
 #include <fstream>
 
 namespace musicat::player
@@ -376,6 +381,26 @@ fetch_will_block ()
 nlohmann::json
 fetch (const search_option_t &options)
 {
+#ifdef MUSICAT_WITH_PYTHON
+    {
+        nlohmann::json json_res;
+
+        auto throttle = fetch_throttler.throttle ();
+
+        int ret = ytdlp::fetch (options.query, options.max_entries, json_res);
+        if (ret == 0)
+            return json_res;
+        else
+            {
+                fprintf (stderr, "[mctrack::fetch ERROR] ytdlp::fetch() Status: %d\n", ret);
+                fprintf (stderr, "[mctrack::fetch ERROR] query: %s\n", options.query.c_str ());
+                fprintf (stderr, "[mctrack::fetch ERROR] max_entries: %d\n", options.max_entries);
+
+                // fallback to child process
+            }
+    }
+#endif // MUSICAT_WITH_PYTHON
+
     return do_fetch (options);
 }
 

@@ -24,10 +24,15 @@ static bool has_pArgs = false;
 static bool has_module = false;
 static bool has_pFunc = false;
 
+static bool initialized = false;
+
 // should call shutdown if returns -2
 int
 init (const char *program_name, const std::string &pwd, const std::string &lib_path)
 {
+    if (initialized)
+        return 0;
+
     const std::string init_script = "import sys\n"
                                     "sys.path.insert(0, '"
                                     + pwd
@@ -74,6 +79,7 @@ init (const char *program_name, const std::string &pwd, const std::string &lib_p
     pArgs = PyTuple_New (2);
     has_pArgs = true;
 
+    initialized = true;
     return 0;
 err:
     return -2;
@@ -86,6 +92,9 @@ exception:
 int
 fetch (const std::string &query, int max_entries, nlohmann::json &out)
 {
+    if (!initialized)
+        return -1;
+
     // set url
     const std::string strurl = std::string ("ytsearch") + std::to_string (max_entries) + ":" + query;
     pValue = PyUnicode_DecodeFSDefaultAndSize (strurl.c_str (), strurl.size ());
@@ -123,6 +132,9 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
 int
 shutdown ()
 {
+    if (!initialized)
+        return -1;
+
     int ret = 0;
     if (has_pArgs)
         Py_DECREF (pArgs);
@@ -133,6 +145,7 @@ shutdown ()
 
     ret = Py_FinalizeEx ();
 
+    initialized = false;
     return ret;
 }
 

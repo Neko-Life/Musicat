@@ -27,6 +27,10 @@
 #include <mutex>
 #include <sys/wait.h>
 
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#endif // MUSICAT_WITH_PYTHON
+
 #define RUN_TESTS 0
 
 #if RUN_TESTS
@@ -895,6 +899,11 @@ run (int argc, const char *argv[])
     tests::test_ytdlp ();
 #endif
 
+#ifdef MUSICAT_WITH_PYTHON
+    if (ytdlp::init (argv[0], "", get_ytdlp_lib_path ()) == -2)
+        ytdlp::shutdown ();
+#endif // MUSICAT_WITH_PYTHON
+
     time (&last_gc);
     time (&last_5sec);
     main_loop (get_running_state);
@@ -922,6 +931,10 @@ run (int argc, const char *argv[])
 
     thread_manager::join_all ();
     database::shutdown ();
+
+#ifdef MUSICAT_WITH_PYTHON
+    ytdlp::shutdown ();
+#endif // MUSICAT_WITH_PYTHON
 
     return 0;
 }
