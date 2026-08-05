@@ -1,6 +1,5 @@
 #include "musicat/decoder.h"
 #include "musicat/audio_config.h"
-#include "musicat/config.h"
 
 namespace musicat
 {

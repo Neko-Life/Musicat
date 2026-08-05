@@ -1,7 +1,6 @@
 #ifndef MUSICAT_SERVER_H
 #define MUSICAT_SERVER_H
 
-#include "musicat/config.h" // UWS_HTTPRESPONSE_NO_WRITEMARK
 #include <mutex>
 #include <string>
 #include <uWebSockets/src/App.h>

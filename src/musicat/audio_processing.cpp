@@ -1,7 +1,6 @@
 #include "musicat/audio_processing.h"
 #include "musicat/child.h"
 #include "musicat/child/command.h"
-#include "musicat/config.h"
 #include "musicat/helper_processor.h"
 #include "musicat/musicat.h"
 #include <fcntl.h>
