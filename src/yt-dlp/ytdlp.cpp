@@ -76,6 +76,7 @@ struct py_ctx
         if (PyStatus_Exception (status))
             goto exception;
         PyConfig_Clear (&config);
+        initialized = true;
 
         PyRun_SimpleString (init_script.c_str ());
         pName = PyUnicode_DecodeFSDefault (module);
@@ -85,7 +86,7 @@ struct py_ctx
         if (!pModule)
             {
                 PyErr_Print ();
-                fprintf (stderr, "Failed to load \"%s\"\n", module);
+                fprintf (stderr, "[py_ctx::init ERROR] Failed to load \"%s\"\n", module);
                 goto err;
             }
         has_module = true;
@@ -94,7 +95,7 @@ struct py_ctx
 
         if (!pFunc || !PyCallable_Check (pFunc))
             {
-                fprintf (stderr, "Module \"%s\" missing run function\n", module);
+                fprintf (stderr, "[py_ctx::init ERROR] Module \"%s\" missing run function\n", module);
                 goto err;
             }
         has_pFunc = true;
@@ -102,7 +103,6 @@ struct py_ctx
         pArgs = PyTuple_New (3);
         has_pArgs = true;
 
-        initialized = true;
         return 0;
     err:
         return -2;
@@ -145,7 +145,7 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
     ctx.pValue = PyUnicode_DecodeFSDefaultAndSize (query.c_str (), query.size ());
     if (!ctx.pValue)
         {
-            fprintf (stderr, "Cannot convert argument for url\n");
+            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for url\n");
             return -2;
         }
     PyTuple_SetItem (ctx.pArgs, 0, ctx.pValue);
@@ -154,7 +154,7 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
     ctx.pValue = PyLong_FromLong (max_entries);
     if (!ctx.pValue)
         {
-            fprintf (stderr, "Cannot convert argument for max_entries\n");
+            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for max_entries\n");
             return -2;
         }
     PyTuple_SetItem (ctx.pArgs, 1, ctx.pValue);
@@ -163,7 +163,7 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
     ctx.pValue = PyLong_FromLong (0);
     if (!ctx.pValue)
         {
-            fprintf (stderr, "Cannot convert argument for print_stdout\n");
+            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for print_stdout\n");
             return -2;
         }
     PyTuple_SetItem (ctx.pArgs, 2, ctx.pValue);
@@ -172,7 +172,7 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
     if (ctx.pValue == NULL)
         {
             PyErr_Print ();
-            fprintf (stderr, "Calling run failed with query: `%s`\n", query.c_str ());
+            fprintf (stderr, "[ytdlp::fetch ERROR] Calling run failed with query: `%s`\n", query.c_str ());
             return -2;
         }
 
