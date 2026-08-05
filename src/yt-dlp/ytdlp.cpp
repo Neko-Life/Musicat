@@ -30,7 +30,7 @@ set_init_params (const std::string &_program_name, const std::string &_pwd, cons
 static util::throttler_t ctx_throttler{ 1 };
 
 // !TODO: this can't be multithreaded, NEED MULTITHREAD!
-struct py_ctx
+class py_ctx
 {
     PyStatus status;
     PyConfig config;
@@ -41,17 +41,26 @@ struct py_ctx
     bool has_module = false;
     bool has_pFunc = false;
 
+  public:
+    int argc = 0;
     bool initialized = false;
 
     bool error;
-    py_ctx () : error (false)
+
+    py_ctx (int _argc) : error (false)
     {
+        argc = _argc;
         if (init (program_name.c_str (), pwd, lib_path) != 0)
             error = true;
     }
     ~py_ctx () { shutdown (); }
 
-    // should call shutdown if returns -2
+    py_ctx (const py_ctx &) = delete;
+    py_ctx (py_ctx &&) = delete;
+    py_ctx &operator= (const py_ctx &) = delete;
+    py_ctx &operator= (py_ctx &&) = delete;
+
+  private:
     int
     init (const char *program_name, const std::string &pwd, const std::string &lib_path)
     {
@@ -100,7 +109,7 @@ struct py_ctx
             }
         has_pFunc = true;
 
-        pArgs = PyTuple_New (3);
+        pArgs = PyTuple_New (argc);
         has_pArgs = true;
 
         return 0;
@@ -131,54 +140,60 @@ struct py_ctx
         initialized = false;
         return ret;
     }
+
+  public:
+    int
+    set_arg (Py_ssize_t idx, PyObject *val)
+    {
+        pValue = val;
+        if (!pValue)
+            {
+                fprintf (stderr, "[py_ctx::set_arg ERROR] Cannot convert argument for index (%ld)\n", idx);
+                return -2;
+            }
+        PyTuple_SetItem (pArgs, idx, pValue);
+        return 0;
+    }
+
+    int
+    run (std::function<void (PyObject *)> &&cb)
+    {
+        pValue = PyObject_CallObject (pFunc, pArgs);
+        if (pValue == NULL)
+            {
+                PyErr_Print ();
+                fprintf (stderr, "[py_ctx::run ERROR] Calling run failed\n");
+                return -2;
+            }
+
+        cb (pValue);
+
+        Py_DECREF (pValue);
+        return 0;
+    }
 };
 
 int
 fetch (const std::string &query, int max_entries, nlohmann::json &out)
 {
     auto throttler = ctx_throttler.throttle ();
-    py_ctx ctx;
+    py_ctx ctx{ 3 };
     if (ctx.error)
         return -1;
 
     // set url
-    ctx.pValue = PyUnicode_DecodeFSDefaultAndSize (query.c_str (), query.size ());
-    if (!ctx.pValue)
-        {
-            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for url\n");
-            return -2;
-        }
-    PyTuple_SetItem (ctx.pArgs, 0, ctx.pValue);
+    ctx.set_arg (0, PyUnicode_DecodeFSDefaultAndSize (query.c_str (), query.size ()));
+    // set max_entries
+    ctx.set_arg (1, PyLong_FromLong (max_entries));
+    // set print_stdout
+    ctx.set_arg (2, PyLong_FromLong (0));
 
-    // set max_entries here
-    ctx.pValue = PyLong_FromLong (max_entries);
-    if (!ctx.pValue)
-        {
-            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for max_entries\n");
-            return -2;
-        }
-    PyTuple_SetItem (ctx.pArgs, 1, ctx.pValue);
-
-    // set print_stdout here
-    ctx.pValue = PyLong_FromLong (0);
-    if (!ctx.pValue)
-        {
-            fprintf (stderr, "[ytdlp::fetch ERROR] Cannot convert argument for print_stdout\n");
-            return -2;
-        }
-    PyTuple_SetItem (ctx.pArgs, 2, ctx.pValue);
-
-    ctx.pValue = PyObject_CallObject (ctx.pFunc, ctx.pArgs);
-    if (ctx.pValue == NULL)
-        {
-            PyErr_Print ();
-            fprintf (stderr, "[ytdlp::fetch ERROR] Calling run failed with query: `%s`\n", query.c_str ());
-            return -2;
-        }
-
-    const char *res = PyUnicode_AsUTF8AndSize (ctx.pValue, NULL);
-    out = nlohmann::json::parse (res);
-    Py_DECREF (ctx.pValue);
+    ctx.run (
+        [&out] (PyObject *val)
+            {
+                const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
+                out = nlohmann::json::parse (res);
+            });
 
     return 0;
 }

@@ -32,7 +32,10 @@ def run(url, max_entries, print_stdout, should_process = False):
                 sanitized_info['entries'] = results
 
             d = json.dumps(sanitized_info);
-            if (print_stdout == 1) print(d)
+
+            if print_stdout == 1:
+                print(d)
+
             return d
 
         except Exception as e:
