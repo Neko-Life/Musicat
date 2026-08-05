@@ -740,10 +740,6 @@ main_loop (bool (*get_r_s) ())
 int
 run (int argc, const char *argv[])
 {
-    signal (SIGINT, on_sigint);
-    signal (SIGTERM, on_sigint);
-    signal (SIGPIPE, SIG_IGN);
-
     set_running_state (true);
     dpp::utility::set_thread_name ("mc/main");
 
@@ -786,6 +782,14 @@ run (int argc, const char *argv[])
                                                       true,      conf_cache_policy,
 
                                                       12,        4 };
+
+#ifdef MUSICAT_WITH_PYTHON
+    ytdlp::set_init_params (argv[0], "", get_ytdlp_lib_path ());
+#endif // MUSICAT_WITH_PYTHON
+
+    signal (SIGINT, on_sigint);
+    signal (SIGTERM, on_sigint);
+    signal (SIGPIPE, SIG_IGN);
 
     if (argc > 1)
         {
@@ -899,11 +903,6 @@ run (int argc, const char *argv[])
     tests::test_ytdlp ();
 #endif
 
-#ifdef MUSICAT_WITH_PYTHON
-    if (ytdlp::init (argv[0], "", get_ytdlp_lib_path ()) == -2)
-        ytdlp::shutdown ();
-#endif // MUSICAT_WITH_PYTHON
-
     time (&last_gc);
     time (&last_5sec);
     main_loop (get_running_state);
@@ -931,10 +930,6 @@ run (int argc, const char *argv[])
 
     thread_manager::join_all ();
     database::shutdown ();
-
-#ifdef MUSICAT_WITH_PYTHON
-    ytdlp::shutdown ();
-#endif // MUSICAT_WITH_PYTHON
 
     return 0;
 }

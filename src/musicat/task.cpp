@@ -1,7 +1,10 @@
+#include <condition_variable>
+#include <cstdint>
 #include <functional>
 
 #include "dpp/timer.h"
 #include "musicat/musicat.h"
+#include "musicat/util.h"
 
 namespace musicat::task
 {
@@ -21,16 +24,19 @@ struct blocking_task_t
 {
     std::function<void ()> run;
     std::function<bool ()> will_block;
+    uint64_t id;
+    bool on_main;
 };
 
 static std::deque<blocking_task_t> blocking_tasks;
 static std::mutex blocking_tasks_m;
+static std::condition_variable blocking_tasks_cv;
 
 void
 run_may_block (const std::function<void ()> &&fn, const std::function<bool ()> &&check_blocking)
 {
     std::lock_guard lk (blocking_tasks_m);
-    blocking_tasks.push_back ({ fn, check_blocking });
+    blocking_tasks.push_back ({ fn, check_blocking, 0, false });
 }
 
 // main loop routine
@@ -55,7 +61,13 @@ check_blocking_task ()
     }
 
     for (auto &task : tasks_ready)
-        run (std::move (task.run));
+        if (task.on_main)
+            {
+                task.run ();
+                blocking_tasks_cv.notify_all ();
+            }
+        else
+            run (std::move (task.run));
 }
 
 void
@@ -77,6 +89,22 @@ run_once (const std::function<void ()> &&fn, uint64_t after)
                 fn ();
             },
         after);
+}
+
+void
+run_on_main_and_wait (const std::function<void ()> &&fn)
+{
+    uint64_t cts = (uint64_t)util::get_current_ts () + util::get_random_number ();
+    std::unique_lock lk (blocking_tasks_m);
+    blocking_tasks.push_back ({ fn, [] () { return false; }, cts, true });
+
+    blocking_tasks_cv.wait (lk,
+                            [cts] ()
+                                {
+                                    return std::find_if (blocking_tasks.begin (), blocking_tasks.end (),
+                                                         [cts] (blocking_task_t &task) { return task.id == cts; })
+                                           == blocking_tasks.end ();
+                                });
 }
 
 } // namespace musicat::task

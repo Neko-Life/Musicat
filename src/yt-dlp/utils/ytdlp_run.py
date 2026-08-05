@@ -2,7 +2,7 @@ import json
 from utils.common import printerr
 import yt_dlp
 
-def run(url, max_entries, should_process = False):
+def run(url, max_entries, print_stdout, should_process = False):
     # ℹ️ See help(yt_dlp.YoutubeDL) for a list of
     # available options and public functions
     ydl_opts = {'logtostderr': True}
@@ -32,7 +32,7 @@ def run(url, max_entries, should_process = False):
                 sanitized_info['entries'] = results
 
             d = json.dumps(sanitized_info);
-            print(d)
+            if (print_stdout == 1) print(d)
             return d
 
         except Exception as e:

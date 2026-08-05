@@ -1,0 +1,260 @@
+#ifdef MUSICAT_WITH_PYTHON
+
+#define PY_SSIZE_T_CLEAN
+#include "nlohmann/json.hpp"
+#include <Python.h>
+
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unistd.h>
+
+namespace musicat::ytdlp
+{
+
+#define INIT_SCRIPT(PWD_LIB, LIB_PATH)
+
+inline constexpr const char module[] = "utils.ytdlp_run";
+
+struct py_ctx_t
+{
+    PyStatus status;
+    PyConfig config;
+
+    PyObject *pName, *pModule, *pFunc;
+    PyObject *pArgs, *pValue;
+
+    bool has_pArgs;
+    bool has_module;
+    bool has_pFunc;
+    bool initialized;
+
+    py_ctx_t ()
+    {
+        has_pArgs = false;
+        has_module = false;
+        has_pFunc = false;
+        initialized = false;
+    }
+
+    py_ctx_t (const py_ctx_t &) = delete;
+    py_ctx_t (py_ctx_t &&) = delete;
+    py_ctx_t &operator= (py_ctx_t &) = delete;
+    py_ctx_t &operator= (py_ctx_t &&) = delete;
+};
+
+static std::map<std::__thread_id, py_ctx_t *> ctx_map;
+static std::mutex ctx_map_m;
+
+static std::string program_name;
+static std::string pwd;
+static std::string lib_path;
+
+void
+set_init_params (const std::string &_program_name, const std::string &_pwd, const std::string &_lib_path)
+{
+    program_name = _program_name;
+    pwd = _pwd;
+    lib_path = _lib_path;
+}
+
+static py_ctx_t *
+get_ctx ()
+{
+    auto tid = std::this_thread::get_id ();
+    std::lock_guard lk (ctx_map_m);
+    auto i = ctx_map.find (tid);
+    if (i == ctx_map.end ())
+        return nullptr;
+    return i->second;
+}
+
+static int
+delete_ctx ()
+{
+    auto tid = std::this_thread::get_id ();
+    std::lock_guard lk (ctx_map_m);
+    auto i = ctx_map.find (tid);
+    if (i == ctx_map.end ())
+        return 1;
+    delete i->second;
+    ctx_map.erase (i);
+    return 0;
+}
+
+static py_ctx_t *
+get_or_create_ctx ()
+{
+    py_ctx_t *ctx = get_ctx ();
+    if (!ctx)
+        {
+            auto tid = std::this_thread::get_id ();
+            std::lock_guard lk (ctx_map_m);
+            ctx = new py_ctx_t{};
+            ctx_map[tid] = ctx;
+        }
+    return ctx;
+}
+
+// should call shutdown if returns -2
+static int
+init ()
+{
+    py_ctx_t *ctx = get_or_create_ctx ();
+    if (ctx->initialized)
+        return 0;
+
+    const std::string init_script = "import sys\n"
+                                    "sys.path.insert(0, '"
+                                    + pwd
+                                    + "')\n"
+                                      "sys.path.insert(0, '"
+                                    + lib_path + "')\n";
+
+    PyConfig_InitPythonConfig (&ctx->config);
+
+    /* optional but recommended */
+    ctx->status = PyConfig_SetBytesString (&ctx->config, &ctx->config.program_name, program_name.c_str ());
+    if (PyStatus_Exception (ctx->status))
+        goto exception;
+
+    ctx->status = Py_InitializeFromConfig (&ctx->config);
+    if (PyStatus_Exception (ctx->status))
+        goto exception;
+    PyConfig_Clear (&ctx->config);
+
+    ctx->initialized = true;
+
+    PyRun_SimpleString (init_script.c_str ());
+    ctx->pName = PyUnicode_DecodeFSDefault (module);
+    ctx->pModule = PyImport_Import (ctx->pName);
+    Py_DECREF (ctx->pName);
+
+    if (!ctx->pModule)
+        {
+            PyErr_Print ();
+            fprintf (stderr, "Failed to load \"%s\"\n", module);
+            goto err;
+        }
+    ctx->has_module = true;
+
+    ctx->pFunc = PyObject_GetAttrString (ctx->pModule, "run");
+
+    if (!ctx->pFunc || !PyCallable_Check (ctx->pFunc))
+        {
+            fprintf (stderr, "Module \"%s\" missing run function\n", module);
+            goto err;
+        }
+    ctx->has_pFunc = true;
+
+    ctx->pArgs = PyTuple_New (2);
+    ctx->has_pArgs = true;
+    return 0;
+err:
+    return -2;
+exception:
+    PyConfig_Clear (&ctx->config);
+    Py_ExitStatusException (ctx->status);
+    return -1;
+}
+
+static int
+shutdown_ctx (py_ctx_t *ctx)
+{
+    if (!ctx->initialized)
+        return 0;
+
+    int ret = 0;
+
+    if (ctx->has_pArgs)
+        Py_DECREF (ctx->pArgs);
+    if (ctx->has_pFunc)
+        Py_DECREF (ctx->pFunc);
+    if (ctx->has_module)
+        Py_DECREF (ctx->pModule);
+
+    ret = Py_FinalizeEx ();
+
+    return ret;
+}
+
+static int
+shutdown_ctx ()
+{
+    py_ctx_t *ctx = get_ctx ();
+    if (!ctx)
+        return 0;
+
+    if (!ctx->initialized)
+        {
+            delete_ctx ();
+            return 0;
+        }
+
+    return shutdown_ctx (ctx);
+}
+
+int
+fetch (const std::string query, int max_entries, nlohmann::json &out)
+{
+    py_ctx_t *ctx = get_or_create_ctx ();
+    if (!ctx->initialized)
+        {
+            if (init () == -2)
+                {
+                    shutdown_ctx ();
+                    delete_ctx ();
+                    return -2;
+                }
+        }
+
+    // set url
+    ctx->pValue = PyUnicode_DecodeFSDefaultAndSize (query.c_str (), query.size ());
+    if (!ctx->pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for url\n");
+            return -2;
+        }
+    PyTuple_SetItem (ctx->pArgs, 0, ctx->pValue);
+
+    // set max_entries here
+    ctx->pValue = PyLong_FromLong (max_entries);
+    if (!ctx->pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for max_entries\n");
+            return -2;
+        }
+    PyTuple_SetItem (ctx->pArgs, 1, ctx->pValue);
+
+    ctx->pValue = PyObject_CallObject (ctx->pFunc, ctx->pArgs);
+    if (ctx->pValue == NULL)
+        {
+            PyErr_Print ();
+            fprintf (stderr, "Calling run failed with query: `%s`\n", query.c_str ());
+            return -2;
+        }
+
+    const char *res = PyUnicode_AsUTF8AndSize (ctx->pValue, NULL);
+    out = nlohmann::json::parse (res);
+    Py_DECREF (ctx->pValue);
+
+    return 0;
+}
+
+int
+shutdown ()
+{
+    std::lock_guard lk (ctx_map_m);
+    auto i = ctx_map.begin ();
+    while (i != ctx_map.end ())
+        {
+            shutdown_ctx (i->second);
+            delete i->second;
+            i = ctx_map.erase (i);
+        }
+    return 0;
+}
+
+} // namespace musicat::ytdlp
+
+#endif // MUSICAT_WITH_PYTHON

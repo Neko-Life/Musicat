@@ -9,6 +9,7 @@
 // clang-format on
 
 #ifdef MUSICAT_WITH_PYTHON
+#include "musicat/task.h"
 #include "musicat/ytdlp.h"
 #include <cstdio>
 #endif // MUSICAT_WITH_PYTHON
@@ -247,7 +248,8 @@ is_short (const player::MCTrack &track)
     return is_url_shorts (mctrack::get_url (track));
 }
 
-static util::throttler_t fetch_throttler;
+// !TODO: update this when fetching can be multithreaded!
+static util::throttler_t fetch_throttler{ 1 };
 
 static nlohmann::json
 do_fetch (const search_option_t &options)
@@ -387,7 +389,15 @@ fetch (const search_option_t &options)
 
         auto throttle = fetch_throttler.throttle ();
 
-        int ret = ytdlp::fetch (options.query, options.max_entries, json_res);
+        std::string q = options.query;
+        if (!options.is_url)
+            q = "ytsearch" + std::to_string (options.max_entries) + ":" + q;
+
+        int ret = 0;
+
+        // task::run_on_main_and_wait ([&options, &q, &ret, &json_res] () { ret = ytdlp::fetch (q, options.max_entries, json_res); });
+
+        ret = ytdlp::fetch (q, options.max_entries, json_res);
         if (ret == 0)
             return json_res;
         else

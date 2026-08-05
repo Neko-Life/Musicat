@@ -83,4 +83,4 @@ printerr("ARG_URL:", ARG_URL)
 sys.path.insert(0, LIB_PATH)
 from utils.ytdlp_run import run
 
-run(ARG_URL, MAX_ENTRIES, DEFAULT_YTDLP_PROCESS_ARG)
+run(ARG_URL, MAX_ENTRIES, 1, DEFAULT_YTDLP_PROCESS_ARG)
