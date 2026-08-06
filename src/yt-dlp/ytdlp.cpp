@@ -11,8 +11,6 @@
 namespace musicat::ytdlp
 {
 
-#define INIT_SCRIPT(PWD_LIB, LIB_PATH)
-
 inline constexpr const char module[] = "utils.ytdlp_run";
 
 static std::string program_name;
@@ -74,7 +72,8 @@ class py_ctx
                                           "sys.path.insert(0, '"
                                         + lib_path + "')\n";
 
-        PyConfig_InitIsolatedConfig (&config);
+        PyConfig_InitPythonConfig (&config);
+        config.isolated = 1;
 
         /* optional but recommended */
         status = PyConfig_SetBytesString (&config, &config.program_name, program_name);
@@ -182,7 +181,7 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
         return -1;
 
     // set url
-    ctx.set_arg (0, PyUnicode_DecodeFSDefaultAndSize (query.c_str (), query.size ()));
+    ctx.set_arg (0, PyUnicode_FromStringAndSize (query.c_str (), query.size ()));
     // set max_entries
     ctx.set_arg (1, PyLong_FromLong (max_entries));
     // set print_stdout
@@ -192,13 +191,15 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
         ctx.run (
             [&out] (PyObject *val)
                 {
+                    if (Py_IsNone (val))
+                        return;
                     const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
                     out = nlohmann::json::parse (res);
                 });
     else
         {
             // set outfile
-            ctx.set_arg (3, PyUnicode_DecodeFSDefaultAndSize (outfile.c_str (), outfile.size ()));
+            ctx.set_arg (3, PyUnicode_FromStringAndSize (outfile.c_str (), outfile.size ()));
             ctx.run ([] (PyObject *val) {});
         }
 

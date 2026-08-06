@@ -417,7 +417,8 @@ class stream_ctx
                                 break;
                             }
 
-                        int n = frm->nb_samples * frm->ch_layout.nb_channels;
+                        // samples * channel * size per sample
+                        int n = frm->nb_samples * frm->ch_layout.nb_channels * sizeof (opus_int16);
                         calculate_track_progress (guild_player.get (), (ssize_t *)&n);
 
                         if (streamc.write_pcm_frame (frm) == AVERROR_EOF)
