@@ -286,12 +286,12 @@ class py_ctx
 };
 
 // this still doesn't support multithread
-static py_ctx ctx{ 5 };
 static util::throttler_t ctx_throttler{ 1 };
 
 static int
 do_fetch (uint64_t id, const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
 {
+    py_ctx ctx{ 5 };
     ctx.init ();
     if (ctx.error)
         return -1;
@@ -327,12 +327,8 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
     // !TODO: DO IT MULTITHREADED!!!
     auto id = util::get_random_number ();
     auto throttler = ctx_throttler.throttle ();
-    task::run_on_main (
-        [&] ()
-            {
-                if (do_fetch (id, query, max_entries, out, outfile))
-                    set_output (id, nullptr);
-            });
+    if (do_fetch (id, query, max_entries, out, outfile))
+        set_output (id, nullptr);
     ret = get_output (id, out);
     return ret;
 }
