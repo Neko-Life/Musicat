@@ -472,7 +472,25 @@ end:
 int
 main (int argc, char *argv[])
 {
-    return shared_main (argc, argv, run);
+    return shared_main (argc, argv,
+                        [] ()
+                            {
+                                run ();
+
+                                // PyInterpreterState *interp;
+                                // /* The return value of PyInterpreterState_Get() from the
+                                //    function that created this thread. */
+                                // interp = PyInterpreterState_Get ();
+                                // std::thread t (
+                                //     [&] ()
+                                //         {
+                                //             PyThreadState *tstate = PyThreadState_New (interp);
+                                //             PyThreadState_Swap (tstate);
+                                //
+                                //             PyThreadState_Clear (tstate);
+                                //             PyThreadState_DeleteCurrent ();
+                                //         });
+                            });
 }
 } // namespace MusicatExecutor
 

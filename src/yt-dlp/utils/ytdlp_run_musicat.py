@@ -1,9 +1,10 @@
 from utils.common import printerr
 import utils.ytdlp_run
 
+# !TODO: !!! FIXME: THIS DOESN'T WORK, INCAPABLE OF ASYNC !!!
 import concurrent.futures
 # from threading import Thread
-from multiprocessing import Pool
+# from multiprocessing import Process
 
 import musicat
 
@@ -30,5 +31,8 @@ def run(id, url, max_entries, print_stdout, outfile = False):
     # if executor == None:
     #     executor = Pool(8)
     # executor.apply_async(worker_run, id, url, max_entries, print_stdout, outfile)
+
+    # Process(target=worker_run, args=(id, url, max_entries, print_stdout, outfile)).start()
+    # Process(target=print, args=(id, url, max_entries, print_stdout, outfile)).start()
 
     # worker_run(id, url, max_entries, print_stdout, outfile)
