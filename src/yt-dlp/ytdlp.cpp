@@ -57,16 +57,18 @@ namespace musicat::ytdlp
 
 namespace MusicatModule
 {
-static PyObject *ModuleError = NULL;
 
 static int
 musicat_module_exec (PyObject *m)
 {
-    if (ModuleError != NULL)
-        {
-            PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
-            return -1;
-        }
+    // if (ModuleError != NULL)
+    //     {
+    //         PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
+    //         return -1;
+    //     }
+
+    // reinitialization is currently possible
+    PyObject *ModuleError = NULL;
 
     ModuleError = PyErr_NewException ("Musicat.error", NULL, NULL);
     if (PyModule_AddObjectRef (m, "MusicatError", ModuleError) < 0)
@@ -111,6 +113,11 @@ PyMODINIT_FUNC
 PyInit_musicat (void)
 {
     return PyModuleDef_Init (&musicat_module);
+}
+
+static void
+module_destroy (PyObject *self, PyObject *args)
+{
 }
 } // namespace MusicatModule
 

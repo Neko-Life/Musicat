@@ -63,9 +63,9 @@ def run(url, max_entries, print_stdout, outfile = False):
 
                 for i, element in enumerate(info['entries']):
                     results.append(element)
-                    # count += 1
-                    # if count >= max_entries:
-                    #     break
+                    count += 1
+                    if count >= max_entries:
+                        break
 
                 sanitized_info['entries'] = results
 
