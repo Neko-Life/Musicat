@@ -7,9 +7,6 @@ from utils.common import printerr  # , create_dir_name
 # first page = 25
 # +1 page: 49
 DEFAULT_PLAYLIST_ENTRY_PER_PAGE = 25
-# True will download the whole playlist (usually 6k+ entries)
-# then proceed to get detailed info for each entries!
-DEFAULT_YTDLP_PROCESS_ARG = False
 
 # if len(sys.argv) < 3:
 #     printerr(r'args: <music_folder_path> <url>')
@@ -19,10 +16,11 @@ argvlen = len(sys.argv)
 if argvlen < 2:
     printerr(
         'Usage: python ytdlp.py <url> [OPTIONS...]\nOptions:\n\t--ytdlp-dir <path>\n\t--max-entries <int>\tDefault',
-        DEFAULT_PLAYLIST_ENTRY_PER_PAGE)
+        DEFAULT_PLAYLIST_ENTRY_PER_PAGE, '\n\t--outfile </path/to/outfile.opus>')
     exit(1)
 
 MAX_ENTRIES = DEFAULT_PLAYLIST_ENTRY_PER_PAGE
+OUTFILE = False
 
 
 def exitNoArgVal(arg):
@@ -66,6 +64,12 @@ for i in range(1, argvlen):
         skipNext = True
 
         LIB_PATH = argVal
+    elif (arg == "--outfile"):
+        if not argVal or not len(argVal):
+            exitNoArgVal(arg)
+        skipNext = True
+
+        OUTFILE = argVal
     elif not skipNext:
         ARG_URL = arg
     else:
@@ -78,9 +82,16 @@ if not len(LIB_PATH):
     LIB_PATH = ytdlp_dir
 
 printerr("LIB_PATH:", LIB_PATH)
+printerr("MAX_ENTRIES:", MAX_ENTRIES)
+printerr("OUTFILE:", OUTFILE)
 printerr("ARG_URL:", ARG_URL)
 
 sys.path.insert(0, LIB_PATH)
 from utils.ytdlp_run import run
 
-run(ARG_URL, MAX_ENTRIES, 1, DEFAULT_YTDLP_PROCESS_ARG)
+run(ARG_URL, MAX_ENTRIES, 1, OUTFILE)
+
+# test_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+# https://www.youtube.com/watch?v=YXZH-eBtmqQ
+# test_outfile = 'out.opus'
+# run(test_url, MAX_ENTRIES, 1, test_outfile)
