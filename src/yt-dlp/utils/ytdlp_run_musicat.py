@@ -8,7 +8,7 @@ import concurrent.futures
 
 import musicat
 
-executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='musicat_worker')
+executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='mc/ytdlp')
 
 # executor = None
 
