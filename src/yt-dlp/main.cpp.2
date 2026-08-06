@@ -1,0 +1,218 @@
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+#include <csignal>
+#include <string>
+#include <thread>
+#include <unistd.h>
+
+#define YTDLP_LIB "../../../libs/yt-dlp"
+#define PWD_LIB "../../../src/yt-dlp"
+
+#define INIT_SCRIPT(LIB_PATH)                                                                                                              \
+    "import sys\n"                                                                                                                         \
+    "sys.path.insert(0, '" PWD_LIB "')\n"                                                                                                  \
+    "sys.path.insert(0, '" LIB_PATH "')\n"
+
+static const char module[] = "utils.ytdlp_run";
+
+struct ret_hook_t
+{
+    const std::function<void ()> fn;
+
+    ret_hook_t (const std::function<void ()> &&_fn) : fn (_fn) {}
+
+    ~ret_hook_t () { fn (); }
+};
+
+int
+setup_pModule (PyObject **pName, PyObject **pModule, PyObject **pFunc, bool &has_module, bool &has_pFunc)
+{
+    *pName = PyUnicode_DecodeFSDefault (module);
+    *pModule = PyImport_Import (*pName);
+    Py_DECREF (*pName);
+
+    if (!*pModule)
+        {
+            PyErr_Print ();
+            fprintf (stderr, "Failed to load \"%s\"\n", module);
+            return 1;
+        }
+    has_module = true;
+
+    *pFunc = PyObject_GetAttrString (*pModule, "run");
+
+    if (!*pFunc || !PyCallable_Check (*pFunc))
+        {
+            fprintf (stderr, "Module \"%s\" missing run function\n", module);
+            return 1;
+        }
+    has_pFunc = true;
+
+    return 0;
+}
+
+int
+setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs)
+{
+    *pArgs = PyTuple_New (3);
+    has_pArgs = true;
+
+    // set max_entries here
+    *pValue = PyLong_FromLong (2);
+    if (!*pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for max_entries\n");
+            return 1;
+        }
+    /* pValue reference stolen here: */
+    PyTuple_SetItem (*pArgs, 1, *pValue);
+
+    *pValue = PyLong_FromLong (0);
+    if (!*pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for print_stdout\n");
+            return 1;
+        }
+    /* pValue reference stolen here: */
+    PyTuple_SetItem (*pArgs, 2, *pValue);
+    return 0;
+}
+
+int
+main (int argc, char *argv[])
+{
+    PyStatus status;
+    PyConfig config;
+    PyThreadState *main_thread_state;
+    PyConfig_InitPythonConfig (&config);
+    config.isolated = 1;
+
+    PyObject *pName, *pModule, *pFunc;
+    PyObject *pArgs, *pValue;
+    bool has_pArgs = false;
+    bool has_module = false;
+    bool has_pFunc = false;
+    bool end = false;
+
+    char c[1024 + 1];
+    size_t s = 0;
+
+    /* optional but recommended */
+    status = PyConfig_SetBytesString (&config, &config.program_name, argv[0]);
+    if (PyStatus_Exception (status))
+        goto exception;
+
+    status = Py_InitializeFromConfig (&config);
+    if (PyStatus_Exception (status))
+        goto exception;
+
+    // done with configuration here
+    PyConfig_Clear (&config);
+    main_thread_state = PyThreadState_Get ();
+
+    PyRun_SimpleString (INIT_SCRIPT (YTDLP_LIB));
+
+    if (setup_pModule (&pName, &pModule, &pFunc, has_module, has_pFunc))
+        goto end;
+    if (setup_pArgs (&pArgs, &pValue, has_pArgs))
+        goto end;
+
+    while (!end && (s = read (STDIN_FILENO, c, 1024)))
+        {
+            if (end || s <= 0)
+                break;
+
+            c[s] = '\0';
+            if (c[s - 1] == '\n')
+                c[s - 1] = '\0';
+
+            PyInterpreterConfig config = {
+                .use_main_obmalloc = 0,
+                .allow_fork = 1,
+                .allow_exec = 1,
+                .allow_threads = 1,
+                .allow_daemon_threads = 1,
+                .check_multi_interp_extensions = 1,
+                .gil = PyInterpreterConfig_OWN_GIL,
+            };
+            PyThreadState *tstate = NULL;
+            PyStatus status = Py_NewInterpreterFromConfig (&tstate, &config);
+            if (PyStatus_Exception (status))
+                Py_ExitStatusException (status);
+            if (!tstate)
+                break;
+            tstate = PyThreadState_Swap (main_thread_state);
+
+            std::string strurl = std::string ("ytsearch2:") + std::string (c);
+            std::thread t (
+                [strurl, &end, tstate] ()
+                    {
+                        PyEval_RestoreThread (tstate);
+                        ret_hook_t s{ [tstate] () { Py_EndInterpreter (tstate); } };
+
+                        PyObject *pName, *pModule, *pFunc;
+                        PyObject *pArgs, *pValue;
+                        bool has_pArgs = false;
+                        bool has_module = false;
+                        bool has_pFunc = false;
+                        bool end = false;
+                        if (setup_pModule (&pName, &pModule, &pFunc, has_module, has_pFunc))
+                            {
+                                end = true;
+                                return;
+                            }
+
+                        if (setup_pArgs (&pArgs, &pValue, has_pArgs))
+                            {
+                                end = true;
+                                return;
+                            }
+
+                        pValue = PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ());
+                        if (!pValue)
+                            {
+                                fprintf (stderr, "Cannot convert argument for url\n");
+                                end = true;
+                                return;
+                            }
+                        /* pValue reference stolen here: */
+                        PyTuple_SetItem (pArgs, 0, pValue);
+
+                        pValue = PyObject_CallObject (pFunc, pArgs);
+                        if (pValue != NULL)
+                            {
+                                const char *res = PyUnicode_AsUTF8AndSize (pValue, NULL);
+                                fprintf (stderr, "%s\n", res);
+                                Py_DECREF (pValue);
+                            }
+                        else
+                            {
+                                PyErr_Print ();
+                                fprintf (stderr, "Call run failed with argument: `%s`\n", strurl.c_str ());
+                                end = true;
+                                return;
+                            }
+                    });
+            t.detach ();
+        }
+
+end:
+    if (has_pArgs)
+        Py_DECREF (pArgs);
+    if (has_pFunc)
+        Py_DECREF (pFunc);
+    if (has_module)
+        Py_DECREF (pModule);
+
+    if (Py_FinalizeEx () < 0)
+        {
+            exit (120);
+        }
+
+    return 0;
+
+exception:
+    PyConfig_Clear (&config);
+    Py_ExitStatusException (status);
+}

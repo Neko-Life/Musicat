@@ -3,7 +3,6 @@
 
 #include <csignal>
 #include <string>
-#include <thread>
 #include <unistd.h>
 
 #define YTDLP_LIB "../../../libs/yt-dlp"
@@ -20,12 +19,9 @@ inline constexpr const char module_futures[] = "concurrent.futures";
 struct py_obj_t
 {
     PyObject *obj;
-    std::string name;
 
     py_obj_t () : obj (nullptr) {}
     py_obj_t (PyObject *const _obj) : obj (_obj) {}
-    py_obj_t (const std::string &_name) : obj (nullptr), name (_name) {}
-    py_obj_t (PyObject *const _obj, const std::string &_name) : obj (_obj), name (_name) {}
 
     constexpr
     operator PyObject *() const noexcept
@@ -37,11 +33,11 @@ struct py_obj_t
     py_obj_t (const py_obj_t &) = delete;
     py_obj_t &operator= (const py_obj_t &) = delete;
 
-    py_obj_t &
+    PyObject *
     operator= (PyObject *const o)
     {
         obj = o;
-        return *this;
+        return obj;
     }
 
     ~py_obj_t ()
@@ -56,17 +52,19 @@ struct py_obj_t
 struct py_module_t
 {
     py_obj_t mod;
+    std::string name;
 
     py_module_t () = default;
-    py_module_t (PyObject *_mod, std::string &_name) : mod (py_obj_t{ _mod, _name }) {}
+    py_module_t (PyObject *_mod, std::string &_name) : mod (_mod), name (_name) {}
 };
 
 struct py_func_t
 {
     py_obj_t func;
+    std::string name;
 
     py_func_t () = default;
-    py_func_t (PyObject *_func, std::string &_name) : func (py_obj_t{ _func, _name }) {}
+    py_func_t (PyObject *_func, std::string &_name) : func (_func), name (_name) {}
 };
 
 int
@@ -83,50 +81,59 @@ setup_module (py_module_t &mod, const char *module_name)
             return 1;
         }
     mod.mod = pModule;
-    mod.mod.name = module_name;
+    mod.name = module_name;
     return 0;
 }
 
 int
-get_func (const py_obj_t &obj, py_func_t &func, const char *func_name)
+get_func (py_module_t &mod, py_func_t &func, const char *func_name)
 {
-    PyObject *pFunc = PyObject_GetAttrString (obj, func_name);
+    PyObject *pFunc = PyObject_GetAttrString (mod.mod, func_name);
 
-    if (pFunc)
+    if (pFunc && !PyCallable_Check (pFunc))
         {
-            if (!PyCallable_Check (pFunc))
-                {
-                    Py_DECREF (pFunc);
-                    fprintf (stderr, "Attribute \"%s\" in object \"%s\" is not a function\n", func_name, obj.name.c_str ());
-                    return 1;
-                }
+            Py_DECREF (pFunc);
+            fprintf (stderr, "Attribute \"%s\" in module \"%s\" is not a function\n", func_name, mod.name.c_str ());
+            return 1;
         }
     else
         {
             PyErr_Print ();
-            fprintf (stderr, "Object \"%s\" missing function \"%s\"\n", obj.name.c_str (), func_name);
+            fprintf (stderr, "Module \"%s\" missing function \"%s\"\n", mod.name.c_str (), func_name);
             return 1;
         }
     func.func = pFunc;
-    func.func.name = func_name;
+    func.name = func_name;
     return 0;
 }
 
 int
-get_func (const py_module_t &mod, py_func_t &func, const char *func_name)
+get_func (py_obj_t &mod, py_func_t &func, const char *func_name)
 {
-    return get_func (mod.mod, func, func_name);
+    PyObject *pFunc = PyObject_GetAttrString (mod.obj, func_name);
+
+    if (pFunc && !PyCallable_Check (pFunc))
+        {
+            Py_DECREF (pFunc);
+            fprintf (stderr, "Attribute \"%s\" in object is not a function\n", func_name);
+            return 1;
+        }
+    else
+        {
+            PyErr_Print ();
+            fprintf (stderr, "Object is missing function \"%s\"\n", func_name);
+            return 1;
+        }
+    func.func = pFunc;
+    func.name = func_name;
+    return 0;
 }
 
 int
-setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs, PyObject *pFn)
+setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs)
 {
-    *pArgs = PyTuple_New (4);
+    *pArgs = PyTuple_New (3);
     has_pArgs = true;
-
-    // set self here
-    /* pValue reference stolen here: */
-    PyTuple_SetItem (*pArgs, 0, pFn);
 
     // set max_entries here
     *pValue = PyLong_FromLong (2);
@@ -136,7 +143,7 @@ setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs, PyObject *pFn
             return 1;
         }
     /* pValue reference stolen here: */
-    PyTuple_SetItem (*pArgs, 2, *pValue);
+    PyTuple_SetItem (*pArgs, 1, *pValue);
 
     *pValue = PyLong_FromLong (0);
     if (!*pValue)
@@ -145,7 +152,7 @@ setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs, PyObject *pFn
             return 1;
         }
     /* pValue reference stolen here: */
-    PyTuple_SetItem (*pArgs, 3, *pValue);
+    PyTuple_SetItem (*pArgs, 2, *pValue);
     return 0;
 }
 
@@ -158,36 +165,32 @@ run ()
     py_module_t futures_module;
     py_func_t futures_ThreadPoolExecutor_func;
 
-    py_obj_t executor{ "executor" };
+    py_obj_t executor;
     py_func_t executor_submit;
-    py_func_t executor_result;
 
     py_obj_t dict = PyDict_New ();
 
-    PyObject *pArgs, *pValue, *pName;
+    PyObject *pArgs, *pValue;
     bool has_pArgs = false;
 
     char c[1024 + 1];
     size_t s = 0;
 
-    std::string executor_init = "TPE(max_workers=" + std::to_string (std::thread::hardware_concurrency () / 2) + ")\n";
-
     bool end = false;
-    // end = true;
+    end = true;
 
     if (setup_module (ytdlp_module, module_ytdlp))
         goto end;
-    if (get_func (ytdlp_module, ytdlp_run_func, "run"))
-        goto end;
     if (setup_module (futures_module, module_futures))
+        goto end;
+    if (get_func (ytdlp_module, ytdlp_run_func, "run"))
         goto end;
     if (get_func (futures_module, futures_ThreadPoolExecutor_func, "ThreadPoolExecutor"))
         goto end;
 
     // setup ThreadPoolExecutor
-    pName = PyUnicode_DecodeFSDefault ("TPE");
-    PyDict_SetItem (dict, pName, futures_ThreadPoolExecutor_func.func);
-    executor = PyRun_String (executor_init.c_str (), Py_eval_input, dict, NULL);
+    PyDict_SetItem (dict, PyUnicode_DecodeFSDefault ("TPE"), futures_ThreadPoolExecutor_func.func);
+    executor = PyRun_String ("print('test')\n", Py_single_input, dict, NULL);
     if (!executor)
         {
             PyErr_Print ();
@@ -197,11 +200,14 @@ run ()
     if (get_func (executor, executor_submit, "submit"))
         goto end;
 
-    if (setup_pArgs (&pArgs, &pValue, has_pArgs, ytdlp_run_func.func))
+    if (setup_pArgs (&pArgs, &pValue, has_pArgs))
         goto end;
 
     while (!end && (s = read (STDIN_FILENO, c, 1024)))
         {
+            // if (!PyThreadState_GetUnchecked () || PyThreadState_GetUnchecked () != main_thread_state)
+            //     PyThreadState_Swap (main_thread_state);
+
             if (end || s <= 0)
                 break;
 
@@ -219,32 +225,14 @@ run ()
                     break;
                 }
             /* pValue reference stolen here: */
-            PyTuple_SetItem (pArgs, 1, pValue);
+            PyTuple_SetItem (pArgs, 0, pValue);
 
-            pValue = PyObject_CallObject (executor_submit.func, pArgs);
-
-            // get future result
+            pValue = PyObject_CallObject (ytdlp_run_func.func, pArgs);
             if (pValue != NULL)
                 {
-                    if (get_func ({ pValue, "pValue" }, executor_result, "result"))
-                        {
-                            end = true;
-                            break;
-                        }
-                    pValue = PyObject_CallObject (executor_result.func, NULL);
-                    if (pValue != NULL)
-                        {
-                            const char *res = PyUnicode_AsUTF8AndSize (pValue, NULL);
-                            fprintf (stderr, "%s\n", res);
-                            Py_DECREF (pValue);
-                        }
-                    else
-                        {
-                            PyErr_Print ();
-                            fprintf (stderr, "Call run failed with argument: `%s`\n", strurl.c_str ());
-                            end = true;
-                            break;
-                        }
+                    const char *res = PyUnicode_AsUTF8AndSize (pValue, NULL);
+                    fprintf (stderr, "%s\n", res);
+                    Py_DECREF (pValue);
                 }
             else
                 {
