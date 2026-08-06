@@ -9,7 +9,6 @@
 // clang-format on
 
 #ifdef MUSICAT_WITH_PYTHON
-#include "musicat/task.h"
 #include "musicat/ytdlp.h"
 #include <cstdio>
 #endif // MUSICAT_WITH_PYTHON
@@ -403,8 +402,9 @@ fetch (const search_option_t &options)
         else
             {
                 fprintf (stderr, "[mctrack::fetch ERROR] ytdlp::fetch() Status: %d\n", ret);
-                fprintf (stderr, "[mctrack::fetch ERROR] query: %s\n", options.query.c_str ());
+                fprintf (stderr, "[mctrack::fetch ERROR] query: `%s`\n", q.c_str ());
                 fprintf (stderr, "[mctrack::fetch ERROR] max_entries: %d\n", options.max_entries);
+                fprintf (stderr, "[mctrack::fetch ERROR] is_url: %d\n", options.is_url);
 
                 // fallback to child process
             }

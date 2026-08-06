@@ -174,10 +174,10 @@ class py_ctx
 };
 
 int
-fetch (const std::string &query, int max_entries, nlohmann::json &out)
+fetch (const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
 {
     auto throttler = ctx_throttler.throttle ();
-    py_ctx ctx{ 3 };
+    py_ctx ctx{ outfile.empty () ? 3 : 4 };
     if (ctx.error)
         return -1;
 
@@ -188,12 +188,19 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out)
     // set print_stdout
     ctx.set_arg (2, PyLong_FromLong (0));
 
-    ctx.run (
-        [&out] (PyObject *val)
-            {
-                const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
-                out = nlohmann::json::parse (res);
-            });
+    if (outfile.empty ())
+        ctx.run (
+            [&out] (PyObject *val)
+                {
+                    const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
+                    out = nlohmann::json::parse (res);
+                });
+    else
+        {
+            // set outfile
+            ctx.set_arg (3, PyUnicode_DecodeFSDefaultAndSize (outfile.c_str (), outfile.size ()));
+            ctx.run ([] (PyObject *val) {});
+        }
 
     return 0;
 }
