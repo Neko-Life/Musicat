@@ -4,6 +4,7 @@
 #include "nlohmann/json.hpp"
 #include <Python.h>
 
+#include "musicat/task.h"
 #include "musicat/util.h"
 #include <string>
 #include <unistd.h>
@@ -45,18 +46,22 @@ class py_ctx
 
     bool error;
 
-    py_ctx (int _argc) : error (false)
-    {
-        argc = _argc;
-        if (init (program_name.c_str (), pwd, lib_path) != 0)
-            error = true;
-    }
+    py_ctx (int _argc) : error (false) { argc = _argc; }
     ~py_ctx () { shutdown (); }
 
     py_ctx (const py_ctx &) = delete;
     py_ctx (py_ctx &&) = delete;
     py_ctx &operator= (const py_ctx &) = delete;
     py_ctx &operator= (py_ctx &&) = delete;
+
+    int
+    init ()
+    {
+        int ret = init (program_name.c_str (), pwd, lib_path);
+        if (ret != 0)
+            error = true;
+        return ret;
+    }
 
   private:
     int
@@ -172,11 +177,14 @@ class py_ctx
     }
 };
 
-int
-fetch (const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
+// this still doesn't support multithread
+static py_ctx ctx{ 4 };
+
+static int
+do_fetch (const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
 {
     auto throttler = ctx_throttler.throttle ();
-    py_ctx ctx{ outfile.empty () ? 3 : 4 };
+    ctx.init ();
     if (ctx.error)
         return -1;
 
@@ -188,14 +196,17 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
     ctx.set_arg (2, PyLong_FromLong (0));
 
     if (outfile.empty ())
-        ctx.run (
-            [&out] (PyObject *val)
-                {
-                    if (Py_IsNone (val))
-                        return;
-                    const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
-                    out = nlohmann::json::parse (res);
-                });
+        {
+            ctx.set_arg (3, Py_False);
+            ctx.run (
+                [&out] (PyObject *val)
+                    {
+                        if (Py_IsNone (val))
+                            return;
+                        const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
+                        out = nlohmann::json::parse (res);
+                    });
+        }
     else
         {
             // set outfile
@@ -204,6 +215,15 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
         }
 
     return 0;
+}
+
+int
+fetch (const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
+{
+    int ret = 0;
+    // !TODO: DO IT MULTITHREADED!!!
+    task::run_on_main_and_wait ([&] () { ret = do_fetch (query, max_entries, out, outfile); });
+    return ret;
 }
 
 } // namespace musicat::ytdlp
