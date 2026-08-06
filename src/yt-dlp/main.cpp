@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include <chrono>
 #include <csignal>
 #include <string>
 #include <thread>
@@ -379,6 +380,52 @@ main (int argc, char *argv[])
 
 namespace MusicatExecutor
 {
+static PyThreadState *main_thread_state = nullptr;
+
+// must be called in the main thread only
+void
+cache_main_thread_state ()
+{
+    main_thread_state = PyThreadState_GetUnchecked ();
+}
+
+void
+acquire_main_thread ()
+{
+    if (!main_thread_state)
+        return;
+
+    PyEval_AcquireThread (main_thread_state);
+}
+
+PyInterpreterState *
+release_main_thread ()
+{
+    if (!main_thread_state)
+        return NULL;
+
+    PyInterpreterState *interp = PyInterpreterState_Main ();
+    PyEval_ReleaseThread (main_thread_state);
+
+    return interp;
+}
+
+PyThreadState *
+acquire_thread ()
+{
+    PyThreadState *tstate = PyThreadState_New (release_main_thread ());
+    PyThreadState_Swap (tstate);
+    return tstate;
+}
+
+void
+release_thread (PyThreadState *tstate)
+{
+    PyThreadState_Clear (tstate);
+    PyThreadState_DeleteCurrent ();
+    acquire_main_thread ();
+}
+
 int
 setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs)
 {
@@ -475,21 +522,15 @@ main (int argc, char *argv[])
     return shared_main (argc, argv,
                         [] ()
                             {
-                                run ();
-
-                                // PyInterpreterState *interp;
-                                // /* The return value of PyInterpreterState_Get() from the
-                                //    function that created this thread. */
-                                // interp = PyInterpreterState_Get ();
-                                // std::thread t (
-                                //     [&] ()
-                                //         {
-                                //             PyThreadState *tstate = PyThreadState_New (interp);
-                                //             PyThreadState_Swap (tstate);
-                                //
-                                //             PyThreadState_Clear (tstate);
-                                //             PyThreadState_DeleteCurrent ();
-                                //         });
+                                cache_main_thread_state ();
+                                std::thread t (
+                                    [] ()
+                                        {
+                                            PyThreadState *tstate = acquire_thread ();
+                                            PyRun_SimpleString ("print('Hello World!')\n");
+                                            release_thread (tstate);
+                                        });
+                                t.join ();
                             });
 }
 } // namespace MusicatExecutor
