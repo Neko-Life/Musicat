@@ -7,7 +7,7 @@ def run(url, max_entries, print_stdout, outfile = False):
     # available options and public functions
     ydl_opts = {
             'logtostderr': True,
-            'quiet': True
+            # 'quiet': True
             }
 
     is_download = outfile != False
@@ -17,7 +17,7 @@ def run(url, max_entries, print_stdout, outfile = False):
     if is_download == True:
         ydl_opts = {
                 'logtostderr': True,
-                'quiet': True,
+                # 'quiet': True,
                 'skip_download': False,
                 'format': 'bestaudio',
                 'outtmpl': {'default': outfile },
@@ -42,6 +42,8 @@ def run(url, max_entries, print_stdout, outfile = False):
                     {'key': 'FFmpegExtractAudio', 'preferredcodec': 'opus', 'preferredquality': '0', 'nopostoverwrites': False}
                     ]
                 }
+
+    # print(ydl_opts)
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:

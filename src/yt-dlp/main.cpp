@@ -15,6 +15,7 @@
     "sys.path.insert(0, '" LIB_PATH "')\n"
 
 inline constexpr const char module_ytdlp[] = "utils.ytdlp_run";
+inline constexpr const char module_ytdlp_musicat[] = "utils.ytdlp_run_musicat";
 inline constexpr const char module_futures[] = "concurrent.futures";
 
 struct py_obj_t
@@ -118,6 +119,113 @@ get_func (const py_module_t &mod, py_func_t &func, const char *func_name)
     return get_func (mod.mod, func, func_name);
 }
 
+namespace MusicatModule
+{
+static PyObject *ModuleError = NULL;
+
+static int
+musicat_module_exec (PyObject *m)
+{
+    if (ModuleError != NULL)
+        {
+            PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
+            return -1;
+        }
+
+    ModuleError = PyErr_NewException ("Musicat.error", NULL, NULL);
+    if (PyModule_AddObjectRef (m, "MusicatError", ModuleError) < 0)
+        return -1;
+
+    return 0;
+}
+
+static PyObject *
+musicat_callback (PyObject *self, PyObject *args)
+{
+    const char *id = nullptr;
+    const char *result = nullptr;
+
+    PyArg_ParseTuple (args, "ss", &id, &result);
+
+    if (result && strlen (result) > 0)
+        fprintf (stderr, "RESULT FOR (%s)\n%s\n", id, result);
+    else
+        fprintf (stderr, "NO RESULT FOR (%s)\n", id);
+
+    // if (sts < 0)
+    //     {
+    //         PyErr_SetString (ModuleError, "Musicat callback() error");
+    //         return NULL;
+    //     }
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef musicat_methods[] = { { "callback", musicat_callback, METH_VARARGS, "Musicat callback." }, { NULL, NULL, 0, NULL } };
+
+static PyModuleDef_Slot musicat_module_slots[] = { { Py_mod_exec, (void *)musicat_module_exec }, { 0, NULL } };
+
+static struct PyModuleDef musicat_module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "musicat",
+    .m_size = 0, // non-negative
+    .m_methods = musicat_methods,
+    .m_slots = musicat_module_slots,
+};
+
+PyMODINIT_FUNC
+PyInit_musicat (void)
+{
+    return PyModuleDef_Init (&musicat_module);
+}
+} // namespace MusicatModule
+
+int
+shared_main (int argc, char *argv[], std::function<void ()> &&run)
+{
+    PyStatus status;
+    PyConfig config;
+    PyConfig_InitPythonConfig (&config);
+    config.isolated = 1;
+
+    /* Add a built-in module, before Py_Initialize */
+    if (PyImport_AppendInittab ("musicat", MusicatModule::PyInit_musicat) == -1)
+        {
+            fprintf (stderr, "Error: could not extend in-built modules table\n");
+            return -1;
+        }
+
+    /* optional but recommended */
+    status = PyConfig_SetBytesString (&config, &config.program_name, argv[0]);
+    if (PyStatus_Exception (status))
+        goto exception;
+
+    status = Py_InitializeFromConfig (&config);
+    if (PyStatus_Exception (status))
+        goto exception;
+
+    // done with configuration here
+    PyConfig_Clear (&config);
+
+    PyRun_SimpleString (INIT_SCRIPT (YTDLP_LIB));
+
+    run ();
+
+    if (Py_FinalizeEx () < 0)
+        exit (120);
+
+    return 0;
+
+exception:
+    PyConfig_Clear (&config);
+    Py_ExitStatusException (status);
+
+    return -1;
+}
+
+namespace ThreadPoolExecutor
+{
+
 int
 setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs, PyObject *pFn)
 {
@@ -202,7 +310,7 @@ run ()
 
     while (!end && (s = read (STDIN_FILENO, c, 1024)))
         {
-            if (end || s <= 0)
+            if (end || s <= 0 || !c[0])
                 break;
 
             c[s] = '\0';
@@ -210,6 +318,7 @@ run ()
                 c[s - 1] = '\0';
 
             std::string strurl = std::string ("ytsearch2:") + std::string (c);
+            memset (c, 0, 1024 + 1);
 
             pValue = PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ());
             if (!pValue)
@@ -231,6 +340,7 @@ run ()
                             end = true;
                             break;
                         }
+
                     pValue = PyObject_CallObject (executor_result.func, NULL);
                     if (pValue != NULL)
                         {
@@ -263,37 +373,112 @@ end:
 int
 main (int argc, char *argv[])
 {
-    PyStatus status;
-    PyConfig config;
-    PyThreadState *main_thread_state;
-    PyInterpreterState *main_interpreter_state;
-    PyConfig_InitPythonConfig (&config);
-    config.isolated = 1;
+    return shared_main (argc, argv, run);
+}
+} // namespace ThreadPoolExecutor
 
-    /* optional but recommended */
-    status = PyConfig_SetBytesString (&config, &config.program_name, argv[0]);
-    if (PyStatus_Exception (status))
-        goto exception;
+namespace MusicatExecutor
+{
+int
+setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs)
+{
+    *pArgs = PyTuple_New (4);
+    has_pArgs = true;
 
-    status = Py_InitializeFromConfig (&config);
-    if (PyStatus_Exception (status))
-        goto exception;
+    // set max_entries here
+    *pValue = PyLong_FromLong (2);
+    if (!*pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for max_entries\n");
+            return 1;
+        }
+    /* pValue reference stolen here: */
+    PyTuple_SetItem (*pArgs, 2, *pValue);
 
-    // done with configuration here
-    PyConfig_Clear (&config);
-    main_thread_state = PyThreadState_Get ();
-    main_interpreter_state = PyThreadState_GetInterpreter (main_thread_state);
-
-    PyRun_SimpleString (INIT_SCRIPT (YTDLP_LIB));
-
-    run ();
-
-    if (Py_FinalizeEx () < 0)
-        exit (120);
-
+    *pValue = PyLong_FromLong (0);
+    if (!*pValue)
+        {
+            fprintf (stderr, "Cannot convert argument for print_stdout\n");
+            return 1;
+        }
+    /* pValue reference stolen here: */
+    PyTuple_SetItem (*pArgs, 3, *pValue);
     return 0;
+}
 
-exception:
-    PyConfig_Clear (&config);
-    Py_ExitStatusException (status);
+void
+run ()
+{
+    py_module_t ytdlp_module;
+    py_func_t ytdlp_run_func;
+
+    PyObject *pArgs, *pValue, *pName;
+    bool has_pArgs = false;
+
+    char c[1024 + 1];
+    size_t s = 0;
+
+    bool end = false;
+    // end = true;
+
+    if (setup_module (ytdlp_module, module_ytdlp_musicat))
+        goto end;
+    if (get_func (ytdlp_module, ytdlp_run_func, "run"))
+        goto end;
+    if (setup_pArgs (&pArgs, &pValue, has_pArgs))
+        goto end;
+
+    while (!end && (s = read (STDIN_FILENO, c, 1024)))
+        {
+            if (end || s <= 0 || !c[0])
+                break;
+
+            c[s] = '\0';
+            if (c[s - 1] == '\n')
+                c[s - 1] = '\0';
+
+            std::string strurl = std::string ("ytsearch2:") + std::string (c);
+            memset (c, 0, 1024 + 1);
+
+            pValue = PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ());
+            if (!pValue)
+                {
+                    fprintf (stderr, "Cannot convert argument for url\n");
+                    end = true;
+                    break;
+                }
+            /* pValue reference stolen here: */
+            PyTuple_SetItem (pArgs, 1, pValue);
+            PyTuple_SetItem (pArgs, 0, PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ()));
+
+            pValue = PyObject_CallObject (ytdlp_run_func.func, pArgs);
+
+            if (pValue != NULL)
+                Py_DECREF (pValue);
+            else
+                {
+                    PyErr_Print ();
+                    fprintf (stderr, "Call run failed with argument: `%s`\n", strurl.c_str ());
+                    end = true;
+                    break;
+                }
+        }
+
+end:
+    if (has_pArgs)
+        Py_DECREF (pArgs);
+}
+
+int
+main (int argc, char *argv[])
+{
+    return shared_main (argc, argv, run);
+}
+} // namespace MusicatExecutor
+
+int
+main (int argc, char *argv[])
+{
+    // return ThreadPoolExecutor::main (argc, argv);
+    return MusicatExecutor::main (argc, argv);
 }
