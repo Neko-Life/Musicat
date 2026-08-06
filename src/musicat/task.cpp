@@ -1,6 +1,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 
 #include "dpp/timer.h"
 #include "musicat/musicat.h"
@@ -89,6 +90,14 @@ run_once (const std::function<void ()> &&fn, uint64_t after)
                 fn ();
             },
         after);
+}
+
+void
+run_on_main (const std::function<void ()> &&fn)
+{
+    uint64_t cts = (uint64_t)util::get_current_ts () + util::get_random_number ();
+    std::lock_guard lk (blocking_tasks_m);
+    blocking_tasks.push_back ({ fn, [] () { return false; }, cts, true });
 }
 
 void

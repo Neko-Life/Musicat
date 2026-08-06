@@ -9,10 +9,112 @@
 #include <string>
 #include <unistd.h>
 
+static std::deque<std::pair<uint64_t, nlohmann::json> > outputs;
+static std::mutex outputs_m;
+static std::condition_variable outputs_cv;
+
+static int
+get_output (uint64_t id, nlohmann::json &data)
+{
+    bool got_data = false;
+    do
+        {
+            std::unique_lock lk (outputs_m);
+            auto i = outputs.begin ();
+            while (i != outputs.end ())
+                {
+                    if (i->first != id)
+                        {
+                            i++;
+                            continue;
+                        }
+                    got_data = true;
+                    data = i->second;
+                    outputs.erase (i);
+                    return 0;
+                }
+
+            outputs_cv.wait (lk);
+        }
+    while (!got_data);
+    return -1;
+}
+
+static int
+set_output (uint64_t id, const nlohmann::json &data)
+{
+    {
+        std::lock_guard lk (outputs_m);
+        outputs.push_back ({ id, data });
+    }
+    outputs_cv.notify_all ();
+
+    return 0;
+}
+
 namespace musicat::ytdlp
 {
 
-inline constexpr const char module[] = "utils.ytdlp_run";
+namespace MusicatModule
+{
+static PyObject *ModuleError = NULL;
+
+static int
+musicat_module_exec (PyObject *m)
+{
+    if (ModuleError != NULL)
+        {
+            PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
+            return -1;
+        }
+
+    ModuleError = PyErr_NewException ("Musicat.error", NULL, NULL);
+    if (PyModule_AddObjectRef (m, "MusicatError", ModuleError) < 0)
+        return -1;
+
+    return 0;
+}
+
+static PyObject *
+musicat_callback (PyObject *self, PyObject *args)
+{
+    uint64_t id = -1;
+    const char *result = nullptr;
+
+    PyArg_ParseTuple (args, "Ks", &id, &result);
+
+    if (result && strlen (result) > 0)
+        {
+            set_output (id, nlohmann::json::parse (result));
+        }
+    else
+        {
+            set_output (id, nullptr);
+        }
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef musicat_methods[] = { { "callback", musicat_callback, METH_VARARGS, "Musicat callback." }, { NULL, NULL, 0, NULL } };
+
+static PyModuleDef_Slot musicat_module_slots[] = { { Py_mod_exec, (void *)musicat_module_exec }, { 0, NULL } };
+
+static struct PyModuleDef musicat_module = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "musicat",
+    .m_size = 0, // non-negative
+    .m_methods = musicat_methods,
+    .m_slots = musicat_module_slots,
+};
+
+PyMODINIT_FUNC
+PyInit_musicat (void)
+{
+    return PyModuleDef_Init (&musicat_module);
+}
+} // namespace MusicatModule
+
+inline constexpr const char module[] = "utils.ytdlp_run_musicat";
 
 static std::string program_name;
 static std::string pwd;
@@ -25,8 +127,6 @@ set_init_params (const std::string &_program_name, const std::string &_pwd, cons
     pwd = _pwd;
     lib_path = _lib_path;
 }
-
-static util::throttler_t ctx_throttler{ 1 };
 
 // !TODO: this can't be multithreaded, NEED MULTITHREAD!
 class py_ctx
@@ -79,6 +179,13 @@ class py_ctx
 
         PyConfig_InitPythonConfig (&config);
         config.isolated = 1;
+
+        /* Add a built-in module, before Py_Initialize */
+        if (PyImport_AppendInittab ("musicat", MusicatModule::PyInit_musicat) == -1)
+            {
+                fprintf (stderr, "Error: could not extend in-built modules table\n");
+                return -1;
+            }
 
         /* optional but recommended */
         status = PyConfig_SetBytesString (&config, &config.program_name, program_name);
@@ -170,7 +277,8 @@ class py_ctx
                 return -2;
             }
 
-        cb (pValue);
+        if (cb)
+            cb (pValue);
 
         Py_DECREF (pValue);
         return 0;
@@ -178,40 +286,35 @@ class py_ctx
 };
 
 // this still doesn't support multithread
-static py_ctx ctx{ 4 };
+static py_ctx ctx{ 5 };
+static util::throttler_t ctx_throttler{ 1 };
 
 static int
-do_fetch (const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
+do_fetch (uint64_t id, const std::string &query, int max_entries, nlohmann::json &out, const std::string &outfile)
 {
-    auto throttler = ctx_throttler.throttle ();
     ctx.init ();
     if (ctx.error)
         return -1;
 
+    // set id
+    ctx.set_arg (0, PyLong_FromLong (id));
     // set url
-    ctx.set_arg (0, PyUnicode_FromStringAndSize (query.c_str (), query.size ()));
+    ctx.set_arg (1, PyUnicode_FromStringAndSize (query.c_str (), query.size ()));
     // set max_entries
-    ctx.set_arg (1, PyLong_FromLong (max_entries));
+    ctx.set_arg (2, PyLong_FromLong (max_entries));
     // set print_stdout
-    ctx.set_arg (2, PyLong_FromLong (0));
+    ctx.set_arg (3, PyLong_FromLong (0));
 
     if (outfile.empty ())
         {
-            ctx.set_arg (3, Py_False);
-            ctx.run (
-                [&out] (PyObject *val)
-                    {
-                        if (Py_IsNone (val))
-                            return;
-                        const char *res = PyUnicode_AsUTF8AndSize (val, NULL);
-                        out = nlohmann::json::parse (res);
-                    });
+            ctx.set_arg (4, Py_False);
+            ctx.run (nullptr);
         }
     else
         {
             // set outfile
-            ctx.set_arg (3, PyUnicode_FromStringAndSize (outfile.c_str (), outfile.size ()));
-            ctx.run ([] (PyObject *val) {});
+            ctx.set_arg (4, PyUnicode_FromStringAndSize (outfile.c_str (), outfile.size ()));
+            ctx.run (nullptr);
         }
 
     return 0;
@@ -222,7 +325,15 @@ fetch (const std::string &query, int max_entries, nlohmann::json &out, const std
 {
     int ret = 0;
     // !TODO: DO IT MULTITHREADED!!!
-    task::run_on_main_and_wait ([&] () { ret = do_fetch (query, max_entries, out, outfile); });
+    auto id = util::get_random_number ();
+    auto throttler = ctx_throttler.throttle ();
+    task::run_on_main (
+        [&] ()
+            {
+                if (do_fetch (id, query, max_entries, out, outfile))
+                    set_output (id, nullptr);
+            });
+    ret = get_output (id, out);
     return ret;
 }
 

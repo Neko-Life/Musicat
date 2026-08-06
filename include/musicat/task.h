@@ -18,6 +18,9 @@ void check_blocking_task ();
 // run after (in second)
 void run_once (const std::function<void ()> &&fn, uint64_t after);
 
+// enqueue task to run on main thread
+void run_on_main (const std::function<void ()> &&fn);
+
 // run on main thread and wait until done
 void run_on_main_and_wait (const std::function<void ()> &&fn);
 
