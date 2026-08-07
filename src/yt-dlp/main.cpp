@@ -121,16 +121,16 @@ get_func (const py_module_t &mod, py_func_t &func, const char *func_name)
 
 namespace MusicatModule
 {
-static PyObject *ModuleError = NULL;
-
 static int
 musicat_module_exec (PyObject *m)
 {
-    if (ModuleError != NULL)
-        {
-            PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
-            return -1;
-        }
+    // if (ModuleError != NULL)
+    //     {
+    //         PyErr_SetString (PyExc_ImportError, "cannot initialize Musicat module more than once");
+    //         return -1;
+    //     }
+
+    PyObject *ModuleError = NULL;
 
     ModuleError = PyErr_NewException ("Musicat.error", NULL, NULL);
     if (PyModule_AddObjectRef (m, "MusicatError", ModuleError) < 0)
@@ -163,7 +163,8 @@ musicat_callback (PyObject *self, PyObject *args)
 
 static PyMethodDef musicat_methods[] = { { "callback", musicat_callback, METH_VARARGS, "Musicat callback." }, { NULL, NULL, 0, NULL } };
 
-static PyModuleDef_Slot musicat_module_slots[] = { { Py_mod_exec, (void *)musicat_module_exec }, { 0, NULL } };
+static PyModuleDef_Slot musicat_module_slots[]
+    = { { Py_mod_exec, (void *)musicat_module_exec }, { Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED }, { 0, NULL } };
 
 static struct PyModuleDef musicat_module = {
     .m_base = PyModuleDef_HEAD_INIT,
@@ -549,19 +550,13 @@ setup_pArgs (PyObject **pArgs, PyObject **pValue, bool &has_pArgs)
 }
 
 void
-run ()
+run (const std::string &strurl)
 {
     py_module_t ytdlp_module;
     py_func_t ytdlp_run_func;
 
     PyObject *pArgs, *pValue, *pName;
     bool has_pArgs = false;
-
-    char c[1024 + 1];
-    size_t s = 0;
-
-    bool end = false;
-    // end = true;
 
     if (setup_module (ytdlp_module, module_ytdlp_musicat))
         goto end;
@@ -570,40 +565,25 @@ run ()
     if (setup_pArgs (&pArgs, &pValue, has_pArgs))
         goto end;
 
-    while (!end && (s = read (STDIN_FILENO, c, 1024)))
+    pValue = PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ());
+    if (!pValue)
         {
-            if (end || s <= 0 || !c[0])
-                break;
+            fprintf (stderr, "Cannot convert argument for url\n");
+            goto end;
+        }
+    /* pValue reference stolen here: */
+    PyTuple_SetItem (pArgs, 1, pValue);
+    PyTuple_SetItem (pArgs, 0, PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ()));
 
-            c[s] = '\0';
-            if (c[s - 1] == '\n')
-                c[s - 1] = '\0';
+    pValue = PyObject_CallObject (ytdlp_run_func.func, pArgs);
 
-            std::string strurl = std::string ("ytsearch2:") + std::string (c);
-            memset (c, 0, 1024 + 1);
-
-            pValue = PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ());
-            if (!pValue)
-                {
-                    fprintf (stderr, "Cannot convert argument for url\n");
-                    end = true;
-                    break;
-                }
-            /* pValue reference stolen here: */
-            PyTuple_SetItem (pArgs, 1, pValue);
-            PyTuple_SetItem (pArgs, 0, PyUnicode_FromStringAndSize (strurl.c_str (), strurl.size ()));
-
-            pValue = PyObject_CallObject (ytdlp_run_func.func, pArgs);
-
-            if (pValue != NULL)
-                Py_DECREF (pValue);
-            else
-                {
-                    PyErr_Print ();
-                    fprintf (stderr, "Call run failed with argument: `%s`\n", strurl.c_str ());
-                    end = true;
-                    break;
-                }
+    if (pValue != NULL)
+        Py_DECREF (pValue);
+    else
+        {
+            PyErr_Print ();
+            fprintf (stderr, "Call run failed with argument: `%s`\n", strurl.c_str ());
+            goto end;
         }
 
 end:
@@ -619,17 +599,34 @@ main (int argc, char *argv[])
                             {
                                 cache_main_interpreter ();
 
-                                std::thread t (
-                                    [] ()
-                                        {
-                                            py_interpreter_t i = create_interpreter ();
-                                            main_interpreter.release ();
-                                            i.acquire ();
-                                            PyRun_SimpleString ("print('Hello World!')\n");
-                                            i.destroy ();
-                                            main_interpreter.acquire ();
-                                        });
-                                t.join ();
+                                char c[1024 + 1];
+                                size_t s = 0;
+
+                                while ((s = read (STDIN_FILENO, c, 1024)))
+                                    {
+                                        if (s <= 0 || !c[0])
+                                            break;
+
+                                        c[s] = '\0';
+                                        if (c[s - 1] == '\n')
+                                            c[s - 1] = '\0';
+
+                                        std::string strurl = std::string ("ytsearch2:") + std::string (c);
+                                        memset (c, 0, 1024 + 1);
+
+                                        std::thread t (
+                                            [strurl] ()
+                                                {
+                                                    py_interpreter_t i = create_interpreter ();
+                                                    main_interpreter.release ();
+                                                    i.acquire ();
+                                                    PyRun_SimpleString (INIT_SCRIPT (YTDLP_LIB));
+                                                    run (strurl);
+                                                    i.destroy ();
+                                                    main_interpreter.acquire ();
+                                                });
+                                        t.detach ();
+                                    }
                             });
 }
 } // namespace MusicatExecutor
