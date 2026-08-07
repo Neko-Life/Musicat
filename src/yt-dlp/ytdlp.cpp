@@ -189,7 +189,6 @@ class py_ctx
 {
     PyObject *pName, *pModule, *pFunc;
     PyObject *pArgs, *pValue;
-    bool has_pArgs = false;
     bool has_module = false;
     bool has_pFunc = false;
 
@@ -243,7 +242,6 @@ class py_ctx
         has_pFunc = true;
 
         pArgs = PyTuple_New (argc);
-        has_pArgs = true;
 
         initialized = true;
         error = false;
@@ -260,11 +258,6 @@ class py_ctx
             return -1;
 
         int ret = 0;
-        if (has_pArgs)
-            {
-                Py_DECREF (pArgs);
-                has_pArgs = false;
-            }
         if (has_pFunc)
             {
                 Py_DECREF (pFunc);
@@ -511,6 +504,8 @@ do_fetch (uint64_t id, const std::string &query, int max_entries, nlohmann::json
     if (!ctx)
         return -1;
 
+    ctx->interpreter->acquire ();
+
     // set id
     ctx->set_arg (0, PyLong_FromLong (id));
     // set url
@@ -522,7 +517,10 @@ do_fetch (uint64_t id, const std::string &query, int max_entries, nlohmann::json
     // set outfile
     ctx->set_arg (4, outfile.empty () ? Py_False : PyUnicode_FromStringAndSize (outfile.c_str (), outfile.size ()));
 
-    return ctx->run (nullptr);
+    int ret = ctx->run (nullptr);
+
+    ctx->interpreter->release ();
+    return ret;
 }
 
 int

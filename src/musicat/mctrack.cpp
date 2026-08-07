@@ -247,8 +247,7 @@ is_short (const player::MCTrack &track)
     return is_url_shorts (mctrack::get_url (track));
 }
 
-// !TODO: update this when fetching can be multithreaded!
-static util::throttler_t fetch_throttler{ 1 };
+static util::throttler_t fetch_throttler{ 8 };
 
 static nlohmann::json
 do_fetch (const search_option_t &options)
