@@ -18,6 +18,7 @@ Need to install:
 * libopus - Library
 * libcurl - Library
 * openssl - Library
+* python - Library
 
 
 Included under `libs/`:
