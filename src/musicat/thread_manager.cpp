@@ -1,5 +1,8 @@
 #include "musicat/thread_manager.h"
 #include "musicat/musicat.h"
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#endif // MUSICAT_WITH_PYTHON
 
 #include <deque>
 #include <mutex>
@@ -56,6 +59,9 @@ dispatch (std::thread &t)
 void
 set_done ()
 {
+#ifdef MUSICAT_WITH_PYTHON
+    ytdlp::managed::on_thread_done ();
+#endif // MUSICAT_WITH_PYTHON
     std::lock_guard lk (_ns_mutex);
 
     const auto id = std::this_thread::get_id ();

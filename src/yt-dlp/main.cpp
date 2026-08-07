@@ -181,6 +181,8 @@ PyInit_musicat (void)
 }
 } // namespace MusicatModule
 
+static bool initialized = false;
+
 int
 shared_main (int argc, char *argv[], std::function<void ()> &&run)
 {
@@ -207,6 +209,7 @@ shared_main (int argc, char *argv[], std::function<void ()> &&run)
 
     // done with configuration here
     PyConfig_Clear (&config);
+    initialized = true;
 
     PyRun_SimpleString (INIT_SCRIPT (YTDLP_LIB));
 
@@ -214,6 +217,7 @@ shared_main (int argc, char *argv[], std::function<void ()> &&run)
 
     if (Py_FinalizeEx () < 0)
         exit (120);
+    initialized = false;
 
     return 0;
 
@@ -395,11 +399,14 @@ struct py_interpreter_t
     {
     }
 
+    ~py_interpreter_t () { destroy (); }
+
     void
     acquire ()
     {
         if (!thread_state || is_acquired)
             return;
+
         PyEval_AcquireThread (thread_state);
         is_acquired = true;
     }
@@ -414,28 +421,11 @@ struct py_interpreter_t
     }
 
     void
-    clear ()
-    {
-        acquire ();
-        if (!state || !is_acquired)
-            return;
-        PyInterpreterState_Clear (state);
-    }
-
-    void
-    delette ()
-    {
-        release ();
-        if (!state || is_acquired)
-            return;
-        PyInterpreterState_Delete (state);
-    }
-
-    void
     destroy ()
     {
-        clear ();
-        delette ();
+        acquire ();
+        if (initialized && thread_state && thread_state == PyThreadState_GetUnchecked ())
+            Py_EndInterpreter (thread_state);
 
         state = nullptr;
         thread_state = nullptr;
@@ -468,7 +458,7 @@ release_main_thread ()
     main_interpreter.release ();
 }
 
-PyThreadState *
+static PyThreadState *
 acquire_thread ()
 {
     PyThreadState *tstate = PyThreadState_New (main_interpreter.state);
@@ -477,12 +467,16 @@ acquire_thread ()
     return tstate;
 }
 
-void
+static void
 release_thread (PyThreadState *tstate)
 {
+    if (PyThreadState_GetUnchecked () != tstate)
+        {
+            // tstate is not attached, attach it first before clearing
+            PyThreadState_Swap (tstate);
+        }
     PyThreadState_Clear (tstate);
     PyThreadState_DeleteCurrent ();
-    acquire_main_thread ();
 }
 
 // create new interpreter from any thread
@@ -516,7 +510,6 @@ create_interpreter ()
 
     // cur_state detached here, swapped by tstate
     // restore and delete it
-    PyThreadState_Swap (cur_tstate);
     release_thread (cur_tstate);
 
     return { interp_state, tstate, false, false };
@@ -627,6 +620,10 @@ main (int argc, char *argv[])
                                                 });
                                         t.detach ();
                                     }
+
+                                // wait for all thread finish
+                                while (!main_interpreter.is_acquired)
+                                    sleep (1);
                             });
 }
 } // namespace MusicatExecutor
