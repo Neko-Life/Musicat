@@ -1,7 +1,6 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#include <chrono>
 #include <csignal>
 #include <string>
 #include <thread>
@@ -380,40 +379,99 @@ main (int argc, char *argv[])
 
 namespace MusicatExecutor
 {
-static PyThreadState *main_thread_state = nullptr;
+
+struct py_interpreter_t
+{
+    PyInterpreterState *state;
+    PyThreadState *thread_state;
+
+    bool is_main;
+    bool is_acquired;
+
+    py_interpreter_t () : state (nullptr), thread_state (nullptr), is_main (false), is_acquired (false) {}
+    py_interpreter_t (PyInterpreterState *_state, PyThreadState *_thread_state, bool _is_main, bool _is_acquired)
+        : state (_state), thread_state (_thread_state), is_main (_is_main), is_acquired (_is_acquired)
+    {
+    }
+
+    void
+    acquire ()
+    {
+        if (!thread_state || is_acquired)
+            return;
+        PyEval_AcquireThread (thread_state);
+        is_acquired = true;
+    }
+
+    void
+    release ()
+    {
+        if (!thread_state || !is_acquired)
+            return;
+        PyEval_ReleaseThread (thread_state);
+        is_acquired = false;
+    }
+
+    void
+    clear ()
+    {
+        acquire ();
+        if (!state || !is_acquired)
+            return;
+        PyInterpreterState_Clear (state);
+    }
+
+    void
+    delette ()
+    {
+        release ();
+        if (!state || is_acquired)
+            return;
+        PyInterpreterState_Delete (state);
+    }
+
+    void
+    destroy ()
+    {
+        clear ();
+        delette ();
+
+        state = nullptr;
+        thread_state = nullptr;
+        is_main = false;
+        is_acquired = false;
+    }
+};
+
+static py_interpreter_t main_interpreter;
 
 // must be called in the main thread only
 void
-cache_main_thread_state ()
+cache_main_interpreter ()
 {
-    main_thread_state = PyThreadState_GetUnchecked ();
+    main_interpreter.state = PyInterpreterState_Get ();
+    main_interpreter.thread_state = PyThreadState_GetUnchecked ();
+    main_interpreter.is_main = true;
+    main_interpreter.is_acquired = true;
 }
 
 void
 acquire_main_thread ()
 {
-    if (!main_thread_state)
-        return;
-
-    PyEval_AcquireThread (main_thread_state);
+    main_interpreter.acquire ();
 }
 
-PyInterpreterState *
+void
 release_main_thread ()
 {
-    if (!main_thread_state)
-        return NULL;
-
-    PyInterpreterState *interp = PyInterpreterState_Main ();
-    PyEval_ReleaseThread (main_thread_state);
-
-    return interp;
+    main_interpreter.release ();
 }
 
 PyThreadState *
 acquire_thread ()
 {
-    PyThreadState *tstate = PyThreadState_New (release_main_thread ());
+    PyThreadState *tstate = PyThreadState_New (main_interpreter.state);
+    release_main_thread ();
     PyThreadState_Swap (tstate);
     return tstate;
 }
@@ -424,6 +482,43 @@ release_thread (PyThreadState *tstate)
     PyThreadState_Clear (tstate);
     PyThreadState_DeleteCurrent ();
     acquire_main_thread ();
+}
+
+// create new interpreter from any thread
+static std::mutex create_interpreter_m;
+py_interpreter_t
+create_interpreter ()
+{
+    std::lock_guard lk (create_interpreter_m);
+    PyThreadState *cur_tstate = acquire_thread ();
+
+    PyInterpreterConfig config = {
+        .use_main_obmalloc = 0,
+        .allow_fork = 1,
+        .allow_exec = 1,
+        .allow_threads = 1,
+        .allow_daemon_threads = 1,
+        .check_multi_interp_extensions = 1,
+        .gil = PyInterpreterConfig_OWN_GIL,
+    };
+    PyThreadState *tstate = NULL;
+    PyStatus status = Py_NewInterpreterFromConfig (&tstate, &config);
+    if (PyStatus_Exception (status))
+        {
+            Py_ExitStatusException (status);
+
+            // fail
+            release_thread (cur_tstate);
+            return {};
+        }
+    PyInterpreterState *interp_state = PyInterpreterState_Get ();
+
+    // cur_state detached here, swapped by tstate
+    // restore and delete it
+    PyThreadState_Swap (cur_tstate);
+    release_thread (cur_tstate);
+
+    return { interp_state, tstate, false, false };
 }
 
 int
@@ -522,13 +617,17 @@ main (int argc, char *argv[])
     return shared_main (argc, argv,
                         [] ()
                             {
-                                cache_main_thread_state ();
+                                cache_main_interpreter ();
+
                                 std::thread t (
                                     [] ()
                                         {
-                                            PyThreadState *tstate = acquire_thread ();
+                                            py_interpreter_t i = create_interpreter ();
+                                            main_interpreter.release ();
+                                            i.acquire ();
                                             PyRun_SimpleString ("print('Hello World!')\n");
-                                            release_thread (tstate);
+                                            i.destroy ();
+                                            main_interpreter.acquire ();
                                         });
                                 t.join ();
                             });
