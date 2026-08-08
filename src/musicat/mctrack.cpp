@@ -8,6 +8,11 @@
 #include "musicat/util/base64.h"
 // clang-format on
 
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#include <cstdio>
+#endif // MUSICAT_WITH_PYTHON
+
 #include <fstream>
 
 namespace musicat::player
@@ -242,7 +247,7 @@ is_short (const player::MCTrack &track)
     return is_url_shorts (mctrack::get_url (track));
 }
 
-static util::throttler_t fetch_throttler;
+static util::throttler_t fetch_throttler{ 8 };
 
 static nlohmann::json
 do_fetch (const search_option_t &options)
@@ -376,6 +381,35 @@ fetch_will_block ()
 nlohmann::json
 fetch (const search_option_t &options)
 {
+#ifdef MUSICAT_WITH_PYTHON
+    {
+        nlohmann::json json_res;
+
+        auto throttle = fetch_throttler.throttle ();
+
+        std::string q = options.query;
+        if (!options.is_url)
+            q = "ytsearch" + std::to_string (options.max_entries) + ":" + q;
+
+        int ret = 0;
+
+        // task::run_on_main_and_wait ([&options, &q, &ret, &json_res] () { ret = ytdlp::fetch (q, options.max_entries, json_res); });
+
+        ret = ytdlp::fetch (q, options.max_entries, json_res);
+        if (ret == 0)
+            return json_res;
+        else
+            {
+                fprintf (stderr, "[mctrack::fetch ERROR] ytdlp::fetch() Status: %d\n", ret);
+                fprintf (stderr, "[mctrack::fetch ERROR] query: `%s`\n", q.c_str ());
+                fprintf (stderr, "[mctrack::fetch ERROR] max_entries: %d\n", options.max_entries);
+                fprintf (stderr, "[mctrack::fetch ERROR] is_url: %d\n", options.is_url);
+
+                // fallback to child process
+            }
+    }
+#endif // MUSICAT_WITH_PYTHON
+
     return do_fetch (options);
 }
 

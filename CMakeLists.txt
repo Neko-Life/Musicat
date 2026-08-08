@@ -10,6 +10,12 @@ option(MUSICAT_WITH_CORO "Configure Musicat with C++20 coroutines" ON)
 option(COMPILE_GNUPLOT "Download and compile gnuplot" OFF)
 option(COMPILE_VERBOSE "Show compile warnings verbosely" OFF)
 
+# config.h defines
+option(WITH_WS_P_ETF "Use ETF Websocket Protocol to communicate with Discord" OFF)
+option(WITH_AUDIO_INPUT_USE_EXCITER "Use exciter effect to ffmpeg decoder" ON)
+option(WITH_UWS_HTTPRESPONSE_NO_WRITEMARK "Make uWebSockets server response anonymous" ON)
+
+
 set(MUSICAT_CXX_STANDARD 17)
 set(DPP_INSTALL OFF)
 set(DPP_USE_EXTERNAL_JSON ON)
@@ -23,9 +29,12 @@ if (COMPILE_GNUPLOT)
 	message("-- INFO: Will compile gnuplot version ${GNUPLOT_VERSION}")
 endif()
 
+# remove dpp json include folder to make sure we don't link against it
 set(RM_NLOHMANN_JSON_INCLUDE_CMD "rm" "-rf" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/nlohmann")
-message("-- Executing '${RM_NLOHMANN_JSON_INCLUDE_CMD}'")
+list(JOIN  RM_NLOHMANN_JSON_INCLUDE_CMD " " RM_NLOHMANN_JSON_INCLUDE_CMD_STR)
+message("-- Executing '${RM_NLOHMANN_JSON_INCLUDE_CMD_STR}'")
 execute_process(COMMAND ${RM_NLOHMANN_JSON_INCLUDE_CMD})
+
 
 # globally include nlohmann
 include_directories(include)
@@ -155,6 +164,71 @@ if (COMPILE_VERBOSE)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
+if (WITH_WS_P_ETF)
+	message("-- INFO: Configuring Musicat WITH_WS_P_ETF")
+	target_compile_definitions(Shasha PUBLIC MUSICAT_WS_P_ETF)
+endif()
+
+if(WITH_AUDIO_INPUT_USE_EXCITER)
+	message("-- INFO: Configuring Musicat WITH_AUDIO_INPUT_USE_EXCITER")
+	target_compile_definitions(Shasha PUBLIC AUDIO_INPUT_USE_EXCITER)
+endif()
+
+if(WITH_UWS_HTTPRESPONSE_NO_WRITEMARK)
+	message("-- INFO: Configuring Musicat WITH_UWS_HTTPRESPONSE_NO_WRITEMARK")
+	target_compile_definitions(Shasha PUBLIC UWS_HTTPRESPONSE_NO_WRITEMARK)
+endif()
+
+
+# check python version
+set(PYTHON_CMD python3)
+execute_process(COMMAND ${PYTHON_CMD} --version
+	OUTPUT_VARIABLE PYTHON_VER)
+string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
+
+if (NOT PYTHON_VERSION_LIST)
+	set(PYTHON_CMD python2)
+	execute_process(COMMAND ${PYTHON_CMD} --version
+		OUTPUT_VARIABLE PYTHON_VER)
+	string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
+endif()
+
+if (NOT PYTHON_VERSION_LIST)
+	set(PYTHON_CMD python)
+	execute_process(COMMAND ${PYTHON_CMD} --version
+		OUTPUT_VARIABLE PYTHON_VER)
+	string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
+endif()
+
+list(JOIN PYTHON_VERSION_LIST "." PYTHON_VERSION_STR)
+
+if (PYTHON_VERSION_LIST)
+	set(HAVE_PYTHON 1)
+
+	list(GET PYTHON_VERSION_LIST 0 PYTHON_VERSION_MAJOR)
+	list(GET PYTHON_VERSION_LIST 1 PYTHON_VERSION_MINOR)
+	list(GET PYTHON_VERSION_LIST 2 PYTHON_VERSION_PATCH)
+
+	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
+
+	if (NOT PYTHON_INCLUDE)
+		set(PYTHON_INCLUDE "/usr/include/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+	endif()
+	if (NOT PYTHON_LIB)
+		set(PYTHON_LIB "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+	endif()
+
+	message("-- INFO: PYTHON_CMD: ${PYTHON_CMD}")
+	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION_STR}")
+	message("-- INFO: PYTHON_INCLUDE: ${PYTHON_INCLUDE}")
+	message("-- INFO: PYTHON_LIB: ${PYTHON_LIB}")
+else()
+	set(PYTHON_CMD "")
+	message(WARNING "No python installation detected, ytdlp invocation will fallback using child process")
+endif()
+
+
+
 # Linking libraries
 target_link_libraries(Shasha
 	dpp
@@ -198,6 +272,7 @@ target_include_directories(Shasha PRIVATE
 	libs/libopusenc/include
 	/usr/include/opus
 	/usr/include/postgresql
+	${PYTHON_INCLUDE}
 	libs/ELIZA/src
 	# Remember to add the include directories of any other libraries too
 	)
@@ -229,10 +304,15 @@ set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
 # add_subdirectory(libs/ogg)
 
 add_subdirectory(src/stream-codec)
+if (HAVE_PYTHON)
+	add_subdirectory(src/yt-dlp)
+endif()
 
 # You can also add any other libs you want to use
 
 message(WARNING "If you like this bot or wanna suggest smt, say hi in https://discord.gg/ADGcaHnRFs <3")
+
+configure_file(include/musicat/config.h.in include/musicat/config.h)
 
 # add_executable(base32 include/musicat/util/base32.h base32.cpp src/musicat/util/base32.cpp)
 # target_link_libraries(base32 cppcodec)

@@ -27,6 +27,10 @@
 #include <mutex>
 #include <sys/wait.h>
 
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#endif // MUSICAT_WITH_PYTHON
+
 #define RUN_TESTS 0
 
 #if RUN_TESTS
@@ -736,10 +740,6 @@ main_loop (bool (*get_r_s) ())
 int
 run (int argc, const char *argv[])
 {
-    signal (SIGINT, on_sigint);
-    signal (SIGTERM, on_sigint);
-    signal (SIGPIPE, SIG_IGN);
-
     set_running_state (true);
     dpp::utility::set_thread_name ("mc/main");
 
@@ -782,6 +782,14 @@ run (int argc, const char *argv[])
                                                       true,      conf_cache_policy,
 
                                                       12,        4 };
+
+#ifdef MUSICAT_WITH_PYTHON
+    ytdlp::set_init_params (argv[0], "", get_ytdlp_lib_path ());
+#endif // MUSICAT_WITH_PYTHON
+
+    signal (SIGINT, on_sigint);
+    signal (SIGTERM, on_sigint);
+    signal (SIGPIPE, SIG_IGN);
 
     if (argc > 1)
         {

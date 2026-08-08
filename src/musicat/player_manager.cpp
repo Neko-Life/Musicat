@@ -11,11 +11,15 @@
 #include "musicat/util/fs.h"
 // clang-format on
 
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#endif // MUSICAT_WITH_PYTHON
+
 #include <dirent.h>
 #include <memory>
 #include <mutex>
-#include <thread>
 #include <sys/stat.h>
+#include <thread>
 #include <time.h>
 #include <utime.h>
 
@@ -335,11 +339,29 @@ Manager::download (const string &fname, const string &url, const dpp::snowflake 
 void
 do_download (const std::string &fname, const std::string &url, const std::string &filepath)
 {
+    fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n", fname.c_str (), url.c_str ());
+
+#ifdef MUSICAT_WITH_PYTHON
+    // try using the new ytdlp::fetch() first and fallback when fail
+    // it's really only able to run on one thread per call rn
+    {
+        nlohmann::json d;
+        int ret = ytdlp::fetch (url, 1, d, filepath);
+        if (ret == 0)
+            return;
+        else
+            {
+                fprintf (stderr, "[mctrack::fetch ERROR] ytdlp::fetch() Status: %d\n", ret);
+                fprintf (stderr, "[mctrack::fetch ERROR] url: `%s`\n", url.c_str ());
+                fprintf (stderr, "[mctrack::fetch ERROR] filepath: `%s`\n", filepath.c_str ());
+
+                // fallback to child process
+            }
+    }
+#endif // MUSICAT_WITH_PYTHON
+
     const bool debug = get_debug_state ();
     const string yt_dlp = get_ytdlp_exe ();
-
-    // always log these to "easily" spot problem in prod
-    fprintf (stderr, "[Manager::download] Download: \"%s\" \"%s\"\n", fname.c_str (), url.c_str ());
 
     const std::string qid = util::max_len (util::base64::encode (fname), 32);
 

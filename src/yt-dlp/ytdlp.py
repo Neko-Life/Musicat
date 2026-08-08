@@ -1,6 +1,5 @@
 import sys
 import os
-import json
 from utils.common import printerr  # , create_dir_name
 
 # printerr(ytdlp_dir)
@@ -8,9 +7,6 @@ from utils.common import printerr  # , create_dir_name
 # first page = 25
 # +1 page: 49
 DEFAULT_PLAYLIST_ENTRY_PER_PAGE = 25
-# True will download the whole playlist (usually 6k+ entries)
-# then proceed to get detailed info for each entries!
-DEFAULT_YTDLP_PROCESS_ARG = False
 
 # if len(sys.argv) < 3:
 #     printerr(r'args: <music_folder_path> <url>')
@@ -20,10 +16,11 @@ argvlen = len(sys.argv)
 if argvlen < 2:
     printerr(
         'Usage: python ytdlp.py <url> [OPTIONS...]\nOptions:\n\t--ytdlp-dir <path>\n\t--max-entries <int>\tDefault',
-        DEFAULT_PLAYLIST_ENTRY_PER_PAGE)
+        DEFAULT_PLAYLIST_ENTRY_PER_PAGE, '\n\t--outfile </path/to/outfile.opus>')
     exit(1)
 
-max_entries = DEFAULT_PLAYLIST_ENTRY_PER_PAGE
+MAX_ENTRIES = DEFAULT_PLAYLIST_ENTRY_PER_PAGE
+OUTFILE = False
 
 
 def exitNoArgVal(arg):
@@ -60,13 +57,19 @@ for i in range(1, argvlen):
             exitInvArgVal(arg, argVal)
         skipNext = True
 
-        max_entries = int(argVal)
+        MAX_ENTRIES = int(argVal)
     elif (arg == "--ytdlp-dir"):
         if not argVal or not len(argVal):
             exitNoArgVal(arg)
         skipNext = True
 
         LIB_PATH = argVal
+    elif (arg == "--outfile"):
+        if not argVal or not len(argVal):
+            exitNoArgVal(arg)
+        skipNext = True
+
+        OUTFILE = argVal
     elif not skipNext:
         ARG_URL = arg
     else:
@@ -79,52 +82,16 @@ if not len(LIB_PATH):
     LIB_PATH = ytdlp_dir
 
 printerr("LIB_PATH:", LIB_PATH)
+printerr("MAX_ENTRIES:", MAX_ENTRIES)
+printerr("OUTFILE:", OUTFILE)
 printerr("ARG_URL:", ARG_URL)
 
 sys.path.insert(0, LIB_PATH)
+from utils.ytdlp_run import run
 
-import yt_dlp
+run(ARG_URL, MAX_ENTRIES, 1, OUTFILE)
 
-# ℹ️ See help(yt_dlp.YoutubeDL) for a list of
-# available options and public functions
-ydl_opts = {'logtostderr': True}
-
-with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-    try:
-        info = ydl.extract_info(ARG_URL,
-                                download=False,
-                                process=DEFAULT_YTDLP_PROCESS_ARG)
-
-        # dir_name = create_dir_name(info['id'])
-
-        # folder_path = ARG_ROOT_PATH + '/' + dir_name
-
-        # printerr(r'Saving to ' + folder_path)
-
-        # if not os.path.exists(folder_path):
-        #     os.makedirs(folder_path)
-
-        # ℹ️ ydl.sanitize_info makes the info json-serializable
-        sanitized_info = ydl.sanitize_info(info)
-
-        # printerr(json.dumps(sanitized_info))
-        # printerr('type: ', info['_type'])
-
-        if (info['_type'] == 'playlist' and info['entries']):
-            count = 0
-            results = []
-
-            for i, element in enumerate(info['entries']):
-                results.append(element)
-                count += 1
-                if count >= max_entries:
-                    break
-
-            sanitized_info['entries'] = results
-
-        print(json.dumps(sanitized_info))
-
-    except Exception as e:
-        printerr("ERROR YT_DLP:")
-        printerr(e)
-        exit(1)
+# test_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+# https://www.youtube.com/watch?v=YXZH-eBtmqQ
+# test_outfile = 'out.opus'
+# run(test_url, MAX_ENTRIES, 1, test_outfile)
