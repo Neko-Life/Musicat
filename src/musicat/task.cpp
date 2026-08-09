@@ -13,7 +13,7 @@ namespace musicat::task
 void
 run (const std::function<void ()> &&fn)
 {
-    auto *cluster = get_client_ptr ();
+    auto *cluster = get_cluster_ptr ();
     if (!cluster)
         return;
 
@@ -74,14 +74,14 @@ check_blocking_task ()
 void
 run_once (const std::function<void ()> &&fn, uint64_t after)
 {
-    auto *cluster = get_client_ptr ();
+    auto *cluster = get_cluster_ptr ();
     if (!cluster)
         return;
 
     cluster->start_timer (
         [fn] (dpp::timer handle)
             {
-                auto *cluster = get_client_ptr ();
+                auto *cluster = get_cluster_ptr ();
                 if (!cluster)
                     return;
 

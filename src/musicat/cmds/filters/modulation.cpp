@@ -1,9 +1,8 @@
-// clang-format off
 #include "musicat/cmds/filters.h"
-#include "musicat/cmds/filters/modulation.h"
+
 #include "musicat/cmds.h"
+#include "musicat/cmds/filters/modulation.h"
 #include "musicat/musicat.h"
-// clang-format on
 
 #include <string>
 
@@ -11,30 +10,21 @@ namespace musicat::command::filters::modulation
 {
 
 void
-setup_subcommand (dpp::slashcommand &slash,
-                  const setup_subcommand_options_t &options)
+setup_subcommand (dpp::slashcommand &slash, const setup_subcommand_options_t &options)
 {
-    dpp::command_option subcmd (dpp::co_sub_command, options.subcmd_name,
-                                options.subcmd_desc);
+    dpp::command_option subcmd (dpp::co_sub_command, options.subcmd_name, options.subcmd_desc);
 
     std::string str_fx_verb = std::string (options.fx_verb);
 
     subcmd
-        .add_option (
-            dpp::command_option (dpp::co_string, "action",
-                                 "What you wanna do?", false)
-                .add_choice (dpp::command_option_choice ("Set", "0"))
-                .add_choice (dpp::command_option_choice ("Reset", "1")))
+        .add_option (dpp::command_option (dpp::co_string, "action", "What you wanna do?", false)
+                         .add_choice (dpp::command_option_choice ("Set", "0"))
+                         .add_choice (dpp::command_option_choice ("Reset", "1")))
 
-        .add_option (
-            dpp::command_option (
-                dpp::co_number, "frequency",
-                str_fx_verb + " frequency: [0.1 - 20000.0], default 5.0Hz")
-                .set_min_value (0.1)
-                .set_max_value (20000.0))
-        .add_option (dpp::command_option (
-                         dpp::co_integer, "intensity",
-                         str_fx_verb + " intensity in percent, default 50%")
+        .add_option (dpp::command_option (dpp::co_number, "frequency", str_fx_verb + " frequency: [0.1 - 20000.0], default 5.0Hz")
+                         .set_min_value (0.1)
+                         .set_max_value (20000.0))
+        .add_option (dpp::command_option (dpp::co_integer, "intensity", str_fx_verb + " intensity in percent, default 50%")
                          .set_min_value (0)
                          .set_max_value (100));
 
@@ -42,9 +32,7 @@ setup_subcommand (dpp::slashcommand &slash,
 }
 
 void
-show (const dpp::slashcommand_t &event,
-      double (*get_f) (const filters_perquisite_t &),
-      int (*get_d) (const filters_perquisite_t &))
+show (const dpp::slashcommand_t &event, double (*get_f) (const filters_perquisite_t &), int (*get_d) (const filters_perquisite_t &))
 {
     filters_perquisite_t ftp;
 
@@ -99,11 +87,8 @@ show (const dpp::slashcommand_t &event,
 }
 
 void
-set (const dpp::slashcommand_t &event,
-     double (*get_f) (const filters_perquisite_t &),
-     int (*get_d) (const filters_perquisite_t &),
-     void (*set_f) (const filters_perquisite_t &, double f),
-     void (*set_d) (const filters_perquisite_t &, int d))
+set (const dpp::slashcommand_t &event, double (*get_f) (const filters_perquisite_t &), int (*get_d) (const filters_perquisite_t &),
+     void (*set_f) (const filters_perquisite_t &, double f), void (*set_d) (const filters_perquisite_t &, int d))
 {
     filters_perquisite_t ftp;
 
@@ -197,11 +182,8 @@ cmd_reply:
 }
 
 void
-reset (const dpp::slashcommand_t &event,
-       double (*get_f) (const filters_perquisite_t &),
-       int (*get_d) (const filters_perquisite_t &),
-       void (*set_f) (const filters_perquisite_t &, double f),
-       void (*set_d) (const filters_perquisite_t &, int d))
+reset (const dpp::slashcommand_t &event, double (*get_f) (const filters_perquisite_t &), int (*get_d) (const filters_perquisite_t &),
+       void (*set_f) (const filters_perquisite_t &, double f), void (*set_d) (const filters_perquisite_t &, int d))
 {
     filters_perquisite_t ftp;
 
@@ -223,8 +205,7 @@ reset (const dpp::slashcommand_t &event,
 }
 
 void
-slash_run (const dpp::slashcommand_t &event,
-           const command_handler_t *action_handlers)
+slash_run (const dpp::slashcommand_t &event, const command_handler_t *action_handlers)
 {
     filters_perquisite_t ftp;
 
@@ -239,8 +220,7 @@ slash_run (const dpp::slashcommand_t &event,
             double f = -1;
             int64_t d = -1;
 
-            if (get_inter_param (event, "frequency", &f) == 0
-                || get_inter_param (event, "intensity", &d) == 0)
+            if (get_inter_param (event, "frequency", &f) == 0 || get_inter_param (event, "intensity", &d) == 0)
                 arg_action = "0";
         }
 

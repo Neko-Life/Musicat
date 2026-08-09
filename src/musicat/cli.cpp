@@ -1,8 +1,6 @@
-// clang-format off
-#include "musicat/util.h"
 #include "musicat/musicat.h"
 #include "musicat/slash.h"
-// clang-format on
+#include "musicat/util.h"
 
 #include <regex>
 

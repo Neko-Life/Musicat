@@ -1,8 +1,9 @@
 // clang-format off
 #include "musicat/pagination.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/events/on_button_click.h"
-#include "message.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/loop.h"
 #include "musicat/cmds/pause.h"
@@ -15,7 +16,6 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util_response.h"
-// clang-format on
 
 namespace musicat::events
 {
@@ -100,18 +100,10 @@ progress (const dpp::button_click_t &event, const command::button_command_t &cmd
 void
 u_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    try
-        {
-            player_manager->update_info_embed (event.command.guild_id, false, &event);
-        }
-    catch (const exception &e)
-        {
-            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
-        }
+    int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+    if (ret > 0)
+        event.reply (util::response::str_mention_user (event.command.usr.id)
+                     + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
 }
 
 void
@@ -129,71 +121,50 @@ r_playnow (const dpp::button_click_t &event)
 void
 s_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
+    dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
+    auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
 
-    try
+    auto p = player::manager::create_player (event.command.guild_id);
+
+    if (p && vcuser.first && v && v->voiceclient && v->channel_id == vcuser.first->id
+        && player::manager::voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id) && !p->stopped)
         {
-            dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
-            auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
+            p->skip_playback (v);
+            p->stopped = true;
+            v->voiceclient->pause_audio (true);
 
-            auto p = player_manager->create_player (event.command.guild_id);
-            p->set_shard (event.from ());
-
-            if (p && vcuser.first && v && v->voiceclient && v->channel_id == vcuser.first->id
-                && player_manager->voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id) && !p->stopped)
-                {
-                    p->skip_playback (v);
-                    p->stopped = true;
-                    v->voiceclient->pause_audio (true);
-
-                    player_manager->set_manually_paused (event.command.guild_id);
-                }
-
-            player_manager->update_info_embed (event.command.guild_id, false, &event);
+            player::manager::set_manually_paused (event.command.guild_id);
         }
-    catch (const exception &e)
-        {
-            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
-        }
+
+    int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+    if (ret > 0)
+        event.reply (util::response::str_mention_user (event.command.usr.id)
+                     + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
 }
 
 void
 h_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
+    dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
+    auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
 
-    try
+    if (vcuser.first && v && v->channel_id == vcuser.first->id && player::manager::shuffle_queue (event.command.guild_id, false))
         {
-            dpp::voiceconn *v = event.from ()->get_voice (event.command.guild_id);
-            auto vcuser = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
+            server::ws::player::publish_queue (event.command.guild_id);
 
-            if (vcuser.first && v && v->channel_id == vcuser.first->id && player_manager->shuffle_queue (event.command.guild_id, false))
-                {
-                    server::ws::player::publish_queue (event.command.guild_id);
-
-                    player_manager->update_info_embed (event.command.guild_id, false, &event);
-                }
-        }
-    catch (const exception &e)
-        {
-            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
+            int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+            if (ret > 0)
+                event.reply (util::response::str_mention_user (event.command.usr.id)
+                             + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
         }
 }
 
 void
 e_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
     try
         {
-            player_manager->reply_info_embed (event, true, true);
+            player::manager::reply_info_embed (event, true, true);
         }
     catch (const exception &e)
         {
@@ -204,13 +175,9 @@ e_playnow (const dpp::button_click_t &event)
 void
 x_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
     try
         {
-            player_manager->reply_info_embed (event, false, true);
+            player::manager::reply_info_embed (event, false, true);
         }
     catch (const exception &e)
         {
@@ -221,52 +188,32 @@ x_playnow (const dpp::button_click_t &event)
 void
 d_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
+    auto p = player::manager::create_player (event.command.guild_id);
+    if (p)
+        p->notification = false;
 
-    try
-        {
-            auto p = player_manager->create_player (event.command.guild_id);
-            p->set_shard (event.from ());
-            p->notification = false;
-
-            player_manager->update_info_embed (event.command.guild_id, false, &event);
-        }
-    catch (const exception &e)
-        {
-            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
-        }
+    int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+    if (ret > 0)
+        event.reply (util::response::str_mention_user (event.command.usr.id)
+                     + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
 }
 
 void
 b_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
+    auto p = player::manager::create_player (event.command.guild_id);
+    if (p)
+        p->notification = true;
 
-    try
-        {
-            auto p = player_manager->create_player (event.command.guild_id);
-            p->set_shard (event.from ());
-            p->notification = true;
-
-            player_manager->update_info_embed (event.command.guild_id, false, &event);
-        }
-    catch (const exception &e)
-        {
-            event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
-        }
+    int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+    if (ret > 0)
+        event.reply (util::response::str_mention_user (event.command.usr.id)
+                     + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
 }
 
 void
 l_playnow (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
     try
         {
             command::loop::handle_button_modal_dialog (event);
@@ -283,23 +230,14 @@ a_playnow (const dpp::button_click_t &event)
     task::run (
         [event] ()
             {
-                auto player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    return;
+                auto guild_player = player::manager::create_player (event.command.guild_id);
+                if (guild_player)
+                    guild_player->set_auto_play (!guild_player->auto_play);
 
-                try
-                    {
-                        auto guild_player = player_manager->create_player (event.command.guild_id);
-                        guild_player->set_shard (event.from ());
-
-                        guild_player->set_auto_play (!guild_player->auto_play);
-
-                        player_manager->update_info_embed (event.command.guild_id, false, &event);
-                    }
-                catch (const exception &e)
-                    {
-                        event.reply (util::response::str_mention_user (event.command.usr.id) + e.what ());
-                    }
+                int ret = player::manager::update_info_embed (event.command.guild_id, false, &event);
+                if (ret > 0)
+                    event.reply (util::response::str_mention_user (event.command.usr.id)
+                                 + (ret == 1 ? "Nothing is playing right now" : "No permission to send/update message"));
             });
 }
 
@@ -373,4 +311,5 @@ on_button_click (dpp::cluster *client)
 {
     client->on_button_click ([] (const dpp::button_click_t &event) { command::handle_button ({ button_handlers, event }); });
 }
-} // musicat::events
+
+} //  namespace musicat::events

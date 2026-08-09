@@ -1,13 +1,12 @@
-// clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/server/routes/get_stream.h"
+
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
+#include "musicat/server/routes/get_stream.h"
 #include "musicat/server/stream.h"
-// clang-format on
 
 namespace musicat::server::routes
 {
@@ -24,8 +23,7 @@ get_stream (APIResponse *res, APIRequest *req)
 
     dpp::guild *guild = guild_id.empty () ? nullptr : dpp::find_guild (guild_id);
 
-    auto *player_manager = get_player_manager_ptr ();
-    auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
+    auto guild_player = player::manager::get_player (guild_id);
 
     // no guild or no player
     if (guild == nullptr || !guild_player)

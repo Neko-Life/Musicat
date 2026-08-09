@@ -10,19 +10,13 @@ namespace musicat::player
 
 #ifndef SHA_PLAYER_H
 #warning Missing #include "musicat/player.h"
-class Player;
+class guild_player_t;
 #endif // SHA_PLAYER_H
 
 #ifndef MUSICAT_MCTRACK_H
 #warning Missing #include "musicat/mctrack.h"
 struct MCTrack;
 #endif // MUSICAT_MCTRACK_H
-
-#ifndef SHA_PLAYER_MANAGER_H
-#warning Missing #include "musicat/player_manager.h"
-class Manager;
-using player_manager_ptr_t = Manager *;
-#endif // SHA_PLAYER_MANAGER_H
 
 struct track_progress
 {
@@ -67,13 +61,13 @@ int set_track_failed_playback_count (const std::string &filename, int c);
 // see if the next call to find_track() will block for a while
 bool find_track_will_block ();
 
-std::pair<MCTrack, int> find_track (const bool playlist, const std::string &arg_query, player_manager_ptr_t player_manager,
-                                    const dpp::snowflake guild_id, const bool no_check_history = false, const std::string &cache_id = "");
+std::pair<MCTrack, int> find_track (const bool playlist, const std::string &arg_query, const dpp::snowflake guild_id,
+                                    const bool no_check_history = false, const std::string &cache_id = "");
 
 std::string get_filename_from_result (MCTrack &result);
 
-std::pair<bool, int> track_exist (const std::string &fname, const std::string &url, player_manager_ptr_t player_manager,
-                                  bool from_interaction, dpp::snowflake guild_id, bool no_download = false);
+std::pair<bool, int> track_exist (const std::string &fname, const std::string &url, bool from_interaction, dpp::snowflake guild_id,
+                                  bool no_download = false);
 
 // see if next call to run_download_thread() will block
 bool run_download_thread_will_block (const MCTrack &result, const std::string &fname);
@@ -151,7 +145,7 @@ namespace musicat::util
 /**
  * @brief Check if guild player has current track loaded
  */
-bool player_has_current_track (std::shared_ptr<player::Player> guild_player);
+bool player_has_current_track (std::shared_ptr<player::guild_player_t> guild_player);
 
 /**
  * @brief Get track current progress in ms

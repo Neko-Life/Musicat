@@ -1,8 +1,6 @@
-// clang-format off
 #include "musicat/player.h"
+
 #include "musicat/cmds.h"
-#include "musicat/musicat.h"
-// clang-format on
 
 namespace musicat::command
 {
@@ -12,8 +10,7 @@ handle_command (const handle_command_params_t &params)
 {
     void (*handler) (const dpp::slashcommand_t &) = nullptr;
 
-    for (const command_handler_t *i = params.command_handlers_map;
-         i->name != NULL; i++)
+    for (const command_handler_t *i = params.command_handlers_map; i->name != NULL; i++)
         {
             if (params.command_name != i->name)
                 continue;
@@ -41,8 +38,7 @@ get_button_cmd (const dpp::button_click_t &event, button_command_t &bcmd)
 
     if (fsub != std::string::npos)
         {
-            const std::string param
-                = event.custom_id.substr (fsub + 1, std::string::npos);
+            const std::string param = event.custom_id.substr (fsub + 1, std::string::npos);
 
             bcmd.param = param;
         }
@@ -61,11 +57,9 @@ handle_button (const handle_button_params_t &params)
     if (get_button_cmd (params.event, cmd) != 0)
         return HANDLE_SLASH_COMMAND_NO_HANDLER;
 
-    void (*handler) (const dpp::button_click_t &, const button_command_t &)
-        = nullptr;
+    void (*handler) (const dpp::button_click_t &, const button_command_t &) = nullptr;
 
-    for (const button_handler_t *i = params.command_handlers_map;
-         i->name != NULL; i++)
+    for (const button_handler_t *i = params.command_handlers_map; i->name != NULL; i++)
         {
             if (cmd.command != i->name)
                 continue;
@@ -78,8 +72,7 @@ handle_button (const handle_button_params_t &params)
         return HANDLE_SLASH_COMMAND_NO_HANDLER;
 
     if (cmd.param.empty ())
-        fprintf (stderr, "[WARN] button command \"%s\" have no param\n",
-                 cmd.command.c_str ());
+        fprintf (stderr, "[WARN] button command \"%s\" have no param\n", cmd.command.c_str ());
 
     handler (params.event, cmd);
 
@@ -87,41 +80,34 @@ handle_button (const handle_button_params_t &params)
 }
 
 dpp::command_option
-create_yes_no_option (const std::string &name, const std::string &description,
-                      bool required)
+create_yes_no_option (const std::string &name, const std::string &description, bool required)
 {
     return dpp::command_option (dpp::co_integer, name, description, required)
         .add_choice (dpp::command_option_choice ("Yes", 1))
         .add_choice (dpp::command_option_choice ("No", 0));
 }
 
-std::pair<player::player_manager_ptr_t, int>
+int
 cmd_pre_get_player_manager_ready_werr (const dpp::snowflake &guild_id)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return { NULL, -1 };
+    if (!player::manager::voice_ready (guild_id))
+        return 1;
 
-    if (!player_manager->voice_ready (guild_id))
-        {
-            return { NULL, 1 };
-        }
-
-    return { player_manager, 0 };
+    return 0;
 }
 
-player::player_manager_ptr_t
+bool
 cmd_pre_get_player_manager_ready (const dpp::slashcommand_t &event)
 {
     auto res = cmd_pre_get_player_manager_ready_werr (event.command.guild_id);
 
-    if (res.second == 1)
+    if (res == 1)
         {
             event.reply ("Please wait while I'm getting ready to stream");
-            return NULL;
+            return false;
         }
 
-    return res.first;
+    return true;
 }
 
 } // musicat::command

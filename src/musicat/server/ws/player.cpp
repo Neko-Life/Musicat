@@ -1,11 +1,12 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server.h"
 #include "musicat/server/ws/player_events.h"
-// clang-format on
 
 #include <uWebSockets/src/App.h>
 
@@ -119,11 +120,7 @@ publish_stop (const dpp::snowflake &guild_id)
 void
 publish_fx (const dpp::snowflake &guild_id)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    auto guild_player = player_manager->get_player (guild_id);
+    auto guild_player = ::musicat::player::manager::get_player (guild_id);
     if (!guild_player)
         return;
 
@@ -133,11 +130,7 @@ publish_fx (const dpp::snowflake &guild_id)
 void
 publish_queue (const dpp::snowflake &guild_id)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    auto q = player_manager->get_queue (guild_id);
+    auto q = ::musicat::player::manager::get_queue (guild_id);
 
     auto a = nlohmann::json::array ();
     for (auto &t : q)

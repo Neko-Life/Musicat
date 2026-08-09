@@ -2,25 +2,14 @@
 #define MUSICAT_H
 
 #include "nekos-best++.hpp"
+#include <dpp/dpp.h>
 #include <string>
 #include <vector>
-#include <dpp/dpp.h>
 
 #define DISCORD_API_URL "https://discord.com/api/v10"
 
 namespace musicat
 {
-
-#ifndef SHA_PLAYER_MANAGER_H
-#warning Missing #include "musicat/player_manager.h"
-namespace player
-{
-class Manager;
-using player_manager_ptr_t = Manager *;
-}
-#endif // SHA_PLAYER_MANAGER_H
-
-extern nlohmann::json sha_cfg; // EXTERN_VARIABLE
 
 struct musicat_cluster_params_t
 {
@@ -33,6 +22,52 @@ struct musicat_cluster_params_t
     dpp::cache_policy_t policy;
     uint32_t request_threads;
     uint32_t request_threads_raw;
+};
+
+template <typename T> struct exclusive_container
+{
+    std::mutex mutex;
+    T container;
+
+    std::lock_guard<std::mutex>
+    acquire ()
+    {
+        return std::lock_guard{ mutex };
+    }
+
+    std::unique_lock<std::mutex>
+    unique_acquire ()
+    {
+        return std::unique_lock{ mutex };
+    }
+};
+
+template <typename T> struct condition_container : public exclusive_container<T>
+{
+    std::condition_variable cv;
+};
+
+// !TODO
+struct logger_t
+{
+    const char *prefix;
+    logger_t () : prefix (nullptr) {}
+    logger_t (const char *_prefix) : prefix (_prefix) {}
+
+    void
+    info (const char *name)
+    {
+    }
+
+    void
+    debug (const char *name)
+    {
+    }
+
+    void
+    err (const char *name)
+    {
+    }
 };
 
 // Main
@@ -69,32 +104,6 @@ bool get_debug_state ();
  * @return int 0 on success
  */
 int set_debug_state (const bool state);
-
-/**
- * @brief Get config value of key
- *
- * @param key
- * @param default_value
- *
- * @return T
- */
-template <typename T>
-T
-get_config_value (const std::string &key, const T &default_value)
-{
-    if (sha_cfg.is_null ())
-        {
-            fprintf (stderr, "[ERROR] Config isn't populated\n");
-            return default_value;
-        }
-    if (!sha_cfg.is_object ())
-        {
-            fprintf (stderr, "[ERROR] Invalid config, config isn't object\n");
-            return default_value;
-        }
-
-    return sha_cfg.value (key, default_value);
-}
 
 /**
  * @brief Get music folder path
@@ -280,7 +289,7 @@ std::vector<size_t> shuffle_indexes (size_t len);
  *
  * @return int 0 if request to connect sent
  */
-int join_voice (dpp::discord_client *from, player::player_manager_ptr_t player_manager, const dpp::snowflake &guild_id,
+int join_voice (dpp::discord_client *from, const dpp::snowflake &guild_id,
                 const dpp::snowflake &user_id, const dpp::snowflake &sha_id);
 
 nekos_best::endpoint_map get_cached_nekos_best_endpoints ();
@@ -289,7 +298,7 @@ nekos_best::endpoint_map get_cached_nekos_best_endpoints ();
  * @brief Get client ptr, returns nullptr if program exiting
  * probably should be careful in thread
  */
-dpp::cluster *get_client_ptr ();
+dpp::cluster *get_cluster_ptr ();
 
 /**
  * @brief Get client id
@@ -302,11 +311,6 @@ std::string get_sha_token ();
  * @brief Get client secret
  */
 std::string get_sha_secret ();
-
-/**
- * @brief Get player manager shared_ptr, won't be available in cli context
- */
-player::player_manager_ptr_t get_player_manager_ptr ();
 
 int set_cached_nekos_best_endpoints (const nekos_best::endpoint_map &em);
 

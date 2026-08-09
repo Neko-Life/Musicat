@@ -55,7 +55,7 @@ enum run_processor_error_t
 struct track_data_t
 {
     std::string file_path;
-    std::shared_ptr<player::Player> player;
+    std::shared_ptr<player::guild_player_t> player;
     dpp::discord_voice_client *vclient;
 };
 

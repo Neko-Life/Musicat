@@ -1,7 +1,5 @@
 #include "musicat/events/on_voice_server_update.h"
-#include "musicat/events.h"
 #include "musicat/musicat.h"
-#include "musicat/util.h"
 #include <stdio.h>
 
 namespace musicat::events
@@ -49,16 +47,12 @@ on_voice_server_update (dpp::cluster *client)
             int status = 0;
             util::ret_hook_t h{ &status, ret_pline };
 
-            auto player_manager = get_player_manager_ptr ();
-            if (!player_manager)
-                return;
-
             if (auto guild_player
-                = player_manager->get_player (event.guild_id);
+                = player::manager::get_player (event.guild_id);
                 guild_player)
                 guild_player->check_for_to_seek ();
 
-            if (player_manager->is_waiting_vc_ready (event.guild_id))
+            if (player::manager::is_waiting_vc_ready (event.guild_id))
                 {
                     status = 1;
                     return;
@@ -88,7 +82,7 @@ on_voice_server_update (dpp::cluster *client)
                 }
 
             // reconnect voice
-            player_manager->full_reconnect (event.from (), event.guild_id,
+            player::manager::full_reconnect (event.from (), event.guild_id,
                                             connection->channel_id,
                                             connection->channel_id);
         });

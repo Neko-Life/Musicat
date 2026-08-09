@@ -1,9 +1,8 @@
-// clang-format off
 #include "musicat/player.h"
-#include "musicat/cmds/volume.h"
+
 #include "musicat/cmds.h"
+#include "musicat/cmds/volume.h"
 #include "musicat/musicat.h"
-// clang-format on
 
 #define MIN_PERCENTAGE 1
 #define MIN_PERCENTAGE_STR "1"
@@ -26,11 +25,10 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = cmd_pre_get_player_manager_ready (event);
-    if (player_manager == NULL)
+    if (!cmd_pre_get_player_manager_ready (event))
         return;
 
-    auto player = player_manager->get_player (event.command.guild_id);
+    auto player = player::manager::get_player (event.command.guild_id);
 
     if (!player)
         {

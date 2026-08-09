@@ -1,12 +1,13 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/cmds/seek.h"
 #include "musicat/cmds.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"
-// clang-format on
 
 #include <cstdint>
 
@@ -162,12 +163,6 @@ parse_arg_to (const std::string &str)
 int
 run (const dpp::snowflake &guild_id, const std::string &arg_to, std::string &out)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return -1;
-        }
-
     const bool debug = get_debug_state ();
 
     arg_to_t parsed = parse_arg_to (arg_to);
@@ -186,7 +181,7 @@ run (const dpp::snowflake &guild_id, const std::string &arg_to, std::string &out
 
     // int64_t seek_byte = -1;
 
-    auto player = player_manager->get_player (guild_id);
+    auto player = player::manager::get_player (guild_id);
 
     if (!util::player_has_current_track (player))
         {
@@ -244,14 +239,13 @@ button_run (const dpp::button_click_t &event, int (*get_to_ms) (std::string &to_
 {
     auto pm_res = command::cmd_pre_get_player_manager_ready_werr (event.command.guild_id);
 
-    if (pm_res.second != 0)
-        return pm_res.second;
+    if (pm_res != 0)
+        return pm_res;
 
-    auto player_manager = pm_res.first;
-    auto guild_player = player_manager->get_player (event.command.guild_id);
+    auto guild_player = player::manager::get_player (event.command.guild_id);
     if (!guild_player || !guild_player->processing_audio)
         {
-            player_manager->update_info_embed (event.command.guild_id, false, &event);
+            player::manager::update_info_embed (event.command.guild_id, false, &event);
             return -2;
         }
 
@@ -268,7 +262,7 @@ button_run (const dpp::button_click_t &event, int (*get_to_ms) (std::string &to_
             run (event.command.guild_id, to_ms, out);
         }
 
-    player_manager->update_info_embed (event.command.guild_id, false, &event);
+    player::manager::update_info_embed (event.command.guild_id, false, &event);
     return 0;
 }
 

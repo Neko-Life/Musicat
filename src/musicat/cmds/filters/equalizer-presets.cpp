@@ -1,12 +1,10 @@
-// clang-format off
-#include "appcommand.h"
-#include "musicat/autocomplete.h"
 #include "musicat/cmds/filters.h"
+
+#include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "musicat/task.h"
-// clang-format on
 
 #include <libpq-fe.h>
 
@@ -70,18 +68,10 @@ save (const dpp::slashcommand_t &event)
     task::run (
         [event] ()
             {
-                auto *player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    {
-                        return;
-                    }
-
-                auto guild_player = player_manager->create_player (event.command.guild_id);
+                auto guild_player = player::manager::create_player (event.command.guild_id);
 
                 if (!guild_player)
                     return event.reply ("`[ERROR]` Failed creating guild player");
-
-                guild_player->set_shard (event.from ());
 
                 if (guild_player->equalizer.empty ())
                     return event.reply ("Equalizer not set");
@@ -119,18 +109,10 @@ load_or_view (const dpp::slashcommand_t &event, bool is_view = false)
     task::run (
         [event, is_view] ()
             {
-                auto *player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    {
-                        return;
-                    }
-
-                auto guild_player = player_manager->create_player (event.command.guild_id);
+                auto guild_player = player::manager::create_player (event.command.guild_id);
 
                 if (!guild_player)
                     return event.reply ("`[ERROR]` Failed creating guild player");
-
-                guild_player->set_shard (event.from ());
 
                 std::string name;
                 get_inter_param (event, "name", &name);

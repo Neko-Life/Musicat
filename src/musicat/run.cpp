@@ -6,7 +6,8 @@
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
 #include "musicat/player_manager_stream.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/child.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/db.h"
@@ -16,11 +17,11 @@
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/player_manager_timer.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/runtime_cli.h"
 #include "musicat/server.h"
 #include "musicat/task.h"
 #include "musicat/thread_manager.h"
-// clang-format on
 
 #include <cstdint>
 #include <exception>
@@ -56,7 +57,6 @@ bool debug = false;
 
 dpp::snowflake sha_id = 0;
 dpp::cluster *client_ptr = nullptr;
-player::Manager *player_manager_ptr = nullptr;
 
 nekos_best::endpoint_map _nekos_best_endpoints = {};
 
@@ -86,9 +86,35 @@ std::mutex _connected_vcs_setting_mutex;
 // ================================================================================
 
 dpp::cluster *
-get_client_ptr ()
+get_cluster_ptr ()
 {
     return client_ptr;
+}
+
+/**
+ * @brief Get config value of key
+ *
+ * @param key
+ * @param default_value
+ *
+ * @return T
+ */
+template <typename T>
+T
+get_config_value (const std::string &key, const T &default_value)
+{
+    if (sha_cfg.is_null ())
+        {
+            fprintf (stderr, "[ERROR] Config isn't populated\n");
+            return default_value;
+        }
+    if (!sha_cfg.is_object ())
+        {
+            fprintf (stderr, "[ERROR] Invalid config, config isn't object\n");
+            return default_value;
+        }
+
+    return sha_cfg.value (key, default_value);
 }
 
 dpp::snowflake
@@ -124,12 +150,6 @@ bool
 get_sha_runtime_cli_opt ()
 {
     return get_config_value<bool> ("RUNTIME_CLI", false);
-}
-
-player::player_manager_ptr_t
-get_player_manager_ptr ()
-{
-    return player_manager_ptr;
 }
 
 int
@@ -618,20 +638,16 @@ on_sigint ([[maybe_unused]] int code)
 {
     _sigint_count++;
 
-    static const char exit_msg[] = "Received SIGINT, exiting...\n";
+    static const char exit_msg[] = "Received SIGINT or SIGTERM, exiting...\n";
 
     // printf isn't signal safe, use write
     write (STDERR_FILENO, exit_msg, STR_SIZE (exit_msg));
 
     if (_sigint_count == 2)
         {
-            if (player_manager_ptr)
-                {
-                    player_manager_ptr->shutdown_skip_close_voice_sessions = true;
-                    static const char stuck_help[] = "Skipping closing voice sessions...\n";
-
-                    write (STDERR_FILENO, stuck_help, STR_SIZE (stuck_help));
-                }
+            player::manager::set_shutdown_skip_close_voice_sessions (true);
+            static const char stuck_help[] = "Skipping closing voice sessions...\n";
+            write (STDERR_FILENO, stuck_help, STR_SIZE (stuck_help));
         }
 
     if (_sigint_count > 2)
@@ -650,8 +666,7 @@ on_sigint ([[maybe_unused]] int code)
             exit (255);
         }
 
-    if (running)
-        running = false;
+    running = false;
 }
 
 auto dpp_cout_logger = dpp::utility::cout_logger ();
@@ -670,7 +685,7 @@ main_loop (bool (*get_r_s) ())
     while ((r_s = get_r_s ()))
         {
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
-            player::check_stream_contexts ();
+            player::manager::check_stream_contexts ();
 
             bool debug = get_debug_state ();
             time_t cur_time = time (NULL);
@@ -727,8 +742,8 @@ main_loop (bool (*get_r_s) ())
 
             player::timer::check_resume_timers ();
             player::timer::check_failed_playback_reset_timers ();
-            player::check_embed_op_queue ();
-            player::check_download_queue ();
+            player::manager::check_embed_op_queue ();
+            player::manager::check_download_queue ();
             task::check_blocking_task ();
 
             server::main_loop_routine ();
@@ -740,6 +755,10 @@ main_loop (bool (*get_r_s) ())
 int
 run (int argc, const char *argv[])
 {
+    signal (SIGINT, on_sigint);
+    signal (SIGTERM, on_sigint);
+    signal (SIGPIPE, SIG_IGN);
+
     set_running_state (true);
     dpp::utility::set_thread_name ("mc/main");
 
@@ -786,10 +805,6 @@ run (int argc, const char *argv[])
 #ifdef MUSICAT_WITH_PYTHON
     ytdlp::set_init_params (argv[0], "", get_ytdlp_lib_path ());
 #endif // MUSICAT_WITH_PYTHON
-
-    signal (SIGINT, on_sigint);
-    signal (SIGTERM, on_sigint);
-    signal (SIGPIPE, SIG_IGN);
 
     if (argc > 1)
         {
@@ -855,12 +870,10 @@ run (int argc, const char *argv[])
     dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
                          cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
 
-    player::Manager player_manager (&client);
     auto stream_thread_count = std::thread::hardware_concurrency () / 2;
-    player::spawn_stream_thread (stream_thread_count == 0 ? 1 : stream_thread_count);
+    player::manager::spawn_stream_thread (stream_thread_count == 0 ? 1 : stream_thread_count);
 
     client_ptr = &client;
-    player_manager_ptr = &player_manager;
 
     client.on_log (
         [] (const dpp::log_t &event)
@@ -919,10 +932,7 @@ run (int argc, const char *argv[])
 
     child::shutdown ();
     server::shutdown ();
-    player::shutdown ();
-
-    player_manager.shutdown ();
-    player_manager_ptr = nullptr;
+    player::manager::shutdown ();
 
     client.shutdown ();
     client_ptr = nullptr;

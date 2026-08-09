@@ -1,14 +1,13 @@
-// clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
-#include "musicat/cmds/play.h"
+
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
+#include "musicat/cmds/play.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/search-cache.h"
 #include "musicat/util.h"
-// clang-format on
 
 #include <memory>
 #include <vector>
@@ -61,19 +60,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 
 int
 run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::interaction_create_t &event, std::string &out,
-     const std::string &arg_query = "", int64_t arg_top = 0, int64_t arg_slip = 0, bool button_run = false, bool update_info_embed = true)
+     const std::string &arg_query = "", int64_t arg_top = 0, int64_t arg_slip = 0, bool button_run = false, bool _update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
-    if (pm_res.second == 1)
+    if (pm_res == 1)
         {
             out = "Please wait while I'm getting ready to stream";
             return 1;
         }
-
-    auto player_manager = pm_res.first;
-
-    if (player_manager == NULL)
-        return -1;
 
     bool debug = get_debug_state ();
 
@@ -118,7 +112,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                          "still in cache: "
                       << guild_id << '\n';
 
-            player_manager->disconnect_voice (event.from (), guild_id);
+            player::manager::disconnect_voice (event.from (), guild_id);
         }
 
     // Client voice conn
@@ -130,9 +124,9 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                          "different vc and connection not updated yet: "
                       << guild_id << "\n";
 
-            player_manager->set_disconnecting (guild_id, vcclient.first->id);
+            player::manager::set_disconnecting (guild_id, vcclient.first->id);
 
-            player_manager->disconnect_voice (event.from (), guild_id);
+            player::manager::disconnect_voice (event.from (), guild_id);
         }
 
     bool reconnecting = false;
@@ -146,7 +140,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                 }
             vcclient_cont = false;
 
-            player_manager->full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
+            player::manager::full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
             reconnecting = true;
         }
 
@@ -157,7 +151,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
 
     if (v && v->voiceclient && v->voiceclient->is_paused () && v->channel_id == vcuser.first->id)
         {
-            player_manager->unpause (v->voiceclient.get (), guild_id, update_info_embed);
+            player::manager::unpause (v->voiceclient.get (), guild_id, _update_info_embed);
             if (no_query)
                 {
                     out = "Resumed";
@@ -167,10 +161,10 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
 
     bool continued = false;
 
-    auto guild_player = player_manager->get_player (guild_id);
+    auto guild_player = player::manager::get_player (guild_id);
     if (guild_player)
         {
-            std::lock_guard lk (guild_player->t_mutex);
+            auto lk = guild_player->acquire ();
 
             const bool has_vc = v && v->voiceclient;
             const size_t npsiz = guild_player->queue.size ();
@@ -193,7 +187,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
                     continued = true;
                 }
             else
-                player_manager->check_health (guild_id);
+                player::manager::check_health (guild_id);
 
             if (resumed)
                 guild_player->tried_continuing = true;
@@ -224,7 +218,7 @@ run (const dpp::snowflake &user_id, const dpp::snowflake &guild_id, const dpp::i
             out = "`[CRAP]` Seems like I'm broken, lemme fix myself brb";
 
             // reconnect
-            player_manager->full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
+            player::manager::full_reconnect (event.from (), guild_id, vcclient.first->id, vcuser.first->id);
             return 1;
         }
 
@@ -264,10 +258,6 @@ slash_run (const dpp::slashcommand_t &event)
 void
 button_run (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (player_manager == NULL)
-        return;
-
     auto user_id = event.command.usr.id;
     auto guild_id = event.command.guild_id;
 
@@ -278,7 +268,7 @@ button_run (const dpp::button_click_t &event)
     std::string out;
     run (user_id, guild_id, event, out, arg_query, arg_top, arg_slip, true, false);
 
-    player_manager->update_info_embed (event.command.guild_id, false, &event);
+    player::manager::update_info_embed (event.command.guild_id, false, &event);
 }
 
 } // musicat::command::play

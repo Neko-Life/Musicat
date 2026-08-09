@@ -1,23 +1,23 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/cmds/queue.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
 #include "musicat/server/ws/player.h"
-// clang-format on
 
 namespace musicat::command::queue
 {
 // =================== PRIVATE ===================
 
 void
-handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::player_manager_ptr_t player_manager,
-               std::deque<player::MCTrack> &queue, const dpp::snowflake &sha_id)
+handle_option (int64_t &qarg, const dpp::interaction_create_t &event, std::deque<player::MCTrack> &queue, const dpp::snowflake &sha_id)
 {
-    auto guild_player = player_manager->get_player (event.command.guild_id);
+    auto guild_player = player::manager::get_player (event.command.guild_id);
 
-    std::lock_guard lk (guild_player->t_mutex);
+    auto lk = guild_player->acquire ();
     guild_player->reset_shifted ();
 
     switch (qarg)
@@ -40,7 +40,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::pl
                     server::ws::player::publish_queue (event.command.guild_id);
                 }
 
-                player_manager->update_info_embed (event.command.guild_id);
+                player::manager::update_info_embed (event.command.guild_id);
 
                 event.edit_response ("Cleared");
 
@@ -48,7 +48,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::pl
             }
         case queue_modify_t::m_shuffle:
             {
-                if (player_manager->shuffle_queue (event.command.guild_id))
+                if (player::manager::shuffle_queue (event.command.guild_id))
                     {
                         server::ws::player::publish_queue (event.command.guild_id);
 
@@ -88,7 +88,8 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::pl
 
                     server::ws::player::publish_queue (event.command.guild_id);
                 }
-                player_manager->update_info_embed (event.command.guild_id);
+
+                player::manager::update_info_embed (event.command.guild_id);
 
                 event.edit_response ("Reversed");
 
@@ -100,7 +101,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::pl
                 // vc currently no check for user who invoked the command (it's
                 // rather a feature where user who left the vc can clear their
                 // tracks to keep their friend happy)
-                if (!player_manager->voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id))
+                if (!player::manager::voice_ready (event.command.guild_id, event.from ()->shard_id, event.command.usr.id))
                     {
                         event.edit_response ("Establishing connection. Please wait...");
                         break;
@@ -167,7 +168,7 @@ handle_option (int64_t &qarg, const dpp::interaction_create_t &event, player::pl
                 if (rmed)
                     server::ws::player::publish_queue (event.command.guild_id);
 
-                player_manager->update_info_embed (event.command.guild_id);
+                player::manager::update_info_embed (event.command.guild_id);
 
                 event.edit_response (std::to_string (usiz) + " user" + std::string (usiz != 1 ? "s" : "") + " left this session. Removed "
                                      + std::to_string (rmed) + " track" + std::string (rmed != 1 ? "s" : ""));
@@ -208,20 +209,13 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
     const dpp::snowflake sha_id = event.from ()->creator->me.id;
 
     // avoid getting timed out when loading large queue
     event.thinking ();
-    player_manager->load_guild_current_queue (event.command.guild_id, &sha_id);
-    // !TODO: make sure guild_player has shard_id here
+    player::manager::load_guild_current_queue (event.command.guild_id, &sha_id);
 
-    std::deque<player::MCTrack> queue = player_manager->get_queue (event.command.guild_id);
+    std::deque<player::MCTrack> queue = player::manager::get_queue (event.command.guild_id);
 
     if (queue.empty ())
         {
@@ -233,7 +227,7 @@ slash_run (const dpp::slashcommand_t &event)
     get_inter_param (event, "action", &qarg);
 
     if (qarg > -1)
-        return handle_option (qarg, event, player_manager, queue, sha_id);
+        return handle_option (qarg, event, queue, sha_id);
 
     paginate::reply_paginated_playlist (event, queue, "Queue", true);
 }

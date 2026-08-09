@@ -123,7 +123,6 @@ add_custom_target(archlinux-dist
 		${CMAKE_CURRENT_BINARY_DIR}/libs/DPP/library/libdpp.so*
 		libs/curlpp/build/libcurlpp.so*
 		libs/icu/usr/local/lib/lib*
-		${CMAKE_CURRENT_BINARY_DIR}/libs/ogg/libogg.so*
 		libs/libopusenc/build/lib/libopusenc.so*
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
@@ -298,9 +297,9 @@ add_subdirectory(libs/DPP)
 add_subdirectory(libs/cppcodec)
 
 # libogg build options
-set(INSTALL_DOCS OFF)
-set(INSTALL_PKG_CONFIG_MODULE OFF)
-set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
+# set(INSTALL_DOCS OFF)
+# set(INSTALL_PKG_CONFIG_MODULE OFF)
+# set(INSTALL_CMAKE_PACKAGE_MODULE OFF)
 # add_subdirectory(libs/ogg)
 
 add_subdirectory(src/stream-codec)
