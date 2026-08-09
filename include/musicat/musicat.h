@@ -26,25 +26,26 @@ struct musicat_cluster_params_t
 
 template <typename T> struct exclusive_container
 {
-    std::mutex mutex;
+    using mutex_t = std::mutex;
+    mutex_t mutex;
     T container;
 
-    std::lock_guard<std::mutex>
+    std::lock_guard<mutex_t>
     acquire ()
     {
-        return std::lock_guard{ mutex };
-    }
-
-    std::unique_lock<std::mutex>
-    unique_acquire ()
-    {
-        return std::unique_lock{ mutex };
+        return std::lock_guard<mutex_t>{ mutex };
     }
 };
 
 template <typename T> struct condition_container : public exclusive_container<T>
 {
     std::condition_variable cv;
+
+    std::unique_lock<typename exclusive_container<T>::mutex_t>
+    unique_acquire ()
+    {
+        return std::unique_lock<typename exclusive_container<T>::mutex_t>{ exclusive_container<T>::mutex };
+    }
 };
 
 // !TODO
@@ -289,8 +290,7 @@ std::vector<size_t> shuffle_indexes (size_t len);
  *
  * @return int 0 if request to connect sent
  */
-int join_voice (dpp::discord_client *from, const dpp::snowflake &guild_id,
-                const dpp::snowflake &user_id, const dpp::snowflake &sha_id);
+int join_voice (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, const dpp::snowflake &sha_id);
 
 nekos_best::endpoint_map get_cached_nekos_best_endpoints ();
 

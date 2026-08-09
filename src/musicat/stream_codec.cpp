@@ -81,26 +81,7 @@ stream_codec_t::add_stream (AVFormatContext *oc, const AVCodec **codec, enum AVC
             return ret;
         }
     c->sample_fmt = codec_config ? *(const enum AVSampleFormat *)codec_config : AV_SAMPLE_FMT_FLTP;
-    ret = avcodec_get_supported_config (c, NULL, AV_CODEC_CONFIG_SAMPLE_RATE, 0, &codec_config, NULL);
-    if (ret < 0)
-        {
-            fprintf (stderr, "Failed to get supported sample rates\n");
-            return ret;
-        }
-    if (codec_config)
-        {
-            const int *supported_samplerates = (const int *)codec_config;
-            c->sample_rate = supported_samplerates[0];
-            for (; *supported_samplerates; supported_samplerates++)
-                {
-                    if (*supported_samplerates == 48000)
-                        c->sample_rate = 48000;
-                }
-        }
-    else
-        {
-            c->sample_rate = 48000;
-        }
+    c->sample_rate = 48000;
     AVChannelLayout ch_layout = AV_CHANNEL_LAYOUT_STEREO;
     av_channel_layout_copy (&c->ch_layout, &ch_layout);
     ost.st->time_base = (AVRational){ 1, c->sample_rate };
