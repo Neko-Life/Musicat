@@ -103,7 +103,7 @@ void
 run_on_main_and_wait (const std::function<void ()> &&fn)
 {
     uint64_t cts = (uint64_t)util::get_current_ts () + util::get_random_number ();
-    auto lk = blocking_tasks.acquire ();
+    auto lk = blocking_tasks.unique_acquire ();
     blocking_tasks.get ().push_back ({ fn, [] () { return false; }, cts, true });
 
     blocking_tasks.cv.wait (lk,
