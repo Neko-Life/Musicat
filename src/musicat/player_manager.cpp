@@ -27,10 +27,10 @@ handle_guild_delete (const dpp::guild_delete_t &e)
         return;
 
     auto lk = players.acquire ();
-    auto i = players.container.find (guild_id);
-    if (i == players.container.end ())
+    auto i = players.get().find (guild_id);
+    if (i == players.get().end ())
         return;
-    players.container.erase (i);
+    players.get().erase (i);
 }
 
 void
@@ -59,12 +59,12 @@ create_player (const dpp::snowflake &guild_id)
         return nullptr;
 
     auto lk = players.acquire ();
-    auto l = players.container.find (guild_id);
-    if (l != players.container.end ())
+    auto l = players.get().find (guild_id);
+    if (l != players.get().end ())
         return l->second;
 
     std::shared_ptr<guild_player_t> v = std::make_shared<guild_player_t> (guild_id, g->shard_id);
-    players.container.insert (std::pair (guild_id, v));
+    players.get().insert (std::pair (guild_id, v));
 
     return v;
 }
@@ -74,8 +74,8 @@ get_player (const dpp::snowflake &guild_id)
 {
     auto lk = players.acquire ();
 
-    auto l = players.container.find (guild_id);
-    if (l != players.container.end ())
+    auto l = players.get().find (guild_id);
+    if (l != players.get().end ())
         return l->second;
 
     return nullptr;
@@ -137,11 +137,11 @@ delete_player (const dpp::snowflake &guild_id)
 {
     auto lk = players.acquire ();
 
-    auto l = players.container.find (guild_id);
-    if (l == players.container.end ())
+    auto l = players.get().find (guild_id);
+    if (l == players.get().end ())
         return false;
 
-    players.container.erase (l);
+    players.get().erase (l);
     return true;
 }
 

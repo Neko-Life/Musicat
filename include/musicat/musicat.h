@@ -30,10 +30,23 @@ template <typename T> struct exclusive_container
     mutex_t mutex;
     T container;
 
-    std::lock_guard<mutex_t>
+    [[nodiscard]] std::lock_guard<mutex_t>
     acquire ()
     {
         return std::lock_guard<mutex_t>{ mutex };
+    }
+
+    [[nodiscard]] T &
+    get ()
+    {
+        return container;
+    }
+
+    exclusive_container<T> &
+    set (const T &c)
+    {
+        container = c;
+        return *this;
     }
 };
 
@@ -41,7 +54,7 @@ template <typename T> struct condition_container : public exclusive_container<T>
 {
     std::condition_variable cv;
 
-    std::unique_lock<typename exclusive_container<T>::mutex_t>
+    [[nodiscard]] std::unique_lock<typename exclusive_container<T>::mutex_t>
     unique_acquire ()
     {
         return std::unique_lock<typename exclusive_container<T>::mutex_t>{ exclusive_container<T>::mutex };

@@ -605,20 +605,20 @@ class stream_ctx
     }
 };
 
-static std::vector<stream_ctx *> stream_ctxs;
+using vector_stream_ctx = std::vector<stream_ctx *>;
 // protects ctx->handled and stream_ctxs
-static std::mutex stream_ctxs_m;
+static exclusive_container<vector_stream_ctx> stream_ctxs;
 
 static void
 erase_ctx_unlocked (const dpp::snowflake &guild_id)
 {
-    auto i = stream_ctxs.begin ();
-    while (i != stream_ctxs.end ())
+    auto i = stream_ctxs.get ().begin ();
+    while (i != stream_ctxs.get ().end ())
         {
             if ((*i)->guild_id == guild_id)
                 {
                     delete (*i);
-                    stream_ctxs.erase (i);
+                    stream_ctxs.get ().erase (i);
                     break;
                 }
 
@@ -629,7 +629,7 @@ erase_ctx_unlocked (const dpp::snowflake &guild_id)
 static void
 erase_ctx (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (stream_ctxs_m);
+    auto lk = stream_ctxs.acquire ();
     erase_ctx_unlocked (guild_id);
 }
 
@@ -689,7 +689,7 @@ class stream_thread_t
                             continue;
 
                         {
-                            std::lock_guard lk (stream_ctxs_m);
+                            auto lk = stream_ctxs.acquire ();
                             ctx->handled = false;
                         }
                     }
@@ -784,9 +784,9 @@ stream_shutdown ()
 void
 check_stream_contexts ()
 {
-    std::lock_guard lk (stream_ctxs_m);
+    auto lk = stream_ctxs.acquire ();
     int notified = 0;
-    for (auto *c : stream_ctxs)
+    for (auto *c : stream_ctxs.get ())
         {
             if (c->handled || !c->need_handler ())
                 continue;
@@ -799,9 +799,9 @@ check_stream_contexts ()
 void
 submit_stream_ctx (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (stream_ctxs_m);
-    auto i = stream_ctxs.begin ();
-    while (i != stream_ctxs.end ())
+    auto lk = stream_ctxs.acquire ();
+    auto i = stream_ctxs.get ().begin ();
+    while (i != stream_ctxs.get ().end ())
         {
             if ((*i)->guild_id == guild_id)
                 throw 3;
@@ -827,7 +827,7 @@ submit_stream_ctx (const dpp::snowflake &guild_id)
             throw 2;
         }
 
-    stream_ctxs.push_back (ctx);
+    stream_ctxs.get ().push_back (ctx);
 }
 
 } // musicat::player::manager

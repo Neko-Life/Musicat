@@ -29,15 +29,14 @@ struct blocking_task_t
     bool on_main;
 };
 
-static std::deque<blocking_task_t> blocking_tasks;
-static std::mutex blocking_tasks_m;
-static std::condition_variable blocking_tasks_cv;
+using deque_blocking_task_t = std::deque<blocking_task_t>;
+static condition_container<deque_blocking_task_t> blocking_tasks;
 
 void
 run_may_block (const std::function<void ()> &&fn, const std::function<bool ()> &&check_blocking)
 {
-    std::lock_guard lk (blocking_tasks_m);
-    blocking_tasks.push_back ({ fn, check_blocking, 0, false });
+    auto lk = blocking_tasks.acquire ();
+    blocking_tasks.get ().push_back ({ fn, check_blocking, 0, false });
 }
 
 // main loop routine
@@ -46,9 +45,9 @@ check_blocking_task ()
 {
     std::deque<blocking_task_t> tasks_ready;
     {
-        std::lock_guard lk (blocking_tasks_m);
-        auto i = blocking_tasks.begin ();
-        while (i != blocking_tasks.end ())
+        auto lk = blocking_tasks.acquire ();
+        auto i = blocking_tasks.get ().begin ();
+        while (i != blocking_tasks.get ().end ())
             {
                 if (i->will_block ())
                     {
@@ -57,7 +56,7 @@ check_blocking_task ()
                     }
 
                 tasks_ready.push_back (std::move (*i));
-                i = blocking_tasks.erase (i);
+                i = blocking_tasks.get ().erase (i);
             }
     }
 
@@ -65,7 +64,7 @@ check_blocking_task ()
         if (task.on_main)
             {
                 task.run ();
-                blocking_tasks_cv.notify_all ();
+                blocking_tasks.cv.notify_all ();
             }
         else
             run (std::move (task.run));
@@ -96,23 +95,23 @@ void
 run_on_main (const std::function<void ()> &&fn)
 {
     uint64_t cts = (uint64_t)util::get_current_ts () + util::get_random_number ();
-    std::lock_guard lk (blocking_tasks_m);
-    blocking_tasks.push_back ({ fn, [] () { return false; }, cts, true });
+    auto lk = blocking_tasks.acquire ();
+    blocking_tasks.get ().push_back ({ fn, [] () { return false; }, cts, true });
 }
 
 void
 run_on_main_and_wait (const std::function<void ()> &&fn)
 {
     uint64_t cts = (uint64_t)util::get_current_ts () + util::get_random_number ();
-    std::unique_lock lk (blocking_tasks_m);
-    blocking_tasks.push_back ({ fn, [] () { return false; }, cts, true });
+    auto lk = blocking_tasks.acquire ();
+    blocking_tasks.get ().push_back ({ fn, [] () { return false; }, cts, true });
 
-    blocking_tasks_cv.wait (lk,
+    blocking_tasks.cv.wait (lk,
                             [cts] ()
                                 {
-                                    return std::find_if (blocking_tasks.begin (), blocking_tasks.end (),
+                                    return std::find_if (blocking_tasks.get ().begin (), blocking_tasks.get ().end (),
                                                          [cts] (blocking_task_t &task) { return task.id == cts; })
-                                           == blocking_tasks.end ();
+                                           == blocking_tasks.get ().end ();
                                 });
 }
 

@@ -751,19 +751,19 @@ reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
     bool from_dc = false;
     {
         auto lk = disconnecting.unique_acquire ();
-        auto a = disconnecting.container.find (guild_id);
-        if (a != disconnecting.container.end ())
+        auto a = disconnecting.get ().find (guild_id);
+        if (a != disconnecting.get ().end ())
             {
                 from_dc = true;
                 task::run_once ([guild_id] () { clear_disconnecting (guild_id); }, 10);
-                disconnecting.cv.wait (lk, [&guild_id] ()
-                                           { return disconnecting.container.find (guild_id) == disconnecting.container.end (); });
+                disconnecting.cv.wait (lk,
+                                       [&guild_id] () { return disconnecting.get ().find (guild_id) == disconnecting.get().end (); });
             }
     }
     {
         auto lk = connecting.unique_acquire ();
-        auto a = connecting.container.find (guild_id);
-        if (a != connecting.container.end ())
+        auto a = connecting.get ().find (guild_id);
+        if (a != connecting.get ().end ())
             {
                 {
                     using namespace std::chrono_literals;
@@ -781,7 +781,7 @@ reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
                         from->connect_voice (guild_id, a->second, false, SELF_DEAF, ENABLE_DAVE);
                         task::run_once ([guild_id] () { clear_connecting (guild_id); }, 10);
                         connecting.cv.wait (lk,
-                                            [&guild_id] () { return connecting.container.find (guild_id) == connecting.container.end (); });
+                                            [&guild_id] () { return connecting.get ().find (guild_id) == connecting.get().end (); });
                     }
                 else
                     fprintf (stderr, "[ERROR player::manager::reconnect] %u %s: Failed get_client, no connecting took place...\n", shard_id,
@@ -794,7 +794,7 @@ bool
 is_disconnecting (const dpp::snowflake &guild_id)
 {
     auto lk = disconnecting.acquire ();
-    return disconnecting.container.find (guild_id) != disconnecting.container.end ();
+    return disconnecting.get ().find (guild_id) != disconnecting.get().end ();
 }
 
 void
@@ -812,7 +812,7 @@ set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_c
         return;
 
     auto lk = disconnecting.acquire ();
-    disconnecting.container.insert_or_assign (guild_id, voice_channel_id);
+    disconnecting.get ().insert_or_assign (guild_id, voice_channel_id);
 }
 
 static std::string
@@ -865,7 +865,7 @@ wait_for_disconnecting (const dpp::snowflake &guild_id)
     task::run_once ([guild_id] () { clear_disconnecting (guild_id); }, 10);
 
     auto lk = disconnecting.unique_acquire ();
-    disconnecting.cv.wait (lk, [&guild_id] () { return disconnecting.container.find (guild_id) == disconnecting.container.end (); });
+    disconnecting.cv.wait (lk, [&guild_id] () { return disconnecting.get ().find (guild_id) == disconnecting.get().end (); });
 
     return 0;
 }
@@ -877,11 +877,11 @@ clear_disconnecting (const dpp::snowflake &guild_id)
         std::cerr << "[EVENT] on_voice_state_leave: " << guild_id << '\n';
 
     auto lk = disconnecting.acquire ();
-    auto i = disconnecting.container.find (guild_id);
+    auto i = disconnecting.get ().find (guild_id);
 
-    if (i != disconnecting.container.end ())
+    if (i != disconnecting.get ().end ())
         {
-            disconnecting.container.erase (i);
+            disconnecting.get ().erase (i);
             disconnecting.cv.notify_all ();
         }
 }
@@ -890,21 +890,21 @@ bool
 is_connecting (const dpp::snowflake &guild_id)
 {
     auto lk = connecting.acquire ();
-    return connecting.container.find (guild_id) != connecting.container.end ();
+    return connecting.get ().find (guild_id) != connecting.get().end ();
 }
 
 void
 set_connecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id)
 {
     auto lk = connecting.acquire ();
-    connecting.container.insert_or_assign (guild_id, voice_channel_id);
+    connecting.get ().insert_or_assign (guild_id, voice_channel_id);
 }
 
 bool
 is_waiting_vc_ready (const dpp::snowflake &guild_id)
 {
     auto lk = waiting_vc_ready.acquire ();
-    return waiting_vc_ready.container.find (guild_id) != waiting_vc_ready.container.end ();
+    return waiting_vc_ready.get ().find (guild_id) != waiting_vc_ready.get().end ();
 }
 
 void
@@ -918,7 +918,7 @@ set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string &second)
         return;
 
     auto lk = waiting_vc_ready.acquire ();
-    waiting_vc_ready.container.insert_or_assign (guild_id, second);
+    waiting_vc_ready.get ().insert_or_assign (guild_id, second);
 
     set_vc_ready_timeout (guild_id);
 }
@@ -1009,8 +1009,7 @@ wait_for_vc_ready (const dpp::snowflake &guild_id)
     task::run_once ([guild_id] () { clear_wait_vc_ready (guild_id); }, 10);
 
     auto lk = waiting_vc_ready.unique_acquire ();
-    waiting_vc_ready.cv.wait (lk,
-                              [&guild_id] () { return waiting_vc_ready.container.find (guild_id) == waiting_vc_ready.container.end (); });
+    waiting_vc_ready.cv.wait (lk, [&guild_id] () { return waiting_vc_ready.get ().find (guild_id) == waiting_vc_ready.get().end (); });
 
     return 0;
 }
@@ -1024,10 +1023,10 @@ clear_wait_vc_ready (const dpp::snowflake &guild_id)
     int err = clear_connecting (guild_id);
 
     auto lk = waiting_vc_ready.acquire ();
-    auto i = waiting_vc_ready.container.find (guild_id);
-    if (i != waiting_vc_ready.container.end ())
+    auto i = waiting_vc_ready.get ().find (guild_id);
+    if (i != waiting_vc_ready.get ().end ())
         {
-            waiting_vc_ready.container.erase (i);
+            waiting_vc_ready.get ().erase (i);
             waiting_vc_ready.cv.notify_all ();
             return 2;
         }
@@ -1042,11 +1041,11 @@ clear_connecting (const dpp::snowflake &guild_id)
         std::cerr << "[player::manager::clear_connecting]: " << guild_id << '\n';
 
     auto lk = connecting.acquire ();
-    auto i = connecting.container.find (guild_id);
+    auto i = connecting.get ().find (guild_id);
 
-    if (i != connecting.container.end ())
+    if (i != connecting.get ().end ())
         {
-            connecting.container.erase (i);
+            connecting.get ().erase (i);
             connecting.cv.notify_all ();
             return 1;
         }
@@ -1058,16 +1057,16 @@ bool
 is_manually_paused (const dpp::snowflake &guild_id)
 {
     auto lk = manually_paused.acquire ();
-    return vector_find (&manually_paused.container, guild_id) != manually_paused.container.end ();
+    return vector_find (&manually_paused.get (), guild_id) != manually_paused.get ().end ();
 }
 
 void
 set_manually_paused (const dpp::snowflake &guild_id)
 {
     auto lk = manually_paused.acquire ();
-    if (vector_find (&manually_paused.container, guild_id) == manually_paused.container.end ())
+    if (vector_find (&manually_paused.get (), guild_id) == manually_paused.get ().end ())
         {
-            manually_paused.container.push_back (guild_id);
+            manually_paused.get ().push_back (guild_id);
         }
 }
 
@@ -1075,11 +1074,11 @@ void
 clear_manually_paused (const dpp::snowflake &guild_id)
 {
     auto lk = manually_paused.acquire ();
-    auto i = vector_find (&manually_paused.container, guild_id);
+    auto i = vector_find (&manually_paused.get (), guild_id);
 
-    if (i != manually_paused.container.end ())
+    if (i != manually_paused.get ().end ())
         {
-            manually_paused.container.erase (i);
+            manually_paused.get ().erase (i);
         }
 }
 
@@ -1178,7 +1177,7 @@ stop_stream (const dpp::snowflake &guild_id)
 bool
 is_waiting_file_download (const std::string &file_name)
 {
-    return waiting_file_download.container.find (file_name) != waiting_file_download.container.end ();
+    return waiting_file_download.get ().find (file_name) != waiting_file_download.get().end ();
 }
 
 void
@@ -1188,8 +1187,8 @@ wait_for_download (const std::string &file_name)
     if (!is_waiting_file_download (file_name))
         return;
 
-    waiting_file_download.cv.wait (
-        lk, [file_name] () { return waiting_file_download.container.find (file_name) == waiting_file_download.container.end (); });
+    waiting_file_download.cv.wait (lk, [file_name] ()
+                                       { return waiting_file_download.get ().find (file_name) == waiting_file_download.get().end (); });
 }
 
 bool
@@ -1505,7 +1504,7 @@ download (const std::string &fname, const std::string &url, const dpp::snowflake
     }
 
     auto lk = download_q.acquire ();
-    download_q.container.push ({ fname, url });
+    download_q.get ().push ({ fname, url });
 }
 
 static int
@@ -1642,12 +1641,12 @@ check_download_queue ()
         return;
 
     auto lk2 = download_q.acquire ();
-    if (download_q.container.empty ())
+    if (download_q.get ().empty ())
         return;
 
     running_download++;
-    download_thread_params_t params = download_q.container.front ();
-    download_q.container.pop ();
+    download_thread_params_t params = download_q.get ().front ();
+    download_q.get ().pop ();
 
     task::run (
         [params] ()
@@ -1671,7 +1670,7 @@ check_download_queue ()
 
                 {
                     auto lk = waiting_file_download.acquire ();
-                    waiting_file_download.container.erase (fname);
+                    waiting_file_download.get ().erase (fname);
 
                     if (did_download)
                         update_file_access_time (filepath);

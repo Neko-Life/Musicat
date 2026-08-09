@@ -4,20 +4,20 @@
 #include "nlohmann/json.hpp"
 #include <Python.h>
 
+#include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <string>
 #include <unistd.h>
 
-static std::deque<std::pair<uint64_t, nlohmann::json> > outputs;
-static std::mutex outputs_m;
-static std::condition_variable outputs_cv;
+using deque_id_json = std::deque<std::pair<uint64_t, nlohmann::json> >;
+static musicat::condition_container<deque_id_json> outputs;
 
 static bool
 has_output (uint64_t id)
 {
-    std::lock_guard lk (outputs_m);
-    auto i = outputs.begin ();
-    while (i != outputs.end ())
+    auto lk = outputs.acquire ();
+    auto i = outputs.get ().begin ();
+    while (i != outputs.get ().end ())
         {
             if (i->first == id)
                 return true;
@@ -32,9 +32,9 @@ get_output (uint64_t id, nlohmann::json &data)
     bool got_data = false;
     do
         {
-            std::unique_lock lk (outputs_m);
-            auto i = outputs.begin ();
-            while (i != outputs.end ())
+            auto lk = outputs.unique_acquire ();
+            auto i = outputs.get ().begin ();
+            while (i != outputs.get ().end ())
                 {
                     if (i->first != id)
                         {
@@ -43,11 +43,11 @@ get_output (uint64_t id, nlohmann::json &data)
                         }
                     got_data = true;
                     data = i->second;
-                    outputs.erase (i);
+                    outputs.get ().erase (i);
                     return 0;
                 }
 
-            outputs_cv.wait (lk);
+            outputs.cv.wait (lk);
         }
     while (!got_data);
     return -1;
@@ -57,10 +57,10 @@ static int
 set_output (uint64_t id, const nlohmann::json &data)
 {
     {
-        std::lock_guard lk (outputs_m);
-        outputs.push_back ({ id, data });
+        auto lk = outputs.acquire ();
+        outputs.get ().push_back ({ id, data });
     }
-    outputs_cv.notify_all ();
+    outputs.cv.notify_all ();
 
     return 0;
 }
@@ -313,8 +313,8 @@ namespace managed
 // and is responsible for other interpreters creation
 static std::unique_ptr<py_interpreter_t> main_interpreter;
 
-static std::map<std::__thread_id, std::unique_ptr<py_ctx> > contexts;
-static std::mutex contexts_m;
+using map_id_py_ctx = std::map<std::__thread_id, std::unique_ptr<py_ctx> >;
+static exclusive_container<map_id_py_ctx> contexts;
 
 // must be called in the main thread only
 static void
@@ -450,8 +450,8 @@ create_interpreter ()
 static py_ctx *
 get_context_unlocked ()
 {
-    auto i = contexts.find (std::this_thread::get_id ());
-    if (i == contexts.end ())
+    auto i = contexts.get ().find (std::this_thread::get_id ());
+    if (i == contexts.get ().end ())
         return nullptr;
     return i->second.get ();
 }
@@ -459,14 +459,14 @@ get_context_unlocked ()
 static py_ctx *
 get_context ()
 {
-    std::lock_guard lk (contexts_m);
+    auto lk = contexts.acquire ();
     global_init (program_name.c_str ());
     auto ctx = get_context_unlocked ();
     if (ctx)
         return ctx;
 
     // create new context for this thread
-    auto nctx = contexts.insert ({ std::this_thread::get_id (), std::make_unique<py_ctx> (5) });
+    auto nctx = contexts.get ().insert ({ std::this_thread::get_id (), std::make_unique<py_ctx> (5) });
     ctx = nctx.first->second.get ();
     ctx->interpreter = create_interpreter ();
     ctx->init (pwd, lib_path);
@@ -476,15 +476,15 @@ get_context ()
 void
 on_thread_done ()
 {
-    std::lock_guard lk (contexts_m);
-    auto i = contexts.find (std::this_thread::get_id ());
-    if (i == contexts.end ())
+    auto lk = contexts.acquire ();
+    auto i = contexts.get ().find (std::this_thread::get_id ());
+    if (i == contexts.get ().end ())
         return;
     // destroy
     i->second->interpreter->destroy ();
-    contexts.erase (i);
+    contexts.get ().erase (i);
 
-    if (contexts.empty ())
+    if (contexts.get ().empty ())
         {
             main_interpreter.reset ();
             Py_FinalizeEx ();
