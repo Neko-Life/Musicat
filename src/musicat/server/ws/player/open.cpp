@@ -1,10 +1,9 @@
-// clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"
-// clang-format on
 
 #include <uWebSockets/src/App.h>
 
@@ -14,10 +13,7 @@ namespace musicat::server::ws::player::events
 static void
 send_player_fx_info (uws_ws_t *ws, SocketData *sdata)
 {
-    auto *pm = get_player_manager_ptr ();
-    if (!pm)
-        return;
-    auto gp = pm->get_player (sdata->server_id);
+    auto gp = ::musicat::player::manager::get_player (sdata->server_id);
     if (!gp)
         return;
 
@@ -28,11 +24,7 @@ send_player_fx_info (uws_ws_t *ws, SocketData *sdata)
 static void
 send_player_queue_info (uws_ws_t *ws, SocketData *sdata)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    auto q = player_manager->get_queue (sdata->server_id);
+    auto q = ::musicat::player::manager::get_queue (sdata->server_id);
 
     auto a = nlohmann::json::array ();
     for (auto &t : q)

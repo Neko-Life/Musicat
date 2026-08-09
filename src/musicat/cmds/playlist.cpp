@@ -1,8 +1,8 @@
-// clang-format off
 #include "musicat/player.h"
-#include "musicat/cmds/playlist.h"
+
 #include "musicat/autocomplete.h"
 #include "musicat/cmds.h"
+#include "musicat/cmds/playlist.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
@@ -10,7 +10,6 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util_response.h"
-// clang-format on
 
 #include <libpq-fe.h>
 #include <memory>
@@ -103,13 +102,7 @@ get_option_obj ()
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
-    std::deque<player::MCTrack> q = player_manager->get_queue (event.command.guild_id);
+    std::deque<player::MCTrack> q = player::manager::get_queue (event.command.guild_id);
     size_t q_size = q.size ();
     if (!q_size)
         {
@@ -151,12 +144,6 @@ slash_run (const dpp::slashcommand_t &event)
     task::run (
         [event] ()
             {
-                auto player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    {
-                        return;
-                    }
-
                 const std::string p_id = _get_id_arg (event);
                 int64_t arg_top = _get_top_arg (event);
 
@@ -208,15 +195,16 @@ slash_run (const dpp::slashcommand_t &event)
                 if (retnow)
                     return;
 
-                std::shared_ptr<player::Player> guild_player;
+                std::shared_ptr<player::guild_player_t> guild_player;
                 size_t count = 0;
 
                 std::deque<player::MCTrack> q = {};
 
                 if (view != true)
                     {
-                        guild_player = player_manager->create_player (event.command.guild_id);
-                        guild_player->set_shard (event.from ());
+                        guild_player = player::manager::create_player (event.command.guild_id);
+                        if (!guild_player)
+                            return event.edit_response ("`[ERROR]` Failed creating guild player");
                     }
 
                 const bool add_to_top = arg_top ? true : false;
@@ -259,20 +247,14 @@ slash_run (const dpp::slashcommand_t &event)
                 else
                     {
                         if (count)
-                            try
-                                {
-                                    server::ws::player::publish_queue (event.command.guild_id);
-
-                                    player_manager->update_info_embed (event.command.guild_id);
-                                }
-                            catch (...)
-                                {
-                                }
+                            {
+                                server::ws::player::publish_queue (event.command.guild_id);
+                                player::manager::update_info_embed (event.command.guild_id);
+                            }
 
                         event.edit_response (util::response::reply_added_playlist (p_id, arg_top, count));
 
-                        join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id,
-                                    event.from ()->creator->me.id);
+                        join_voice (event.from (), event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
                         // !TODO: this is probably for connect and play when adding
                         // playlist but bot isn't in user vc
@@ -307,17 +289,17 @@ slash_run (const dpp::slashcommand_t &event)
                         //     guild_player->set_channel(event.command.channel_id);
 
                         //     {
-                        //         std::lock_guard lk(player_manager->c_m);
+                        //         std::lock_guard lk(player::manager::c_m);
                         //         std::lock_guard
-                        //         lk2(player_manager->wd_m);
-                        //         player_manager->connecting.insert_or_assign(event.command.guild_id,
+                        //         lk2(player::manager::wd_m);
+                        //         player::manager::connecting.insert_or_assign(event.command.guild_id,
                         //         c.first->id);
-                        //         player_manager->waiting_vc_ready.insert_or_assign(event.command.guild_id,
+                        //         player::manager::waiting_vc_ready.insert_or_assign(event.command.guild_id,
                         //         "2");
                         //     }
 
                         //     std::thread t([player_manager, event]() {
-                        //                       player_manager->reconnect(event.from,
+                        //                       player::manager::reconnect(event.from,
                         //                       event.command.guild_id);
                         //                   });
                         //     t.detach();

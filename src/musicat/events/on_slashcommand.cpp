@@ -13,7 +13,7 @@ on_slashcommand (dpp::cluster *client)
     client->on_slashcommand (
         [] (const dpp::slashcommand_t &event) // -> dpp::task<void>
             {
-                auto *c = get_client_ptr ();
+                auto *c = get_cluster_ptr ();
 
                 if (!c || !event.command.guild_id)
                     return;

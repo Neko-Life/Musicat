@@ -3,16 +3,19 @@
 
 #include "mctrack.h"
 #include "musicat/audio_config.h"
+#include "opus_types.h"
 
-#ifdef USING_LIBOPUSENC
+#ifdef USING_STREAM_CODEC
+
+#elif defined(USING_LIBOPUSENC)
 #include "opusenc.h"
 #else
 #include "opus/opus.h"
 #endif // USING_LIBOPUSENC
 
-#include <dpp/dpp.h>
 #include <cstdint>
 #include <deque>
+#include <dpp/dpp.h>
 #include <mutex>
 #include <string>
 
@@ -61,43 +64,52 @@ enum loop_mode_t
 
 // ================================================================================
 
-class Manager;
-
-class Player
+// this class only ever created on join/play cmd
+struct guild_player_t
 {
-  public:
     using track_queue = std::deque<MCTrack>;
 
     static const uint32_t INVALID_SHARD_ID = 0xFFFFFFFF;
 
     /**
-     * @brief Guild Id this player belongs to.
+     * @brief Guild ID this player belongs to.
+     * Player is only deleted when Musicat left the server
+     * or not in vc for at least 1 hour.
      *
+     * Should only be set when instantiating.
      */
     dpp::snowflake guild_id;
 
     /**
-     * @brief Latest channel Id where the command invoked to play/add song.
+     * @brief Shard this guild player belongs to.
+     *
+     * Should only be set when instantiating.
+     */
+    uint32_t shard_id;
+
+    /**
+     * @brief Text channel ID to send now playing embed.
      *
      */
-    dpp::snowflake channel_id;
+    dpp::snowflake text_channel_id;
+
+    /**
+     * @brief Voice channel ID this player is currently attached to.
+     *
+     */
+    dpp::snowflake voice_channel_id;
+
+    /**
+     * @brief Thread safety mutex. Must lock this whenever updating state.
+     * Can use the provided helper method acquire() to lock this.
+     */
+    std::mutex mutex;
 
     /**
      * @brief Message info of currently playing song.
      *
      */
     nlohmann::json info_message;
-
-    /**
-     * @brief Loop mode of the currently playing song.
-     *
-     * 0: Not looping,
-     * 1: Looping one song and remove skipped song,
-     * 2: Looping queue,
-     * 3: Looping one song and won't remove skipped song.
-     *
-     */
-    loop_mode_t loop_mode;
 
     /**
      * @brief History size limiter
@@ -117,9 +129,6 @@ class Player
      */
     size_t shifted_track;
 
-    dpp::cluster *cluster;
-    Manager *manager;
-
     /**
      * @brief Track queue.
      *
@@ -132,42 +141,34 @@ class Player
      */
     MCTrack current_track;
 
-    uint32_t shard_id;
+    /**
+     * @brief Loop mode of the currently playing song.
+     *
+     * 0: Not looping,
+     * 1: Looping one song and remove skipped song,
+     * 2: Looping queue,
+     * 3: Looping one song and won't remove skipped song.
+     *
+     */
+    loop_mode_t loop_mode;
+
+    // fx_states ////////////////////////////////////////
+
+    // 3 byte padding here
+    bool earwax;
 
     // default 100
     int volume;
 
     /**
-     * @brief Equalizer raw ffmpeg opt
+     * @brief Equalizer raw ffmpeg opt.
      */
     std::string equalizer;
 
     /**
      * @brief Default -1
      */
-    int64_t sampling_rate;
-
-    /**
-     * @brief Whether auto play is enabled for this player
-     *
-     */
-    bool auto_play;
-
-    /**
-     * @brief Whether this player already tried to load saved queue after boot.
-     */
-    bool saved_queue_loaded;
-
-    /**
-     * @brief Whether this player already tried to load saved config after
-     * boot.
-     */
-    bool saved_config_loaded;
-
-    bool stopped;
-    bool earwax;
-
-    bool tried_continuing;
+    int sampling_rate;
 
     // -400-100, default 0
     int pitch;
@@ -191,12 +192,26 @@ class Player
     // 0.5-4.0, default 1.0
     double tempo;
 
-#ifdef USING_LIBOPUSENC
-    OggOpusEnc *opus_encoder;
-    OggOpusComments *opus_encoder_comments;
-#else
-    OpusEncoder *opus_encoder;
-#endif
+    // fx_states end ////////////////////////////////////////
+
+    /**
+     * @brief Whether auto play is enabled for this player
+     *
+     */
+    bool auto_play;
+
+    /**
+     * @brief Whether this player already tried to load saved queue after boot.
+     */
+    bool saved_queue_loaded;
+
+    /**
+     * @brief Whether this player already tried to load saved config after
+     * boot.
+     */
+    bool saved_config_loaded;
+
+    bool tried_continuing;
 
     /**
      * @brief Is processing audio?
@@ -214,30 +229,35 @@ class Player
     bool stopping;
 
     /**
-     * @brief Thread safety mutex. Must lock this whenever doing the
-     * appropriate action.
+     * @brief Is currently stopped (stop cmd issued)?
      */
-    std::mutex t_mutex, stream_m;
+    bool stopped;
+
+#ifdef USING_STREAM_CODEC
+    // encoder in stream_ctx for stream_codec
+#elif defined(USING_LIBOPUSENC)
+    OggOpusEnc *opus_encoder;
+    OggOpusComments *opus_encoder_comments;
+#else
+    OpusEncoder *opus_encoder;
+#endif
 
     void init ();
 
-    Player ();
-    Player (dpp::cluster *_cluster, const dpp::snowflake &_guild_id);
-    ~Player ();
+    guild_player_t (const dpp::snowflake &_guild_id, uint32_t shard_id);
+    ~guild_player_t ();
+
+    std::lock_guard<std::mutex> acquire ();
 
     dpp::discord_client *get_client ();
-
-    void set_shard (dpp::discord_client *from);
-
-    void set_shard (uint32_t shard_id);
 
     // see if adding this track will block
     static bool add_track_will_block (const MCTrack &track);
 
-    Player &add_track (MCTrack &track, bool top = false, const dpp::snowflake &guild_id = 0, const bool update_embed = true,
-                       const int64_t &arg_slip = 0);
+    guild_player_t &add_track (MCTrack &track, bool top = false, const dpp::snowflake &guild_id = 0, const bool update_embed = true,
+                               const int64_t &arg_slip = 0);
 
-    Player &set_max_history_size (const size_t &siz = 0);
+    guild_player_t &set_max_history_size (const size_t &siz = 0);
 
     /**
      * @brief Resume paused playback and empty playback buffer
@@ -254,7 +274,7 @@ class Player
     /**
      * @brief Skip track entries in the queue
      *
-     * Caller should locks t_mutex before calling this method
+     * Caller should locks mutex before calling this method
      *
      * @param amount the amount of track to skip
      * @param remove force remove regardless of loop setting
@@ -269,9 +289,9 @@ class Player
      * @brief Set player auto play mode
      *
      * @param state
-     * @return Player&
+     * @return guild_player_t&
      */
-    Player &set_auto_play (const bool state = true);
+    guild_player_t &set_auto_play (const bool state = true);
 
     /**
      * @brief Reorganize track,
@@ -285,15 +305,15 @@ class Player
     bool reset_shifted ();
 
     // int64 for compatibility with command argument type
-    Player &set_loop_mode (int64_t mode);
+    guild_player_t &set_loop_mode (int64_t mode);
 
     /**
      * @brief Set player channel, used in playback infos.
      *
      * @param channel_id
-     * @return Player&
+     * @return guild_player_t&
      */
-    Player &set_channel (const dpp::snowflake &channel_id);
+    guild_player_t &set_channel (const dpp::snowflake &channel_id);
 
     size_t remove_track (const size_t &pos, size_t amount = 1, const size_t &to = -1);
 
@@ -301,18 +321,18 @@ class Player
 
     bool pause (dpp::discord_client *from, const dpp::snowflake &user_id);
 
-    bool shuffle (bool update_info_embed = true);
+    bool shuffle (bool _update_info_embed = true);
 
     bool current_track_is_first_track () const;
 
-    Player &stop ();
+    guild_player_t &stop ();
 
     // return pair of message and status 0 if has valid info_message
     std::pair<dpp::message, int> get_info_message ();
-    Player &set_info_message (const dpp::message &message);
+    guild_player_t &set_info_message (const dpp::message &message);
 
     int init_for_stream ();
-    Player &done_streaming ();
+    guild_player_t &done_streaming ();
 
     // ============================== FILTERS =============================
 
@@ -348,21 +368,24 @@ class Player
 
     void check_for_to_seek ();
     void reset_first_track_current_byte ();
+
+    // don't need to lock mutex
     dpp::voiceconn *get_voice_conn ();
+    // don't need to lock mutex
     dpp::discord_voice_client *get_voice_client ();
 
     // queue operations
-    Player &queue_add (const MCTrack &t);
-    Player &queue_pop ();
-    Player &queue_add_front (const MCTrack &t);
-    Player &queue_pop_front ();
+    guild_player_t &queue_add (const MCTrack &t);
+    guild_player_t &queue_pop ();
+    guild_player_t &queue_add_front (const MCTrack &t);
+    guild_player_t &queue_pop_front ();
 
-    Player &queue_insert (const MCTrack &t, size_t pos);
-    Player &queue_erase (size_t pos);
+    guild_player_t &queue_insert (const MCTrack &t, size_t pos);
+    guild_player_t &queue_erase (size_t pos);
     track_queue::iterator queue_erase_i (track_queue::iterator i);
 
-    Player &set_queue (const track_queue &q);
-    Player &queue_clear ();
+    guild_player_t &set_queue (const track_queue &q);
+    guild_player_t &queue_clear ();
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

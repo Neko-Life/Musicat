@@ -1,12 +1,13 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/runtime_cli.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util.h"
-// clang-format on
 
 #include <cstdint>
 #include <sys/poll.h>
@@ -135,11 +136,8 @@ shutdown_cmd (const cmd_args_t &args)
 static int
 list_effect_states (const cmd_args_t &args)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
-    for (auto &[s, guild_player] : player_manager->players)
+    auto lk = player::manager::acquire_players ();
+    for (auto &[s, guild_player] : *player::manager::get_players ())
         {
             auto gid = guild_player->guild_id;
 
@@ -163,7 +161,6 @@ effect_states_send_command (const cmd_args_t &args)
 static int
 join_guild (dpp::guild *g, dpp::user *sha_user)
 {
-    auto player_manager = get_player_manager_ptr ();
     auto sha_id = get_sha_id ();
     auto guild_id = g->id;
 
@@ -208,8 +205,8 @@ join_guild (dpp::guild *g, dpp::user *sha_user)
     fprintf (stderr, "Joining voice/stage channel `%s` (%ld) in guild `%s` (%ld)\n", join_channel->name.c_str (),
              (uint64_t)join_channel->id, g->name.c_str (), (uint64_t)guild_id);
 
-    player_manager->full_reconnect (player_manager->get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
-    player_manager->wait_for_vc_ready (guild_id);
+    player::manager::full_reconnect (player::manager::get_client (g->shard_id), guild_id, dpp::snowflake (0), join_channel->id);
+    player::manager::wait_for_vc_ready (guild_id);
     return 0;
 }
 
@@ -217,12 +214,11 @@ static int
 join_all (const cmd_args_t &args)
 {
     // for each guild, if not already in vc, find joinable vc and join
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto sha_id = get_sha_id ();
-    auto &sha_user = player_manager->cluster->me;
+    auto *cluster = get_cluster_ptr ();
+    if (!cluster)
+        return -1;
+    auto &sha_user = cluster->me;
 
     std::vector<dpp::guild *> vgc;
     {
@@ -251,12 +247,12 @@ join (const cmd_args_t &args)
             fprintf (stderr, "Provide <guild_id>\n");
             return 0;
         }
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
+    auto sha_id = get_sha_id ();
+    auto cluster = get_cluster_ptr ();
+    if (!cluster)
         return -1;
 
-    auto sha_id = get_sha_id ();
-    auto &sha_user = player_manager->cluster->me;
+    auto &sha_user = cluster->me;
 
     dpp::snowflake guild_id{ args.at (0) };
     if (guild_id.empty ())
@@ -292,11 +288,14 @@ static int
 enqueue_random_track_in_guild (dpp::guild *g, const std::vector<player::gat_t> &get = {})
 {
     auto sha_id = get_sha_id ();
-    auto *player_manager = get_player_manager_ptr ();
     auto guild_id = g->id;
 
-    auto guild_player = player_manager->create_player (guild_id);
-    guild_player->set_shard (g->shard_id);
+    auto guild_player = player::manager::create_player (guild_id);
+    if (!guild_player)
+        {
+            fprintf (stderr, "Failed creating guild player `%s` (%ld), skipping\n", g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
 
     // skip if already playing
     if (guild_player->processing_audio)
@@ -351,9 +350,6 @@ enqueue_rand (const cmd_args_t &args)
             fprintf (stderr, "Provide <guild_id>\n");
             return 0;
         }
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
 
     dpp::snowflake guild_id{ args.at (0) };
     if (guild_id.empty ())
@@ -369,10 +365,6 @@ static int
 enqueue_all (const cmd_args_t &args)
 {
     // for each guild, if already in vc AND not playing anything, find random track and play it
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     const std::vector<player::gat_t> get = get_enqueue_get ();
     if (get.empty ())
         return 0;
@@ -389,11 +381,8 @@ enqueue_all (const cmd_args_t &args)
 static int
 play_all (const cmd_args_t &args)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
-    for (auto &[s, guild_player] : player_manager->players)
+    auto lk = player::manager::acquire_players ();
+    for (auto &[s, guild_player] : *player::manager::get_players ())
         {
             auto guild_id = guild_player->guild_id;
             auto *voiceclient = guild_player->get_voice_client ();
@@ -434,9 +423,6 @@ play (const cmd_args_t &args)
             fprintf (stderr, "Provide <guild_id>\n");
             return 0;
         }
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
 
     dpp::snowflake guild_id{ args.at (0) };
     if (guild_id.empty ())
@@ -452,8 +438,12 @@ play (const cmd_args_t &args)
             return 0;
         }
 
-    auto guild_player = player_manager->create_player (guild_id);
-    guild_player->set_shard (g->shard_id);
+    auto guild_player = player::manager::create_player (guild_id);
+    if (!guild_player)
+        {
+            fprintf (stderr, "Failed creating guild player `%s` (%ld), skipping\n", g->name.c_str (), (uint64_t)guild_id);
+            return 0;
+        }
 
     auto *voiceclient = guild_player->get_voice_client ();
 
@@ -488,10 +478,6 @@ static int
 leave_all (const cmd_args_t &args)
 {
     // for each guild, leave vc
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto sha_id = get_sha_id ();
 
     std::vector<dpp::guild *> vgc;
@@ -508,7 +494,7 @@ leave_all (const cmd_args_t &args)
     for (auto *g : vgc)
         {
             auto guild_id = g->id;
-            auto *client = player_manager->get_client (g->shard_id);
+            auto *client = player::manager::get_client (g->shard_id);
             if (!client)
                 continue;
 
@@ -524,9 +510,9 @@ leave_all (const cmd_args_t &args)
             fprintf (stderr, "Leaving voice/stage channel (%ld) in guild `%s` (%ld)\n", (uint64_t)voiceconn->channel_id, g->name.c_str (),
                      (uint64_t)guild_id);
 
-            player_manager->set_disconnecting (guild_id, 0);
-            player_manager->disconnect_voice (client, guild_id);
-            player_manager->wait_for_disconnecting (guild_id);
+            player::manager::set_disconnecting (guild_id, 0);
+            player::manager::disconnect_voice (client, guild_id);
+            player::manager::wait_for_disconnecting (guild_id);
         }
 
     return 0;

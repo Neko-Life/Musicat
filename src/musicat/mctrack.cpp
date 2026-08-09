@@ -1,12 +1,11 @@
-// clang-format off
 #include "musicat/mctrack.h"
+
 #include "musicat/YTDLPTrack.h"
 #include "musicat/child/command.h"
 #include "musicat/child/ytdlp.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include "musicat/util/base64.h"
-// clang-format on
 
 #ifdef MUSICAT_WITH_PYTHON
 #include "musicat/ytdlp.h"

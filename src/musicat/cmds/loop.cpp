@@ -1,6 +1,7 @@
 #include "musicat/player.h"
-#include "musicat/cmds/loop.h"
+
 #include "musicat/cmds.h"
+#include "musicat/cmds/loop.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
@@ -47,19 +48,14 @@ get_loop_amount_param_getter (const T &event)
 int
 run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, dpp::discord_client *from,
      std::function<void (int64_t &, int64_t &)> get_mode_param, std::function<void (int64_t &)> get_loop_amount_param,
-     std::string &out_reply, bool update_info_embed = true)
+     std::string &out_reply, bool _update_info_embed = true)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
-    if (pm_res.second == 1)
+    if (pm_res == 1)
         {
             out_reply = "Please wait while I'm getting ready to stream";
             return 1;
         }
-
-    auto player_manager = pm_res.first;
-
-    if (player_manager == NULL)
-        return -1;
 
     const dpp::snowflake sha_id = get_sha_id ();
 
@@ -88,11 +84,15 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, dpp::discord
             return 1;
         }
 
-    auto guild_player = player_manager->create_player (guild_id);
-    guild_player->set_shard (from);
+    auto guild_player = player::manager::create_player (guild_id);
+    if (!guild_player)
+        {
+            out_reply = "`[ERROR]` Failed creating guild player";
+            return 1;
+        }
 
     if (guild_player->saved_config_loaded != true)
-        player_manager->load_guild_player_config (guild_id);
+        player::manager::load_guild_player_config (guild_id);
 
     int64_t a_l = 0, current_val = (int64_t)guild_player->loop_mode;
     get_mode_param (a_l, current_val);
@@ -164,15 +164,8 @@ run (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, dpp::discord
             status = 1;
         }
 
-    if (update_info_embed)
-        try
-            {
-                player_manager->update_info_embed (guild_id);
-            }
-        catch (...)
-            {
-                // Meh
-            }
+    if (_update_info_embed)
+        player::manager::update_info_embed (guild_id);
 
     return status;
 }
@@ -225,10 +218,6 @@ handle_button_modal_dialog (const dpp::button_click_t &event)
     task::run (
         [event] ()
             {
-                auto player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    return;
-
                 std::string out_reply;
                 // int status =
 
@@ -243,7 +232,7 @@ handle_button_modal_dialog (const dpp::button_click_t &event)
                         },
                     [event] (int64_t &) {}, out_reply, false);
 
-                player_manager->update_info_embed (event.command.guild_id, false, &event);
+                player::manager::update_info_embed (event.command.guild_id, false, &event);
             });
 }
 

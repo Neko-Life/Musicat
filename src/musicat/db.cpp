@@ -1,9 +1,8 @@
-// clang-format off
 #include "musicat/player.h"
+
 #include "musicat/db.h"
 #include "musicat/musicat.h"
 #include "nlohmann/json.hpp"
-// clang-format on
 
 #include <cstdio>
 #include <dpp/dpp.h>

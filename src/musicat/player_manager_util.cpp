@@ -1,17 +1,26 @@
 // clang-format off
+#include "musicat/mctrack.h"
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
 #include "musicat/YTDLPTrack.h"
+// clang-format on
+
+#include "musicat/player_manager_util.h"
+#include "musicat/child/command.h"
+#include "musicat/child/dl_music.h"
 #include "musicat/db.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player_manager_timer.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
 #include "musicat/util.h"
+#include "musicat/util/base64.h"
+#include "musicat/util/fs.h"
 #include "musicat/util_response.h"
-// clang-format on
+
+#ifdef MUSICAT_WITH_PYTHON
+#include "musicat/ytdlp.h"
+#endif // MUSICAT_WITH_PYTHON
 
 #include <cstdint>
 #include <dirent.h>
@@ -19,9 +28,13 @@
 #include <libpq-fe.h>
 #include <regex>
 #include <sys/stat.h>
+#include <utime.h>
 
 /* #define USE_SEARCH_CACHE */
 // #define TEST_NO_AUTOPAUSE
+
+#define ENABLE_DAVE true
+#define SELF_DEAF true
 
 namespace musicat
 {
@@ -35,39 +48,39 @@ enum gat_cache_completeness_e
     GATCC_HAS_STAT = 1 << 1,
 };
 
-std::mutex gat_m;
-std::vector<gat_t> gat_ret_cache;
-time_t gat_last_uc = 0;
-int gat_cache_completeness = 0;
+static std::mutex gat_m;
+static std::vector<gat_t> gat_ret_cache;
+static time_t gat_last_uc = 0;
+static int gat_cache_completeness = 0;
 
 // returns true if gat_cache_completeness is missing flag
 // and required by rc
-bool
+static bool
 gatcc_rnot (int rc, int flag)
 {
     return (rc & flag) == flag && (gat_cache_completeness & flag) != flag;
 }
 
-bool
+static bool
 gatcc_is_complete ()
 {
     constexpr const int complete_f = GATCC_ZERO_AMOUNT | GATCC_HAS_STAT;
     return (gat_cache_completeness & complete_f) == complete_f;
 }
 
-bool
+static bool
 gatcc_rnot_zero_amount (int rc)
 {
     return gatcc_rnot (rc, GATCC_ZERO_AMOUNT);
 }
 
-bool
+static bool
 gatcc_rnot_has_stat (int rc)
 {
     return gatcc_rnot (rc, GATCC_HAS_STAT);
 }
 
-void
+static void
 invalidate_track_list_cache ()
 {
     std::lock_guard lk (gat_m);
@@ -82,14 +95,10 @@ get_available_tracks (const size_t &amount, bool with_stat)
     int required_completeness = 0;
 
     if (amount == 0)
-        {
-            required_completeness |= GATCC_ZERO_AMOUNT;
-        }
+        required_completeness |= GATCC_ZERO_AMOUNT;
 
     if (with_stat)
-        {
-            required_completeness |= GATCC_HAS_STAT;
-        }
+        required_completeness |= GATCC_HAS_STAT;
 
     time_t cur_t = time (NULL);
 
@@ -154,7 +163,7 @@ get_available_tracks (const size_t &amount, bool with_stat)
                     // musicdir always have trailing slash /
                     if (stat (fpath.c_str (), &st) != 0)
                         {
-                            perror ("[Manager::get_available_tracks] stat");
+                            perror ("[player::get_available_tracks] stat");
 
                             fprintf (stderr, "^^^ Failed stating '%s'\n", fpath.c_str ());
 
@@ -240,8 +249,8 @@ control_music_cache (const size_t size_limit)
 
 // ================================================================================
 
-std::mutex tfpc_m;
-std::map<std::string, int> track_failed_playback_counts;
+static std::mutex tfpc_m;
+static std::map<std::string, int> track_failed_playback_counts;
 
 int
 get_track_failed_playback_count (const std::string &filename)
@@ -311,8 +320,8 @@ find_track_will_block ()
 }
 
 std::pair<player::MCTrack, int>
-find_track (const bool playlist, const std::string &arg_query, player::player_manager_ptr_t player_manager, const dpp::snowflake guild_id,
-            const bool no_check_history, const std::string &cache_id)
+find_track (const bool playlist, const std::string &arg_query, const dpp::snowflake guild_id, const bool no_check_history,
+            const std::string &cache_id)
 {
     std::string trimmed_query = util::trim_str (arg_query);
 
@@ -322,18 +331,18 @@ find_track (const bool playlist, const std::string &arg_query, player::player_ma
     // bool has_cache_id = false;
 #endif
 
-    std::shared_ptr<player::Player> guild_player = NULL;
+    std::shared_ptr<player::guild_player_t> guild_player = NULL;
 
     // i wonder what was this for... i do the one who wrote this but i forgot
     if (playlist && !no_check_history)
         {
-            guild_player = player_manager->get_player (guild_id);
+            guild_player = manager::get_player (guild_id);
 
             if (!guild_player)
                 return { {}, 1 };
 
             // if there's no track return without searching first?
-            std::lock_guard<std::mutex> lk (guild_player->t_mutex);
+            auto lk = guild_player->acquire ();
             if (guild_player->queue.begin () == guild_player->queue.end ())
                 {
                     return { {}, 1 };
@@ -506,8 +515,7 @@ get_filename_from_result (player::MCTrack &result)
 }
 
 std::pair<bool, int>
-track_exist (const std::string &fname, const std::string &url, player::player_manager_ptr_t player_manager, bool from_interaction,
-             dpp::snowflake guild_id, bool no_download)
+track_exist (const std::string &fname, const std::string &url, bool from_interaction, dpp::snowflake guild_id, bool no_download)
 {
     if (fname.empty ())
         return { false, 2 };
@@ -523,9 +531,9 @@ track_exist (const std::string &fname, const std::string &url, player::player_ma
             if (from_interaction)
                 status = 1;
 
-            if (!no_download && !player_manager->is_waiting_file_download (fname))
+            if (!no_download && !manager::is_waiting_file_download (fname))
                 {
-                    player_manager->download (fname, url, guild_id);
+                    manager::download (fname, url, guild_id);
                 }
         }
     else
@@ -538,18 +546,19 @@ track_exist (const std::string &fname, const std::string &url, player::player_ma
     return { dling, status };
 }
 
+// fname, (unused)guild_id
+using map_string_snowflake = std::map<std::string, dpp::snowflake>;
+static condition_container<map_string_snowflake> waiting_file_download;
+
+// !TODO: move this to manager namespace?
 bool
 run_download_thread_will_block (const player::MCTrack &result, const std::string &fname)
 {
-    if (Player::add_track_will_block (result))
+    if (guild_player_t::add_track_will_block (result))
         return true;
 
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return false;
-
-    std::lock_guard lk (player_manager->dl_m);
-    return player_manager->is_waiting_file_download (fname);
+    auto lk = waiting_file_download.acquire ();
+    return manager::is_waiting_file_download (fname);
 }
 
 void
@@ -559,15 +568,12 @@ run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, cons
 {
     try
         {
-            auto *player_manager = get_player_manager_ptr ();
-
-            if (!player_manager)
+            dpp::snowflake user_id = from_interaction ? event.command.usr.id : sha_id;
+            auto guild_player = manager::create_player (guild_id);
+            if (!guild_player)
                 return;
 
-            dpp::snowflake user_id = from_interaction ? event.command.usr.id : sha_id;
-            auto guild_player = player_manager->create_player (guild_id);
-            auto *from = player_manager->get_client (shard_id);
-            guild_player->set_shard (from);
+            auto *from = manager::get_client (shard_id);
 
             if (from_interaction)
                 guild_player->set_channel (event.command.channel_id);
@@ -575,7 +581,7 @@ run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, cons
             if (dling)
                 {
                     // waits for a while here ...
-                    player_manager->wait_for_download (fname);
+                    manager::wait_for_download (fname);
                     if (from_interaction)
                         event.edit_response (downloaded_response);
                 }
@@ -588,7 +594,7 @@ run_download_thread (const uint32_t shard_id, const dpp::snowflake &sha_id, cons
 
             server::ws::player::publish_queue (guild_id);
 
-            from = player_manager->get_client (shard_id);
+            from = manager::get_client (shard_id);
             decide_play (from, guild_id, continued);
         }
     catch (const std::exception &e)
@@ -603,17 +609,9 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
                       const bool vcclient_cont, const dpp::snowflake &channel_id, dpp::voiceconn *v, const int64_t arg_top,
                       const int64_t arg_slip, const dpp::snowflake &sha_id, const bool continued)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            fprintf (stderr, "[player::add_track WARN] Can't add track with query, no manager: %s\n", arg_query.c_str ());
-
-            return;
-        }
-
     const bool debug = get_debug_state ();
 
-    auto find_result = find_track (playlist, arg_query, player_manager, guild_id, false, cache_id);
+    auto find_result = find_track (playlist, arg_query, guild_id, false, cache_id);
 
     switch (find_result.second)
         {
@@ -643,13 +641,13 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
 
     if (from_interaction && (vcclient_cont == false || !v))
         {
-            player_manager->set_connecting (guild_id, channel_id);
-            player_manager->set_waiting_vc_ready (guild_id, fname);
+            manager::set_connecting (guild_id, channel_id);
+            manager::set_waiting_vc_ready (guild_id, fname);
         }
 
     const auto result_url = mctrack::get_url (result);
 
-    auto download_result = track_exist (fname, result_url, player_manager, from_interaction, guild_id);
+    auto download_result = track_exist (fname, result_url, from_interaction, guild_id);
     bool dling = download_result.first;
 
     switch (download_result.second)
@@ -682,7 +680,7 @@ run_add_track_thread (const uint32_t shard_id, const std::string &arg_query, con
             fprintf (stderr, "[player::add_track WARN] Unhandled track_exist return status: %d\n", download_result.second);
         }
 
-    player_manager->reconnect (player_manager->get_client (shard_id), guild_id);
+    manager::reconnect (manager::get_client (shard_id), guild_id);
 
     task::run_may_block (
         [shard_id, sha_id, dling, fname, arg_top, from_interaction, guild_id, continued, arg_slip, event, result] ()
@@ -733,15 +731,74 @@ decide_play (dpp::discord_client *from, const dpp::snowflake &guild_id, const bo
 
 // ================================================================================
 
-bool
-Manager::is_disconnecting (const dpp::snowflake &guild_id)
+namespace manager
 {
-    std::lock_guard lk1 (this->dc_m);
-    return this->disconnecting.find (guild_id) != this->disconnecting.end ();
+// all these map element only required the first member of the pair to be valid
+// guild_id, (unused)voice_channel_id
+using map_snowflake_snowflake = std::map<dpp::snowflake, dpp::snowflake>;
+// guild_id, (unused)fname/voice_channel_id ?
+using map_snowflake_string = std::map<dpp::snowflake, std::string>;
+// guild_id
+using vector_snowflake = std::vector<dpp::snowflake>;
+
+static condition_container<map_snowflake_snowflake> connecting, disconnecting;
+static condition_container<map_snowflake_string> waiting_vc_ready;
+static condition_container<vector_snowflake> manually_paused;
+
+void
+reconnect (const uint32_t shard_id, const dpp::snowflake &guild_id)
+{
+    bool from_dc = false;
+    {
+        auto lk = disconnecting.unique_acquire ();
+        auto a = disconnecting.get ().find (guild_id);
+        if (a != disconnecting.get ().end ())
+            {
+                from_dc = true;
+                task::run_once ([guild_id] () { clear_disconnecting (guild_id); }, 10);
+                disconnecting.cv.wait (lk,
+                                       [&guild_id] () { return disconnecting.get ().find (guild_id) == disconnecting.get().end (); });
+            }
+    }
+    {
+        auto lk = connecting.unique_acquire ();
+        auto a = connecting.get ().find (guild_id);
+        if (a != connecting.get ().end ())
+            {
+                {
+                    using namespace std::chrono_literals;
+
+                    // wait for 500 ms since discord will just ignore the
+                    // request if it was too quick
+                    if (from_dc)
+                        std::this_thread::sleep_for (500ms);
+                }
+
+                dpp::discord_client *from = get_client (shard_id);
+
+                if (from)
+                    {
+                        from->connect_voice (guild_id, a->second, false, SELF_DEAF, ENABLE_DAVE);
+                        task::run_once ([guild_id] () { clear_connecting (guild_id); }, 10);
+                        connecting.cv.wait (lk,
+                                            [&guild_id] () { return connecting.get ().find (guild_id) == connecting.get().end (); });
+                    }
+                else
+                    fprintf (stderr, "[ERROR player::manager::reconnect] %u %s: Failed get_client, no connecting took place...\n", shard_id,
+                             guild_id.str ().c_str ());
+            }
+    }
+}
+
+bool
+is_disconnecting (const dpp::snowflake &guild_id)
+{
+    auto lk = disconnecting.acquire ();
+    return disconnecting.get ().find (guild_id) != disconnecting.get().end ();
 }
 
 void
-Manager::set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id)
+set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id)
 {
     auto *g = dpp::find_guild (guild_id);
     if (!g)
@@ -754,8 +811,8 @@ Manager::set_disconnecting (const dpp::snowflake &guild_id, const dpp::snowflake
         // only set disconnecting if we have active voice connection
         return;
 
-    std::lock_guard lk (this->dc_m);
-    this->disconnecting.insert_or_assign (guild_id, voice_channel_id);
+    auto lk = disconnecting.acquire ();
+    disconnecting.get ().insert_or_assign (guild_id, voice_channel_id);
 }
 
 static std::string
@@ -773,12 +830,12 @@ jsonobj_to_string (dpp::discord_client *dc, const nlohmann::json &json)
 }
 
 void
-Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id, bool force)
+disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_id, bool force)
 {
     if (!dc)
         return;
 
-    dc->log (dpp::ll_debug, "[Manager::disconnect_voice] Disconnecting voice, guild: " + std::to_string (guild_id));
+    dc->log (dpp::ll_debug, "[player::manager::disconnect_voice] Disconnecting voice, guild: " + std::to_string (guild_id));
     dc->queue_message (jsonobj_to_string (dc, nlohmann::json ({ { "op", dpp::ft_voice_state_update },
                                                                 { "d",
                                                                   {
@@ -796,64 +853,62 @@ Manager::disconnect_voice (dpp::discord_client *dc, const dpp::snowflake &guild_
 }
 
 int
-Manager::wait_for_disconnecting (const dpp::snowflake &guild_id)
+wait_for_disconnecting (const dpp::snowflake &guild_id)
 {
 
     if (!is_disconnecting (guild_id))
         return 1;
 
     if (get_debug_state ())
-        std::cerr << "[Manager::wait_for_disconnecting] Waiting for disconnect state: " << guild_id << '\n';
+        std::cerr << "[player::manager::wait_for_disconnecting] Waiting for disconnect state: " << guild_id << '\n';
 
-    task::run_once ([this, guild_id] () { this->clear_disconnecting (guild_id); }, 10);
+    task::run_once ([guild_id] () { clear_disconnecting (guild_id); }, 10);
 
-    std::unique_lock lk (this->dc_m);
-    this->dl_cv.wait (lk, [this, &guild_id] () { return this->disconnecting.find (guild_id) == this->disconnecting.end (); });
+    auto lk = disconnecting.unique_acquire ();
+    disconnecting.cv.wait (lk, [&guild_id] () { return disconnecting.get ().find (guild_id) == disconnecting.get().end (); });
 
     return 0;
 }
 
 void
-Manager::clear_disconnecting (const dpp::snowflake &guild_id)
+clear_disconnecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
         std::cerr << "[EVENT] on_voice_state_leave: " << guild_id << '\n';
 
-    std::lock_guard lk (this->dc_m);
+    auto lk = disconnecting.acquire ();
+    auto i = disconnecting.get ().find (guild_id);
 
-    auto i = this->disconnecting.find (guild_id);
-
-    if (i != this->disconnecting.end ())
+    if (i != disconnecting.get ().end ())
         {
-            this->disconnecting.erase (i);
-            this->dl_cv.notify_all ();
+            disconnecting.get ().erase (i);
+            disconnecting.cv.notify_all ();
         }
 }
 
 bool
-Manager::is_connecting (const dpp::snowflake &guild_id)
+is_connecting (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk2 (this->c_m);
-    return this->connecting.find (guild_id) != this->connecting.end ();
+    auto lk = connecting.acquire ();
+    return connecting.get ().find (guild_id) != connecting.get().end ();
 }
 
 void
-Manager::set_connecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id)
+set_connecting (const dpp::snowflake &guild_id, const dpp::snowflake &voice_channel_id)
 {
-    std::lock_guard lk (this->c_m);
-
-    this->connecting.insert_or_assign (guild_id, voice_channel_id);
+    auto lk = connecting.acquire ();
+    connecting.get ().insert_or_assign (guild_id, voice_channel_id);
 }
 
 bool
-Manager::is_waiting_vc_ready (const dpp::snowflake &guild_id)
+is_waiting_vc_ready (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk3 (this->wd_m);
-    return this->waiting_vc_ready.find (guild_id) != this->waiting_vc_ready.end ();
+    auto lk = waiting_vc_ready.acquire ();
+    return waiting_vc_ready.get ().find (guild_id) != waiting_vc_ready.get().end ();
 }
 
 void
-Manager::set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string &second)
+set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string &second)
 {
     auto *g = dpp::find_guild (guild_id);
     auto *client = g ? get_client (g->shard_id) : nullptr;
@@ -862,20 +917,23 @@ Manager::set_waiting_vc_ready (const dpp::snowflake &guild_id, const std::string
         // only set waiting_vc_ready if we dont have ready voice client
         return;
 
-    std::lock_guard lk2 (this->wd_m);
+    auto lk = waiting_vc_ready.acquire ();
+    waiting_vc_ready.get ().insert_or_assign (guild_id, second);
 
-    this->waiting_vc_ready.insert_or_assign (guild_id, second);
-
-    this->set_vc_ready_timeout (guild_id);
+    set_vc_ready_timeout (guild_id);
 }
 
 void
-Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned long &timer)
+set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned long &timer)
 {
     task::run_once (
-        [this, guild_id] ()
+        [guild_id] ()
             {
-                const int status = this->clear_wait_vc_ready (guild_id);
+                auto *cluster = get_cluster_ptr ();
+                if (!cluster)
+                    return;
+
+                const int status = clear_wait_vc_ready (guild_id);
 
                 if (status == 0)
                     return;
@@ -884,7 +942,7 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
 
                 auto guild_player = get_player (guild_id);
 
-                dpp::snowflake channel_id = guild_player ? guild_player->channel_id : dpp::snowflake (0);
+                dpp::snowflake channel_id = guild_player ? guild_player->text_channel_id : dpp::snowflake (0);
 
                 const auto sha_id = get_sha_id ();
 
@@ -902,14 +960,16 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
                 // set_disconnecting (guild_id, vcs.first->id);
                 // disconnect_voice (pc, guild_id);
 
-                fprintf (stderr, "[Manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel (%ld) in guild (%ld)\n",
+                fprintf (stderr,
+                         "[player::manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel (%ld) in guild (%ld)\n",
                          (uint64_t)vcs.first->id, (uint64_t)guild_id);
                 disconnecting = true;
 
                 // this jump means there's no need to disconnect
             skip_disconnecting:
                 if (!disconnecting)
-                    fprintf (stderr, "[Manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel in guild (%ld)\n",
+                    fprintf (stderr,
+                             "[player::manager::set_vc_ready_timeout WARN] Timeout connecting to stage/voice channel in guild (%ld)\n",
                              (uint64_t)guild_id);
 
                 if (!channel_id)
@@ -919,9 +979,9 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
 
                 auto server_id = guild_player->guild_id;
 
-                bool has_send_msg_perm = server_id
-                                         && has_permissions_from_ids (server_id, this->cluster->me.id, channel_id,
-                                                                      { dpp::p_view_channel, dpp::p_send_messages });
+                bool has_send_msg_perm
+                    = server_id
+                      && has_permissions_from_ids (server_id, cluster->me.id, channel_id, { dpp::p_view_channel, dpp::p_send_messages });
 
                 if (!has_send_msg_perm)
                     return;
@@ -931,45 +991,43 @@ Manager::set_vc_ready_timeout (const dpp::snowflake &guild_id, const unsigned lo
 
                 m.set_channel_id (channel_id);
 
-                this->cluster->message_create (m);
+                cluster->message_create (m);
             },
         timer);
 }
 
 int
-Manager::wait_for_vc_ready (const dpp::snowflake &guild_id)
+wait_for_vc_ready (const dpp::snowflake &guild_id)
 {
 
     if (!is_waiting_vc_ready (guild_id))
         return 1;
 
     if (get_debug_state ())
-        std::cerr << "[Manager::wait_for_vc_ready] Waiting for ready state: " << guild_id << '\n';
+        std::cerr << "[player::manager::wait_for_vc_ready] Waiting for ready state: " << guild_id << '\n';
 
-    task::run_once ([this, guild_id] () { this->clear_wait_vc_ready (guild_id); }, 10);
+    task::run_once ([guild_id] () { clear_wait_vc_ready (guild_id); }, 10);
 
-    std::unique_lock lk (this->wd_m);
-    this->dl_cv.wait (lk, [this, &guild_id] () { return this->waiting_vc_ready.find (guild_id) == this->waiting_vc_ready.end (); });
+    auto lk = waiting_vc_ready.unique_acquire ();
+    waiting_vc_ready.cv.wait (lk, [&guild_id] () { return waiting_vc_ready.get ().find (guild_id) == waiting_vc_ready.get().end (); });
 
     return 0;
 }
 
 int
-Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
+clear_wait_vc_ready (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        std::cerr << "[Manager::clear_wait_vc_ready]: " << guild_id << '\n';
+        std::cerr << "[player::manager::clear_wait_vc_ready]: " << guild_id << '\n';
 
-    int err = this->clear_connecting (guild_id);
+    int err = clear_connecting (guild_id);
 
-    std::lock_guard lk (this->wd_m);
-
-    auto i = this->waiting_vc_ready.find (guild_id);
-    if (i != this->waiting_vc_ready.end ())
+    auto lk = waiting_vc_ready.acquire ();
+    auto i = waiting_vc_ready.get ().find (guild_id);
+    if (i != waiting_vc_ready.get ().end ())
         {
-            this->waiting_vc_ready.erase (i);
-
-            this->dl_cv.notify_all ();
+            waiting_vc_ready.get ().erase (i);
+            waiting_vc_ready.cv.notify_all ();
             return 2;
         }
 
@@ -977,19 +1035,18 @@ Manager::clear_wait_vc_ready (const dpp::snowflake &guild_id)
 }
 
 int
-Manager::clear_connecting (const dpp::snowflake &guild_id)
+clear_connecting (const dpp::snowflake &guild_id)
 {
     if (get_debug_state ())
-        std::cerr << "[Manager::clear_connecting]: " << guild_id << '\n';
+        std::cerr << "[player::manager::clear_connecting]: " << guild_id << '\n';
 
-    std::lock_guard lk (this->c_m);
+    auto lk = connecting.acquire ();
+    auto i = connecting.get ().find (guild_id);
 
-    auto i = this->connecting.find (guild_id);
-
-    if (i != this->connecting.end ())
+    if (i != connecting.get ().end ())
         {
-            this->connecting.erase (i);
-            this->dl_cv.notify_all ();
+            connecting.get ().erase (i);
+            connecting.cv.notify_all ();
             return 1;
         }
 
@@ -997,59 +1054,52 @@ Manager::clear_connecting (const dpp::snowflake &guild_id)
 }
 
 bool
-Manager::is_manually_paused (const dpp::snowflake &guild_id)
+is_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (this->mp_m);
-
-    return vector_find (&this->manually_paused, guild_id) != this->manually_paused.end ();
+    auto lk = manually_paused.acquire ();
+    return vector_find (&manually_paused.get (), guild_id) != manually_paused.get ().end ();
 }
 
 void
-Manager::set_manually_paused (const dpp::snowflake &guild_id)
+set_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (this->mp_m);
-
-    if (vector_find (&this->manually_paused, guild_id) == this->manually_paused.end ())
+    auto lk = manually_paused.acquire ();
+    if (vector_find (&manually_paused.get (), guild_id) == manually_paused.get ().end ())
         {
-            this->manually_paused.push_back (guild_id);
+            manually_paused.get ().push_back (guild_id);
         }
 }
 
 void
-Manager::clear_manually_paused (const dpp::snowflake &guild_id)
+clear_manually_paused (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (this->mp_m);
+    auto lk = manually_paused.acquire ();
+    auto i = vector_find (&manually_paused.get (), guild_id);
 
-    auto i = vector_find (&this->manually_paused, guild_id);
-
-    if (i != this->manually_paused.end ())
+    if (i != manually_paused.get ().end ())
         {
-            this->manually_paused.erase (i);
+            manually_paused.get ().erase (i);
         }
 }
 
 bool
-Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, const dpp::snowflake &user_id)
+voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, const dpp::snowflake &user_id)
 {
     bool re = is_connecting (guild_id);
 
     if (!is_disconnecting (guild_id) && !re && !is_waiting_vc_ready (guild_id))
         return true;
 
-    if (!re || shard_id == Player::INVALID_SHARD_ID)
+    if (!re || shard_id == guild_player_t::INVALID_SHARD_ID)
         return false;
 
     // task::run (
     //     [shard_id, user_id, guild_id] ()
     //         {
-    //             auto *player_manager = get_player_manager_ptr ();
-    //             if (!player_manager)
-    //                 return;
-    //
     //             std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > uservc;
     //
     //             uservc = get_voice_from_gid (guild_id, user_id);
-    //             auto *from = player_manager->get_client (shard_id);
+    //             auto *from = player::manager::get_client (shard_id);
     //             if (!from)
     //                 return;
     //
@@ -1062,9 +1112,9 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
     //
     //             if (f == from->connecting_voice_channels.end () || !f->second)
     //                 {
-    //                     player_manager->set_disconnecting (guild_id, 1);
+    //                     player::manager::set_disconnecting (guild_id, 1);
     //
-    //                     player_manager->disconnect_voice (from, guild_id);
+    //                     player::manager::disconnect_voice (from, guild_id);
     //                 }
     //             else if (user_vc && uservc.first->id != c.first->id)
     //                 {
@@ -1072,11 +1122,11 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
     //                         std::cerr << "Disconnecting as it seems I just got moved to different vc and connection not updated yet: "
     //                                   << guild_id << '\n';
     //
-    //                     player_manager->set_disconnecting (guild_id, f->second->channel_id);
+    //                     player::manager::set_disconnecting (guild_id, f->second->channel_id);
     //
-    //                     player_manager->set_connecting (guild_id, uservc.first->id);
+    //                     player::manager::set_connecting (guild_id, uservc.first->id);
     //
-    //                     player_manager->disconnect_voice (from, guild_id);
+    //                     player::manager::disconnect_voice (from, guild_id);
     //                 }
     //
     //             goto reconnect;
@@ -1086,12 +1136,12 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
     //
     //             if (user_id && user_vc)
     //                 {
-    //                     std::lock_guard lk (player_manager->c_m);
-    //                     auto p = player_manager->connecting.find (guild_id);
+    //                     std::lock_guard lk (player::manager::c_m);
+    //                     auto p = player::manager::connecting.find (guild_id);
     //
     //                     std::map<dpp::snowflake, dpp::voicestate> vm = {};
     //
-    //                     if (p == player_manager->connecting.end ())
+    //                     if (p == player::manager::connecting.end ())
     //                         goto reconnect;
     //
     //                     auto gc = dpp::find_channel (p->second);
@@ -1105,7 +1155,7 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
     //             // goto reconnect;
     //
     //         reconnect:
-    //             player_manager->reconnect (from, guild_id);
+    //             player::manager::reconnect (from, guild_id);
     //         });
 
     return true;
@@ -1114,9 +1164,9 @@ Manager::voice_ready (const dpp::snowflake &guild_id, const uint32_t shard_id, c
 // !TODO: stop_stream should check if audio_processing loop still running!
 // and return status whether flag is set or not
 int
-Manager::stop_stream (const dpp::snowflake &guild_id)
+stop_stream (const dpp::snowflake &guild_id)
 {
-    auto guild_player = this->get_player (guild_id);
+    auto guild_player = get_player (guild_id);
     if (!guild_player)
         return -1;
 
@@ -1125,25 +1175,24 @@ Manager::stop_stream (const dpp::snowflake &guild_id)
 }
 
 bool
-Manager::is_waiting_file_download (const std::string &file_name)
+is_waiting_file_download (const std::string &file_name)
 {
-    return this->waiting_file_download.find (file_name) != this->waiting_file_download.end ();
+    return waiting_file_download.get ().find (file_name) != waiting_file_download.get().end ();
 }
 
 void
-Manager::wait_for_download (const std::string &file_name)
+wait_for_download (const std::string &file_name)
 {
-    std::unique_lock lk (this->dl_m);
-
-    if (!this->is_waiting_file_download (file_name))
+    auto lk = waiting_file_download.unique_acquire ();
+    if (!is_waiting_file_download (file_name))
         return;
 
-    this->dl_cv.wait (lk,
-                      [this, file_name] () { return this->waiting_file_download.find (file_name) == this->waiting_file_download.end (); });
+    waiting_file_download.cv.wait (lk, [file_name] ()
+                                       { return waiting_file_download.get ().find (file_name) == waiting_file_download.get().end (); });
 }
 
 bool
-Manager::set_info_message_as_deleted (dpp::snowflake guild_id, dpp::snowflake message_id)
+set_info_message_as_deleted (dpp::snowflake guild_id, dpp::snowflake message_id)
 {
     auto player = get_player (guild_id);
     if (!player)
@@ -1158,9 +1207,9 @@ Manager::set_info_message_as_deleted (dpp::snowflake guild_id, dpp::snowflake me
 }
 
 int
-Manager::load_guild_current_queue (const dpp::snowflake &guild_id, const dpp::snowflake *user_id)
+load_guild_current_queue (const dpp::snowflake &guild_id, const dpp::snowflake *user_id)
 {
-    auto player = this->create_player (guild_id);
+    auto player = create_player (guild_id);
 
     if (player->saved_queue_loaded == true)
         return 0;
@@ -1196,9 +1245,9 @@ Manager::load_guild_current_queue (const dpp::snowflake &guild_id, const dpp::sn
 }
 
 int
-Manager::load_guild_player_config (const dpp::snowflake &guild_id)
+load_guild_player_config (const dpp::snowflake &guild_id)
 {
-    auto player = this->create_player (guild_id);
+    auto player = create_player (guild_id);
     if (player->saved_config_loaded == true)
         return 0;
 
@@ -1223,20 +1272,19 @@ Manager::load_guild_player_config (const dpp::snowflake &guild_id)
 }
 
 int
-Manager::set_reconnect (const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id,
-                        const dpp::snowflake &connect_channel_id)
+set_reconnect (const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id, const dpp::snowflake &connect_channel_id)
 {
     if (!guild_id)
         // guild_id is 0
         return -1;
 
     if (disconnect_channel_id)
-        this->set_disconnecting (guild_id, disconnect_channel_id);
+        set_disconnecting (guild_id, disconnect_channel_id);
 
     if (connect_channel_id)
         {
-            this->set_connecting (guild_id, connect_channel_id);
-            this->set_waiting_vc_ready (guild_id);
+            set_connecting (guild_id, connect_channel_id);
+            set_waiting_vc_ready (guild_id);
 
             // success
             return 0;
@@ -1247,8 +1295,8 @@ Manager::set_reconnect (const dpp::snowflake &guild_id, const dpp::snowflake &di
 }
 
 int
-Manager::full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id,
-                         const dpp::snowflake &connect_channel_id, const bool &for_listener)
+full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &disconnect_channel_id,
+                const dpp::snowflake &connect_channel_id, const bool &for_listener)
 {
     const auto sha_id = get_sha_id ();
 
@@ -1260,7 +1308,7 @@ Manager::full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_
                 return 0;
         }
 
-    int status = this->set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
+    int status = set_reconnect (guild_id, disconnect_channel_id, connect_channel_id);
 
     disconnect_voice (from, guild_id);
     uint32_t shard_id = from->shard_id;
@@ -1271,7 +1319,7 @@ Manager::full_reconnect (dpp::discord_client *from, const dpp::snowflake &guild_
 }
 
 void
-Manager::get_next_autoplay_track (const std::string &track_id, const uint32_t shard_id, const dpp::snowflake &server_id)
+get_next_autoplay_track (const std::string &track_id, const uint32_t shard_id, const dpp::snowflake &server_id)
 {
     const bool debug = get_debug_state ();
 
@@ -1279,7 +1327,7 @@ Manager::get_next_autoplay_track (const std::string &track_id, const uint32_t sh
     // limit to one autoplay fetch for each guild player
 
     if (debug)
-        fprintf (stderr, "[Manager::handle_on_track_marker] Getting new autoplay track: %s\n", track_id.c_str ());
+        fprintf (stderr, "[player::manager::handle_on_track_marker] Getting new autoplay track: %s\n", track_id.c_str ());
 
     const std::string query = "https://www.youtube.com/watch?v=" + track_id + "&list=RD" + track_id;
 
@@ -1288,13 +1336,13 @@ Manager::get_next_autoplay_track (const std::string &track_id, const uint32_t sh
 }
 
 int
-Manager::set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool check_listening_user)
+set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool check_listening_user)
 {
 #ifndef TEST_NO_AUTOPAUSE
     if (!v || !v->voiceclient)
         return 1;
 
-    if (this->is_manually_paused (guild_id))
+    if (is_manually_paused (guild_id))
         return -1;
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > voice = { nullptr, {} };
@@ -1328,7 +1376,7 @@ Manager::set_autopause (dpp::voiceconn *v, const dpp::snowflake &guild_id, bool 
 exec_pause_audio:
     v->voiceclient->pause_audio (true);
     server::ws::player::publish_pause (guild_id);
-    this->update_info_embed (guild_id);
+    update_info_embed (guild_id);
     return 0;
 #else  // TEST_NO_AUTOPAUSE
     return 0;
@@ -1336,14 +1384,14 @@ exec_pause_audio:
 }
 
 void
-Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake &e_voice_channel_id)
+check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake &e_voice_channel_id)
 {
     const bool debug = get_debug_state ();
 
-    bool did_manually_paused = this->is_manually_paused (e_guild_id);
+    bool did_manually_paused = is_manually_paused (e_guild_id);
 
     std::pair<dpp::channel *, dpp::voicestate *> cached = { nullptr, nullptr };
-    auto guild_player = this->get_player (e_guild_id);
+    auto guild_player = get_player (e_guild_id);
     auto *c = guild_player ? guild_player->get_client () : nullptr;
     auto *v = c ? c->get_voice (e_guild_id) : nullptr;
     auto *g = guild_player ? dpp::find_guild (e_guild_id) : nullptr;
@@ -1401,11 +1449,11 @@ Manager::check_autopause (const dpp::snowflake &e_guild_id, const dpp::snowflake
     if (is_paused || !new_state_muted || old_state_muted)
         goto skip_autopause;
     // server muted, set autopause
-    if (this->set_autopause (v, e_guild_id, false) || !debug)
+    if (set_autopause (v, e_guild_id, false) || !debug)
         // skip if no debug
         goto end;
 
-    std::cerr << "[Manager::check_autopause] Paused " << e_guild_id << " as server muted\n";
+    std::cerr << "[player::manager::check_autopause] Paused " << e_guild_id << " as server muted\n";
     goto end;
 
 skip_autopause:
@@ -1422,13 +1470,13 @@ skip_autopause:
         // no error, skip warn
         goto end;
 
-    std::cerr << "[Manager::check_autopause WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id << ") svcid("
+    std::cerr << "[player::manager::check_autopause WARN] timer::create_resume_timer uid(" << sha_id << ") sid(" << e_guild_id << ") svcid("
               << e_voice_channel_id << ") status(" << tstatus << ")\n";
 
 end:
     if (debug)
         {
-            std::cerr << "[Manager::check_autopause] "
+            std::cerr << "[player::manager::check_autopause] "
                          "e_voice_channel_id("
                       << e_voice_channel_id << ") is_paused(" << is_paused << ") new_state_muted(" << new_state_muted
                       << ") old_state_muted(" << old_state_muted << ") v(" << v << ") v->voiceclient(" << (v && v->voiceclient)
@@ -1436,7 +1484,207 @@ end:
         }
 }
 
-} // player
+////////////////////////////////////////
+
+struct download_thread_params_t
+{
+    std::string fname;
+    std::string url;
+};
+
+using download_queue_t = std::queue<download_thread_params_t>;
+static exclusive_container<download_queue_t> download_q;
+
+void
+download (const std::string &fname, const std::string &url, const dpp::snowflake &guild_id)
+{
+    {
+        auto lk = waiting_file_download.acquire ();
+        waiting_file_download.container[fname] = guild_id;
+    }
+
+    auto lk = download_q.acquire ();
+    download_q.get ().push ({ fname, url });
+}
+
+static int
+read_notif_fifo (int notif_fifo, const std::string &filepath, const std::string &url)
+{
+    char buf[4097];
+    ssize_t cur_read = 0;
+    bool has_progress = false;
+
+    while ((cur_read = read (notif_fifo, &buf, 4096)) > 0)
+        {
+            buf[cur_read] = '\0';
+            // log this for nice statistic or smt later
+            fprintf (stderr, "%s%s", buf, buf[cur_read - 1] == '\n' ? "" : "\n");
+
+            has_progress = true;
+        }
+
+    return has_progress ? 0 : 1;
+}
+
+static void
+do_download (const std::string &fname, const std::string &url, const std::string &filepath)
+{
+    fprintf (stderr, "[player::manager::download] Download: \"%s\" \"%s\"\n", fname.c_str (), url.c_str ());
+
+#ifdef MUSICAT_WITH_PYTHON
+    // try using the new ytdlp::fetch() first and fallback when fail
+    // it's really only able to run on one thread per call rn
+    {
+        nlohmann::json d;
+        int ret = ytdlp::fetch (url, 1, d, filepath);
+        if (ret == 0)
+            return;
+        else
+            {
+                fprintf (stderr, "[mctrack::fetch ERROR] ytdlp::fetch() Status: %d\n", ret);
+                fprintf (stderr, "[mctrack::fetch ERROR] url: `%s`\n", url.c_str ());
+                fprintf (stderr, "[mctrack::fetch ERROR] filepath: `%s`\n", filepath.c_str ());
+
+                // fallback to child process
+            }
+    }
+#endif // MUSICAT_WITH_PYTHON
+
+    const bool debug = get_debug_state ();
+    const std::string yt_dlp = get_ytdlp_exe ();
+
+    const std::string qid = util::max_len (util::base64::encode (fname), 32);
+
+    namespace cc = child::command;
+    const std::string child_cmd = cc::create_arg_sanitize_value (cc::command_options_keys_t.id, qid)
+                                  + cc::create_arg (cc::command_options_keys_t.command, cc::command_execute_commands_t.dl_music)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.file_path, filepath)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_query, url)
+                                  + cc::create_arg_sanitize_value (cc::command_options_keys_t.ytdlp_util_exe, yt_dlp)
+                                  + cc::create_arg (cc::command_options_keys_t.debug, debug ? "1" : "0");
+
+    const std::string exit_cmd = cc::get_exit_command (qid);
+
+    // send download command then wait until it exits
+    cc::send_command (child_cmd);
+    int status = child::command::wait_slave_ready (qid, 10);
+    if (status != 0)
+        {
+            fprintf (stderr,
+                     "[player::manager::download ERROR] Error downloading '%s' "
+                     "to '%s' with code %d\n",
+                     url.c_str (), filepath.c_str (), status);
+        }
+    else
+        {
+            const std::string notif_fifo_path = child::dl_music::get_download_music_fifo_path (qid);
+
+            int notif_fifo = open (notif_fifo_path.c_str (), O_RDONLY);
+
+            if (notif_fifo < 0)
+                fprintf (stderr,
+                         "[player::manager::download ERROR] "
+                         "Failed to open notif_fifo: '%s'\n",
+                         notif_fifo_path.c_str ());
+            else
+                {
+                    status = read_notif_fifo (notif_fifo, filepath, url);
+                    close (notif_fifo);
+                    notif_fifo = -1;
+                }
+
+            cc::send_command (exit_cmd);
+        }
+}
+
+// updates file access time without opening it
+static void
+update_file_access_time (const std::string &filepath)
+{
+    // update newly downloaded file access time
+    bool utimeerr = false;
+    struct stat downloaded_stat;
+    struct utimbuf new_times;
+
+    if (stat (filepath.c_str (), &downloaded_stat) == 0)
+        {
+            new_times.actime = time (NULL);               /* set atime to current time */
+            new_times.modtime = downloaded_stat.st_mtime; /* keep mtime unchanged */
+            if (utime (filepath.c_str (), &new_times) < 0)
+                {
+                    perror (filepath.c_str ());
+                    utimeerr = true;
+                }
+        }
+    else
+        {
+            perror (filepath.c_str ());
+            utimeerr = true;
+        }
+
+    // if above access time update success
+    if (!utimeerr)
+        // tells main loop to control music cache
+        set_should_check_music_cache (true);
+}
+
+static std::atomic<int> running_download = 0;
+struct running_download_dec_t
+{
+    ~running_download_dec_t () { running_download--; }
+};
+
+void
+check_download_queue ()
+{
+    if (running_download >= get_max_concurrent_download ())
+        return;
+
+    auto lk2 = download_q.acquire ();
+    if (download_q.get ().empty ())
+        return;
+
+    running_download++;
+    download_thread_params_t params = download_q.get ().front ();
+    download_q.get ().pop ();
+
+    task::run (
+        [params] ()
+            {
+                running_download_dec_t rdd;
+
+                const std::string &fname = params.fname;
+                const std::string &url = params.url;
+
+                const std::string music_folder_path = get_music_folder_path ();
+                util::fs::ensure_dir (music_folder_path);
+
+                const std::string filepath = music_folder_path + fname;
+
+                bool did_download = false;
+                if (!util::fs::file_exists (filepath))
+                    {
+                        do_download (fname, url, filepath);
+                        did_download = true;
+                    }
+
+                {
+                    auto lk = waiting_file_download.acquire ();
+                    waiting_file_download.get ().erase (fname);
+
+                    if (did_download)
+                        update_file_access_time (filepath);
+                }
+
+                waiting_file_download.cv.notify_all ();
+
+                // TODO: set status somewhere when needed?
+            });
+}
+
+} // namespace manager
+
+} // namespace player
 
 // ================================================================================
 
@@ -1444,7 +1692,7 @@ namespace util
 {
 
 bool
-player_has_current_track (std::shared_ptr<player::Player> guild_player)
+player_has_current_track (std::shared_ptr<player::guild_player_t> guild_player)
 {
     if (!guild_player || guild_player->current_track.raw.is_null () || !guild_player->queue.size ())
         return false;
@@ -1518,11 +1766,7 @@ set_playback_info_track_data (nlohmann::json &data, const dpp::snowflake &guild_
 static void
 set_guild_player_data (nlohmann::json &data, const dpp::snowflake &guild_id)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    auto guild_player = player_manager->get_player (guild_id);
+    auto guild_player = player::manager::get_player (guild_id);
     if (!guild_player)
         return;
 
@@ -1591,4 +1835,4 @@ get_playback_info_json (const dpp::snowflake &guild_id)
 
 } // namespace util
 
-} // musicat
+} // namespace musicat

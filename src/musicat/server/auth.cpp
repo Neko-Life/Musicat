@@ -1,8 +1,6 @@
-// clang-format off
 #include "musicat/server/auth.h"
 #include "musicat/musicat.h"
 #include "musicat/server/states.h"
-// clang-format on
 
 namespace musicat::server::auth
 {
@@ -18,10 +16,10 @@ create_jwt_token (const std::string &user_id)
         }
 
     const auto token = jwt::create ()
-                     .set_issuer ("Musicat" /*version*/)
-                     .set_type ("JWS")
-                     .set_payload_claim ("user_id", jwt::claim (user_id))
-                     .sign (jwt::algorithm::hs256{ secret });
+                           .set_issuer ("Musicat" /*version*/)
+                           .set_type ("JWS")
+                           .set_payload_claim ("user_id", jwt::claim (user_id))
+                           .sign (jwt::algorithm::hs256{ secret });
 
     return std::string (token);
 }

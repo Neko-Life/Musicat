@@ -85,12 +85,6 @@ slash_run (const dpp::slashcommand_t &event)
     task::run_may_block (
         [event, filename] ()
             {
-                auto player_manager = get_player_manager_ptr ();
-                if (!player_manager)
-                    {
-                        return;
-                    }
-
                 auto guild_id = event.command.guild_id;
 
                 // filename
@@ -100,7 +94,7 @@ slash_run (const dpp::slashcommand_t &event)
 
                 if (!filename.empty ())
                     {
-                        auto find_result = player::find_track (false, filename, player_manager, guild_id, true);
+                        auto find_result = player::find_track (false, filename, guild_id, true);
 
                         switch (find_result.second)
                             {
@@ -121,7 +115,7 @@ slash_run (const dpp::slashcommand_t &event)
 
                         fname = player::get_filename_from_result (result);
 
-                        auto download_result = player::track_exist (fname, mctrack::get_url (result), player_manager, true, guild_id, true);
+                        auto download_result = player::track_exist (fname, mctrack::get_url (result), true, guild_id, true);
 
                         bool dling = download_result.first;
 
@@ -162,21 +156,18 @@ slash_run (const dpp::slashcommand_t &event)
                 else // no track argument specified, lets download current playing song
                      // if any
                     {
-                        auto guild_player = player_manager->get_player (guild_id);
+                        auto guild_player = player::manager::get_player (guild_id);
                         if (!guild_player)
                             return e_re_no_track (event);
 
                         auto conn = event.from ()->get_voice (guild_id);
 
-                        std::lock_guard lk (guild_player->t_mutex);
+                        auto lk = guild_player->acquire ();
 
                         if (!guild_player->queue.size () || guild_player->current_track.raw.is_null () || !conn || !conn->voiceclient
                             || !conn->voiceclient->is_playing ()) // if there's no currently playing
                                                                   // track
-                            {
-
-                                return e_re_no_track (event);
-                            }
+                            return e_re_no_track (event);
 
                         auto &track = guild_player->current_track;
                         fname = player::get_filename_from_result (track);

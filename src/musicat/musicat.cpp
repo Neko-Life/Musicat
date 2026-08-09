@@ -1,9 +1,8 @@
-// clang-format off
 #include "musicat/player_manager.h"
+
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include <dpp/discordclient.h>
-// clang-format on
 
 #include <vector>
 
@@ -258,8 +257,7 @@ shuffle_indexes (size_t len)
 }
 
 int
-join_voice (dpp::discord_client *from, player::player_manager_ptr_t player_manager, const dpp::snowflake &guild_id,
-            const dpp::snowflake &user_id, const dpp::snowflake &sha_id)
+join_voice (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, const dpp::snowflake &sha_id)
 {
 
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > c, c2;
@@ -285,7 +283,7 @@ join_voice (dpp::discord_client *from, player::player_manager_ptr_t player_manag
         // no permission
         return 4;
 
-    player_manager->full_reconnect (from, guild_id, (c2.first && c2.first->id) ? c2.first->id : dpp::snowflake (0), c.first->id);
+    player::manager::full_reconnect (from, guild_id, (c2.first && c2.first->id) ? c2.first->id : dpp::snowflake (0), c.first->id);
 
     // success dispatching join voice channel
     return 0;
@@ -305,7 +303,7 @@ close_valid_fd (int *i)
 dpp::task<dpp::guild *>
 fetch_guild (const dpp::snowflake &guild_id)
 {
-    dpp::cluster *cluster = get_client_ptr ();
+    dpp::cluster *cluster = get_cluster_ptr ();
     if (!cluster)
         co_return nullptr;
 

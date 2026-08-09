@@ -1,15 +1,16 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/pagination.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/storage.h"
 #include "musicat/task.h"
 #include "musicat/util_response.h"
-// clang-format on
 
 #include <cstdio>
 #include <exception>
@@ -24,20 +25,17 @@ _run_download_thread (const bool dling, const std::string &fname, const dpp::sno
 {
     try
         {
-            auto *player_manager = get_player_manager_ptr ();
-
-            if (!player_manager)
+            dpp::snowflake user_id = event.command.usr.id;
+            auto guild_player = player::manager::create_player (guild_id);
+            if (!guild_player)
                 return;
 
-            dpp::snowflake user_id = event.command.usr.id;
-            auto guild_player = player_manager->create_player (guild_id);
             auto *from = event.from ();
-            guild_player->set_shard (from);
 
             if (dling)
                 {
                     // waits for a while here ...
-                    player_manager->wait_for_download (fname);
+                    player::manager::wait_for_download (fname);
                     event.edit_response (edit_response);
                 }
 
@@ -131,17 +129,16 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
 
             std::ifstream test (get_music_folder_path () + fname, std::ios_base::in | std::ios_base::binary);
 
-            auto player_manager = get_player_manager_ptr ();
             if (!test.is_open ())
                 {
                     dling = true;
                     co_await thinking;
                     event.edit_response (prepend_name + util::response::reply_downloading_track (mctrack::get_title (result)));
 
-                    if (player_manager && !player_manager->is_waiting_file_download (fname))
+                    if (!player::manager::is_waiting_file_download (fname))
                         {
                             auto url = mctrack::get_url (result);
-                            player_manager->download (fname, url, guild_id);
+                            player::manager::download (fname, url, guild_id);
                         }
                 }
             else
@@ -151,8 +148,7 @@ _handle_modal_p_que_s_track (const dpp::form_submit_t &event, const dpp::compone
                     event.edit_response (edit_response);
                 }
 
-            if (player_manager)
-                join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
+            join_voice (event.from (), event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
             task::run_may_block (
                 [dling, fname, guild_id, top, arg_slip, edit_response, event, result] ()

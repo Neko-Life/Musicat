@@ -1,10 +1,9 @@
-// clang-format off
 #include "musicat/player_manager.h"
+
 #include "musicat/musicat.h"
 #include "musicat/server/middlewares.h"
 #include "musicat/server/response.h"
 #include "musicat/server/service_cache.h"
-// clang-format on
 
 namespace musicat::server::routes
 {
@@ -43,7 +42,7 @@ get_root (APIResponse *res, APIRequest *req)
     endres.headers = cors_headers;
     endres.set_content_type_json ();
 
-    auto bot = get_client_ptr ();
+    auto bot = get_cluster_ptr ();
     if (!bot)
         {
             endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;
@@ -82,7 +81,7 @@ get_root (APIResponse *res, APIRequest *req)
                 endres.response = lresponse;
                 response::defer_end_t dendt (endres);
 
-                auto bot = get_client_ptr ();
+                auto bot = get_cluster_ptr ();
                 if (!bot) [[unlikely]]
                     {
                         endres.status = http_status_t.INTERNAL_SERVER_ERROR_500;

@@ -10,7 +10,7 @@
 #warning Missing #include "musicat/player.h"
 namespace musicat::player
 {
-class Player;
+class guild_player_t;
 }
 #endif // SHA_PLAYER_H
 
@@ -37,7 +37,7 @@ bool fuzzy_match (std::string search, std::string str, const bool case_insensiti
 
 uint64_t get_random_number ();
 
-bool is_player_not_playing (std::shared_ptr<player::Player> &guild_player, dpp::voiceconn *voiceconn);
+bool is_player_not_playing (std::shared_ptr<player::guild_player_t> &guild_player, dpp::voiceconn *voiceconn);
 
 template <typename T>
 T

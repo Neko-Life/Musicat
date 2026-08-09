@@ -1,9 +1,7 @@
-// clang-format off
 #include "musicat/player.h"
-#include "musicat/util.h"
-#include "musicat/musicat.h"
-// clang-format on
 
+#include "musicat/musicat.h"
+#include "musicat/util.h"
 #include <memory>
 #include <random>
 #include <regex>
@@ -111,7 +109,7 @@ get_random_number ()
 }
 
 bool
-is_player_not_playing (std::shared_ptr<player::Player> &guild_player, dpp::voiceconn *voiceconn)
+is_player_not_playing (std::shared_ptr<player::guild_player_t> &guild_player, dpp::voiceconn *voiceconn)
 {
     return !guild_player || !voiceconn || !voiceconn->voiceclient || !voiceconn->voiceclient->is_ready ()
            || (voiceconn->voiceclient->get_secs_remaining () < 0.05f && guild_player

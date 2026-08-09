@@ -1,11 +1,12 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/cmds/move.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/server/ws/player.h"
-// clang-format on
 
 namespace musicat::command::move
 {
@@ -20,20 +21,14 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
-    auto guild_player = player_manager->get_player (event.command.guild_id);
+    auto guild_player = player::manager::get_player (event.command.guild_id);
     if (!guild_player)
         {
             event.reply ("No track");
             return;
         }
 
-    std::lock_guard lk (guild_player->t_mutex);
+    auto lk = guild_player->acquire ();
 
     size_t queue_siz = guild_player->queue.size ();
     int64_t max_to = (int64_t)queue_siz - 1;
@@ -76,13 +71,7 @@ slash_run (const dpp::slashcommand_t &event)
             }
 
             if (a != mctrack::get_title (guild_player->queue.at (1)) || b != mctrack::get_title (guild_player->queue.back ()))
-                try
-                    {
-                        player_manager->update_info_embed (event.command.guild_id);
-                    }
-                catch (...)
-                    {
-                    }
+                player::manager::update_info_embed (event.command.guild_id);
         }
 
     event.reply (std::string ("Moved ") + mctrack::get_title (track) + " to position " + std::to_string (to));

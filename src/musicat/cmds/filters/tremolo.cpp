@@ -1,8 +1,7 @@
-// clang-format off
 #include "musicat/cmds/filters.h"
+
 #include "musicat/cmds.h"
 #include "musicat/cmds/filters/modulation.h"
-// clang-format on
 
 namespace musicat::command::filters::tremolo
 {
@@ -34,8 +33,7 @@ set_d (const filters_perquisite_t &ftp, int v)
 void
 setup_subcommand (dpp::slashcommand &slash)
 {
-    return modulation::setup_subcommand (
-        slash, { "tremolo", "Volume cycler", "Cycle" });
+    return modulation::setup_subcommand (slash, { "tremolo", "Volume cycler", "Cycle" });
 }
 
 void
@@ -56,8 +54,7 @@ reset (const dpp::slashcommand_t &event)
     modulation::reset (event, get_f, get_d, set_f, set_d);
 }
 
-inline constexpr const command_handlers_map_t action_handlers
-    = { { "", show }, { "0", set }, { "1", reset }, { NULL, NULL } };
+inline constexpr const command_handlers_map_t action_handlers = { { "", show }, { "0", set }, { "1", reset }, { NULL, NULL } };
 
 void
 slash_run (const dpp::slashcommand_t &event)

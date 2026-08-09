@@ -1,10 +1,8 @@
-// clang-format off
 #include "musicat/child/ytdlp.h"
 #include "musicat/child/command.h"
 #include "musicat/musicat.h"
 #include "musicat/tests.h"
 #include "musicat/util/base64.h"
-// clang-format on
 
 #include <fstream>
 
@@ -21,16 +19,11 @@ test_ytdlp ()
     std::string q = "ytsearch25:How to train your dragon";
     std::string qid = util::base64::encode (q);
 
-    std::string ytdlp_cmd
-        = cc::command_options_keys_t.command + '='
-          + cc::command_execute_commands_t.call_ytdlp + ';'
-          + cc::command_options_keys_t.id + '=' + qid + ';'
-          + cc::command_options_keys_t.ytdlp_util_exe + '='
-          + cc::sanitize_command_value (get_ytdlp_util_exe ()) + ';'
-          + cc::command_options_keys_t.ytdlp_lib_path + '='
-          + cc::sanitize_command_value (get_ytdlp_lib_path ()) + ';'
-          + cc::command_options_keys_t.ytdlp_query + '='
-          + cc::sanitize_command_value (q) + ';';
+    std::string ytdlp_cmd = cc::command_options_keys_t.command + '=' + cc::command_execute_commands_t.call_ytdlp + ';'
+                            + cc::command_options_keys_t.id + '=' + qid + ';' + cc::command_options_keys_t.ytdlp_util_exe + '='
+                            + cc::sanitize_command_value (get_ytdlp_util_exe ()) + ';' + cc::command_options_keys_t.ytdlp_lib_path + '='
+                            + cc::sanitize_command_value (get_ytdlp_lib_path ()) + ';' + cc::command_options_keys_t.ytdlp_query + '='
+                            + cc::sanitize_command_value (q) + ';';
 
     const std::string exit_cmd = cc::get_exit_command (qid);
 

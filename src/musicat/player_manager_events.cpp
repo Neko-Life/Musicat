@@ -1,36 +1,38 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player_manager_timer.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/stream.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/task.h"
-// clang-format on
 
 #include <cstdint>
 #include <memory>
 
 namespace musicat
 {
-namespace player
+namespace player::manager
 {
-// this section can't be anymore horrible than this....
-using string = std::string;
-
 bool
-Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
+handle_on_track_marker (const dpp::voice_track_marker_t &event)
 {
+    auto *cluster = get_cluster_ptr ();
+    if (!cluster)
+        return false;
+
     const bool debug = get_debug_state ();
     const auto sha_id = get_sha_id ();
 
     if (!event.voice_client || event.voice_client->terminating || !get_running_state ())
         {
             if (debug)
-                fprintf (stderr, "[Manager::handle_on_track_marker WARN] NO CLIENT\n");
+                fprintf (stderr, "[player::manager::handle_on_track_marker WARN] NO CLIENT\n");
 
             return false;
         }
@@ -43,61 +45,57 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
     prepare_play_stage_channel_routine (event.voice_client, g);
 
-    auto guild_player = this->get_player (event.voice_client->server_id);
+    auto guild_player = get_player (event.voice_client->server_id);
     if (!guild_player)
         {
             if (debug)
-                fprintf (stderr, "[Manager::handle_on_track_marker WARN] NO PLAYER\n");
+                fprintf (stderr, "[player::manager::handle_on_track_marker WARN] NO PLAYER\n");
 
             return false;
         }
 
     // channel for sending message
-    dpp::channel *tc = dpp::find_channel (guild_player->channel_id);
+    dpp::channel *tc = dpp::find_channel (guild_player->text_channel_id);
 
     if (guild_player->processing_audio)
         {
             if (debug)
-                std::cerr << "[Manager::handle_on_track_marker WARN] "
+                std::cerr << "[player::manager::handle_on_track_marker WARN] "
                              "PLAYER ALREADY PLAYING: "
                           << event.voice_client->server_id << "\n";
 
             return false;
         }
 
-    this->clear_manually_paused (event.voice_client->server_id);
+    clear_manually_paused (event.voice_client->server_id);
 
-    if (this->is_disconnecting (event.voice_client->server_id))
+    if (is_disconnecting (event.voice_client->server_id))
         {
             if (debug)
-                fprintf (stderr, "[Manager::handle_on_track_marker WARN] "
+                fprintf (stderr, "[player::manager::handle_on_track_marker WARN] "
                                  "RETURN DISCONNECTING\n");
 
             return false;
         }
 
-    if (debug)
-        std::cerr << "[Manager::handle_on_track_marker] Locked player::t_mutex: " << guild_player->guild_id << '\n';
-
-    std::lock_guard lk (guild_player->t_mutex);
+    auto lk = guild_player->acquire ();
 
     bool just_loaded_queue = false;
     if (guild_player->saved_queue_loaded != true)
         {
-            this->load_guild_current_queue (event.voice_client->server_id, &sha_id);
-
+            load_guild_current_queue (event.voice_client->server_id, &sha_id);
             just_loaded_queue = true;
         }
 
     if (guild_player->saved_config_loaded != true)
-        this->load_guild_player_config (event.voice_client->server_id);
+        load_guild_player_config (event.voice_client->server_id);
 
     if (guild_player->queue.empty ())
         {
             if (debug)
                 {
                     fprintf (stderr,
-                             "[Manager::handle_on_track_marker WARN] NO SIZE "
+                             "[player::manager::handle_on_track_marker WARN] NO SIZE "
                              "BEFORE: %d\n",
                              guild_player->loop_mode);
                 }
@@ -118,9 +116,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
                 // in case of previous track erroring with repeat enabled
                 // check if the to be current_track actually have repeat
                 && guild_player->queue.front ().repeat > 0)
-                {
-                    guild_player->queue.front ().repeat = --guild_player->current_track.repeat;
-                }
+                guild_player->queue.front ().repeat = --guild_player->current_track.repeat;
             else
                 switch (guild_player->loop_mode)
                     {
@@ -152,7 +148,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
             if (debug)
                 {
                     fprintf (stderr,
-                             "[Manager::handle_on_track_marker WARN] NO SIZE "
+                             "[player::manager::handle_on_track_marker WARN] NO SIZE "
                              "AFTER: %d\n",
                              guild_player->loop_mode);
                 }
@@ -162,10 +158,10 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
             // current_track.current_byte still has previous value here before being timpa-ed by the first track in the queue
             if (guild_player->current_track.current_byte
-                && has_permissions (g, &this->cluster->me, tc, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links }))
+                && has_permissions (g, &cluster->me, tc, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links }))
                 {
-                    dpp::message m (guild_player->channel_id, "End of playback. No more track in the queue");
-                    this->cluster->message_create (m);
+                    dpp::message m (guild_player->text_channel_id, "End of playback. No more track in the queue");
+                    cluster->message_create (m);
                 }
 
             guild_player->current_track = MCTrack ();
@@ -178,7 +174,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
 
     guild_player->current_track = guild_player->queue.front ();
     if (debug)
-        std::cerr << "[Manager::spawn_handle_track_marker_worker] guild_player->current_track("
+        std::cerr << "[player::manager::spawn_handle_track_marker_worker] guild_player->current_track("
                   << mctrack::get_title (guild_player->current_track) << ") guild_player->current_track.current_byte("
                   << guild_player->current_track.current_byte << ")\n";
 
@@ -193,7 +189,7 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     if (!c.first || !has_listener (&c.second))
         {
             if (debug)
-                std::cerr << "[Manager::handle_on_track_marker] No "
+                std::cerr << "[player::manager::handle_on_track_marker] No "
                              "listener in voice channel: "
                           << event.voice_client->channel_id << " (" << guild_player->guild_id << ")\n";
 
@@ -208,13 +204,13 @@ Manager::handle_on_track_marker (const dpp::voice_track_marker_t &event)
     return true;
 
 end_err:
-    std::cerr << "[Manager::handle_on_track_marker WARN] Voice "
+    std::cerr << "[player::manager::handle_on_track_marker WARN] Voice "
                  "client not present or already playing: "
               << guild_player->guild_id << "\n";
 
     if (debug)
         {
-            fprintf (stderr, "[Manager::handle_on_track_marker WARN] RETURN "
+            fprintf (stderr, "[player::manager::handle_on_track_marker WARN] RETURN "
                              "NO TRACK SIZE\n");
         }
 
@@ -222,13 +218,13 @@ end_err:
 }
 
 void
-Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
+handle_on_voice_ready (const dpp::voice_ready_t &event)
 {
     const bool debug = get_debug_state ();
 
     auto guild_player = get_player (event.voice_client->server_id);
 
-    this->clear_wait_vc_ready (event.voice_client->server_id);
+    clear_wait_vc_ready (event.voice_client->server_id);
     if (is_disconnecting (event.voice_client->server_id))
         {
             disconnect_voice (get_client (event.voice_client->server_id), event.voice_client->server_id);
@@ -238,7 +234,7 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
     auto i = event.voice_client->get_tracks_remaining ();
     auto l = event.voice_client->get_secs_remaining ();
 
-    this->check_autopause (event.voice_client->server_id, event.voice_client->channel_id);
+    check_autopause (event.voice_client->server_id, event.voice_client->channel_id);
 
     if (debug)
         fprintf (stderr, "TO INSERT %d::%f\n", i, l);
@@ -250,12 +246,12 @@ Manager::handle_on_voice_ready (const dpp::voice_ready_t &event)
                 fprintf (stderr, "INSERTED \"r\" MARKER\n");
         }
 
-    fprintf (stderr, "[Manager::handle_on_voice_ready INFO] READY in voice/stage channel (%ld) in guild (%ld)\n",
+    fprintf (stderr, "[player::manager::handle_on_voice_ready INFO] READY in voice/stage channel (%ld) in guild (%ld)\n",
              (uint64_t)event.voice_client->channel_id, (uint64_t)event.voice_client->server_id);
 }
 
 void
-Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event)
+handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event)
 {
     const bool debug = get_debug_state ();
 
@@ -263,7 +259,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
     dpp::snowflake e_voice_channel_id = event.state.channel_id;
     dpp::snowflake e_guild_id = event.state.guild_id;
 
-    bool did_manually_paused = this->is_manually_paused (e_guild_id);
+    bool did_manually_paused = is_manually_paused (e_guild_id);
 
     dpp::voiceconn *v = event.from ()->get_voice (e_guild_id);
 
@@ -291,7 +287,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
                 fprintf (stderr, "// join user channel if no one "
                                  "listening in current channel\n");
 
-            this->full_reconnect (event.from (), e_guild_id, v->channel_id, e_voice_channel_id, true);
+            full_reconnect (event.from (), e_guild_id, v->channel_id, e_voice_channel_id, true);
 
             return;
         }
@@ -305,7 +301,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
     // Pause audio when no user listening in vc: autopause
     if (should_pause)
         {
-            if (this->set_autopause (v, event.state.guild_id))
+            if (set_autopause (v, event.state.guild_id))
                 return;
 
             if (!debug)
@@ -322,7 +318,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
 
     if (tstatus != 0)
         {
-            std::cerr << "[Manager::handle_on_voice_state_update WARN] "
+            std::cerr << "[player::manager::handle_on_voice_state_update WARN] "
                          "timer::create_resume_timer uid("
                       << e_user_id << ") sid(" << e_guild_id << ") svcid(" << e_voice_channel_id << ") status(" << tstatus << ")\n";
         }
@@ -336,7 +332,7 @@ Manager::handle_non_sha_voice_state_update (const dpp::voice_state_update_t &eve
 }
 
 void
-Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
+handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 {
     const bool debug = get_debug_state ();
     dpp::snowflake e_user_id = event.state.user_id;
@@ -346,16 +342,25 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     // left vc
     if (!e_voice_channel_id)
         {
-            this->clear_disconnecting (e_guild_id);
+            clear_disconnecting (e_guild_id);
             server::stream::unsubscribe (e_guild_id);
 
             // update vcs cache
             vcs_setting_handle_disconnected (dpp::find_channel (e_voice_channel_id));
+
+            auto guild_player = get_player (e_guild_id);
+            if (guild_player)
+                guild_player->voice_channel_id = 0;
+
             return;
         }
 
     // joined vc
-    this->clear_connecting (e_guild_id);
+    auto guild_player = get_player (e_guild_id);
+    if (guild_player)
+        guild_player->voice_channel_id = e_voice_channel_id;
+
+    clear_connecting (e_guild_id);
 
     auto v = event.from ()->get_voice (e_guild_id);
     const uint32_t shard_id = event.from ()->shard_id;
@@ -374,11 +379,11 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
             if (v->voiceclient->is_ready ())
                 {
                     // reset waiting vc ready state
-                    this->clear_wait_vc_ready (e_guild_id);
+                    clear_wait_vc_ready (e_guild_id);
                 }
             else if (debug)
                 {
-                    std::cerr << "[Manager::handle_sha_voice_state_update] Connected to guild(" << e_guild_id << ") vc("
+                    std::cerr << "[player::manager::handle_sha_voice_state_update] Connected to guild(" << e_guild_id << ") vc("
                               << e_voice_channel_id << ") but voiceclient isn't ready yet!!!\n";
                 }
         }
@@ -388,7 +393,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     if (debug)
         {
-            std::cerr << "[Manager::handle_sha_voice_state_update] v->channel_id(" << v->channel_id << ") ";
+            std::cerr << "[player::manager::handle_sha_voice_state_update] v->channel_id(" << v->channel_id << ") ";
             if (a.first)
                 std::cerr << "a.first->id(" << a.first->id << ")";
 
@@ -409,7 +414,7 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
     goto skip_reconnect;
 #endif
 
-    this->stop_stream (e_guild_id);
+    stop_stream (e_guild_id);
 
     if (v->voiceclient && !v->voiceclient->terminating)
         {
@@ -417,31 +422,31 @@ Manager::handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
             v->voiceclient->skip_to_next_marker ();
         }
 
-    this->set_disconnecting (e_guild_id, v->channel_id);
+    set_disconnecting (e_guild_id, v->channel_id);
 
     disconnect_voice (event.from (), e_guild_id);
 
     if (has_listener (&a.second))
         {
-            this->set_connecting (e_guild_id, a.first->id);
-            this->set_waiting_vc_ready (e_guild_id);
+            set_connecting (e_guild_id, a.first->id);
+            set_waiting_vc_ready (e_guild_id);
         }
 
-    task::run_once ([this, e_guild_id, shard_id] () { this->voice_ready (e_guild_id, shard_id); }, 2);
+    task::run_once ([e_guild_id, shard_id] () { voice_ready (e_guild_id, shard_id); }, 2);
     // reconnecting, shouldn't check for autopause, skip it
     goto end;
 skip_reconnect:
     // else block, autopause check
-    this->check_autopause (e_guild_id, e_voice_channel_id);
+    check_autopause (e_guild_id, e_voice_channel_id);
 end:
     // update vcs cache
     vcs_setting_handle_connected (dpp::find_channel (e_voice_channel_id), &event.state);
-    // if (muted) player_manager->pause(event.guild_id);
-    // else player_manager->resume(guild_id);
+    // if (muted) player::manager::pause(event.guild_id);
+    // else player::manager::resume(guild_id);
 }
 
 void
-Manager::handle_on_voice_state_update (const dpp::voice_state_update_t &event)
+handle_on_voice_state_update (const dpp::voice_state_update_t &event)
 {
     dpp::snowflake sha_id = get_sha_id ();
     dpp::snowflake e_user_id = event.state.user_id;
@@ -462,20 +467,20 @@ skip_not_sha_event:
 }
 
 void
-Manager::handle_on_message_delete (const dpp::message_delete_t &event)
+handle_on_message_delete (const dpp::message_delete_t &event)
 {
-    this->set_info_message_as_deleted (event.guild_id, event.id);
+    set_info_message_as_deleted (event.guild_id, event.id);
 }
 
 void
-Manager::handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event)
+handle_on_message_delete_bulk (const dpp::message_delete_bulk_t &event)
 {
     for (auto i : event.deleted)
-        this->set_info_message_as_deleted (event.deleting_guild.id, i);
+        set_info_message_as_deleted (event.deleting_guild.id, i);
 }
 
 void
-Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild)
+prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_client, dpp::guild *guild)
 {
     if (!guild || !voice_client || !voice_client->creator)
         return;
@@ -516,7 +521,7 @@ Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_cl
         {
             if (debug)
                 {
-                    std::cerr << "[Manager::prepare_play_stage_channel_routine] "
+                    std::cerr << "[player::manager::prepare_play_stage_channel_routine] "
                                  "No request_to_speak in "
                               << i->second.channel_id << '\n';
                 }
@@ -526,7 +531,7 @@ Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_cl
 
     if (debug)
         {
-            std::cerr << "[Manager::prepare_play_stage_channel_routine] "
+            std::cerr << "[player::manager::prepare_play_stage_channel_routine] "
                          "Requesting speak in "
                       << i->second.channel_id << '\n';
         }
@@ -535,14 +540,18 @@ Manager::prepare_play_stage_channel_routine (dpp::discord_voice_client *voice_cl
 }
 
 void
-Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event)
+spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &event)
 {
     task::run (
-        [this, v = event.voice_client, meta = event.track_meta] ()
+        [v = event.voice_client, meta = event.track_meta] ()
             {
+                auto *cluster = get_cluster_ptr ();
+                if (!cluster)
+                    return;
+
                 if (!v || v->terminating)
                     {
-                        std::cerr << "[Manager::handle_on_track_marker::tj ERROR] "
+                        std::cerr << "[player::manager::handle_on_track_marker ERROR] "
                                      "Voice client is null: "
                                   << meta << '\n';
 
@@ -550,36 +559,36 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                     }
 
                 auto guild_id = v->server_id;
-                auto guild_player = this->get_player (guild_id);
+                auto guild_player = get_player (guild_id);
 
                 if (!guild_player)
                     {
-                        std::cerr << "[Manager::handle_on_track_marker::tj ERROR] "
+                        std::cerr << "[player::manager::handle_on_track_marker ERROR] "
                                      "No player in guild: "
                                   << guild_id << '\n';
 
                         return;
                     }
 
-                std::lock_guard lk (guild_player->t_mutex);
+                auto lk = guild_player->acquire ();
                 MCTrack &track = guild_player->current_track;
 
                 // text channel to send now playing embed
-                dpp::snowflake channel_id = guild_player->channel_id;
+                dpp::snowflake channel_id = guild_player->text_channel_id;
 
-                this->wait_for_vc_ready (guild_id);
+                wait_for_vc_ready (guild_id);
 
                 // channel for sending message
                 dpp::channel *c = dpp::find_channel (channel_id);
                 // guild
                 dpp::guild *g = dpp::find_guild (guild_id);
 
-                this->wait_for_download (track.filename);
+                wait_for_download (track.filename);
 
-                const string track_id = mctrack::get_id (track);
+                const std::string track_id = mctrack::get_id (track);
 
                 // waiting for download above might waits for a bit, refresh guild_player
-                guild_player = this->get_player (guild_id);
+                guild_player = get_player (guild_id);
                 if (guild_player->max_history_size > 0)
                     {
                         guild_player->history.push_back (track_id);
@@ -593,17 +602,17 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                     }
 
                 const bool embed_perms
-                    = has_permissions (g, &this->cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
+                    = has_permissions (g, &cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
 
                 {
-                    const string fname = track.filename;
+                    const std::string fname = track.filename;
 
-                    const string absolute_path = get_music_folder_path () + fname;
+                    const std::string absolute_path = get_music_folder_path () + fname;
 
                     std::ifstream test (absolute_path, std::ios_base::in | std::ios_base::binary);
 
                     // redownload vars
-                    string track_info_m;
+                    std::string track_info_m;
                     bool is_downloading = false;
 
                     if (test.is_open ())
@@ -628,7 +637,7 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                     if (embed_perms)
                         {
-                            string m_content_redo;
+                            std::string m_content_redo;
 
                             if (dont_retry)
                                 {
@@ -650,11 +659,11 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
 
                             dpp::message m (channel_id, m_content_redo);
 
-                            this->cluster->message_create (m);
+                            cluster->message_create (m);
                         }
 
                     fprintf (stderr,
-                             "[Manager::handle_on_track_marker tj ERROR] "
+                             "[player::manager::handle_on_track_marker ERROR] "
                              "Can't open audio file: %s\n",
                              absolute_path.c_str ());
 
@@ -662,10 +671,10 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                     // deleted
                     if (v && !v->terminating)
                         {
-                            fprintf (stderr, "[Manager::handle_on_track_marker tj ERROR] "
+                            fprintf (stderr, "[player::manager::handle_on_track_marker ERROR] "
                                              "Inserting `e` marker\n");
 
-                            guild_player = this->get_player (guild_id);
+                            guild_player = get_player (guild_id);
                             // skip current track
                             guild_player->skip_queue (1, true, true);
 
@@ -689,26 +698,25 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                     if (!is_downloading && !dont_retry)
                         {
                             // try redownload
-                            this->download (fname, mctrack::get_url (track), guild_id);
+                            download (fname, mctrack::get_url (track), guild_id);
 
                             task::run_may_block (
-                                [this, guild_id, fname, v, track] ()
+                                [guild_id, fname, v, track] ()
                                     {
                                         player::MCTrack result = track;
-                                        this->wait_for_download (fname);
+                                        wait_for_download (fname);
 
-                                        auto guild_player = this->get_player (guild_id);
+                                        auto guild_player = get_player (guild_id);
 
                                         dpp::discord_client *pc = nullptr;
                                         bool decide_play = false;
                                         {
-                                            std::lock_guard lk (guild_player->t_mutex);
+                                            auto lk = guild_player->acquire ();
                                             guild_player->add_track (result, true, guild_id, true);
 
                                             server::ws::player::publish_queue (guild_id);
 
-                                            // decide whether to trigger track marker after
-                                            // dowload
+                                            // decide whether to trigger track marker after dowload
                                             if (v && !v->terminating && (pc = guild_player->get_client ()))
                                                 decide_play = true;
                                         }
@@ -731,16 +739,16 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                 if (meta == "r")
                     v->send_silence (60);
 
-                guild_player = this->get_player (guild_id);
+                guild_player = get_player (guild_id);
                 // check for autoplay
                 if (guild_player->auto_play && track.current_byte == 0)
-                    this->get_next_autoplay_track (track_id, guild_player->shard_id, guild_id);
+                    get_next_autoplay_track (track_id, guild_player->shard_id, guild_id);
 
                 try
                     {
-                        int pstatus = this->play (guild_id);
+                        int pstatus = play (guild_id);
 
-                        guild_player = this->get_player (guild_id);
+                        guild_player = get_player (guild_id);
                         if (!guild_player->notification)
                             return;
 
@@ -762,14 +770,14 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                             = (guild_player->loop_mode != loop_mode_t::l_song) && (guild_player->loop_mode != loop_mode_t::l_song_queue);
 
                         if (not_repeating_song)
-                            this->update_info_embed (guild_id, true);
+                            update_info_embed (guild_id, true);
 
                         return;
 
                     del_info_embed:
-                        this->delete_info_embed (guild_id);
+                        delete_info_embed (guild_id);
 
-                        this->send_info_embed (guild_id, false, true);
+                        send_info_embed (guild_id, false, true);
                         return;
 
                     log_no_embed:
@@ -789,10 +797,10 @@ Manager::spawn_handle_track_marker_worker (const dpp::voice_track_marker_t &even
                         dpp::message m;
                         m.set_channel_id (channel_id).set_content (e.what ());
 
-                        this->cluster->message_create (m);
+                        cluster->message_create (m);
                     }
             });
 }
 
-} // player
-} // musicat
+} // namespace player::manager
+} // namespace musicat

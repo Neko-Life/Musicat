@@ -4,15 +4,16 @@
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
 #include "musicat/player_manager_stream.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/audio_config.h"
 #include "musicat/db.h"
 #include "musicat/mctrack.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"
 #include "musicat/thread_manager.h"
 #include "musicat/util/fs.h"
-// clang-format on
 
 #include <condition_variable>
 #include <cstdint>
@@ -29,6 +30,12 @@
 #include "musicat/server/stream.h"
 #endif // USING_STREAM_CODEC
 
+#ifndef USING_STREAM_CODEC
+#define SENDAUDIO() send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder)
+#else
+#define SENDAUDIO() send_audio_routine (guild_player.get (), buffer, &read_size, false)
+#endif
+
 #define SEND_AUDIO_ROUTINE()                                                                                                               \
     do                                                                                                                                     \
         {                                                                                                                                  \
@@ -38,13 +45,20 @@
                     encode_ts = decode_end;                                                                                                \
                 }                                                                                                                          \
                                                                                                                                            \
-            if (send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder))                           \
+            if (SENDAUDIO ())                                                                                                              \
                 return -1;                                                                                                                 \
         }                                                                                                                                  \
     while (0)
 
-namespace musicat::player
+namespace musicat::player::manager
 {
+
+struct handle_effect_chain_change_states_t
+{
+    std::shared_ptr<guild_player_t> &guild_player;
+    MCTrack &track;
+    decoder_t &dec;
+};
 
 static void
 handle_effect_chain_change (handle_effect_chain_change_states_t states)
@@ -72,7 +86,7 @@ handle_effect_chain_change (handle_effect_chain_change_states_t states)
 }
 
 static void
-calculate_track_progress (Player *guild_player, ssize_t *send_buffer_length)
+calculate_track_progress (guild_player_t *guild_player, ssize_t *send_buffer_length)
 {
     int64_t samp_calc = guild_player->sampling_rate == -1 ? 48000 : guild_player->sampling_rate;
 
@@ -87,8 +101,8 @@ calculate_track_progress (Player *guild_player, ssize_t *send_buffer_length)
 }
 
 #ifdef USING_STREAM_CODEC
-int
-send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OpusEncoder *)
+static int
+send_audio_routine (guild_player_t *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait)
 {
     // const bool debug = get_debug_state ();
     bool running_state = get_running_state ();
@@ -124,12 +138,13 @@ write_packet (void *guild_id, const uint8_t *buf, int buf_size)
 
     return buf_size;
 }
+
 #elif defined(USING_LIBOPUSENC)
 
 // this should be called
 // inside the streaming thread
-int
-send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OggOpusEnc *opus_encoder)
+static int
+send_audio_routine (guild_player_t *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OggOpusEnc *opus_encoder)
 {
     if (!opus_encoder)
         return 2;
@@ -167,8 +182,9 @@ send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_bu
 
 // this should be called
 // inside the streaming thread
-int
-send_audio_routine (Player *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait, OpusEncoder *opus_encoder)
+static int
+send_audio_routine (guild_player_t *guild_player, uint8_t *send_buffer, ssize_t *send_buffer_length, bool no_wait,
+                    OpusEncoder *opus_encoder)
 {
     if (!opus_encoder)
         return 2;
@@ -273,11 +289,10 @@ class stream_ctx
     // benchmark purpose
     std::chrono::high_resolution_clock::time_point decode_ts, decode_end, encode_ts, encode_end;
 
-    std::shared_ptr<Player>
+    std::shared_ptr<guild_player_t>
     get_guild_player ()
     {
-        auto *player_manager = get_player_manager_ptr ();
-        return player_manager ? player_manager->get_player (guild_id) : nullptr;
+        return manager::get_player (guild_id);
     }
 
   public:
@@ -370,8 +385,7 @@ class stream_ctx
         if (ended)
             return -1;
 
-        auto *player_manager = get_player_manager_ptr ();
-        auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
+        auto guild_player = manager::get_player (guild_id);
         if (!guild_player)
             return -1;
 
@@ -380,7 +394,7 @@ class stream_ctx
         if (!running_state || is_stopping)
             return -1;
 
-        if (player_manager->is_waiting_vc_ready (guild_id))
+        if (manager::is_waiting_vc_ready (guild_id))
             return 0;
 
         auto *vclient = guild_player->get_voice_client ();
@@ -393,7 +407,7 @@ class stream_ctx
                 auto cur_time = std::chrono::high_resolution_clock::now ();
 
                 auto delay_between_run_second = (float)((cur_time - last_run_time).count ()) / 1000000000;
-                fprintf (stderr, "[Manager::stream] delay_between_run_second(%f)\n", delay_between_run_second);
+                fprintf (stderr, "[player::manager::stream] delay_between_run_second(%f)\n", delay_between_run_second);
 
                 last_run_time = cur_time;
                 decode_ts = cur_time;
@@ -499,12 +513,11 @@ class stream_ctx
         if (ended)
             return -1;
 
-        auto *player_manager = get_player_manager_ptr ();
-        auto guild_player = player_manager ? player_manager->get_player (guild_id) : nullptr;
+        auto guild_player = get_player (guild_id);
         if (!guild_player)
             return -1;
 
-        if (player_manager->is_waiting_vc_ready (guild_id))
+        if (manager::is_waiting_vc_ready (guild_id))
             return 0;
 
         auto *vclient = guild_player->get_voice_client ();
@@ -542,7 +555,7 @@ class stream_ctx
                     fprintf (stderr, fbsefmt, ttitle.c_str (), (total_read += read_size), read_size);
 
                 buffer = (uint8_t *)out.data ();
-                send_audio_routine (guild_player.get (), buffer, &read_size, false, guild_player->opus_encoder);
+                SENDAUDIO ();
             }
 
 #ifdef USING_STREAM_CODEC
@@ -592,20 +605,20 @@ class stream_ctx
     }
 };
 
-static std::vector<stream_ctx *> stream_ctxs;
+using vector_stream_ctx = std::vector<stream_ctx *>;
 // protects ctx->handled and stream_ctxs
-static std::mutex stream_ctxs_m;
+static exclusive_container<vector_stream_ctx> stream_ctxs;
 
 static void
 erase_ctx_unlocked (const dpp::snowflake &guild_id)
 {
-    auto i = stream_ctxs.begin ();
-    while (i != stream_ctxs.end ())
+    auto i = stream_ctxs.get ().begin ();
+    while (i != stream_ctxs.get ().end ())
         {
             if ((*i)->guild_id == guild_id)
                 {
                     delete (*i);
-                    stream_ctxs.erase (i);
+                    stream_ctxs.get ().erase (i);
                     break;
                 }
 
@@ -616,7 +629,7 @@ erase_ctx_unlocked (const dpp::snowflake &guild_id)
 static void
 erase_ctx (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (stream_ctxs_m);
+    auto lk = stream_ctxs.acquire ();
     erase_ctx_unlocked (guild_id);
 }
 
@@ -661,8 +674,7 @@ class stream_thread_t
                                 if (!ctx->run ())
                                     continue;
 
-                                auto *player_manager = get_player_manager_ptr ();
-                                auto guild_player = player_manager ? player_manager->get_player (ctx->guild_id) : nullptr;
+                                auto guild_player = get_player (ctx->guild_id);
 
                                 erase_ctx (ctx->guild_id);
                                 erased = true;
@@ -677,7 +689,7 @@ class stream_thread_t
                             continue;
 
                         {
-                            std::lock_guard lk (stream_ctxs_m);
+                            auto lk = stream_ctxs.acquire ();
                             ctx->handled = false;
                         }
                     }
@@ -763,7 +775,7 @@ notify_work (stream_ctx *ctx)
 }
 
 void
-shutdown ()
+stream_shutdown ()
 {
     for (auto &t : stream_threads)
         t.t_cv.notify_all ();
@@ -772,9 +784,9 @@ shutdown ()
 void
 check_stream_contexts ()
 {
-    std::lock_guard lk (stream_ctxs_m);
+    auto lk = stream_ctxs.acquire ();
     int notified = 0;
-    for (auto *c : stream_ctxs)
+    for (auto *c : stream_ctxs.get ())
         {
             if (c->handled || !c->need_handler ())
                 continue;
@@ -785,11 +797,11 @@ check_stream_contexts ()
 }
 
 void
-Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
+submit_stream_ctx (const dpp::snowflake &guild_id)
 {
-    std::lock_guard lk (stream_ctxs_m);
-    auto i = stream_ctxs.begin ();
-    while (i != stream_ctxs.end ())
+    auto lk = stream_ctxs.acquire ();
+    auto i = stream_ctxs.get ().begin ();
+    while (i != stream_ctxs.get ().end ())
         {
             if ((*i)->guild_id == guild_id)
                 throw 3;
@@ -811,11 +823,11 @@ Manager::submit_stream_ctx (const dpp::snowflake &guild_id)
         {
             delete ctx;
 
-            fprintf (stderr, "[Manager::submit_stream_ctx ERROR] %s\n", e.what ());
+            fprintf (stderr, "[player::manager::submit_stream_ctx ERROR] %s\n", e.what ());
             throw 2;
         }
 
-    stream_ctxs.push_back (ctx);
+    stream_ctxs.get ().push_back (ctx);
 }
 
-} // musicat::player
+} // musicat::player::manager

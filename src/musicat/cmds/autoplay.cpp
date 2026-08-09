@@ -1,46 +1,38 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/cmds/autoplay.h"
 #include "musicat/musicat.h"
-// clang-format on
 
 namespace musicat::command::autoplay
 {
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("autoplay",
-                              "Set [guild player] autoplay [state]", sha_id)
+    return dpp::slashcommand ("autoplay", "Set [guild player] autoplay [state]", sha_id)
+        .add_option (dpp::command_option (dpp::co_integer, "state", "Set [to this] state", false)
+                         .add_choice (dpp::command_option_choice ("Enable", 1))
+                         .add_choice (dpp::command_option_choice ("Disable", 0)))
         .add_option (
-            dpp::command_option (dpp::co_integer, "state",
-                                 "Set [to this] state", false)
-                .add_choice (dpp::command_option_choice ("Enable", 1))
-                .add_choice (dpp::command_option_choice ("Disable", 0)))
-        .add_option (
-            dpp::command_option (dpp::co_integer, "no-duplicate-threshold",
-                                 "Number of duplicate guard, max 1000")
-                .set_max_value (1000));
+            dpp::command_option (dpp::co_integer, "no-duplicate-threshold", "Number of duplicate guard, max 1000").set_max_value (1000));
 }
 
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
     int64_t arg_state = -1;
     int64_t arg_no_duplicate_threashold = -1;
     get_inter_param (event, "state", &arg_state);
-    get_inter_param (event, "no-duplicate-threshold",
-                     &arg_no_duplicate_threashold);
+    get_inter_param (event, "no-duplicate-threshold", &arg_no_duplicate_threashold);
 
-    auto guild_player = player_manager->create_player (event.command.guild_id);
-    guild_player->set_shard (event.from ());
+    auto guild_player = player::manager::create_player (event.command.guild_id);
+    if (!guild_player)
+        return event.reply ("`[ERROR]` Failed creating guild player");
 
     if (guild_player->saved_config_loaded != true)
-        player_manager->load_guild_player_config (event.command.guild_id);
+        player::manager::load_guild_player_config (event.command.guild_id);
 
     bool player_autoplay = guild_player->auto_play;
     size_t st = guild_player->max_history_size;
@@ -48,9 +40,7 @@ slash_run (const dpp::slashcommand_t &event)
     std::string reply = "";
     if (arg_state > -1)
         {
-            bool new_state
-                = guild_player->set_auto_play (arg_state ? true : false)
-                      .auto_play;
+            bool new_state = guild_player->set_auto_play (arg_state ? true : false).auto_play;
 
             reply += std::string ("Autoplay ")
                      + (new_state ? "enabled, add a track to initialize "
@@ -59,8 +49,7 @@ slash_run (const dpp::slashcommand_t &event)
                      + "\n";
         }
     else
-        reply += std::string ("Autoplay is currently ")
-                 + (guild_player->auto_play ? "enabled" : "disabled") + "\n";
+        reply += std::string ("Autoplay is currently ") + (guild_player->auto_play ? "enabled" : "disabled") + "\n";
 
     if (arg_no_duplicate_threashold > -1)
         {
@@ -68,22 +57,14 @@ slash_run (const dpp::slashcommand_t &event)
                 arg_no_duplicate_threashold = 1000;
 
             guild_player->set_max_history_size (arg_no_duplicate_threashold);
-            reply += "Set No-Duplicate Threshold to "
-                     + std::to_string (arg_no_duplicate_threashold);
+            reply += "Set No-Duplicate Threshold to " + std::to_string (arg_no_duplicate_threashold);
         }
     else
         reply += "No-Duplicate Threshold is " + std::to_string (st);
 
     event.reply (reply);
 
-    if (player_autoplay != guild_player->auto_play
-        || (guild_player->auto_play && st != guild_player->max_history_size))
-        try
-            {
-                player_manager->update_info_embed (event.command.guild_id);
-            }
-        catch (...)
-            {
-            }
+    if (player_autoplay != guild_player->auto_play || (guild_player->auto_play && st != guild_player->max_history_size))
+        player::manager::update_info_embed (event.command.guild_id);
 }
 } // musicat::command::autoplay

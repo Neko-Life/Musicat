@@ -1,11 +1,12 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
-#include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/cmds/seek.h"
 #include "musicat/musicat.h"
+#include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"
-// clang-format on
 
 #include <cstdint>
 #include <uWebSockets/src/App.h>
@@ -38,12 +39,8 @@ handle_register (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_pause (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
 
@@ -58,7 +55,7 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
     if (from)
         {
             // !TODO: check if user actually in the same vc session
-            player_manager->pause (from, sdata->server_id, sdata->user_id);
+            ::musicat::player::manager::pause (from, sdata->server_id, sdata->user_id);
             publish_pause (sdata->server_id);
         }
     else
@@ -73,12 +70,8 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_play (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
 
@@ -89,7 +82,7 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
             if (voiceclient->is_paused ())
                 {
                     // !TODO: check if user actually in the same vc session
-                    player_manager->unpause (voiceclient, sdata->server_id, true);
+                    ::musicat::player::manager::unpause (voiceclient, sdata->server_id, true);
                     continued = true;
                 }
             else if (!guild_player->processing_audio && guild_player->queue.size ())
@@ -101,7 +94,7 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
                 }
         }
     else
-        player_manager->check_health (sdata->server_id);
+        ::musicat::player::manager::check_health (sdata->server_id);
 
     if (!continued)
         {
@@ -109,16 +102,7 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
             ws->send (d.dump ());
         }
     else
-        {
-            try
-                {
-                    player_manager->update_info_embed (sdata->server_id, false);
-                }
-            catch (...)
-                {
-                    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-                }
-        }
+        ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
 }
@@ -126,12 +110,8 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_seek (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
 
@@ -155,14 +135,7 @@ handle_seek (const nlohmann::json &data, uws_ws_t *ws)
     guild_player->current_track.seek_to = "y";
     publish_seek (sdata->server_id, total_ms);
 
-    try
-        {
-            player_manager->update_info_embed (sdata->server_id, false);
-        }
-    catch (...)
-        {
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        }
+    ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
 }
@@ -170,12 +143,8 @@ handle_seek (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_stop (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
 
@@ -192,18 +161,11 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
     guild_player->stopped = true;
     voiceclient->pause_audio (true);
 
-    player_manager->set_manually_paused (sdata->server_id);
+    ::musicat::player::manager::set_manually_paused (sdata->server_id);
 
     publish_stop (sdata->server_id);
 
-    try
-        {
-            player_manager->update_info_embed (sdata->server_id, false);
-        }
-    catch (...)
-        {
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        }
+    ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
 }
@@ -211,12 +173,8 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_next (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
 
@@ -227,14 +185,7 @@ handle_next (const nlohmann::json &data, uws_ws_t *ws)
 
     guild_player->skip_playback (voiceclient);
 
-    try
-        {
-            player_manager->update_info_embed (sdata->server_id, false);
-        }
-    catch (...)
-        {
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        }
+    ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
 }
@@ -244,12 +195,8 @@ inline constexpr const int64_t second_seek_step = SECOND_SEEK_STEP * 1000;
 static int
 handle_prev (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
-
     auto *sdata = ws->getUserData ();
-    auto guild_player = player_manager->get_player (sdata->server_id);
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
     if (!guild_player)
         return -1;
     auto *voiceclient = guild_player->get_voice_client ();
@@ -263,7 +210,7 @@ handle_prev (const nlohmann::json &data, uws_ws_t *ws)
             return handle_seek (d, ws);
         }
 
-    std::lock_guard lk (guild_player->t_mutex);
+    auto lk = guild_player->acquire ();
     guild_player->reset_shifted ();
 
     if (!guild_player->current_track.is_empty ())
@@ -289,14 +236,7 @@ handle_prev (const nlohmann::json &data, uws_ws_t *ws)
             ws->send (d.dump ());
         }
 
-    try
-        {
-            player_manager->update_info_embed (sdata->server_id, false);
-        }
-    catch (...)
-        {
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        }
+    ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
 }

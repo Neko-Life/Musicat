@@ -1,6 +1,8 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/cmds/skip.h"
 #include "musicat/cmds.h"
 #include "musicat/cmds/seek.h"
@@ -8,7 +10,6 @@
 #include "musicat/server/ws/player.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
-// clang-format on
 
 namespace musicat::command::skip
 {
@@ -25,16 +26,11 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id, const dpp::snowfl
      int64_t param_remove = 0)
 {
     auto pm_res = cmd_pre_get_player_manager_ready_werr (guild_id);
-    if (pm_res.second == 1)
+    if (pm_res == 1)
         {
             out = "Please wait while I'm getting ready to stream";
             return 1;
         }
-
-    auto player_manager = pm_res.first;
-
-    if (player_manager == NULL)
-        return -1;
 
     try
         {
@@ -42,7 +38,7 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id, const dpp::snowfl
             int64_t am = param_amount;
             int64_t rm = param_remove;
 
-            auto res = player_manager->skip (v, guild_id, user_id, am, rm ? true : false);
+            auto res = player::manager::skip (v, guild_id, user_id, am, rm ? true : false);
             switch (res.second)
                 {
                 case 0:
@@ -94,10 +90,9 @@ button_run_prev (const dpp::button_click_t &event)
 
     auto guild_id = event.command.guild_id;
 
-    auto player_manager = get_player_manager_ptr ();
-    auto guild_player = player_manager->get_player (guild_id);
+    auto guild_player = player::manager::get_player (guild_id);
 
-    std::lock_guard lk (guild_player->t_mutex);
+    auto lk = guild_player->acquire ();
 
     guild_player->reset_shifted ();
 
@@ -120,20 +115,16 @@ button_run_prev (const dpp::button_click_t &event)
     else
         fprintf (stderr, "[command::skip::button_run_prev WARN] Track queue is empty: %s\n", event.command.guild_id.str ().c_str ());
 
-    player_manager->update_info_embed (event.command.guild_id, false, &event);
+    player::manager::update_info_embed (event.command.guild_id, false, &event);
 }
 
 void
 button_run_next (const dpp::button_click_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (player_manager == NULL)
-        return;
-
     std::string out;
     run (event.from (), event.command.usr.id, event.command.guild_id, out);
 
-    player_manager->update_info_embed (event.command.guild_id, false, &event);
+    player::manager::update_info_embed (event.command.guild_id, false, &event);
 }
 
 } // musicat::command::skip

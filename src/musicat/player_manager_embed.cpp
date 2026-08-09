@@ -1,13 +1,14 @@
 // clang-format off
+#include "musicat/mctrack.h"
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
 #include "musicat/player_manager_util.h"
+// clang-format on
+
 #include "musicat/function_macros.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/util.h"
 #include "musicat/util_response.h"
-// clang-format on
 
 #include <dpp/dpp.h>
 #include <mutex>
@@ -44,11 +45,11 @@ static std::mutex embed_q_m;
 
 // return true if error
 static bool
-get_embed_werr (player_manager_ptr_t manager, const dpp::interaction_create_t *event, const dpp::snowflake &guild_id,
-                bool force_playing_status, bool expand_button, dpp::message &m)
+get_embed_werr (const dpp::interaction_create_t *event, const dpp::snowflake &guild_id, bool force_playing_status, bool expand_button,
+                dpp::message &m)
 {
     int status;
-    if ((status = manager->get_playing_info_message (m, guild_id, force_playing_status, expand_button)) < 0)
+    if ((status = manager::get_playing_info_message (m, guild_id, force_playing_status, expand_button)) < 0)
         {
             if (event)
                 event->reply (util::response::str_mention_user (event->command.usr.id)
@@ -69,14 +70,14 @@ get_embed_werr (player_manager_ptr_t manager, const dpp::interaction_create_t *e
 static void
 run_embed_op (const embed_op_t &o)
 {
-    auto *manager = get_player_manager_ptr ();
-    if (!manager)
+    auto *cluster = get_cluster_ptr ();
+    if (!cluster)
         return;
 
     if (!o.update)
         {
             dpp::message m;
-            if (get_embed_werr (manager, o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status, false, m))
+            if (get_embed_werr (o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status, false, m))
                 return;
 
             m.set_channel_id (o.channel_id);
@@ -87,18 +88,18 @@ run_embed_op (const embed_op_t &o)
                     return;
                 }
 
-            manager->cluster->message_create (m, o.message_callback);
+            cluster->message_create (m, o.message_callback);
             return;
         }
 
     auto pm = o.prev_message;
-    if (get_embed_werr (manager, o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status,
+    if (get_embed_werr (o.has_event ? &o.event : nullptr, o.guild_id, o.force_playing_status,
                         player::playing_info_utils::is_button_expanded (pm), pm))
         return;
 
     if (!o.has_event)
         {
-            manager->cluster->message_edit (pm, o.message_callback);
+            cluster->message_edit (pm, o.message_callback);
             return;
         }
 
@@ -124,6 +125,10 @@ queue_embed_op (const embed_op_t &o)
     embed_q.push_back (o);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+namespace manager
+{
 void
 check_embed_op_queue ()
 {
@@ -135,8 +140,6 @@ check_embed_op_queue ()
             i = embed_q.erase (i);
         }
 }
-
-////////////////////////////////////////////////////////////////////////////////
 
 static void
 send_info_embed_cb (const dpp::confirmation_callback_t &cb, const dpp::snowflake &guild_id)
@@ -164,14 +167,7 @@ send_info_embed_cb (const dpp::confirmation_callback_t &cb, const dpp::snowflake
             return;
         }
 
-    auto player_manager_ptr = get_player_manager_ptr ();
-    if (!player_manager_ptr)
-        {
-            fprintf (stderr, "[player::send_info_embed_cb ERROR] Missing player manager\n");
-            return;
-        }
-
-    auto player = player_manager_ptr->get_player (guild_id);
+    auto player = get_player (guild_id);
     if (!player)
         {
             fprintf (stderr, "[player::send_info_embed_cb ERROR] PLAYER GONE WTFF\n");
@@ -185,17 +181,16 @@ send_info_embed_cb (const dpp::confirmation_callback_t &cb, const dpp::snowflake
         std::cerr << "[player::send_info_embed_cb] New message info: " << new_message.id.str () << '\n';
 }
 
-void
-Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const bool force_playing_status,
-                          const dpp::interaction_create_t *event)
+int
+send_info_embed (const dpp::snowflake &guild_id, bool update, const bool force_playing_status, const dpp::interaction_create_t *event)
 {
-    auto *manager = get_player_manager_ptr ();
-    if (!manager)
-        return;
+    auto *cluster = get_cluster_ptr ();
+    if (!cluster)
+        return -1;
 
-    auto player = manager->get_player (guild_id);
+    auto player = get_player (guild_id);
     if (!player)
-        throw exception ("No player");
+        return 1;
 
     const bool debug = get_debug_state ();
 
@@ -205,19 +200,19 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
     if (update && cant_update)
         {
             if (debug)
-                fprintf (stderr, "[Manager::send_info_embed] No message to update\n");
+                fprintf (stderr, "[player::manager::send_info_embed] No message to update\n");
 
-            return;
+            return 0;
         }
 
-    auto channel_id = player->channel_id;
+    auto channel_id = player->text_channel_id;
 
     auto g = dpp::find_guild (guild_id);
     auto c = dpp::find_channel (channel_id);
 
-    bool embed_perms = has_permissions (g, &manager->cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
+    bool embed_perms = has_permissions (g, &cluster->me, c, { dpp::p_view_channel, dpp::p_send_messages, dpp::p_embed_links });
 
-    bool view_history_perm = has_permissions (g, &manager->cluster->me, c, { dpp::p_read_message_history });
+    bool view_history_perm = has_permissions (g, &cluster->me, c, { dpp::p_read_message_history });
 
     bool delete_original = false;
     if (update)
@@ -230,7 +225,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
                 }
         }
     else if (!embed_perms)
-        throw exception ("No permission");
+        return 2;
 
     auto m_cb = [guild_id] (dpp::confirmation_callback_t cb) { send_info_embed_cb (cb, guild_id); };
 
@@ -242,7 +237,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
             // or at least it should
             assert (update == false);
 
-            manager->delete_info_embed (guild_id);
+            delete_info_embed (guild_id);
         }
 
     // TODO: Refactor this horrendous `update` flag system and check for
@@ -277,7 +272,7 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
             invalid_update = update && !mn.channel_id && !mn.id;
             if (invalid_update && debug)
                 {
-                    std::cerr << "[Manager::send_info_embed WARN] Invalid update for gid(" << guild_id << ") cid(" << channel_id
+                    std::cerr << "[player::manager::send_info_embed WARN] Invalid update for gid(" << guild_id << ") cid(" << channel_id
                               << "), fallback to create\n";
                 }
         }
@@ -294,23 +289,23 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
                               event ? *event : dpp::interaction_create_t{},
                               m_cb,
                               {} });
-            return;
+            return 0;
         }
 
     // else update
 
     if (!has_msg_to_update)
-        return;
+        return 0;
 
     if (debug)
-        std::cerr << "[Manager::send_info_embed] Channel Info Embed Id Edit: " << mn.channel_id << " " << mn.id << '\n';
+        std::cerr << "[player::manager::send_info_embed] Channel Info Embed Id Edit: " << mn.channel_id << " " << mn.id << '\n';
 
     if (invalid_update)
         {
             if (debug)
-                std::cerr << "[Manager::send_info_embed] Invalid update, canceling Info Embed Update" << '\n';
+                std::cerr << "[player::manager::send_info_embed] Invalid update, canceling Info Embed Update" << '\n';
 
-            return;
+            return 0;
         }
 
     queue_embed_op ({
@@ -324,24 +319,26 @@ Manager::send_info_embed (const dpp::snowflake &guild_id, bool update, const boo
         m_cb,
         mn,
     });
+
+    return 0;
 }
 
-void
-Manager::update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status, const dpp::interaction_create_t *event)
+int
+update_info_embed (const dpp::snowflake &guild_id, const bool force_playing_status, const dpp::interaction_create_t *event)
 {
     if (get_debug_state ())
-        fprintf (stderr, "[Manager::update_info_embed] Update info called\n");
+        fprintf (stderr, "[player::manager::update_info_embed] guild_id (%ld)\n", (uint64_t)guild_id);
 
-    this->send_info_embed (guild_id, true, force_playing_status, event);
+    return send_info_embed (guild_id, true, force_playing_status, event);
 }
 
 void
-Manager::reply_info_embed (const dpp::interaction_create_t &event, bool expand_button, bool reply_update_message)
+reply_info_embed (const dpp::interaction_create_t &event, bool expand_button, bool reply_update_message)
 {
     dpp::message m;
 
     int status;
-    if ((status = this->get_playing_info_message (m, event.command.guild_id, false, expand_button)) < 0)
+    if ((status = get_playing_info_message (m, event.command.guild_id, false, expand_button)) < 0)
         {
             return event.reply (util::response::str_mention_user (event.command.usr.id)
                                 + "`[ERROR]` Something went wrong when getting playback info");
@@ -362,9 +359,13 @@ Manager::reply_info_embed (const dpp::interaction_create_t &event, bool expand_b
 }
 
 bool
-Manager::delete_info_embed (const dpp::snowflake &guild_id, const dpp::command_completion_event_t &callback)
+delete_info_embed (const dpp::snowflake &guild_id, const dpp::command_completion_event_t &callback)
 {
-    auto player = this->get_player (guild_id);
+    auto *cluster = get_cluster_ptr ();
+    if (!cluster)
+        return false;
+
+    auto player = get_player (guild_id);
     if (!player)
         return false;
 
@@ -379,11 +380,11 @@ Manager::delete_info_embed (const dpp::snowflake &guild_id, const dpp::command_c
     if (get_debug_state ())
         std::cerr << "[MANAGER::UPDATE_INFO_EMBED] Channel Info Embed Id Delete: " << cid << '\n';
 
-    this->cluster->message_delete (mid, cid, [callback] (const dpp::confirmation_callback_t &res) { callback (res); });
+    cluster->message_delete (mid, cid, [callback] (const dpp::confirmation_callback_t &res) { callback (res); });
     return true;
 }
 
-constexpr inline const char err_prefix[] = "[Manager::get_playing_info_embed ERROR] Failed to get_playing_info_embed";
+constexpr inline const char err_prefix[] = "[player::manager::get_playing_info_embed ERROR] Failed to get_playing_info_embed";
 
 /**
  * Statuses:
@@ -394,11 +395,11 @@ constexpr inline const char err_prefix[] = "[Manager::get_playing_info_embed ERR
  * -1: other error (dpp/logic error).
  */
 std::pair<dpp::embed, int>
-Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_playing_status, get_playing_info_embed_info_t *info_struct)
+get_playing_info_embed (const dpp::snowflake &guild_id, bool force_playing_status, get_playing_info_embed_info_t *info_struct)
 {
     try
         {
-            auto guild_player = this->get_player (guild_id);
+            auto guild_player = get_player (guild_id);
             if (!guild_player)
                 return { {}, 1 };
 
@@ -648,10 +649,12 @@ Manager::get_playing_info_embed (const dpp::snowflake &guild_id, bool force_play
     return { {}, -1 };
 }
 
+} // namespace manager
+
 namespace set_component
 {
 // first row
-void
+static void
 play_pause_button (dpp::component &c, const get_playing_info_embed_info_t &playback_info)
 {
     c.set_id (playback_info.playing ? /*pause*/ ids.pause : /*resume*/ ids.resume).set_type (dpp::cot_button);
@@ -662,7 +665,7 @@ play_pause_button (dpp::component &c, const get_playing_info_embed_info_t &playb
         c.set_label (MUSICAT_U8 ("▶️/⏸️")).set_style (dpp::cos_secondary);
 }
 
-void
+static void
 stop_button (dpp::component &c, const get_playing_info_embed_info_t &playback_info)
 {
 
@@ -676,7 +679,7 @@ stop_button (dpp::component &c, const get_playing_info_embed_info_t &playback_in
         c.set_disabled (true);
 }
 
-void
+static void
 loop_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -686,7 +689,7 @@ loop_button (dpp::component &c)
         .set_id (ids.loop);
 }
 
-void
+static void
 shuffle_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -696,7 +699,7 @@ shuffle_button (dpp::component &c)
         .set_id (ids.shuffle);
 }
 
-void
+static void
 expand_unexpand_button (dpp::component &c, bool expanded)
 {
     c.set_type (dpp::cot_button)
@@ -707,7 +710,7 @@ expand_unexpand_button (dpp::component &c, bool expanded)
 }
 
 // expanded row
-void
+static void
 prev_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -717,7 +720,7 @@ prev_button (dpp::component &c)
         .set_id (ids.prev);
 }
 
-void
+static void
 rewind_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -727,7 +730,7 @@ rewind_button (dpp::component &c)
         .set_id (ids.rewind);
 }
 
-void
+static void
 autoplay_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -737,7 +740,7 @@ autoplay_button (dpp::component &c)
         .set_id (ids.autoplay);
 }
 
-void
+static void
 forward_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -747,7 +750,7 @@ forward_button (dpp::component &c)
         .set_id (ids.forward);
 }
 
-void
+static void
 next_button (dpp::component &c)
 {
     c.set_type (dpp::cot_button)
@@ -758,7 +761,7 @@ next_button (dpp::component &c)
 }
 
 // second row
-void
+static void
 notif_button (dpp::component &c, bool is_enabled)
 {
     c.set_emoji (is_enabled ? MUSICAT_U8 ("🔕") : MUSICAT_U8 ("🔔"))
@@ -767,7 +770,7 @@ notif_button (dpp::component &c, bool is_enabled)
         .set_style (dpp::cos_primary);
 }
 
-void
+static void
 update_button (dpp::component &c)
 {
     c.set_label ("Update")
@@ -776,9 +779,9 @@ update_button (dpp::component &c)
         .set_type (dpp::cot_button)
         .set_style (dpp::cos_primary);
 }
-} // set_component
+} // namespace set_component
 
-int
+static int
 add_to_row (const dpp::component &c, const dpp::component *row[5], size_t &row_idx)
 {
     if (row_idx >= 5)
@@ -789,7 +792,7 @@ add_to_row (const dpp::component &c, const dpp::component *row[5], size_t &row_i
     return 0;
 }
 
-int
+static int
 compile_row_to_component (dpp::component &out, const dpp::component *row[5])
 {
     for (size_t i = 0; i < 5; i++)
@@ -815,8 +818,10 @@ is_button_expanded (const dpp::message &playing_info_message)
 }
 } // playing_info_utils
 
+namespace manager
+{
 int
-Manager::get_playing_info_message (dpp::message &msg, const dpp::snowflake &guild_id, bool force_playing_status, bool button_expanded)
+get_playing_info_message (dpp::message &msg, const dpp::snowflake &guild_id, bool force_playing_status, bool button_expanded)
 {
     /**
      * Statuses:
@@ -911,6 +916,6 @@ Manager::get_playing_info_message (dpp::message &msg, const dpp::snowflake &guil
 
     return 0;
 }
-
+} // manager
 } // player
 } // musicat

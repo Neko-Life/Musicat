@@ -147,13 +147,10 @@ int
 perquisite (const dpp::slashcommand_t &event, filters_perquisite_t *fpt)
 {
     // perquisite
-    auto player_manager = cmd_pre_get_player_manager_ready (event);
-    if (player_manager == NULL)
+    if (!cmd_pre_get_player_manager_ready (event))
         return 1;
 
-    fpt->player_manager = player_manager;
-
-    auto player = player_manager->get_player (event.command.guild_id);
+    auto player = player::manager::get_player (event.command.guild_id);
 
     if (!player)
         {

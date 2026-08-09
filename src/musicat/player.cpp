@@ -1,14 +1,15 @@
 // clang-format off
 #include "musicat/mctrack.h"
 #include "musicat/player.h"
+// clang-format on
+
 #include "musicat/server/ws/player.h"
 #include "musicat/audio_config.h"
 #include "musicat/cmds/filters.h"
 #include "musicat/db.h"
 #include "musicat/musicat.h"
-#include "musicat/util.h"
 #include "musicat/server/stream.h"
-// clang-format on
+#include "musicat/util.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -25,100 +26,86 @@ namespace musicat
 {
 namespace player
 {
-using string = std::string;
 
 void
-Player::init ()
+guild_player_t::init ()
 {
-    this->guild_id = 0;
-    this->cluster = nullptr;
-    this->loop_mode = loop_mode_t::l_none;
-    this->shifted_track = 0;
-    this->info_message = nullptr;
-    this->shard_id = INVALID_SHARD_ID;
-    this->auto_play = false;
-    this->max_history_size = 0;
-    this->stopped = false;
-    this->channel_id = 0;
-    this->saved_queue_loaded = false;
-    this->saved_config_loaded = false;
+    text_channel_id = 0;
+    voice_channel_id = 0;
+    info_message = nullptr;
+    max_history_size = 1000;
+    history.clear ();
+    shifted_track = 0;
+    queue.clear ();
+    current_track = {};
+    loop_mode = loop_mode_t::l_none;
 
-    this->volume = 100;
-    this->earwax = false;
-    this->vibrato_d = -1;
-    this->vibrato_f = -1;
-    this->tremolo_d = -1;
-    this->tremolo_f = -1;
-    this->sampling_rate = -1;
-    this->tempo = 1.0;
-    this->pitch = 0;
+    // fx_states ////////////////////////////////////////
 
-    this->tried_continuing = false;
+    earwax = false;
+    volume = 100;
+    equalizer.clear ();
+    sampling_rate = -1;
+    pitch = 0;
+    vibrato_d = -1;
+    tremolo_d = -1;
+    vibrato_f = -1;
+    tremolo_f = -1;
+    tempo = 1.0;
 
-    this->processing_audio = false;
-    this->opus_encoder = NULL;
+    // fx_states end ////////////////////////////////////////
 
-    this->notification = true;
-    this->stopping = false;
+    auto_play = true;
+    saved_queue_loaded = false;
+    saved_config_loaded = false;
+    tried_continuing = false;
+    processing_audio = false;
+    notification = true;
+    stopping = false;
+    stopped = false;
+
+#ifdef USING_STREAM_CODEC
+    // encoder in stream_ctx for stream_codec
+#elif defined(USING_LIBOPUSENC)
+    opus_encoder = nullptr;
+    opus_encoder_comments = nullptr;
+#else
+    opus_encoder = nullptr;
+#endif
 }
 
-Player::Player () { this->init (); }
-
-Player::Player (dpp::cluster *_cluster, const dpp::snowflake &_guild_id)
+guild_player_t::guild_player_t (const dpp::snowflake &_guild_id, uint32_t _shard_id) : guild_id (_guild_id), shard_id (_shard_id)
 {
-    this->init ();
-    this->guild_id = _guild_id;
-    this->cluster = _cluster;
+    init ();
 }
 
-Player::~Player ()
+guild_player_t::~guild_player_t () { init (); };
+
+std::lock_guard<std::mutex>
+guild_player_t::acquire ()
 {
-    this->loop_mode = loop_mode_t::l_none;
-    this->shifted_track = 0;
-    this->info_message = nullptr;
-    this->shard_id = INVALID_SHARD_ID;
-    this->auto_play = false;
-    this->max_history_size = 0;
-    this->stopped = false;
-    this->channel_id = 0;
-    this->saved_queue_loaded = false;
-    this->saved_config_loaded = false;
-    this->stopping = false;
-};
+    return std::lock_guard{ mutex };
+}
 
 dpp::discord_client *
-Player::get_client ()
+guild_player_t::get_client ()
 {
     if (shard_id == INVALID_SHARD_ID)
         return nullptr;
-    return manager->get_client (shard_id);
-}
 
-void
-Player::set_shard (dpp::discord_client *from)
-{
-    if (!from)
-        return;
-
-    this->set_shard (from->shard_id);
-}
-
-void
-Player::set_shard (uint32_t shard_id)
-{
-    this->shard_id = shard_id;
+    return manager::get_client (shard_id);
 }
 
 static util::throttler_t add_track_throttler;
 
 bool
-Player::add_track_will_block (const MCTrack &track)
+guild_player_t::add_track_will_block (const MCTrack &track)
 {
     return track.info.raw.is_null () && add_track_throttler.will_block ();
 }
 
-Player &
-Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
+guild_player_t &
+guild_player_t::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, const bool update_embed, const int64_t &arg_slip)
 {
     size_t siz = 0;
     {
@@ -134,7 +121,7 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, con
                 }
             catch (std::exception &e)
                 {
-                    std::cerr << "[Player::add_track ERROR] " << this->guild_id << ':' << e.what () << '\n';
+                    std::cerr << "[guild_player_t::add_track ERROR] " << this->guild_id << ':' << e.what () << '\n';
 
                     return *this;
                 }
@@ -160,14 +147,14 @@ Player::add_track (MCTrack &track, bool top, const dpp::snowflake &guild_id, con
             this->queue_add (track);
     }
 
-    if (update_embed && siz > 0UL && guild_id && this->manager)
-        this->manager->update_info_embed (guild_id);
+    if (update_embed && siz > 0UL && guild_id)
+        manager::update_info_embed (guild_id);
 
     return *this;
 }
 
-Player &
-Player::set_max_history_size (const size_t &siz)
+guild_player_t &
+guild_player_t::set_max_history_size (const size_t &siz)
 {
     this->max_history_size = siz;
     int set = (int)siz;
@@ -176,7 +163,7 @@ Player::set_max_history_size (const size_t &siz)
 }
 
 std::pair<std::deque<MCTrack>, int>
-Player::skip_playback (dpp::voiceconn *v)
+guild_player_t::skip_playback (dpp::voiceconn *v)
 {
     if (!v || !v->voiceclient)
         return { {}, -1 };
@@ -185,7 +172,7 @@ Player::skip_playback (dpp::voiceconn *v)
 }
 
 std::pair<std::deque<MCTrack>, int>
-Player::skip_playback (dpp::discord_voice_client *voiceclient)
+guild_player_t::skip_playback (dpp::discord_voice_client *voiceclient)
 {
     if (!voiceclient)
         return { {}, -1 };
@@ -210,7 +197,7 @@ Player::skip_playback (dpp::discord_voice_client *voiceclient)
 }
 
 std::deque<MCTrack>
-Player::skip_queue (int64_t amount, bool remove, bool pop_current, bool push_back)
+guild_player_t::skip_queue (int64_t amount, bool remove, bool pop_current, bool push_back)
 {
     this->reset_shifted ();
 
@@ -256,8 +243,8 @@ Player::skip_queue (int64_t amount, bool remove, bool pop_current, bool push_bac
     return removed_tracks;
 }
 
-Player &
-Player::set_auto_play (const bool state)
+guild_player_t &
+guild_player_t::set_auto_play (const bool state)
 {
     this->auto_play = state;
     database::update_guild_player_config (this->guild_id, &state, NULL, NULL);
@@ -265,7 +252,7 @@ Player::set_auto_play (const bool state)
 }
 
 bool
-Player::reset_shifted ()
+guild_player_t::reset_shifted ()
 {
     if (this->queue.size () && this->shifted_track > 0)
         {
@@ -281,8 +268,8 @@ Player::reset_shifted ()
     return false;
 }
 
-Player &
-Player::set_loop_mode (int64_t mode)
+guild_player_t &
+guild_player_t::set_loop_mode (int64_t mode)
 {
     loop_mode_t nm = this->loop_mode;
     switch (mode)
@@ -307,15 +294,15 @@ Player::set_loop_mode (int64_t mode)
     return *this;
 }
 
-Player &
-Player::set_channel (const dpp::snowflake &channel_id)
+guild_player_t &
+guild_player_t::set_channel (const dpp::snowflake &channel_id)
 {
-    this->channel_id = channel_id;
+    text_channel_id = channel_id;
     return *this;
 }
 
 size_t
-Player::remove_track (const size_t &pos, size_t amount, const size_t &to)
+guild_player_t::remove_track (const size_t &pos, size_t amount, const size_t &to)
 {
     if (!pos || (!amount && (long)to == -1))
         return 0;
@@ -350,7 +337,7 @@ Player::remove_track (const size_t &pos, size_t amount, const size_t &to)
 }
 
 size_t
-Player::remove_track_by_user (const dpp::snowflake &user_id)
+guild_player_t::remove_track_by_user (const dpp::snowflake &user_id)
 {
     if (!user_id)
         return 0;
@@ -373,10 +360,8 @@ Player::remove_track_by_user (const dpp::snowflake &user_id)
 }
 
 bool
-Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
+guild_player_t::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
 {
-    set_shard (from);
-
     auto *v = get_voice_conn ();
     if (v && v->voiceclient && !v->voiceclient->is_paused ())
         {
@@ -399,7 +384,7 @@ Player::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
 }
 
 bool
-Player::shuffle (bool update_info_embed)
+guild_player_t::shuffle (bool _update_info_embed)
 {
     size_t siz = 0;
     {
@@ -425,20 +410,20 @@ Player::shuffle (bool update_info_embed)
         this->queue_add_front (os);
     }
 
-    if (update_info_embed)
-        this->manager->update_info_embed (this->guild_id);
+    if (_update_info_embed)
+        manager::update_info_embed (this->guild_id);
 
     return true;
 }
 
 bool
-Player::current_track_is_first_track () const
+guild_player_t::current_track_is_first_track () const
 {
     return !queue.empty () && current_track.filename == queue.front ().filename;
 }
 
-Player &
-Player::stop ()
+guild_player_t &
+guild_player_t::stop ()
 {
     if (!processing_audio)
         return *this;
@@ -455,7 +440,7 @@ Player::stop ()
 }
 
 std::pair<dpp::message, int>
-Player::get_info_message ()
+guild_player_t::get_info_message ()
 {
     if (!info_message.is_object ())
         return { {}, -1 };
@@ -463,8 +448,8 @@ Player::get_info_message ()
     return { dpp::message ().fill_from_json (&info_message), 0 };
 }
 
-Player &
-Player::set_info_message (const dpp::message &message)
+guild_player_t &
+guild_player_t::set_info_message (const dpp::message &message)
 {
     info_message = message.to_json (true, false);
     return *this;
@@ -473,13 +458,13 @@ Player::set_info_message (const dpp::message &message)
 #ifdef USING_STREAM_CODEC
 
 static int
-setup_encoder (Player *p)
+setup_encoder (guild_player_t *p)
 {
     return 0;
 }
 
 static void
-destroy_encoder (Player *p)
+destroy_encoder (guild_player_t *p)
 {
 }
 
@@ -491,7 +476,7 @@ handle_packet (void *guild_player, const unsigned char *packet_ptr, opus_int32 p
     if (!guild_player)
         return;
 
-    dpp::discord_voice_client *vclient = ((Player *)guild_player)->get_voice_client ();
+    dpp::discord_voice_client *vclient = ((guild_player_t *)guild_player)->get_voice_client ();
     if (!vclient)
         return;
 
@@ -499,7 +484,7 @@ handle_packet (void *guild_player, const unsigned char *packet_ptr, opus_int32 p
 }
 
 static int
-setup_encoder (Player *p)
+setup_encoder (guild_player_t *p)
 {
     int status = 0;
 
@@ -508,7 +493,7 @@ setup_encoder (Player *p)
         {
             if (!guild_player)
                 return 1;
-            server::stream::broadcast (((Player *)guild_player)->guild_id, page, len);
+            server::stream::broadcast (((guild_player_t *)guild_player)->guild_id, page, len);
             return 0;
         };
 
@@ -565,7 +550,7 @@ setup_encoder (Player *p)
 }
 
 static void
-destroy_encoder (Player *p)
+destroy_encoder (guild_player_t *p)
 {
     if (p->opus_encoder)
         {
@@ -583,7 +568,7 @@ destroy_encoder (Player *p)
 #else // USING_LIBOPUSENC
 
 static int
-setup_encoder (Player *p)
+setup_encoder (guild_player_t *p)
 {
     int status = 0;
 
@@ -617,7 +602,7 @@ setup_encoder (Player *p)
 }
 
 static void
-destroy_encoder (Player *p)
+destroy_encoder (guild_player_t *p)
 {
     if (p->opus_encoder)
         {
@@ -629,7 +614,7 @@ destroy_encoder (Player *p)
 #endif // USING_LIBOPUSENC
 
 int
-Player::init_for_stream ()
+guild_player_t::init_for_stream ()
 {
     int status = setup_encoder (this);
 
@@ -642,8 +627,8 @@ Player::init_for_stream ()
     return status;
 }
 
-Player &
-Player::done_streaming ()
+guild_player_t &
+guild_player_t::done_streaming ()
 {
     destroy_encoder (this);
 
@@ -661,73 +646,73 @@ Player::done_streaming ()
 // methods to check if any filter is or should be active
 
 bool
-Player::fx_is_tempo_active () const
+guild_player_t::fx_is_tempo_active () const
 {
     return this->tempo != 1.0;
 }
 
 bool
-Player::fx_is_pitch_active () const
+guild_player_t::fx_is_pitch_active () const
 {
     return this->pitch != 0;
 }
 
 bool
-Player::fx_is_equalizer_active () const
+guild_player_t::fx_is_equalizer_active () const
 {
     return !this->equalizer.empty ();
 }
 
 bool
-Player::fx_is_sampling_rate_active () const
+guild_player_t::fx_is_sampling_rate_active () const
 {
     return this->sampling_rate != -1;
 }
 
 bool
-Player::fx_has_vibrato_f () const
+guild_player_t::fx_has_vibrato_f () const
 {
     return this->vibrato_f != -1;
 }
 
 bool
-Player::fx_has_vibrato_d () const
+guild_player_t::fx_has_vibrato_d () const
 {
     return this->vibrato_d != -1;
 }
 
 bool
-Player::fx_is_vibrato_active () const
+guild_player_t::fx_is_vibrato_active () const
 {
     return this->fx_has_vibrato_f () || this->fx_has_vibrato_d ();
 }
 
 bool
-Player::fx_has_tremolo_f () const
+guild_player_t::fx_has_tremolo_f () const
 {
     return this->tremolo_f != -1;
 }
 bool
-Player::fx_has_tremolo_d () const
+guild_player_t::fx_has_tremolo_d () const
 {
     return this->tremolo_d != -1;
 }
 
 bool
-Player::fx_is_tremolo_active () const
+guild_player_t::fx_is_tremolo_active () const
 {
     return this->fx_has_tremolo_f () || this->fx_has_tremolo_d ();
 }
 
 bool
-Player::fx_is_earwax_active () const
+guild_player_t::fx_is_earwax_active () const
 {
     return this->earwax;
 }
 
 // get active fx count
 int
-Player::fx_get_active_count () const
+guild_player_t::fx_get_active_count () const
 {
     int count = 0;
 
@@ -750,7 +735,7 @@ Player::fx_get_active_count () const
 }
 
 int
-Player::load_fx_states (const nlohmann::json &fx_states)
+guild_player_t::load_fx_states (const nlohmann::json &fx_states)
 {
     if (!fx_states.is_object ())
         return 1;
@@ -773,7 +758,7 @@ Player::load_fx_states (const nlohmann::json &fx_states)
 
     if (i_equalizer != fx_states.end ())
         {
-            std::string eq = i_equalizer->get<string> ();
+            std::string eq = i_equalizer->get<std::string> ();
             auto arg = command::filters::af_args_to_equalizer_fx_t (eq);
             this->volume = arg.volume;
             this->equalizer = command::filters::equalizer_fx_t_to_af_args (arg, false);
@@ -801,7 +786,7 @@ Player::load_fx_states (const nlohmann::json &fx_states)
 }
 
 nlohmann::json
-Player::fx_states_to_json ()
+guild_player_t::fx_states_to_json ()
 {
     return {
         { "tempo", this->tempo },
@@ -851,7 +836,7 @@ get_ffmpeg_pitch_args (int pitch, int64_t rel_sampling_rate, double rel_tempo)
 }
 
 static std::string
-get_ffmpeg_vibrato_args (bool has_f, bool has_d, Player *guild_player)
+get_ffmpeg_vibrato_args (bool has_f, bool has_d, guild_player_t *guild_player)
 {
     std::string v_args;
 
@@ -873,7 +858,7 @@ get_ffmpeg_vibrato_args (bool has_f, bool has_d, Player *guild_player)
 }
 
 static std::string
-get_ffmpeg_tremolo_args (bool has_f, bool has_d, Player *guild_player)
+get_ffmpeg_tremolo_args (bool has_f, bool has_d, guild_player_t *guild_player)
 {
     std::string v_args;
 
@@ -895,7 +880,7 @@ get_ffmpeg_tremolo_args (bool has_f, bool has_d, Player *guild_player)
 }
 
 std::string
-Player::get_filter_descr ()
+guild_player_t::get_filter_descr ()
 {
     std::string descr = "volume=" + std::to_string ((double)volume / 100);
 
@@ -911,7 +896,7 @@ Player::get_filter_descr ()
     if (fx_is_equalizer_active ())
         {
             if (equalizer.find ("volume") != equalizer.npos)
-                fprintf (stderr, "[Player::get_filter_descr WARN] equalizer contains volume query!\n");
+                fprintf (stderr, "[guild_player_t::get_filter_descr WARN] equalizer contains volume query!\n");
             descr += ",superequalizer=" + equalizer;
         }
 
@@ -936,7 +921,7 @@ Player::get_filter_descr ()
 // ====================================================================
 
 void
-Player::check_for_to_seek ()
+guild_player_t::check_for_to_seek ()
 {
     if (queue.empty ())
         return;
@@ -947,13 +932,13 @@ Player::check_for_to_seek ()
         to_seek = 0;
 
     if (get_debug_state ())
-        fprintf (stderr, "[Player::check_for_to_seek] to_seek(%ld)\n", to_seek);
+        fprintf (stderr, "[guild_player_t::check_for_to_seek] to_seek(%ld)\n", to_seek);
 
     queue.front ().current_byte = to_seek;
 }
 
 void
-Player::reset_first_track_current_byte ()
+guild_player_t::reset_first_track_current_byte ()
 {
     if (!queue.empty ())
         {
@@ -961,12 +946,13 @@ Player::reset_first_track_current_byte ()
             queue.front ().current_byte = 0;
 
             if (debug)
-                std::cerr << "[Player::reset_first_track_current_byte] reset: title(" << mctrack::get_title (queue.front ()) << ")\n";
+                std::cerr << "[guild_player_t::reset_first_track_current_byte] reset: title(" << mctrack::get_title (queue.front ())
+                          << ")\n";
         }
 }
 
 dpp::voiceconn *
-Player::get_voice_conn ()
+guild_player_t::get_voice_conn ()
 {
     dpp::discord_client *pc = get_client ();
     if (pc == nullptr)
@@ -977,7 +963,7 @@ Player::get_voice_conn ()
 }
 
 dpp::discord_voice_client *
-Player::get_voice_client ()
+guild_player_t::get_voice_client ()
 {
     auto *conn = get_voice_conn ();
     if (conn == nullptr)
@@ -987,100 +973,100 @@ Player::get_voice_client ()
 }
 
 // queue operations
-Player &
-Player::queue_add (const MCTrack &t)
+guild_player_t &
+guild_player_t::queue_add (const MCTrack &t)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_add] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
+        std::cerr << "[guild_player_t::queue_add] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
 
     queue.push_back (t);
     return *this;
 }
 
-Player &
-Player::queue_pop ()
+guild_player_t &
+guild_player_t::queue_pop ()
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_pop] " << guild_id << "\n";
+        std::cerr << "[guild_player_t::queue_pop] " << guild_id << "\n";
 
     queue.pop_back ();
     return *this;
 }
 
-Player &
-Player::queue_add_front (const MCTrack &t)
+guild_player_t &
+guild_player_t::queue_add_front (const MCTrack &t)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_add_front] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
+        std::cerr << "[guild_player_t::queue_add_front] " << guild_id << ": `" << mctrack::get_title (t) << "`\n";
 
     queue.push_front (t);
     return *this;
 }
 
-Player &
-Player::queue_pop_front ()
+guild_player_t &
+guild_player_t::queue_pop_front ()
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_pop_front] " << guild_id << ": `" << mctrack::get_title (queue.front ()) << "\n";
+        std::cerr << "[guild_player_t::queue_pop_front] " << guild_id << ": `" << mctrack::get_title (queue.front ()) << "\n";
 
     queue.pop_front ();
     return *this;
 }
 
-Player &
-Player::queue_insert (const MCTrack &t, size_t pos)
+guild_player_t &
+guild_player_t::queue_insert (const MCTrack &t, size_t pos)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_insert] " << guild_id << ": `" << mctrack::get_title (t) << "` pos(" << pos << ")\n";
+        std::cerr << "[guild_player_t::queue_insert] " << guild_id << ": `" << mctrack::get_title (t) << "` pos(" << pos << ")\n";
 
     queue.insert (queue.begin () + pos, t);
     return *this;
 }
 
-Player &
-Player::queue_erase (size_t pos)
+guild_player_t &
+guild_player_t::queue_erase (size_t pos)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_erase] " << guild_id << ": `" << mctrack::get_title (*(queue.begin () + pos)) << "` pos(" << pos
-                  << ")\n";
+        std::cerr << "[guild_player_t::queue_erase] " << guild_id << ": `" << mctrack::get_title (*(queue.begin () + pos)) << "` pos("
+                  << pos << ")\n";
 
     queue.erase (queue.begin () + pos);
     return *this;
 }
 
-Player::track_queue::iterator
-Player::queue_erase_i (track_queue::iterator i)
+guild_player_t::track_queue::iterator
+guild_player_t::queue_erase_i (track_queue::iterator i)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_erase_i] " << guild_id << ": `" << mctrack::get_title (*i) << "`\n";
+        std::cerr << "[guild_player_t::queue_erase_i] " << guild_id << ": `" << mctrack::get_title (*i) << "`\n";
 
     return queue.erase (i);
 }
 
-Player &
-Player::set_queue (const track_queue &q)
+guild_player_t &
+guild_player_t::set_queue (const track_queue &q)
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::set_queue] " << guild_id << " siz(" << q.size () << ")\n";
+        std::cerr << "[guild_player_t::set_queue] " << guild_id << " siz(" << q.size () << ")\n";
 
     queue = q;
     return *this;
 }
 
-Player &
-Player::queue_clear ()
+guild_player_t &
+guild_player_t::queue_clear ()
 {
     const bool debug = get_debug_state ();
     if (debug)
-        std::cerr << "[Player::queue_clear] " << guild_id << "\n";
+        std::cerr << "[guild_player_t::queue_clear] " << guild_id << "\n";
 
     queue.clear ();
     return *this;

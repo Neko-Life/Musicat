@@ -1,15 +1,15 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/server/middlewares.h"
-#include "cache.h"
 #include "musicat/musicat.h"
 #include "musicat/server.h"
 #include "musicat/server/auth.h"
 #include "musicat/server/response.h"
 #include "musicat/server/services.h"
 #include "musicat/util.h"
-// clang-format on
 
 namespace musicat::server::middlewares
 {
@@ -276,11 +276,7 @@ set_guild_is_mutual (const std::string &user_id, nlohmann::json &guild)
     if (!is_mutual)
         return;
 
-    auto *player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return;
-
-    auto player = player_manager->get_player (guild_id);
+    auto player = player::manager::get_player (guild_id);
     guild["has_active_voice_session"] = player ? player->processing_audio : false;
 }
 

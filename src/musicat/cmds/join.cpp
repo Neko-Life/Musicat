@@ -1,9 +1,10 @@
 // clang-format off
 #include "musicat/player.h"
 #include "musicat/player_manager.h"
+// clang-format on
+
 #include "musicat/cmds/join.h"
 #include "musicat/musicat.h"
-// clang-format on
 
 namespace musicat::command
 {
@@ -18,17 +19,17 @@ get_register_obj (const dpp::snowflake &sha_id)
 int
 run (const dpp::slashcommand_t &event, std::string &out)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        return -1;
+    auto guild_player = player::manager::create_player (event.command.guild_id);
+    if (!guild_player)
+        {
+            out = "`[ERROR]` Failed creating guild player";
+            return 1;
+        }
 
-    auto guild_player = player_manager->create_player (event.command.guild_id);
-    guild_player->set_shard (event.from ());
-
-    if (!guild_player->channel_id)
+    if (!guild_player->text_channel_id)
         guild_player->set_channel (event.command.channel_id);
 
-    int res = join_voice (event.from (), player_manager, event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
+    int res = join_voice (event.from (), event.command.guild_id, event.command.usr.id, event.from ()->creator->me.id);
 
     std::string msg;
     switch (res)
@@ -77,12 +78,6 @@ get_register_obj (const dpp::snowflake &sha_id)
 void
 slash_run (const dpp::slashcommand_t &event)
 {
-    auto player_manager = get_player_manager_ptr ();
-    if (!player_manager)
-        {
-            return;
-        }
-
     std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> > usc, vcc;
 
     usc = get_voice_from_gid (event.command.guild_id, event.command.usr.id);
@@ -105,9 +100,9 @@ slash_run (const dpp::slashcommand_t &event)
             return;
         }
 
-    player_manager->set_disconnecting (event.command.guild_id, usc.first->id);
+    player::manager::set_disconnecting (event.command.guild_id, usc.first->id);
 
-    player_manager->disconnect_voice (event.from (), event.command.guild_id);
+    player::manager::disconnect_voice (event.from (), event.command.guild_id);
     event.reply ("Leaving...");
 }
 } // leave
