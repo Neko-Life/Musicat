@@ -33,7 +33,7 @@ guild_player_t::init ()
     text_channel_id = 0;
     voice_channel_id = 0;
     info_message = nullptr;
-    max_history_size = 0;
+    max_history_size = 1000;
     history.clear ();
     shifted_track = 0;
     queue.clear ();
