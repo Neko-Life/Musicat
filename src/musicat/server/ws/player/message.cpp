@@ -132,7 +132,6 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
                 {
                     voiceclient->stop_audio ();
                     voiceclient->insert_marker ("c");
-                    publish_play (sdata->server_id);
                     continued = true;
                 }
         }
