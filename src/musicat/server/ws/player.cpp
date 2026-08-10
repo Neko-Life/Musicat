@@ -24,24 +24,48 @@ SocketData::get_player_topic () const
     return ::musicat::server::ws::player::get_player_topic (server_id);
 }
 
-static std::map<uws_ws_t *, dpp::snowflake> umap;
+using map_ws_user = std::map<uws_ws_t *, dpp::snowflake>;
+static exclusive_container<map_ws_user> umap;
 
 int
 register_ws_user (uws_ws_t *ws, const dpp::snowflake &user_id)
 {
-    umap[ws] = user_id;
+    {
+        auto lk = umap.acquire ();
+        umap.get ()[ws] = user_id;
+    }
     ws->getUserData ()->user_id = user_id;
     return 0;
+}
+
+uws_ws_t *
+get_user_ws (const dpp::snowflake &user_id)
+{
+    auto lk = umap.acquire ();
+    auto i = umap.get ().begin ();
+    while (i != umap.get ().end ())
+        {
+            if (i->second != user_id)
+                {
+                    i++;
+                    continue;
+                }
+
+            return i->first;
+        }
+
+    return nullptr;
 }
 
 int
 unregister_ws_user (uws_ws_t *ws)
 {
-    auto i = umap.find (ws);
-    if (i == umap.end ())
+    auto lk = umap.acquire ();
+    auto i = umap.get ().find (ws);
+    if (i == umap.get ().end ())
         return -1;
 
-    umap.erase (i);
+    umap.get ().erase (i);
     return 0;
 }
 
@@ -73,12 +97,64 @@ get_behavior ()
 
 ////////////////////////////////////////////////////////////////////////////////
 
+nlohmann::json
+get_queue_payload (const dpp::snowflake &guild_id)
+{
+    auto q = ::musicat::player::manager::get_queue (guild_id);
+
+    auto payload = nlohmann::json::array ();
+    for (auto &t : q)
+        {
+            auto d = nlohmann::json::object ();
+            util::set_playback_info_track_data (d, guild_id, t);
+            payload.push_back (d);
+        }
+
+    return payload;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+/*
+   event payload:
+   {
+        "e": enum,
+        "d": data
+   }
+
+   error data:
+   {
+        "e": SOCKET_EVENT_ERROR,
+        "d": {
+            "error": true,
+            "error_message": string,
+        }
+   }
+*/
+
 void
 publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const nlohmann::json &data)
 {
     const nlohmann::json d = nlohmann::json::object ({ { "e", event }, { "d", data } });
     server::publish (get_player_topic (guild_id), d.dump ());
 }
+
+void
+send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data)
+{
+    server::defer (
+        [user_id, event, data] ()
+            {
+                auto *ws = get_user_ws (user_id);
+                if (!ws)
+                    return;
+
+                const nlohmann::json d = nlohmann::json::object ({ { "e", event }, { "d", data } });
+                ws->send (d.dump ());
+            });
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 void
 publish_error (const dpp::snowflake &guild_id, const nlohmann::json &err)
@@ -130,48 +206,29 @@ publish_fx (const dpp::snowflake &guild_id)
 void
 publish_queue (const dpp::snowflake &guild_id)
 {
-    auto q = ::musicat::player::manager::get_queue (guild_id);
-
-    auto a = nlohmann::json::array ();
-    for (auto &t : q)
-        {
-            auto d = nlohmann::json::object ();
-            util::set_playback_info_track_data (d, guild_id, t);
-            a.push_back (d);
-        }
-
-    publish_event (guild_id, SOCKET_EVENT_QUEUE, a);
+    publish_event (guild_id, SOCKET_EVENT_QUEUE, get_queue_payload (guild_id));
 }
 
-/*
-   event payload:
-   {
-        "e": enum,
-        "d": data
-   }
+////////////////////////////////////////////////////////////////////////////////
 
-   error data:
-   {
-        "code": enum,
-        "message": string,
-        "status": http code
-   }
-*
-
-nlohmann::json
-create_error_data (const socket_err_code_e code, const std::string &message,
-                   const http_status_code_e status)
+void
+send_error (const dpp::snowflake &user_id, const nlohmann::json &err)
 {
-    nlohmann::json d;
-
-    return d;
+    send_event (user_id, SOCKET_EVENT_ERROR, { { "error", true }, { "error_message", err } });
 }
 
-// utils to create json payload
-nlohmann::json
-create (const socket_event_e event, const nlohmann::json &data)
+void
+send_join (const dpp::snowflake &user_id)
 {
+    send_event (user_id, SOCKET_EVENT_JOINVC, nullptr);
 }
-*/
+
+void
+send_leave (const dpp::snowflake &user_id)
+{
+    send_event (user_id, SOCKET_EVENT_LEAVEVC, nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 } // musicat::server::ws::player

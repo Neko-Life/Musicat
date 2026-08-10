@@ -263,7 +263,16 @@ handle_non_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
     dpp::voiceconn *v = event.from ()->get_voice (e_guild_id);
 
-    if (!v || !v->channel_id || !v->voiceclient || v->voiceclient->terminating)
+    if (!v || !v->channel_id)
+        return;
+
+    // notify dashboard
+    if (v->channel_id == e_voice_channel_id)
+        server::ws::player::send_join (e_user_id);
+    else
+        server::ws::player::send_leave (e_user_id);
+
+    if (!v->voiceclient || v->voiceclient->terminating)
         return;
 
     bool is_playing_audio = v->voiceclient->get_secs_remaining () > 0.05f;

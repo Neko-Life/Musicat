@@ -21,22 +21,6 @@ _stub (const nlohmann::json &data, uws_ws_t *ws)
     return 0;
 }
 
-static nlohmann::json
-get_queue_payload (const dpp::snowflake &guild_id)
-{
-    auto q = ::musicat::player::manager::get_queue (guild_id);
-
-    auto payload = nlohmann::json::array ();
-    for (auto &t : q)
-        {
-            auto d = nlohmann::json::object ();
-            util::set_playback_info_track_data (d, guild_id, t);
-            payload.push_back (d);
-        }
-
-    return payload;
-}
-
 static std::shared_ptr< ::musicat::player::guild_player_t>
 check_user_voicestate (uws_ws_t *ws, int *status)
 {

@@ -47,7 +47,9 @@ enum socket_event_e
     SOCKET_EVENT_QUEUE,
     SOCKET_EVENT_REGISTER,
     SOCKET_EVENT_NEXT,
-    SOCKET_EVENT_PREV
+    SOCKET_EVENT_PREV,
+    SOCKET_EVENT_JOINVC,
+    SOCKET_EVENT_LEAVEVC
 };
 
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
@@ -59,6 +61,7 @@ struct socket_event_handler_t
 };
 
 int register_ws_user (uws_ws_t *ws, const dpp::snowflake &user_id);
+uws_ws_t *get_user_ws (const dpp::snowflake &user_id);
 int unregister_ws_user (uws_ws_t *ws);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +72,10 @@ APIApp::WebSocketBehavior<SocketData> get_behavior ();
 
 ////////////////////////////////////////////////////////////////////////////////
 
+nlohmann::json get_queue_payload (const dpp::snowflake &guild_id);
+
 void publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const nlohmann::json &data);
+void send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data);
 
 void publish_error (const dpp::snowflake &guild_id, const nlohmann::json &err);
 void publish_pause (const dpp::snowflake &guild_id);
@@ -79,6 +85,10 @@ void publish_seek (const dpp::snowflake &guild_id, const uint64_t seek_ms);
 void publish_stop (const dpp::snowflake &guild_id);
 void publish_fx (const dpp::snowflake &guild_id);
 void publish_queue (const dpp::snowflake &guild_id);
+
+void send_error (const dpp::snowflake &user_id, const nlohmann::json &err);
+void send_join (const dpp::snowflake &user_id);
+void send_leave (const dpp::snowflake &user_id);
 
 /*
 nlohmann::json create_error_data (const socket_err_code_e code,
