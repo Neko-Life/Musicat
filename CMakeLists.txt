@@ -193,8 +193,6 @@ if (NOT HAVE_PYTHON AND Python_FOUND AND Python_Development.Module_FOUND AND Pyt
 	set(PYTHON_VERSION_MINOR ${Python_VERSION_MINOR})
 	set(PYTHON_VERSION_PATCH ${Python_VERSION_PATCH})
 
-	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
-
 	if (NOT PYTHON_CMD)
 		set(PYTHON_CMD ${Python_EXECUTABLE})
 	endif()
@@ -207,6 +205,29 @@ if (NOT HAVE_PYTHON AND Python_FOUND AND Python_Development.Module_FOUND AND Pyt
 endif()
 
 if (HAVE_PYTHON)
+	if (NOT PYTHON_CMD)
+		message(FATAL_ERROR "Required to define PYTHON_CMD")
+	endif()
+
+	if (NOT PYTHON_INCLUDE)
+		message(FATAL_ERROR "Required to define PYTHON_INCLUDE")
+	endif()
+
+	if (NOT PYTHON_LIB)
+		message(FATAL_ERROR "Required to define PYTHON_LIB")
+	endif()
+
+	if (NOT PYTHON_VERSION)
+		set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}.${PYTHON_VERSION_PATCH}")
+		string(REGEX MATCH "^[0-9]+\.[0-9]+\.[0-9]+$" PYTHON_VERS "${PYTHON_VERSION}")
+		if (NOT PYTHON_VERS)
+			message(WARNING "Invalid PYTHON_VERSION: ${PYTHON_VERSION}")
+			message(FATAL_ERROR "Required to define PYTHON_VERSION_MAJOR, PYTHON_VERSION_MINOR and PYTHON_VERSION_PATCH")
+		endif()
+	endif()
+
+	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
+
 	message("-- INFO: PYTHON_CMD: ${PYTHON_CMD}")
 	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION}")
 	message("-- INFO: PYTHON_INCLUDE: ${PYTHON_INCLUDE}")
