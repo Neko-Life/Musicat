@@ -1104,6 +1104,7 @@ guild_player_t::can_control_dashboard (const dpp::snowflake &user_id)
 guild_player_t &
 guild_player_t::request_dashboard_control (const dpp::snowflake &user_id)
 {
+    server::ws::player::send_join (user_id);
     if (can_control_dashboard (user_id))
         return *this;
 
