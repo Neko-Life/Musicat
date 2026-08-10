@@ -147,24 +147,25 @@ publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const
 }
 
 void
-publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data = "")
+publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data)
 {
     server::publish (get_player_topic (guild_id), binary_event (event, data));
 }
 
 static void
-publish_int32_event (const dpp::snowflake &guild_id, const socket_event_e event, const socket_binary_event_e event_binary, const uint32_t n)
+publish_int32_event (const dpp::snowflake &guild_id, const socket_binary_event_e event_binary, const uint32_t n)
 {
     if (n < 1000)
         {
-            publish_event (guild_id, event, std::to_string (n));
+            publish_event_binary (guild_id, event_binary, std::to_string (n));
             return;
         }
 
     // use binary type to reduce bandwidth as this is called around 16 times per second
     publish_event_binary (guild_id, event_binary,
                           std::string ({ (char)((n & 0xff000000) >> (3 * 8)), char ((n & 0x00ff0000) >> (2 * 8)),
-                                         (char)((n & 0x0000ff00) >> (1 * 8)), (char)((n & 0x000000ff)), '\0' }));
+                                         (char)((n & 0x0000ff00) >> (1 * 8)), (char)((n & 0x000000ff)) },
+                                       4));
 }
 
 static void
@@ -189,7 +190,7 @@ send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlo
 }
 
 void
-send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const std::string &data = "")
+send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const std::string &data)
 {
     send_event (user_id, binary_event (event, data));
 }
@@ -224,7 +225,7 @@ publish_play (const dpp::snowflake &guild_id)
 void
 publish_seek (const dpp::snowflake &guild_id, const uint64_t seek_ms)
 {
-    publish_int32_event (guild_id, SOCKET_EVENT_SEEK, SOCKET_BINARY_EVENT_SEEK, seek_ms);
+    publish_int32_event (guild_id, SOCKET_BINARY_EVENT_SEEK, seek_ms);
 }
 
 void
@@ -252,7 +253,7 @@ publish_queue (const dpp::snowflake &guild_id)
 void
 publish_progress (const dpp::snowflake &guild_id, const uint64_t ms)
 {
-    publish_int32_event (guild_id, SOCKET_EVENT_PROGRESS, SOCKET_BINARY_EVENT_PROGRESS, ms);
+    publish_int32_event (guild_id, SOCKET_BINARY_EVENT_PROGRESS, ms);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

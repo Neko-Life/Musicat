@@ -95,9 +95,9 @@ APIApp::WebSocketBehavior<SocketData> get_behavior ();
 nlohmann::json get_queue_payload (const dpp::snowflake &guild_id);
 
 void publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const nlohmann::json &data);
-void publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data);
+void publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data = "");
 void send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data);
-void send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const nlohmann::json &data);
+void send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const std::string &data = "");
 
 void publish_error (const dpp::snowflake &guild_id, const nlohmann::json &err);
 void publish_pause (const dpp::snowflake &guild_id);
