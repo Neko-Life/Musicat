@@ -58,7 +58,7 @@ inline constexpr const command_handlers_map_t command_handlers
         { "owner", owner::slash_run },
         { "say", say::slash_run },
         { "playing", playing::slash_run },
-        { "plsletmecontrolthedashboardeventhoughimnotinthevc", plsletmecontrolthedashboardeventhoughimnotinthevc::slash_run },
+        { "lemmecontrolthedashboard", plsletmecontrolthedashboardeventhoughimnotinthevc::slash_run },
         { NULL, NULL } };
 
 std::vector<dpp::slashcommand>
