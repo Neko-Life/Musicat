@@ -23,7 +23,7 @@ slash_run (const dpp::slashcommand_t &event)
 
     if (event.command.usr.id)
         {
-            guild_player->dashboard_control_requests.push_back (event.command.usr.id);
+            guild_player->request_dashboard_control (event.command.usr.id);
             return event.reply ("k");
         }
 

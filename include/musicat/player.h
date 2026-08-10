@@ -388,6 +388,12 @@ struct guild_player_t
 
     guild_player_t &set_queue (const track_queue &q);
     guild_player_t &queue_clear ();
+
+    // ====================================================================
+
+    bool user_in_the_same_vc (const dpp::snowflake &user_id);
+    bool can_control_dashboard (const dpp::snowflake &user_id);
+    guild_player_t &request_dashboard_control (const dpp::snowflake &user_id);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

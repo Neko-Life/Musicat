@@ -1073,6 +1073,44 @@ guild_player_t::queue_clear ()
     return *this;
 }
 
+// ====================================================================
+
+bool
+guild_player_t::user_in_the_same_vc (const dpp::snowflake &user_id)
+{
+    // check user in the same vc
+    auto vcuser = get_voice_from_gid (guild_id, user_id);
+    if (!vcuser.first || voice_channel_id != vcuser.first->id)
+        return false;
+
+    return true;
+}
+
+bool
+guild_player_t::can_control_dashboard (const dpp::snowflake &user_id)
+{
+    // check bypass list
+    auto i = dashboard_control_requests.begin ();
+    while (i != dashboard_control_requests.end ())
+        {
+            if (*i == user_id)
+                return true;
+            i++;
+        }
+
+    return user_in_the_same_vc (user_id);
+}
+
+guild_player_t &
+guild_player_t::request_dashboard_control (const dpp::snowflake &user_id)
+{
+    if (can_control_dashboard (user_id))
+        return *this;
+
+    dashboard_control_requests.push_back (user_id);
+    return *this;
+}
+
 } // player
 } // musicat
 

@@ -39,31 +39,12 @@ check_user_voicestate (uws_ws_t *ws, int *status)
             return nullptr;
         }
 
-    bool requested_controls = false;
-    {
-        auto i = guild_player->dashboard_control_requests.begin ();
-        while (i != guild_player->dashboard_control_requests.end ())
-            {
-                if (*i == sdata->user_id)
-                    {
-                        requested_controls = true;
-                        break;
-                    }
-                i++;
-            }
-    }
-
-    if (!requested_controls)
+    if (!guild_player->can_control_dashboard (sdata->user_id))
         {
-            // check user in the same vc
-            auto vcuser = get_voice_from_gid (sdata->server_id, sdata->user_id);
-            if (!vcuser.first || guild_player->voice_channel_id != vcuser.first->id)
-                {
-                    nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_ERROR }, { "d", "You're not in my voice channel" } });
-                    ws->send (d.dump ());
-                    *status = 1;
-                    return nullptr;
-                }
+            nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_ERROR }, { "d", "You're not in my voice channel" } });
+            ws->send (d.dump ());
+            *status = 1;
+            return nullptr;
         }
 
     return guild_player;
