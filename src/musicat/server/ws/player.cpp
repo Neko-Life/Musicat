@@ -163,7 +163,7 @@ publish_int32_event (const dpp::snowflake &guild_id, const socket_binary_event_e
 
     const auto s = std::string ({ (char)((n & 0xff000000) >> (3 * 8)), char ((n & 0x00ff0000) >> (2 * 8)),
                                   (char)((n & 0x0000ff00) >> (1 * 8)), (char)((n & 0x000000ff)), '\0' },
-                                4);
+                                5);
 
     // use binary type to reduce bandwidth as this is called around 16 times per second
     publish_event_binary (guild_id, event_binary, s);
