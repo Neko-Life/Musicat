@@ -1,4 +1,3 @@
-#include <mutex>
 #ifdef MUSICAT_WITH_PYTHON
 
 #define PY_SSIZE_T_CLEAN
@@ -7,6 +6,7 @@
 
 #include "musicat/musicat.h"
 #include "musicat/util.h"
+#include <mutex>
 #include <string>
 #include <unistd.h>
 
