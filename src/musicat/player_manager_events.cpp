@@ -359,7 +359,10 @@ handle_sha_voice_state_update (const dpp::voice_state_update_t &event)
 
             auto guild_player = get_player (e_guild_id);
             if (guild_player)
-                guild_player->voice_channel_id = 0;
+                {
+                    guild_player->voice_channel_id = 0;
+                    guild_player->dashboard_control_requests.clear ();
+                }
 
             return;
         }

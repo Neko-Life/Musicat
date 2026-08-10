@@ -38,6 +38,7 @@ guild_player_t::init ()
     shifted_track = 0;
     queue.clear ();
     current_track = {};
+    dashboard_control_requests.clear ();
     loop_mode = loop_mode_t::l_none;
 
     // fx_states ////////////////////////////////////////

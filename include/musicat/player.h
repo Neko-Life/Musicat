@@ -141,6 +141,8 @@ struct guild_player_t
      */
     MCTrack current_track;
 
+    std::vector<dpp::snowflake> dashboard_control_requests;
+
     /**
      * @brief Loop mode of the currently playing song.
      *

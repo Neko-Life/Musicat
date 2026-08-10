@@ -813,8 +813,10 @@ run (int argc, const char *argv[])
 
     if (argc > 1)
         {
-            dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
+            dpp::cluster client (cluster_params.token, cluster_params.intents, 0, cluster_params.cluster_id,
                                  cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
+
+            client.start (dpp::st_return);
 
             client_ptr = &client;
 
