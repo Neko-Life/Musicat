@@ -10,6 +10,7 @@
 
 #include "musicat/child.h"
 #include "musicat/child/ytdlp.h"
+#include "musicat/config.h"
 #include "musicat/db.h"
 #include "musicat/eliza.h"
 #include "musicat/events.h"
@@ -535,6 +536,10 @@ get_stream_buffer_size ()
 const char *
 get_python_cmd ()
 {
+#ifdef MUSICAT_WITH_PYTHON
+    return PYTHON_CMD;
+#endif
+
     switch (python_v)
         {
         case 3:
@@ -823,7 +828,7 @@ run (int argc, const char *argv[])
 
     if ((python_v = child::ytdlp::has_python ()) == -1)
         {
-            fprintf (stderr, "[FATAL] Unable to invoke python, this program requires python to use yt-dlp capabilities, exiting...\n");
+            fprintf (stderr, "[FATAL] Unable to invoke python, Musicat requires python to use yt-dlp capabilities, exiting...\n");
 
             return -1;
         }

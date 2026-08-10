@@ -1,4 +1,5 @@
 // clang-format off
+#include "musicat/mctrack.h"
 #include "musicat/decoder.h"
 #include "musicat/stream_codec.h"
 #include "musicat/player.h"
@@ -8,7 +9,6 @@
 
 #include "musicat/audio_config.h"
 #include "musicat/db.h"
-#include "musicat/mctrack.h"
 #include "musicat/musicat.h"
 #include "musicat/player_manager_util.h"
 #include "musicat/server/ws/player.h"

@@ -179,50 +179,39 @@ if(WITH_UWS_HTTPRESPONSE_NO_WRITEMARK)
 endif()
 
 
-# check python version
-set(PYTHON_CMD python3)
-execute_process(COMMAND ${PYTHON_CMD} --version
-	OUTPUT_VARIABLE PYTHON_VER)
-string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
-
-if (NOT PYTHON_VERSION_LIST)
-	set(PYTHON_CMD python2)
-	execute_process(COMMAND ${PYTHON_CMD} --version
-		OUTPUT_VARIABLE PYTHON_VER)
-	string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
+# check for python
+if (NOT HAVE_PYTHON)
+	set(Python_USE_STATIC_LIBS FALSE)
+	find_package (Python COMPONENTS Interpreter Development)
 endif()
 
-if (NOT PYTHON_VERSION_LIST)
-	set(PYTHON_CMD python)
-	execute_process(COMMAND ${PYTHON_CMD} --version
-		OUTPUT_VARIABLE PYTHON_VER)
-	string(REGEX MATCHALL "[0-9]+" PYTHON_VERSION_LIST "${PYTHON_VER}")
-endif()
-
-list(JOIN PYTHON_VERSION_LIST "." PYTHON_VERSION_STR)
-
-if (PYTHON_VERSION_LIST)
+if (NOT HAVE_PYTHON AND Python_FOUND AND Python_Development.Module_FOUND AND Python_Development.Module_FOUND)
 	set(HAVE_PYTHON 1)
 
-	list(GET PYTHON_VERSION_LIST 0 PYTHON_VERSION_MAJOR)
-	list(GET PYTHON_VERSION_LIST 1 PYTHON_VERSION_MINOR)
-	list(GET PYTHON_VERSION_LIST 2 PYTHON_VERSION_PATCH)
+	set(PYTHON_VERSION ${Python_VERSION})
+	set(PYTHON_VERSION_MAJOR ${Python_VERSION_MAJOR})
+	set(PYTHON_VERSION_MINOR ${Python_VERSION_MINOR})
+	set(PYTHON_VERSION_PATCH ${Python_VERSION_PATCH})
 
 	target_compile_definitions(Shasha PUBLIC MUSICAT_WITH_PYTHON)
 
+	if (NOT PYTHON_CMD)
+		set(PYTHON_CMD ${Python_EXECUTABLE})
+	endif()
 	if (NOT PYTHON_INCLUDE)
-		set(PYTHON_INCLUDE "/usr/include/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+		set(PYTHON_INCLUDE ${Python_INCLUDE_DIRS})
 	endif()
 	if (NOT PYTHON_LIB)
-		set(PYTHON_LIB "python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+		set(PYTHON_LIB ${Python_LIBRARIES})
 	endif()
+endif()
 
+if (HAVE_PYTHON)
 	message("-- INFO: PYTHON_CMD: ${PYTHON_CMD}")
-	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION_STR}")
+	message("-- INFO: PYTHON_VERSION: ${PYTHON_VERSION}")
 	message("-- INFO: PYTHON_INCLUDE: ${PYTHON_INCLUDE}")
 	message("-- INFO: PYTHON_LIB: ${PYTHON_LIB}")
 else()
-	set(PYTHON_CMD "")
 	message(WARNING "No python installation detected, ytdlp invocation will fallback using child process")
 endif()
 
@@ -273,6 +262,7 @@ target_include_directories(Shasha PRIVATE
 	/usr/include/postgresql
 	${PYTHON_INCLUDE}
 	libs/ELIZA/src
+	"${CMAKE_CURRENT_BINARY_DIR}/include"
 	# Remember to add the include directories of any other libraries too
 	)
 

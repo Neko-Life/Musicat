@@ -2,6 +2,7 @@
 #include "musicat/child.h"
 #include "musicat/child/command.h"
 #include "musicat/child/worker.h"
+#include "musicat/config.h"
 #include "musicat/util/fs.h"
 #include <linux/prctl.h>
 #include <sys/prctl.h>
@@ -26,6 +27,10 @@ get_ytdout_json_out_filename (const std::string &id)
 int
 has_python ()
 {
+#ifdef MUSICAT_WITH_PYTHON
+    return PYTHON_VERSION_MAJOR;
+#endif
+
     if (!system ("type python3 &> /dev/null"))
         {
             return 3;
@@ -132,7 +137,7 @@ run (const command::command_options_t &options, sem_t *sem, const std::string &s
             const char *max_entries = me_str.c_str ();
 
             char *args[32] = {
-                "python3",
+                (char *)get_python_cmd (),
                 (char *)exe,
                 (char *)query,
             };
@@ -154,7 +159,7 @@ run (const command::command_options_t &options, sem_t *sem, const std::string &s
 
             child::do_sem_post (sem);
 
-            execvp ("python3", args);
+            execvp (get_python_cmd (), args);
             _exit (EXIT_FAILURE);
         }
 
