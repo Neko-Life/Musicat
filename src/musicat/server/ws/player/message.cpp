@@ -93,7 +93,6 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
                     auto *sdata = ws->getUserData ();
 
                     ::musicat::player::manager::pause (from, sdata->server_id, sdata->user_id);
-                    publish_pause (sdata->server_id);
                     return 0;
                 }
             catch (...)
@@ -213,9 +212,6 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
     voiceclient->pause_audio (true);
 
     ::musicat::player::manager::set_manually_paused (sdata->server_id);
-
-    publish_stop (sdata->server_id);
-
     ::musicat::player::manager::update_info_embed (sdata->server_id, false);
 
     return 0;
