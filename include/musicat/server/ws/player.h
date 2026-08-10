@@ -49,7 +49,8 @@ enum socket_event_e
     SOCKET_EVENT_NEXT,
     SOCKET_EVENT_PREV,
     SOCKET_EVENT_JOINVC,
-    SOCKET_EVENT_LEAVEVC
+    SOCKET_EVENT_LEAVEVC,
+    SOCKET_EVENT_PROGRESS
 };
 
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
@@ -85,6 +86,7 @@ void publish_seek (const dpp::snowflake &guild_id, const uint64_t seek_ms);
 void publish_stop (const dpp::snowflake &guild_id);
 void publish_fx (const dpp::snowflake &guild_id);
 void publish_queue (const dpp::snowflake &guild_id);
+void publish_progress (const dpp::snowflake &guild_id, const uint64_t ms);
 
 void send_error (const dpp::snowflake &user_id, const nlohmann::json &err);
 void send_join (const dpp::snowflake &user_id);

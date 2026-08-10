@@ -209,6 +209,12 @@ publish_queue (const dpp::snowflake &guild_id)
     publish_event (guild_id, SOCKET_EVENT_QUEUE, get_queue_payload (guild_id));
 }
 
+void
+publish_progress (const dpp::snowflake &guild_id, const uint64_t ms)
+{
+    publish_event (guild_id, SOCKET_EVENT_PROGRESS, ms);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void
