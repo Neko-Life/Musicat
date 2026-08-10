@@ -155,7 +155,7 @@ publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_
 static void
 publish_int32_event (const dpp::snowflake &guild_id, const socket_binary_event_e event_binary, const uint32_t n)
 {
-    if (n < 10000)
+    if (n < 1000)
         {
             publish_event_binary (guild_id, event_binary, std::to_string (n));
             return;
