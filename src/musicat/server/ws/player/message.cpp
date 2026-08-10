@@ -21,12 +21,60 @@ _stub (const nlohmann::json &data, uws_ws_t *ws)
     return 0;
 }
 
+static nlohmann::json
+get_queue_payload (const dpp::snowflake &guild_id)
+{
+    auto q = ::musicat::player::manager::get_queue (guild_id);
+
+    auto payload = nlohmann::json::array ();
+    for (auto &t : q)
+        {
+            auto d = nlohmann::json::object ();
+            util::set_playback_info_track_data (d, guild_id, t);
+            payload.push_back (d);
+        }
+
+    return payload;
+}
+
+static std::shared_ptr< ::musicat::player::guild_player_t>
+check_user_voicestate (uws_ws_t *ws, int *status)
+{
+    auto *sdata = ws->getUserData ();
+
+    if (!sdata->user_id)
+        {
+            *status = -1;
+            return nullptr;
+        }
+
+    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
+    if (!guild_player)
+        {
+            *status = -1;
+            return nullptr;
+        }
+
+    // check user in the same vc
+    auto vcuser = get_voice_from_gid (sdata->server_id, sdata->user_id);
+    if (!vcuser.first || guild_player->voice_channel_id != vcuser.first->id)
+        {
+            nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_ERROR }, { "d", "You're not in my voice channel" } });
+            ws->send (d.dump ());
+            *status = 1;
+            return nullptr;
+        }
+
+    return guild_player;
+}
+
 static int
 handle_register (const nlohmann::json &data, uws_ws_t *ws)
 {
     // let it be object in case we wanna add other stuff later on
     if (!data.is_object ())
         return 1;
+
     auto i_uid = data.find ("uid");
     if (i_uid == data.end () || !i_uid->is_string ())
         return 1;
@@ -39,10 +87,12 @@ handle_register (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_pause (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
 
     auto *from = guild_player->get_client ();
     // this should never happen
@@ -54,15 +104,21 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
 
     if (from)
         {
-            // !TODO: check if user actually in the same vc session
-            ::musicat::player::manager::pause (from, sdata->server_id, sdata->user_id);
-            publish_pause (sdata->server_id);
+            try
+                {
+                    auto *sdata = ws->getUserData ();
+
+                    ::musicat::player::manager::pause (from, sdata->server_id, sdata->user_id);
+                    publish_pause (sdata->server_id);
+                    return 0;
+                }
+            catch (...)
+                {
+                }
         }
-    else
-        {
-            nlohmann::json d2 = nlohmann::json::object ({ { "e", SOCKET_EVENT_PAUSE }, { "d", nullptr } });
-            ws->send (d2.dump ());
-        }
+
+    nlohmann::json d2 = nlohmann::json::object ({ { "e", SOCKET_EVENT_PAUSE }, { "d", nullptr } });
+    ws->send (d2.dump ());
 
     return 0;
 }
@@ -70,10 +126,14 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_play (const nlohmann::json &data, uws_ws_t *ws)
 {
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
+
     auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
 
     bool continued = false;
     auto *voiceclient = guild_player->get_voice_client ();
@@ -110,10 +170,12 @@ handle_play (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_seek (const nlohmann::json &data, uws_ws_t *ws)
 {
-    auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
 
     if (!guild_player->processing_audio)
         {
@@ -128,9 +190,9 @@ handle_seek (const nlohmann::json &data, uws_ws_t *ws)
             return -1;
         }
 
-    uint64_t total_ms = data.get<uint64_t> ();
+    auto *sdata = ws->getUserData ();
 
-    // !TODO: check if user actually in the same vc session
+    uint64_t total_ms = data.get<uint64_t> ();
     guild_player->current_track.current_byte = (int64_t)(::musicat::player::opus_byte_per_ms * total_ms);
     guild_player->current_track.seek_to = "y";
     publish_seek (sdata->server_id, total_ms);
@@ -143,20 +205,25 @@ handle_seek (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_stop (const nlohmann::json &data, uws_ws_t *ws)
 {
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
+
     auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
 
     auto *voiceclient = guild_player->get_voice_client ();
     if (!voiceclient)
         {
+            ::musicat::player::manager::check_health (sdata->server_id);
+
             const nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_STOP }, { "d", nullptr } });
             ws->send (d.dump ());
             return 0;
         }
 
-    // !TODO: check if user actually in the same vc session
     guild_player->skip_playback (voiceclient);
     guild_player->stopped = true;
     voiceclient->pause_audio (true);
@@ -173,12 +240,26 @@ handle_stop (const nlohmann::json &data, uws_ws_t *ws)
 static int
 handle_next (const nlohmann::json &data, uws_ws_t *ws)
 {
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
+
     auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
 
     auto *voiceclient = guild_player->get_voice_client ();
+    if (!voiceclient)
+        {
+            ::musicat::player::manager::check_health (sdata->server_id);
+
+            const nlohmann::json d
+                = nlohmann::json::object ({ { "e", SOCKET_EVENT_QUEUE }, { "d", get_queue_payload (sdata->server_id) } });
+            ws->send (d.dump ());
+
+            return 0;
+        }
 
     guild_player->skip_queue (1);
     server::ws::player::publish_queue (sdata->server_id);
@@ -195,13 +276,26 @@ inline constexpr const int64_t second_seek_step = SECOND_SEEK_STEP * 1000;
 static int
 handle_prev (const nlohmann::json &data, uws_ws_t *ws)
 {
+    int ret = 0;
+    auto guild_player = check_user_voicestate (ws, &ret);
+    if (ret == 1)
+        return 0;
+    if (ret < 0)
+        return ret;
+
     auto *sdata = ws->getUserData ();
-    auto guild_player = ::musicat::player::manager::get_player (sdata->server_id);
-    if (!guild_player)
-        return -1;
+
     auto *voiceclient = guild_player->get_voice_client ();
     if (!voiceclient)
-        return 0;
+        {
+            ::musicat::player::manager::check_health (sdata->server_id);
+
+            const nlohmann::json d
+                = nlohmann::json::object ({ { "e", SOCKET_EVENT_QUEUE }, { "d", get_queue_payload (sdata->server_id) } });
+            ws->send (d.dump ());
+
+            return 0;
+        }
 
     ::musicat::player::track_progress prog = util::get_track_progress (guild_player->current_track);
     if (prog.current_ms >= second_seek_step)

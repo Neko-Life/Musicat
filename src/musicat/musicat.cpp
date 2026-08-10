@@ -41,26 +41,17 @@ reset_voice_channel (dpp::discord_client *client, dpp::snowflake guild_id, bool 
  * @param guild Guild the member in
  * @param user_id Target member
  * @return std::pair<dpp::channel*, std::map<dpp::snowflake, dpp::voicestate>>
- * @throw const char* User isn't in vc
  */
 std::pair<dpp::channel *, std::map<dpp::snowflake, dpp::voicestate> >
 get_voice (dpp::guild *guild, dpp::snowflake user_id)
 {
-    for (auto &fc : guild->channels)
-        {
-            auto gc = dpp::find_channel (fc);
-            if (!gc || (!gc->is_voice_channel () && !gc->is_stage_channel ()))
-                continue;
+    auto i = guild->voice_members.find (user_id);
+    if (i == guild->voice_members.end () || !i->second.channel_id)
+        return { NULL, {} };
 
-            std::map<dpp::snowflake, dpp::voicestate> vm = gc->get_voice_members ();
+    auto *gc = dpp::find_channel (i->second.channel_id);
 
-            if (vm.find (user_id) != vm.end ())
-                {
-                    return { gc, vm };
-                }
-        }
-
-    return { NULL, {} };
+    return { gc, gc->get_voice_members () };
 }
 
 /**

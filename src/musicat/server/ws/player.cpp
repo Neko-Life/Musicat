@@ -139,6 +139,7 @@ publish_queue (const dpp::snowflake &guild_id)
             util::set_playback_info_track_data (d, guild_id, t);
             a.push_back (d);
         }
+
     publish_event (guild_id, SOCKET_EVENT_QUEUE, a);
 }
 
