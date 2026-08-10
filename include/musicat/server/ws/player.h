@@ -53,6 +53,25 @@ enum socket_event_e
     SOCKET_EVENT_PROGRESS
 };
 
+// clang-format off
+enum socket_binary_event_e : char {
+	SOCKET_BINARY_EVENT_ERROR           = 'e',
+	SOCKET_BINARY_EVENT_PAUSE           = 'p',
+	SOCKET_BINARY_EVENT_PLAYBACK_INFO   = 'P',
+	SOCKET_BINARY_EVENT_PLAY            = 'c',
+	SOCKET_BINARY_EVENT_SEEK            = 's',
+	SOCKET_BINARY_EVENT_STOP            = 'x',
+	SOCKET_BINARY_EVENT_FX              = 'f',
+	SOCKET_BINARY_EVENT_QUEUE           = 'q',
+	SOCKET_BINARY_EVENT_REGISTER        = 'r',
+	SOCKET_BINARY_EVENT_NEXT            = 'n',
+	SOCKET_BINARY_EVENT_PREV            = 'z',
+	SOCKET_BINARY_EVENT_JOINVC          = 'j',
+	SOCKET_BINARY_EVENT_LEAVEVC         = 'l',
+	SOCKET_BINARY_EVENT_PROGRESS        = 'S'
+};
+// clang-format on
+
 using uws_ws_t = uWS::WebSocket<SERVER_WITH_SSL, true, SocketData>;
 
 struct socket_event_handler_t
@@ -76,7 +95,9 @@ APIApp::WebSocketBehavior<SocketData> get_behavior ();
 nlohmann::json get_queue_payload (const dpp::snowflake &guild_id);
 
 void publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const nlohmann::json &data);
+void publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data);
 void send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data);
+void send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const nlohmann::json &data);
 
 void publish_error (const dpp::snowflake &guild_id, const nlohmann::json &err);
 void publish_pause (const dpp::snowflake &guild_id);

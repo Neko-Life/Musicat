@@ -132,6 +132,13 @@ get_queue_payload (const dpp::snowflake &guild_id)
    }
 */
 
+static std::string
+binary_event (const socket_binary_event_e event, const std::string &data)
+{
+    const char ev[2] = { event, '\0' };
+    return std::string (ev) + data;
+}
+
 void
 publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const nlohmann::json &data)
 {
@@ -140,18 +147,51 @@ publish_event (const dpp::snowflake &guild_id, const socket_event_e event, const
 }
 
 void
-send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data)
+publish_event_binary (const dpp::snowflake &guild_id, const socket_binary_event_e event, const std::string &data = "")
+{
+    server::publish (get_player_topic (guild_id), binary_event (event, data));
+}
+
+static void
+publish_int32_event (const dpp::snowflake &guild_id, const socket_event_e event, const socket_binary_event_e event_binary, const uint32_t n)
+{
+    if (n < 1000)
+        {
+            publish_event (guild_id, event, std::to_string (n));
+            return;
+        }
+
+    // use binary type to reduce bandwidth as this is called around 16 times per second
+    publish_event_binary (guild_id, event_binary,
+                          std::string ({ (char)((n & 0xff000000) >> (3 * 8)), char ((n & 0x00ff0000) >> (2 * 8)),
+                                         (char)((n & 0x0000ff00) >> (1 * 8)), (char)((n & 0x000000ff)), '\0' }));
+}
+
+static void
+send_event (const dpp::snowflake &user_id, const std::string &data)
 {
     server::defer (
-        [user_id, event, data] ()
+        [user_id, data] ()
             {
                 auto *ws = get_user_ws (user_id);
                 if (!ws)
                     return;
 
-                const nlohmann::json d = nlohmann::json::object ({ { "e", event }, { "d", data } });
-                ws->send (d.dump ());
+                ws->send (data);
             });
+}
+
+void
+send_event (const dpp::snowflake &user_id, const socket_event_e event, const nlohmann::json &data)
+{
+    const nlohmann::json d = nlohmann::json::object ({ { "e", event }, { "d", data } });
+    send_event (user_id, d.dump ());
+}
+
+void
+send_event_binary (const dpp::snowflake &user_id, const socket_binary_event_e event, const std::string &data = "")
+{
+    send_event (user_id, binary_event (event, data));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,7 +205,7 @@ publish_error (const dpp::snowflake &guild_id, const nlohmann::json &err)
 void
 publish_pause (const dpp::snowflake &guild_id)
 {
-    publish_event (guild_id, SOCKET_EVENT_PAUSE, nullptr);
+    publish_event_binary (guild_id, SOCKET_BINARY_EVENT_PAUSE);
 }
 
 void
@@ -178,19 +218,19 @@ publish_playback_info (const dpp::snowflake &guild_id)
 void
 publish_play (const dpp::snowflake &guild_id)
 {
-    publish_event (guild_id, SOCKET_EVENT_PLAY, nullptr);
+    publish_event_binary (guild_id, SOCKET_BINARY_EVENT_PLAY);
 }
 
 void
 publish_seek (const dpp::snowflake &guild_id, const uint64_t seek_ms)
 {
-    publish_event (guild_id, SOCKET_EVENT_SEEK, seek_ms);
+    publish_int32_event (guild_id, SOCKET_EVENT_SEEK, SOCKET_BINARY_EVENT_SEEK, seek_ms);
 }
 
 void
 publish_stop (const dpp::snowflake &guild_id)
 {
-    publish_event (guild_id, SOCKET_EVENT_STOP, nullptr);
+    publish_event_binary (guild_id, SOCKET_BINARY_EVENT_STOP);
 }
 
 void
@@ -212,7 +252,7 @@ publish_queue (const dpp::snowflake &guild_id)
 void
 publish_progress (const dpp::snowflake &guild_id, const uint64_t ms)
 {
-    publish_event (guild_id, SOCKET_EVENT_PROGRESS, ms);
+    publish_int32_event (guild_id, SOCKET_EVENT_PROGRESS, SOCKET_BINARY_EVENT_PROGRESS, ms);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,13 +266,13 @@ send_error (const dpp::snowflake &user_id, const nlohmann::json &err)
 void
 send_join (const dpp::snowflake &user_id)
 {
-    send_event (user_id, SOCKET_EVENT_JOINVC, nullptr);
+    send_event_binary (user_id, SOCKET_BINARY_EVENT_JOINVC);
 }
 
 void
 send_leave (const dpp::snowflake &user_id)
 {
-    send_event (user_id, SOCKET_EVENT_LEAVEVC, nullptr);
+    send_event_binary (user_id, SOCKET_BINARY_EVENT_LEAVEVC);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
