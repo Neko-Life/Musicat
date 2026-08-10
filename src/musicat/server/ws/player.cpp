@@ -161,10 +161,11 @@ publish_int32_event (const dpp::snowflake &guild_id, const socket_binary_event_e
             return;
         }
 
+    const std::vector<char> s = std::vector<char> ({ (char)((n & 0xff000000) >> (3 * 8)), char ((n & 0x00ff0000) >> (2 * 8)),
+                                                     (char)((n & 0x0000ff00) >> (1 * 8)), (char)((n & 0x000000ff)) });
+
     // use binary type to reduce bandwidth as this is called around 16 times per second
-    publish_event_binary (guild_id, event_binary,
-                          { (char)((n & 0xff000000) >> (3 * 8)), char ((n & 0x00ff0000) >> (2 * 8)), (char)((n & 0x0000ff00) >> (1 * 8)),
-                            (char)((n & 0x000000ff)), '\0' });
+    publish_event_binary (guild_id, event_binary, { s.begin (), s.end () });
 }
 
 static void
