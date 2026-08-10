@@ -12,6 +12,7 @@ namespace managed
 {
 
 void on_thread_done ();
+void shutdown ();
 
 } // namespace managed
 

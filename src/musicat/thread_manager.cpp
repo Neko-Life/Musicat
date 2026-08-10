@@ -28,23 +28,13 @@ void
 dispatch (std::thread &t)
 {
     if (!get_running_state ())
-        {
-            std::cerr << "[ERROR] Shouldn't spawn new thread when exiting, "
-                         "detaching this one while you fix the code! "
-                      << t.get_id () << '\n';
-
-            t.detach ();
-
-            return;
-        }
+        std::cerr << "[WARN] Shouldn't spawn new thread when exiting! " << t.get_id () << '\n';
 
     const bool debug = get_debug_state ();
     std::lock_guard lk (_ns_mutex);
 
     if (debug)
-        {
-            std::cerr << "[INFO] New thread spawned: " << t.get_id () << "\n";
-        }
+        std::cerr << "[INFO] New thread spawned: " << t.get_id () << "\n";
 
     thread_data td = { std::move (t), false };
 

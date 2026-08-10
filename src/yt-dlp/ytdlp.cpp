@@ -1,3 +1,4 @@
+#include <mutex>
 #ifdef MUSICAT_WITH_PYTHON
 
 #define PY_SSIZE_T_CLEAN
@@ -140,9 +141,10 @@ struct py_interpreter_t
 {
     PyInterpreterState *state;
     PyThreadState *thread_state;
+    std::mutex mutex;
 
-    bool is_main;
-    bool is_acquired;
+    std::atomic<bool> is_main;
+    std::atomic<bool> is_acquired;
 
     py_interpreter_t () : state (nullptr), thread_state (nullptr), is_main (false), is_acquired (false) {}
     py_interpreter_t (PyInterpreterState *_state, PyThreadState *_thread_state, bool _is_main, bool _is_acquired)
@@ -150,12 +152,22 @@ struct py_interpreter_t
     {
     }
 
+    py_interpreter_t (const py_interpreter_t &) = delete;
+    py_interpreter_t &operator= (const py_interpreter_t &) = delete;
+
     ~py_interpreter_t () { destroy (); }
+
+    [[nodiscard]] std::lock_guard<std::mutex>
+    get_lock ()
+    {
+        return std::lock_guard<std::mutex>{ mutex };
+    }
 
     void
     acquire ()
     {
-        if (!thread_state || is_acquired)
+        auto lk = get_lock ();
+        if (!global_initialized || !thread_state || is_acquired)
             return;
 
         PyEval_AcquireThread (thread_state);
@@ -165,7 +177,8 @@ struct py_interpreter_t
     void
     release ()
     {
-        if (!thread_state || !is_acquired)
+        auto lk = get_lock ();
+        if (!global_initialized || !thread_state || !is_acquired)
             return;
         PyEval_ReleaseThread (thread_state);
         is_acquired = false;
@@ -174,8 +187,21 @@ struct py_interpreter_t
     void
     destroy ()
     {
+        mutex.lock ();
+        if (global_initialized && thread_state && is_acquired && thread_state != PyThreadState_GetUnchecked ())
+            {
+                mutex.unlock ();
+                // another thread is destroying us while we're acquired, wait until interpreter done its works
+                while (is_acquired)
+                    sleep (1);
+            }
+        else
+            mutex.unlock ();
+
         acquire ();
-        if (global_initialized && thread_state && thread_state == PyThreadState_GetUnchecked ())
+
+        auto lk = get_lock ();
+        if (global_initialized && thread_state)
             Py_EndInterpreter (thread_state);
 
         state = nullptr;
@@ -440,8 +466,7 @@ create_interpreter ()
     // restore and delete it, after this call tstate is detached
     release_thread (cur_tstate);
 
-    py_interpreter_t *p = new py_interpreter_t{ interp_state, tstate, false, false };
-    auto i = std::unique_ptr<py_interpreter_t> (p);
+    auto i = std::make_unique<py_interpreter_t> (interp_state, tstate, false, false);
     i->acquire ();
 
     return std::move (i);
@@ -474,6 +499,22 @@ get_context ()
 }
 
 void
+shutdown ()
+{
+    auto lk = contexts.acquire ();
+    if (!contexts.get ().empty ())
+        contexts.get ().clear ();
+
+    if (main_interpreter)
+        {
+            main_interpreter->acquire ();
+            Py_FinalizeEx ();
+            global_initialized = false;
+            main_interpreter.reset ();
+        }
+}
+
+void
 on_thread_done ()
 {
     auto lk = contexts.acquire ();
@@ -481,15 +522,10 @@ on_thread_done ()
     if (i == contexts.get ().end ())
         return;
     // destroy
-    i->second->interpreter->destroy ();
     contexts.get ().erase (i);
 
     if (contexts.get ().empty ())
-        {
-            main_interpreter.reset ();
-            Py_FinalizeEx ();
-            global_initialized = false;
-        }
+        shutdown ();
 }
 
 } // namespace managed

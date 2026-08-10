@@ -943,6 +943,9 @@ run (int argc, const char *argv[])
     client_ptr = nullptr;
     r_s = false;
 
+#ifdef MUSICAT_WITH_PYTHON
+    ytdlp::managed::shutdown ();
+#endif // MUSICAT_WITH_PYTHON
     thread_manager::join_all ();
     database::shutdown ();
 
