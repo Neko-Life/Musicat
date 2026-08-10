@@ -8,7 +8,7 @@ namespace musicat::command::plsletmecontrolthedashboardeventhoughimnotinthevc
 dpp::slashcommand
 get_register_obj (const dpp::snowflake &sha_id)
 {
-    return dpp::slashcommand ("plsletmecontrolthedashboardeventhoughimnotinthevc", "Self descripted", sha_id);
+    return dpp::slashcommand ("lemmecontrolthedashboard", "Self descripted", sha_id);
 }
 
 void
