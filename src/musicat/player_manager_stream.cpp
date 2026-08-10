@@ -98,7 +98,6 @@ calculate_track_progress (guild_player_t *guild_player, ssize_t *send_buffer_len
     int64_t add
         = (int64_t)((double)((float)((float)*send_buffer_length / (samp_calc * 2 * 2) * 1000) * opus_byte_per_ms) * guild_player->tempo);
     guild_player->current_track.current_byte += add;
-    server::ws::player::publish_progress (guild_player->guild_id, guild_player->current_track.current_byte / opus_byte_per_ms);
 }
 
 #ifdef USING_STREAM_CODEC
@@ -493,6 +492,7 @@ class stream_ctx
         while ((read_size = out.size () * sizeof (uint16_t)) >= ENCODE_BUFFER_SIZE);
 #endif
 
+        server::ws::player::publish_progress (guild_player->guild_id, guild_player->current_track.current_byte / opus_byte_per_ms);
         if (debug)
             {
                 encode_end = std::chrono::high_resolution_clock::now ();
