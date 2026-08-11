@@ -441,7 +441,12 @@ class stream_ctx
             }
 
         if (ret == AVERROR_EOF || ret < 0)
-            return -1;
+            {
+                // signal eof to muxer
+                if ((ret = streamc.write_packet (NULL)) != 0)
+                    fprintf (stderr, "[stream_ctx::run WARN] streamc.write_packet(EOF) returned (%d)\n", ret);
+                return -1;
+            }
 
         buffer = (uint8_t *)pkt->data;
         current_read = pkt->size;
@@ -452,7 +457,7 @@ class stream_ctx
         SEND_AUDIO_ROUTINE ();
 
         if ((ret = streamc.write_packet (pkt)) != 0)
-            fprintf (stderr, "[stream_ctx::run WARN] streamc.write_packet returned (%d)\n", ret);
+            fprintf (stderr, "[stream_ctx::run WARN] streamc.write_packet(pkt) returned (%d)\n", ret);
 
 #elif defined(USING_LIBOPUSENC)
         int ret = dec.process_frame (out);
