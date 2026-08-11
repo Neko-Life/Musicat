@@ -361,20 +361,12 @@ guild_player_t::remove_track_by_user (const dpp::snowflake &user_id)
 }
 
 bool
-guild_player_t::pause (dpp::discord_client *from, const dpp::snowflake &user_id)
+guild_player_t::pause (const dpp::snowflake &user_id)
 {
-    auto *v = get_voice_conn ();
-    if (v && v->voiceclient && !v->voiceclient->is_paused ())
+    auto *v = get_voice_client ();
+    if (v && !v->is_paused ())
         {
-            // !TODO: refactor to use status code!
-            auto u = get_voice_from_gid (guild_id, user_id);
-            if (!u.first)
-                throw exception ("You're not in a voice channel", 1);
-
-            if (u.first->id != v->channel_id)
-                throw exception ("You're not in my voice channel", 0);
-
-            v->voiceclient->pause_audio (true);
+            v->pause_audio (true);
             // Paused
             server::ws::player::publish_pause (guild_id);
             return true;

@@ -157,13 +157,13 @@ get_queue (const dpp::snowflake &guild_id)
 }
 
 bool
-pause (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool _update_info_embed)
+pause (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool _update_info_embed)
 {
     auto guild_player = get_player (guild_id);
     if (!guild_player)
         return false;
 
-    bool a = guild_player->pause (from, user_id);
+    bool a = guild_player->pause (user_id);
 
     if (!a)
         return a;

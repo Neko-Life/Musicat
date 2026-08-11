@@ -321,7 +321,7 @@ struct guild_player_t
 
     size_t remove_track_by_user (const dpp::snowflake &user_id);
 
-    bool pause (dpp::discord_client *from, const dpp::snowflake &user_id);
+    bool pause (const dpp::snowflake &user_id);
 
     bool shuffle (bool _update_info_embed = true);
 

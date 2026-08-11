@@ -76,30 +76,13 @@ handle_pause (const nlohmann::json &data, uws_ws_t *ws)
     if (ret < 0)
         return ret;
 
-    auto *from = guild_player->get_client ();
-    // this should never happen
-    if (!from)
+    auto *sdata = ws->getUserData ();
+
+    if (!::musicat::player::manager::pause (sdata->server_id, sdata->user_id))
         {
-            nlohmann::json d = nlohmann::json::object ({ { "e", SOCKET_EVENT_ERROR }, { "d", "Guild have no managing client" } });
-            ws->send (d.dump ());
+            nlohmann::json d2 = nlohmann::json::object ({ { "e", SOCKET_EVENT_PAUSE }, { "d", nullptr } });
+            ws->send (d2.dump ());
         }
-
-    if (from)
-        {
-            try
-                {
-                    auto *sdata = ws->getUserData ();
-
-                    ::musicat::player::manager::pause (from, sdata->server_id, sdata->user_id);
-                    return 0;
-                }
-            catch (...)
-                {
-                }
-        }
-
-    nlohmann::json d2 = nlohmann::json::object ({ { "e", SOCKET_EVENT_PAUSE }, { "d", nullptr } });
-    ws->send (d2.dump ());
 
     return 0;
 }

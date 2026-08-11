@@ -1,5 +1,7 @@
-#include "musicat/cmds/pause.h"
+#include "musicat/player.h"
+
 #include "musicat/cmds.h"
+#include "musicat/cmds/pause.h"
 #include "musicat/musicat.h"
 
 namespace musicat::command::pause
@@ -20,17 +22,17 @@ run (dpp::discord_client *from, const dpp::snowflake &user_id, const dpp::snowfl
             return 1;
         }
 
-    try
+    auto guild_player = player::manager::get_player (guild_id);
+    if (guild_player && !guild_player->user_in_the_same_vc (user_id))
         {
-            if (player::manager::pause (from, guild_id, user_id, update_embed))
-                out = "Paused";
-            else
-                out = "I'm not playing anything";
+            out = "You're not in my voice channel!";
+            return 1;
         }
-    catch (const exception &e)
-        {
-            out = e.what ();
-        }
+
+    if (player::manager::pause (guild_id, user_id, update_embed))
+        out = "Paused";
+    else
+        out = "I'm not playing anything";
 
     return 1;
 }
@@ -42,9 +44,7 @@ slash_run (const dpp::slashcommand_t &event)
     int status = run (event.from (), event.command.usr.id, event.command.guild_id, out);
 
     if (status == 1)
-        {
-            event.reply (out);
-        }
+        event.reply (out);
 }
 
 void

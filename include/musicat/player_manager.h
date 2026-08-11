@@ -100,14 +100,13 @@ std::deque<MCTrack> get_queue (const dpp::snowflake &guild_id);
 /**
  * @brief Manually pause guild player
  *
- * @param from
  * @param guild_id
  * @param user_id
  * @return true
  * @return false
  * @throw musicat::exception
  */
-bool pause (dpp::discord_client *from, const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool _update_info_embed = true);
+bool pause (const dpp::snowflake &guild_id, const dpp::snowflake &user_id, bool _update_info_embed = true);
 void unpause (dpp::discord_voice_client *voiceclient, const dpp::snowflake &guild_id, bool _update_info_embed = true);
 
 bool is_disconnecting (const dpp::snowflake &guild_id);
