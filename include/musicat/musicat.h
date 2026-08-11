@@ -20,8 +20,7 @@ struct musicat_cluster_params_t
     uint32_t maxclusters;
     bool compressed;
     dpp::cache_policy_t policy;
-    uint32_t request_threads;
-    uint32_t request_threads_raw;
+    uint32_t pool_threads;
 };
 
 template <typename T> struct exclusive_container

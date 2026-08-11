@@ -796,16 +796,23 @@ run (int argc, const char *argv[])
     // make fetching guild members to be lazy
     conf_cache_policy.user_policy = dpp::cp_lazy;
 
-    const musicat_cluster_params_t cluster_params = { sha_token, dpp::i_guild_members | dpp::i_default_intents,
-#ifdef SHARD_TEST
-                                                      20,
-#else
-                                                      0,
-#endif
-                                                      0,         1,
-                                                      true,      conf_cache_policy,
+    const auto hw_concurrency = std::thread::hardware_concurrency ();
 
-                                                      12,        4 };
+    const musicat_cluster_params_t cluster_params = {
+        .token = sha_token,
+        .intents = dpp::i_guild_members | dpp::i_default_intents,
+#ifdef SHARD_TEST
+        .shards = 20,
+#else
+        .shards = 0,
+#endif
+        // !TODO: make this cli arg?
+        .cluster_id = 0,
+        .maxclusters = 1,
+        .compressed = true,
+        .policy = conf_cache_policy,
+        .pool_threads = hw_concurrency + /* plus ytdlp concurrency, it's mostly only wait on http responses */ 8,
+    };
 
 #ifdef MUSICAT_WITH_PYTHON
     ytdlp::set_init_params (argv[0], "", get_ytdlp_lib_path ());
@@ -813,8 +820,8 @@ run (int argc, const char *argv[])
 
     if (argc > 1)
         {
-            dpp::cluster client (cluster_params.token, cluster_params.intents, 0, cluster_params.cluster_id,
-                                 cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
+            dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
+                                 cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy, cluster_params.pool_threads);
 
             client.start (dpp::st_return);
 
@@ -875,10 +882,10 @@ run (int argc, const char *argv[])
     // initialize cluster here since constructing cluster
     // also spawns threads
     dpp::cluster client (cluster_params.token, cluster_params.intents, cluster_params.shards, cluster_params.cluster_id,
-                         cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy);
+                         cluster_params.maxclusters, cluster_params.compressed, cluster_params.policy, cluster_params.pool_threads);
 
-    auto stream_thread_count = std::thread::hardware_concurrency () / 2;
-    player::manager::spawn_stream_thread (stream_thread_count == 0 ? 1 : stream_thread_count);
+    const auto stream_thread_count = hw_concurrency;
+    player::manager::spawn_stream_thread (stream_thread_count);
 
     client_ptr = &client;
 
