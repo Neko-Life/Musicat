@@ -127,9 +127,13 @@ add_custom_target(archlinux-dist
 		src/yt-dlp/ytdlp.py
 		archlinux-dist
 
-	COMMAND cp -r libs/yt-dlp
-		src/yt-dlp/utils
+	COMMAND cp -r src/yt-dlp/utils
 		archlinux-dist
+
+	COMMAND rm archlinux-dist/yt-dlp
+
+	COMMAND ln -s ../libs/yt-dlp/
+		archlinux-dist/
 
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	DEPENDS archlinux-dist-folder Shasha)
