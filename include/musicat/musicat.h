@@ -2,6 +2,7 @@
 #define MUSICAT_H
 
 #include "nekos-best++.hpp"
+#include <ctime>
 #include <dpp/dpp.h>
 #include <string>
 #include <vector>

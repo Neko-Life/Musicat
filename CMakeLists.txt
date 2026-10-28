@@ -35,6 +35,23 @@ list(JOIN  RM_NLOHMANN_JSON_INCLUDE_CMD " " RM_NLOHMANN_JSON_INCLUDE_CMD_STR)
 message("-- Executing '${RM_NLOHMANN_JSON_INCLUDE_CMD_STR}'")
 execute_process(COMMAND ${RM_NLOHMANN_JSON_INCLUDE_CMD})
 
+# for some reason these stupid includes are missing
+set(NEW_SED_CMD "sed" "-i" "s/^#include <dpp\\/export.h>$/#include <ctime>\\n#include <dpp\\/export.h> /" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/include/dpp/utility.h")
+list(JOIN NEW_SED_CMD " " NEW_SED_CMD_STR)
+message("-- Executing '${NEW_SED_CMD_STR}'")
+execute_process(COMMAND ${NEW_SED_CMD})
+
+set(NEW_SED_CMD "sed" "-i" "s/^#include \"mls\\/common.h\"$/#include <ctime>\\n#include \"mls\\/common.h\" /" "${CMAKE_CURRENT_SOURCE_DIR}/libs/DPP/mlspp/src/common.cpp")
+list(JOIN NEW_SED_CMD " " NEW_SED_CMD_STR)
+message("-- Executing '${NEW_SED_CMD_STR}'")
+execute_process(COMMAND ${NEW_SED_CMD})
+
+set(NEW_SED_CMD "sed" "-i" "s/^#include <cstdint>$/#include <cstdlib>\\n#include <cstdint> /" "${CMAKE_CURRENT_SOURCE_DIR}/libs/uWebSockets/src/PerMessageDeflate.h")
+list(JOIN NEW_SED_CMD " " NEW_SED_CMD_STR)
+message("-- Executing '${NEW_SED_CMD_STR}'")
+execute_process(COMMAND ${NEW_SED_CMD})
+
+
 
 # globally include nlohmann
 include_directories(include)
